@@ -1,0 +1,62 @@
+@import "tailwindcss";
+
+body {
+  margin: 0;
+  padding: 0;
+  background: #09090b;
+  color: #fafafa;
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* React Flow overrides for dark theme */
+.react-flow__panel {
+  margin: 8px !important;
+}
+
+.react-flow__minimap {
+  background: #18181b !important;
+  border: 1px solid #3f3f46 !important;
+  border-radius: 4px !important;
+}
+
+.react-flow__controls button {
+  background: #27272a !important;
+  border-color: #3f3f46 !important;
+  color: #a1a1aa !important;
+  fill: #a1a1aa !important;
+}
+
+.react-flow__controls button:hover {
+  background: #3f3f46 !important;
+}
+
+.react-flow__controls button svg {
+  fill: currentColor !important;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #3f3f46;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #52525b;
+}
+
+/* Select element styling for dark theme */
+select option {
+  background: #18181b;
+  color: #d4d4d8;
+}
