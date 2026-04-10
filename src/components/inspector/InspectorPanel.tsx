@@ -3,14 +3,22 @@ import { ImagePickerPanel } from '../graph/ImagePickerPanel';
 import { useHarnessStore } from '../../store';
 import type {
   Enclosure,
-  PCB,
   Connector,
   Pin,
   Wire,
   Signal,
   ConnectorType,
+  TextBoxLayout,
+  TextBoxFontFamily,
+  TextBoxFontWeight,
+  TextBoxTextAlign,
 } from '../../types';
-import { getSignalColor } from '../../lib/colors';
+import {
+  getWireAppearance,
+  getWireBackground,
+  getWireBorderColor,
+  type WireAppearance,
+} from '../../lib/colors';
 import {
   getConnectorEnclosure,
   getEnclosureConnectors,
@@ -130,6 +138,37 @@ function PropertyRow({ label, value }: { label: string; value: string }) {
   );
 }
 
+function WireColorSwatch({
+  appearance,
+  className = 'w-2 h-2 rounded-full',
+}: {
+  appearance: WireAppearance | null;
+  className?: string;
+}) {
+  if (appearance?.kind === 'striped' && appearance.colors.length >= 2) {
+    return (
+      <span className="inline-flex shrink-0 gap-px">
+        {appearance.colors.slice(0, 2).map((color, i) => (
+          <span
+            key={i}
+            className={`inline-block border ${className}`}
+            style={{ background: color, borderColor: color }}
+          />
+        ))}
+      </span>
+    );
+  }
+  return (
+    <span
+      className={`inline-block shrink-0 border ${className}`}
+      style={{
+        background: getWireBackground(appearance),
+        borderColor: getWireBorderColor(appearance),
+      }}
+    />
+  );
+}
+
 function ParentLink({ parentId }: { parentId: string }) {
   const selectItem = useHarnessStore((s) => s.selectItem);
   const harness = useHarnessStore((s) => s.harness);
@@ -137,13 +176,11 @@ function ParentLink({ parentId }: { parentId: string }) {
   if (!harness) return null;
 
   const enc = harness.enclosures.find((e) => e.id === parentId);
-  const pcb = harness.pcbs.find((p) => p.id === parentId);
-  const name = enc?.name ?? pcb?.name ?? parentId;
-  const type = enc ? 'enclosure' : pcb ? 'pcb' : 'enclosure';
+  const name = enc?.name ?? parentId;
 
   return (
     <button
-      onClick={() => selectItem({ type, id: parentId })}
+      onClick={() => selectItem({ type: 'enclosure', id: parentId })}
       className="text-[11px] text-amber-400 hover:text-amber-300 underline underline-offset-2"
     >
       {name}
@@ -249,7 +286,7 @@ function WireStatusEditor({ wireId, tags }: { wireId: string; tags: string[] }) 
   );
 }
 
-function SignalInfo({ signalName }: { signalName: string }) {
+function SignalInfo({ signalName, appearance }: { signalName: string; appearance?: WireAppearance | null }) {
   const harness = useHarnessStore((s) => s.harness);
   if (!harness) return null;
 
@@ -258,20 +295,45 @@ function SignalInfo({ signalName }: { signalName: string }) {
   );
   if (!signal) return null;
 
+  const typeTags = signal.tags
+    .filter((t) => t.includes(':'))
+    .map((t) => ({ ns: t.slice(0, t.indexOf(':')), val: t.slice(t.indexOf(':') + 1) }));
+  const otherTags = signal.tags.filter((t) => !t.includes(':'));
+
   return (
     <div className="mt-2 pt-2 border-t border-zinc-700/50">
-      <div className="flex items-center gap-1.5 mb-1">
-        <span
-          className="w-2 h-2 rounded-full inline-block"
-          style={{ background: getSignalColor(signalName) }}
-        />
+      <div className="flex items-center gap-1.5 mb-1.5">
+        <WireColorSwatch appearance={appearance ?? null} className="w-2 h-2 rounded-full" />
         <span className="text-[10px] text-zinc-400 font-medium">
           Signal: {signal.name}
         </span>
       </div>
-      {Object.entries(signal.properties).map(([key, value]) => (
-        <PropertyRow key={key} label={key} value={value} />
-      ))}
+      {typeTags.length > 0 && (
+        <div className="flex flex-wrap gap-1 mb-1">
+          {typeTags.map(({ ns, val }) => (
+            <span
+              key={`${ns}:${val}`}
+              className="text-[9px] px-1.5 py-px rounded bg-zinc-700/60 text-zinc-400"
+            >
+              <span className="text-zinc-500">{ns}:</span>
+              {val}
+            </span>
+          ))}
+          {otherTags.map((t) => (
+            <span
+              key={t}
+              className="text-[9px] px-1.5 py-px rounded bg-zinc-700/60 text-zinc-400"
+            >
+              {t}
+            </span>
+          ))}
+        </div>
+      )}
+      {Object.entries(signal.properties)
+        .filter(([key]) => !key.startsWith('_'))
+        .map(([key, value]) => (
+          <PropertyRow key={key} label={key} value={value} />
+        ))}
     </div>
   );
 }
@@ -351,6 +413,9 @@ function PinoutTable({
     const signal =
       pin?.tags.find((t) => t.startsWith('signal:'))?.slice(7) ?? null;
 
+    const firstWire = wires[0];
+    const wireAppearance = firstWire ? getWireAppearance(firstWire) : null;
+
     const connections = wires.map((wire) => {
       const otherPinId =
         wire.from === pin!.id ? wire.to : wire.from;
@@ -373,7 +438,7 @@ function PinoutTable({
       };
     });
 
-    rows.push({ pinNumber: i, pin, signal, connections });
+    rows.push({ pinNumber: i, pin, signal, wireAppearance, connections });
   }
 
   return (
@@ -418,12 +483,7 @@ function PinoutTable({
               <td className="py-0.5 px-1">
                 {row.signal ? (
                   <span className="flex items-center gap-1">
-                    <span
-                      className="w-1.5 h-1.5 rounded-full inline-block shrink-0"
-                      style={{
-                        background: getSignalColor(row.signal),
-                      }}
-                    />
+                    <WireColorSwatch appearance={row.wireAppearance ?? null} className="w-1.5 h-1.5 rounded-full" />
                     <span className="text-zinc-300">{row.signal}</span>
                   </span>
                 ) : (
@@ -484,10 +544,12 @@ function BundleInspector({ wireIds }: { wireIds: string[] }) {
 
   if (wires.length === 0) return null;
 
-  const signals = new Set<string>();
+  const signalAppearances = new Map<string, WireAppearance>();
   for (const w of wires) {
     const sig = w.tags.find((t) => t.startsWith('signal:'))?.slice(7);
-    if (sig) signals.add(sig);
+    if (sig && !signalAppearances.has(sig)) {
+      signalAppearances.set(sig, getWireAppearance(w));
+    }
   }
 
   return (
@@ -501,17 +563,14 @@ function BundleInspector({ wireIds }: { wireIds: string[] }) {
         </span>
       </div>
 
-      {signals.size > 0 && (
+      {signalAppearances.size > 0 && (
         <div className="flex flex-wrap gap-1 mb-2">
-          {[...signals].map((sig) => (
+          {[...signalAppearances.entries()].map(([sig, appearance]) => (
             <span
               key={sig}
               className="flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded bg-zinc-700/60"
             >
-              <span
-                className="w-1.5 h-1.5 rounded-full inline-block"
-                style={{ background: getSignalColor(sig) }}
-              />
+              <WireColorSwatch appearance={appearance} className="w-1.5 h-1.5 rounded-full" />
               <span className="text-zinc-300">{sig}</span>
             </span>
           ))}
@@ -539,6 +598,7 @@ function BundleInspector({ wireIds }: { wireIds: string[] }) {
           const sig = wire.tags
             .find((t) => t.startsWith('signal:'))
             ?.slice(7);
+          const appearance = getWireAppearance(wire);
 
           return (
             <button
@@ -549,14 +609,12 @@ function BundleInspector({ wireIds }: { wireIds: string[] }) {
               className="w-full text-left p-1.5 rounded bg-zinc-800/50 hover:bg-zinc-800 border border-zinc-700/30 transition-colors"
             >
               <div className="flex items-center gap-1.5">
-                {sig && (
-                  <span
-                    className="w-1.5 h-1.5 rounded-full inline-block shrink-0"
-                    style={{ background: getSignalColor(sig) }}
-                  />
-                )}
+                <WireColorSwatch appearance={appearance} className="w-2 h-2 rounded-full" />
                 <span className="text-[10px] text-zinc-300 font-medium">
                   {sig ?? wire.id}
+                </span>
+                <span className="text-[9px] text-zinc-500 ml-auto">
+                  {appearance.label}
                 </span>
               </div>
               <div className="text-[9px] text-zinc-500 mt-0.5">
@@ -573,79 +631,257 @@ function BundleInspector({ wireIds }: { wireIds: string[] }) {
   );
 }
 
-function ConnectorInspector({ con }: { con: Connector }) {
+function EnclosureInspector({ enc }: { enc: Enclosure }) {
   const harness = useHarnessStore((s) => s.harness);
-  const connectorLibrary = useHarnessStore((s) => s.connectorLibrary);
-  const updateConnectorTypeImage = useHarnessStore((s) => s.updateConnectorTypeImage);
+  const updateEnclosureProperty = useHarnessStore((s) => s.updateEnclosureProperty);
+  const selectItem = useHarnessStore((s) => s.selectItem);
+  const findPinOwner = useHarnessStore((s) => s.findPinOwner);
   const [imgPickerOpen, setImgPickerOpen] = useState(false);
   const closeImgPicker = useCallback(() => setImgPickerOpen(false), []);
 
   if (!harness) return null;
-  const parentPcb = harness.pcbs.find((p) => p.id === con.parent);
-  const derivedType = parentPcb ? 'Header' : 'Bulkhead';
+  const childEnclosures = harness.enclosures.filter((e) => e.parent === enc.id);
+  const allConnectors = getEnclosureConnectors(harness, enc.id);
+  const directConnectors = harness.connectors.filter((c) => c.parent === enc.id);
+  const encImage = enc.properties?.image as string | undefined;
+
+  let wireCount = 0;
+  for (const wire of harness.wires) {
+    const fromCon = findPinOwner(wire.from);
+    const toCon = findPinOwner(wire.to);
+    if (!fromCon || !toCon) continue;
+    const fromMatch = allConnectors.some((c) => c.id === fromCon.id);
+    const toMatch = allConnectors.some((c) => c.id === toCon.id);
+    if (fromMatch || toMatch) wireCount++;
+  }
+
+  return (
+    <>
+      <div className="flex items-center gap-2 mb-1">
+        <span className="text-sm font-bold text-zinc-100">{enc.name}</span>
+        <span className={`text-[9px] px-1.5 py-0.5 rounded ${enc.container ? 'bg-zinc-700 text-zinc-300' : 'bg-teal-900/60 text-teal-300'}`}>
+          {enc.container ? 'Container' : 'Surface'}
+        </span>
+      </div>
+      {enc.parent && <div className="mb-1"><ParentLink parentId={enc.parent} /></div>}
+
+      <div className="mb-2">
+        {encImage ? (
+          <div className="rounded overflow-hidden border border-zinc-700/60 bg-zinc-800">
+            <img src={`/img-assets/${encImage}`} alt={enc.name} className="w-full object-contain" style={{ maxHeight: 130 }} />
+          </div>
+        ) : (
+          <div className="rounded border border-dashed border-zinc-700 bg-zinc-800/40 flex items-center justify-center text-[10px] text-zinc-600 italic" style={{ height: 52 }}>
+            No image
+          </div>
+        )}
+        <div className="mt-1 relative">
+          <button onClick={() => setImgPickerOpen((p) => !p)} className="w-full text-[10px] text-zinc-400 hover:text-zinc-200 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded py-0.5 transition-colors">
+            {encImage ? '⇄ Change image' : '+ Set image'}
+          </button>
+          {encImage && (
+            <button onClick={() => updateEnclosureProperty(enc.id, 'image', '')} className="absolute right-0 top-0 bottom-0 px-2 text-zinc-500 hover:text-red-400 text-[10px]" title="Remove">✕</button>
+          )}
+          {imgPickerOpen && (
+            <div className="absolute left-0 right-0 z-50" style={{ top: '100%' }}>
+              <ImagePickerPanel onPick={(f) => { updateEnclosureProperty(enc.id, 'image', f); setImgPickerOpen(false); }} onClose={closeImgPicker} />
+            </div>
+          )}
+        </div>
+      </div>
+
+      {Object.entries(enc.properties ?? {}).filter(([k]) => k !== 'image').map(([k, v]) => (
+        <PropertyRow key={k} label={k} value={v} />
+      ))}
+
+      <div className="mt-2 pt-2 border-t border-zinc-700/50">
+        <TagEditor entityType="enclosure" entityId={enc.id} tags={enc.tags} />
+      </div>
+
+      <div className="mt-2 pt-2 border-t border-zinc-700/50">
+        <div className="text-[10px] text-zinc-500 font-medium mb-1">Summary</div>
+        <div className="text-[11px] text-zinc-300 space-y-0.5">
+          {childEnclosures.length > 0 && <div>{childEnclosures.length} sub-enclosure{childEnclosures.length !== 1 ? 's' : ''}</div>}
+          <div>{allConnectors.length} connector{allConnectors.length !== 1 ? 's' : ''}</div>
+          <div>{wireCount} wire{wireCount !== 1 ? 's' : ''}</div>
+        </div>
+      </div>
+
+      {childEnclosures.length > 0 && (
+        <div className="mt-2 pt-2 border-t border-zinc-700/50">
+          <div className="text-[10px] text-zinc-500 font-medium mb-1">Sub-enclosures</div>
+          <div className="space-y-0.5">
+            {childEnclosures.map((child) => {
+              const childCons = harness.connectors.filter((c) => c.parent === child.id);
+              return (
+                <button
+                  key={child.id}
+                  onClick={() => selectItem({ type: 'enclosure', id: child.id })}
+                  className="w-full text-left flex items-center justify-between py-0.5 px-1.5 rounded hover:bg-zinc-800 transition-colors"
+                >
+                  <span className="text-[11px] text-amber-400 hover:text-amber-300">{child.name}</span>
+                  <span className="text-zinc-500 text-[10px]">{childCons.length} connector{childCons.length !== 1 ? 's' : ''}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      <div className="mt-2 pt-2 border-t border-zinc-700/50">
+        <div className="text-[10px] text-zinc-500 font-medium mb-1">Connectors</div>
+        {directConnectors.length === 0 ? (
+          <div className="text-[10px] text-zinc-600 italic">No connectors</div>
+        ) : (
+          <div className="space-y-0.5">
+            {directConnectors.map((c) => (
+              <button
+                key={c.id}
+                onClick={() => selectItem({ type: 'connector', id: c.id })}
+                className="w-full text-left flex items-center justify-between py-0.5 px-1.5 rounded hover:bg-zinc-800 transition-colors"
+              >
+                <span className="text-[11px] text-amber-400 hover:text-amber-300">{c.name}</span>
+                <span className="text-zinc-500 text-[10px]">{c.pins.length} pins</span>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    </>
+  );
+}
+
+function ConnectorInspector({ con }: { con: Connector }) {
+  const harness = useHarnessStore((s) => s.harness);
+  const connectorLibrary = useHarnessStore((s) => s.connectorLibrary);
+  const updateConnectorTypeImage = useHarnessStore((s) => s.updateConnectorTypeImage);
+  const updateConnectorTypeSideImage = useHarnessStore((s) => s.updateConnectorTypeSideImage);
+  const updateConnectorProperty = useHarnessStore((s) => s.updateConnectorProperty);
+  const [pinPickerOpen, setPinPickerOpen] = useState(false);
+  const [sidePickerOpen, setSidePickerOpen] = useState(false);
+  const [instanceImgPickerOpen, setInstanceImgPickerOpen] = useState(false);
+  const closePinPicker = useCallback(() => setPinPickerOpen(false), []);
+  const closeSidePicker = useCallback(() => setSidePickerOpen(false), []);
+  const closeInstanceImgPicker = useCallback(() => setInstanceImgPickerOpen(false), []);
+
+  if (!harness) return null;
   const ct = connectorLibrary?.connector_types.find((t) => t.id === con.connector_type);
 
   return (
     <>
       <div className="flex items-center gap-2 mb-1">
         <span className="text-sm font-bold text-zinc-100">{con.name}</span>
-        <span className={`text-[9px] px-1.5 py-0.5 rounded ${derivedType === 'Header' ? 'bg-teal-900/60 text-teal-300' : 'bg-zinc-700 text-zinc-300'}`}>
-          {derivedType}
+        <span className="text-[9px] px-1.5 py-0.5 rounded bg-zinc-700 text-zinc-300">
+          Connector
         </span>
       </div>
 
-      <div className="mb-2">
-        <ParentLink parentId={con.parent} />
-      </div>
+      {con.parent && (
+        <div className="mb-2">
+          <ParentLink parentId={con.parent} />
+        </div>
+      )}
 
-      {ct && (
-        <>
-          {/* Connector type image with picker */}
+      {(() => {
+        const instanceImg = con.properties?.image as string | undefined;
+        return (
           <div className="mb-2 relative">
-            {ct.image ? (
+            <div className="text-[9px] text-zinc-500 font-medium mb-1 uppercase tracking-wider">Connection box image</div>
+            {instanceImg ? (
               <div className="rounded overflow-hidden border border-zinc-700/60 bg-zinc-800">
-                <img
-                  src={`/connector-lib-photos/${ct.image}`}
-                  alt={ct.name}
-                  className="w-full object-contain"
-                  style={{ maxHeight: 130 }}
-                />
+                <img src={`/img-assets/${instanceImg}`} alt={con.name} className="w-full object-contain" style={{ maxHeight: 100 }} />
               </div>
             ) : (
-              <div className="rounded border border-dashed border-zinc-700 bg-zinc-800/40 flex items-center justify-center text-[10px] text-zinc-600 italic" style={{ height: 48 }}>
+              <div className="rounded border border-dashed border-zinc-700 bg-zinc-800/40 flex items-center justify-center text-[10px] text-zinc-600 italic" style={{ height: 44 }}>
                 No image
               </div>
             )}
             <div className="mt-1 relative">
               <button
-                onClick={() => setImgPickerOpen((p) => !p)}
+                onClick={() => setInstanceImgPickerOpen((p) => !p)}
                 className="w-full text-[10px] text-zinc-400 hover:text-zinc-200 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded py-0.5 transition-colors"
               >
-                {ct.image ? '⇄ Change image (all ' + ct.name + ')' : '+ Set image (all ' + ct.name + ')'}
+                {instanceImg ? '⇄ Change image' : '+ Set image'}
               </button>
-              {ct.image && (
+              {instanceImg && (
                 <button
-                  onClick={() => updateConnectorTypeImage(ct.id, '')}
+                  onClick={() => updateConnectorProperty(con.id, 'image', '')}
                   className="absolute right-0 top-0 bottom-0 px-2 text-zinc-500 hover:text-red-400 text-[10px]"
                   title="Remove image"
                 >
                   ✕
                 </button>
               )}
-              {imgPickerOpen && (
+              {instanceImgPickerOpen && (
                 <div className="absolute left-0 right-0 z-50" style={{ top: '100%' }}>
                   <ImagePickerPanel
-                    onPick={(filename) => { updateConnectorTypeImage(ct.id, filename); setImgPickerOpen(false); }}
-                    onClose={closeImgPicker}
-                    listEndpoint="/api/list-connector-assets"
-                    baseUrl="/connector-lib-photos/"
+                    onPick={(f) => { updateConnectorProperty(con.id, 'image', f); setInstanceImgPickerOpen(false); }}
+                    onClose={closeInstanceImgPicker}
                   />
                 </div>
               )}
             </div>
           </div>
+        );
+      })()}
 
-          <div className="text-[10px] text-zinc-400 mb-2 space-y-0.5">
+      {ct && (
+        <>
+          {/* Pin reading guide image */}
+          <div className="mb-2">
+            <div className="text-[9px] text-zinc-500 font-medium mb-1 uppercase tracking-wider">Pin guide</div>
+            {ct.image ? (
+              <div className="rounded overflow-hidden border border-zinc-700/60 bg-zinc-800">
+                <img src={`/connector-lib-photos/${ct.image}`} alt={ct.name} className="w-full object-contain" style={{ maxHeight: 120 }} />
+              </div>
+            ) : (
+              <div className="rounded border border-dashed border-zinc-700 bg-zinc-800/40 flex items-center justify-center text-[10px] text-zinc-600 italic" style={{ height: 40 }}>
+                No pin guide
+              </div>
+            )}
+            <div className="mt-1 relative">
+              <button onClick={() => setPinPickerOpen((p) => !p)} className="w-full text-[10px] text-zinc-400 hover:text-zinc-200 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded py-0.5 transition-colors">
+                {ct.image ? '⇄ Change' : '+ Set pin guide'}
+              </button>
+              {ct.image && (
+                <button onClick={() => updateConnectorTypeImage(ct.id, '')} className="absolute right-0 top-0 bottom-0 px-2 text-zinc-500 hover:text-red-400 text-[10px]" title="Remove">✕</button>
+              )}
+              {pinPickerOpen && (
+                <div className="absolute left-0 right-0 z-50" style={{ top: '100%' }}>
+                  <ImagePickerPanel onPick={(f) => { updateConnectorTypeImage(ct.id, f); setPinPickerOpen(false); }} onClose={closePinPicker} listEndpoint="/api/list-connector-assets" baseUrl="/connector-lib-photos/" />
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Side view image — shown on connector tabs in both views */}
+          <div className="mb-2">
+            <div className="text-[9px] text-zinc-500 font-medium mb-1 uppercase tracking-wider">Side view (on boxes)</div>
+            {ct.side_image ? (
+              <div className="rounded overflow-hidden border border-zinc-700/60 bg-zinc-800">
+                <img src={`/connector-lib-photos/${ct.side_image}`} alt="" className="w-full object-contain" style={{ maxHeight: 80 }} />
+              </div>
+            ) : (
+              <div className="rounded border border-dashed border-zinc-700 bg-zinc-800/40 flex items-center justify-center text-[10px] text-zinc-600 italic" style={{ height: 36 }}>
+                No side view
+              </div>
+            )}
+            <div className="mt-1 relative">
+              <button onClick={() => setSidePickerOpen((p) => !p)} className="w-full text-[10px] text-zinc-400 hover:text-zinc-200 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded py-0.5 transition-colors">
+                {ct.side_image ? '⇄ Change' : '+ Set side view'}
+              </button>
+              {ct.side_image && (
+                <button onClick={() => updateConnectorTypeSideImage(ct.id, '')} className="absolute right-0 top-0 bottom-0 px-2 text-zinc-500 hover:text-red-400 text-[10px]" title="Remove">✕</button>
+              )}
+              {sidePickerOpen && (
+                <div className="absolute left-0 right-0 z-50" style={{ top: '100%' }}>
+                  <ImagePickerPanel onPick={(f) => { updateConnectorTypeSideImage(ct.id, f); setSidePickerOpen(false); }} onClose={closeSidePicker} listEndpoint="/api/list-connector-assets" baseUrl="/connector-lib-photos/" />
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="text-[10px] text-zinc-400 mb-2 space-y-0.5 pb-2 border-b border-zinc-700/50">
             <div className="font-medium text-zinc-300">{ct.name}</div>
             <div className="flex gap-x-3 text-zinc-500">
               <span>{ct.crimp_spec}</span>
@@ -664,104 +900,304 @@ function ConnectorInspector({ con }: { con: Connector }) {
   );
 }
 
-function PCBInspector({ pcb }: { pcb: PCB }) {
-  const harness = useHarnessStore((s) => s.harness);
-  const selectItem = useHarnessStore((s) => s.selectItem);
-  const updatePcbProperty = useHarnessStore((s) => s.updatePcbProperty);
-  const [imgPickerOpen, setImgPickerOpen] = useState(false);
-  const closeImgPicker = useCallback(() => setImgPickerOpen(false), []);
+// ─── Text Box Inspector ──────────────────────────────────────────────────────
 
-  if (!harness) return null;
-  const pcbConnectors = harness.connectors.filter((c) => c.parent === pcb.id);
-  const pcbImage = pcb.properties?.image as string | undefined;
+const COLOR_PRESETS_DARK = [
+  '#0a0a0a', '#1e293b', '#172554', '#14532d', '#450a0a', '#27272a',
+  '#1c1917', '#0c0a09', '#1e1b4b', '#052e16', '#2d1515', '#18181b',
+];
+const COLOR_PRESETS_LIGHT = [
+  '#f8fafc', '#fef9c3', '#dbeafe', '#dcfce7', '#fee2e2', '#f4f4f5',
+  '#fef3c7', '#e0f2fe', '#d1fae5', '#fce7f3', '#ede9fe', '#ffffff',
+];
+
+function TbColorRow({
+  label,
+  value,
+  presets,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  presets: string[];
+  onChange: (v: string) => void;
+}) {
+  const [hex, setHex] = useState(value);
+  useEffect(() => { setHex(value); }, [value]);
+
+  return (
+    <div className="py-1">
+      <div className="flex items-center gap-2 mb-1.5">
+        <span className="text-[10px] text-zinc-500 w-16 shrink-0 text-right">{label}</span>
+        <label className="relative flex items-center gap-1.5 cursor-pointer flex-1">
+          <span
+            className="w-5 h-5 rounded border border-zinc-600 shrink-0 inline-block"
+            style={{ backgroundColor: value }}
+          />
+          <input
+            type="color"
+            value={value}
+            onChange={(e) => { setHex(e.target.value); onChange(e.target.value); }}
+            className="absolute opacity-0 left-0 top-0 w-5 h-5 cursor-pointer"
+          />
+          <input
+            type="text"
+            value={hex}
+            onChange={(e) => setHex(e.target.value)}
+            onBlur={() => {
+              if (/^#[0-9a-f]{6}$/i.test(hex)) onChange(hex);
+              else setHex(value);
+            }}
+            className="flex-1 text-[10px] font-mono px-1.5 py-0.5 bg-zinc-800 border border-zinc-700 rounded text-zinc-300 focus:border-amber-600 focus:outline-none"
+          />
+        </label>
+      </div>
+      <div className="flex gap-1 flex-wrap pl-[4.75rem]">
+        {presets.map((p) => (
+          <button
+            key={p}
+            title={p}
+            onClick={() => { setHex(p); onChange(p); }}
+            className="w-4 h-4 rounded border transition-all hover:scale-110"
+            style={{
+              backgroundColor: p,
+              borderColor: value === p ? '#f59e0b' : 'rgba(255,255,255,0.12)',
+            }}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function TbSliderRow({
+  label,
+  value,
+  min,
+  max,
+  step = 1,
+  unit = '',
+  onChange,
+}: {
+  label: string;
+  value: number;
+  min: number;
+  max: number;
+  step?: number;
+  unit?: string;
+  onChange: (v: number) => void;
+}) {
+  return (
+    <div className="flex items-center gap-2 py-0.5">
+      <span className="text-[10px] text-zinc-500 w-16 shrink-0 text-right">{label}</span>
+      <input
+        type="range"
+        min={min}
+        max={max}
+        step={step}
+        value={value}
+        onChange={(e) => onChange(Number(e.target.value))}
+        className="flex-1 h-1 accent-amber-500 cursor-pointer"
+      />
+      <span className="text-[10px] text-zinc-400 w-8 text-right tabular-nums shrink-0">
+        {value}{unit}
+      </span>
+    </div>
+  );
+}
+
+function TbSection({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="mt-2 pt-2 border-t border-zinc-700/50">
+      <div className="text-[10px] text-zinc-500 font-medium uppercase tracking-wider mb-1.5">{label}</div>
+      {children}
+    </div>
+  );
+}
+
+function TextBoxInspector({ tb }: { tb: TextBoxLayout }) {
+  const updateTextBox = useHarnessStore((s) => s.updateTextBox);
+  const removeTextBox = useHarnessStore((s) => s.removeTextBox);
+  const selectTextBox = useHarnessStore((s) => s.selectTextBox);
+  const [localText, setLocalText] = useState(tb.text);
+  useEffect(() => { setLocalText(tb.text); }, [tb.text]);
 
   return (
     <>
-      <div className="text-sm font-bold text-zinc-100 mb-1">{pcb.name}</div>
-      <div className="mb-2 flex items-center gap-2">
-        <span className="text-[10px] text-zinc-500">in</span>
-        <ParentLink parentId={pcb.parent} />
+      {/* Header */}
+      <div className="flex items-center justify-between mb-2">
+        <span className="text-sm font-bold text-zinc-100">Text Box</span>
+        <button
+          className="text-[10px] text-zinc-500 hover:text-red-400 transition-colors"
+          onClick={() => { removeTextBox(tb.id); selectTextBox(null); }}
+        >
+          Delete
+        </button>
       </div>
 
-      {/* PCB image */}
-      <div className="mb-2 relative">
-        {pcbImage ? (
-          <div className="rounded overflow-hidden border border-zinc-700/60 bg-zinc-800">
-            <img
-              src={`/img-assets/${pcbImage}`}
-              alt={pcb.name}
-              className="w-full object-contain"
-              style={{ maxHeight: 140 }}
-            />
-          </div>
-        ) : (
-          <div className="rounded border border-dashed border-zinc-700 bg-zinc-800/40 flex items-center justify-center text-[10px] text-zinc-600 italic" style={{ height: 56 }}>
-            No image
-          </div>
-        )}
-        <div className="mt-1 relative">
-          <button
-            onClick={() => setImgPickerOpen((p) => !p)}
-            className="w-full text-[10px] text-zinc-400 hover:text-zinc-200 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded py-0.5 transition-colors"
+      {/* Content */}
+      <TbSection label="Content">
+        <textarea
+          value={localText}
+          onChange={(e) => setLocalText(e.target.value)}
+          onBlur={() => updateTextBox(tb.id, { text: localText })}
+          rows={4}
+          placeholder="Type here…"
+          className="w-full text-[11px] px-2 py-1.5 bg-zinc-800 border border-zinc-700 rounded text-zinc-200 placeholder-zinc-600 focus:border-amber-600 focus:outline-none resize-none"
+        />
+      </TbSection>
+
+      {/* Colors */}
+      <TbSection label="Colors">
+        <TbColorRow
+          label="Background"
+          value={tb.bgColor}
+          presets={COLOR_PRESETS_DARK}
+          onChange={(v) => updateTextBox(tb.id, { bgColor: v })}
+        />
+        <TbColorRow
+          label="Text"
+          value={tb.textColor}
+          presets={COLOR_PRESETS_LIGHT}
+          onChange={(v) => updateTextBox(tb.id, { textColor: v })}
+        />
+      </TbSection>
+
+      {/* Typography */}
+      <TbSection label="Typography">
+        <TbSliderRow
+          label="Font size"
+          value={tb.fontSize}
+          min={8}
+          max={72}
+          step={1}
+          unit="px"
+          onChange={(v) => updateTextBox(tb.id, { fontSize: v })}
+        />
+
+        <div className="flex items-center gap-2 py-0.5">
+          <span className="text-[10px] text-zinc-500 w-16 shrink-0 text-right">Family</span>
+          <select
+            value={tb.fontFamily ?? 'sans'}
+            onChange={(e) => updateTextBox(tb.id, { fontFamily: e.target.value as TextBoxFontFamily })}
+            className="flex-1 text-[11px] px-1.5 py-0.5 bg-zinc-800 border border-zinc-700 rounded text-zinc-300 focus:border-amber-600 focus:outline-none"
           >
-            {pcbImage ? '⇄ Change image' : '+ Set image'}
-          </button>
-          {pcbImage && (
-            <button
-              onClick={() => updatePcbProperty(pcb.id, 'image', '')}
-              className="absolute right-0 top-0 bottom-0 px-2 text-zinc-500 hover:text-red-400 text-[10px]"
-              title="Remove image"
-            >
-              ✕
-            </button>
-          )}
-          {imgPickerOpen && (
-            <div className="absolute left-0 right-0 z-50" style={{ top: '100%' }}>
-              <ImagePickerPanel
-                onPick={(filename) => {
-                  updatePcbProperty(pcb.id, 'image', filename);
-                  setImgPickerOpen(false);
-                }}
-                onClose={closeImgPicker}
-              />
-            </div>
-          )}
+            <option value="sans">Sans-serif</option>
+            <option value="serif">Serif</option>
+            <option value="mono">Monospace</option>
+          </select>
         </div>
-      </div>
 
-      {Object.entries(pcb.properties)
-        .filter(([k]) => k !== 'image')
-        .map(([k, v]) => (
-          <PropertyRow key={k} label={k} value={v} />
-        ))}
-
-      <div className="mt-2 pt-2 border-t border-zinc-700/50">
-        <TagEditor entityType="pcb" entityId={pcb.id} tags={pcb.tags} />
-      </div>
-
-      <div className="mt-2 pt-2 border-t border-zinc-700/50">
-        <div className="text-[10px] text-zinc-500 font-medium mb-1.5">
-          Connectors ({pcbConnectors.length})
-        </div>
-        {pcbConnectors.length === 0 ? (
-          <div className="text-[10px] text-zinc-600 italic">No connectors</div>
-        ) : (
-          <div className="space-y-0.5">
-            {pcbConnectors.map((c) => (
+        <div className="flex items-center gap-2 py-0.5">
+          <span className="text-[10px] text-zinc-500 w-16 shrink-0 text-right">Weight</span>
+          <div className="flex gap-1 flex-1">
+            {(['normal', 'bold'] as TextBoxFontWeight[]).map((w) => (
               <button
-                key={c.id}
-                onClick={() => selectItem({ type: 'connector', id: c.id })}
-                className="w-full text-left flex items-center justify-between py-0.5 px-1.5 rounded hover:bg-zinc-800 transition-colors"
+                key={w}
+                onClick={() => updateTextBox(tb.id, { fontWeight: w })}
+                className={`flex-1 text-[10px] py-0.5 rounded border transition-colors capitalize ${
+                  (tb.fontWeight ?? 'normal') === w
+                    ? 'border-amber-500 text-amber-400 bg-amber-900/20'
+                    : 'border-zinc-700 text-zinc-400 hover:border-zinc-500 hover:text-zinc-200'
+                }`}
               >
-                <span className="text-[11px] text-amber-400 hover:text-amber-300 font-mono">
-                  {c.name}
-                </span>
-                <span className="text-[10px] text-zinc-500">{c.pins.length} pins</span>
+                {w}
               </button>
             ))}
           </div>
+        </div>
+
+        <div className="flex items-center gap-2 py-0.5">
+          <span className="text-[10px] text-zinc-500 w-16 shrink-0 text-right">Align</span>
+          <div className="flex gap-1 flex-1">
+            {([['left', '⬅'], ['center', '↔'], ['right', '➡']] as [TextBoxTextAlign, string][]).map(([a, icon]) => (
+              <button
+                key={a}
+                onClick={() => updateTextBox(tb.id, { textAlign: a })}
+                title={a}
+                className={`flex-1 text-[11px] py-0.5 rounded border transition-colors ${
+                  (tb.textAlign ?? 'left') === a
+                    ? 'border-amber-500 text-amber-400 bg-amber-900/20'
+                    : 'border-zinc-700 text-zinc-400 hover:border-zinc-500 hover:text-zinc-200'
+                }`}
+              >
+                {icon}
+              </button>
+            ))}
+          </div>
+        </div>
+      </TbSection>
+
+      {/* Border */}
+      <TbSection label="Border">
+        <TbSliderRow
+          label="Width"
+          value={tb.borderWidth ?? 0}
+          min={0}
+          max={8}
+          unit="px"
+          onChange={(v) => updateTextBox(tb.id, { borderWidth: v })}
+        />
+        <TbSliderRow
+          label="Radius"
+          value={tb.borderRadius ?? 4}
+          min={0}
+          max={32}
+          unit="px"
+          onChange={(v) => updateTextBox(tb.id, { borderRadius: v })}
+        />
+        {(tb.borderWidth ?? 0) > 0 && (
+          <TbColorRow
+            label="Color"
+            value={tb.borderColor ?? '#4b5563'}
+            presets={COLOR_PRESETS_LIGHT}
+            onChange={(v) => updateTextBox(tb.id, { borderColor: v })}
+          />
         )}
-      </div>
+      </TbSection>
+
+      {/* Layout */}
+      <TbSection label="Layout">
+        <TbSliderRow
+          label="Padding"
+          value={tb.padding ?? 10}
+          min={0}
+          max={40}
+          unit="px"
+          onChange={(v) => updateTextBox(tb.id, { padding: v })}
+        />
+        <TbSliderRow
+          label="Opacity"
+          value={Math.round((tb.opacity ?? 1) * 100)}
+          min={10}
+          max={100}
+          unit="%"
+          onChange={(v) => updateTextBox(tb.id, { opacity: v / 100 })}
+        />
+        <div className="flex items-start gap-2 py-0.5 mt-0.5">
+          <span className="text-[10px] text-zinc-500 w-16 shrink-0 text-right">Size</span>
+          <div className="flex gap-1.5 flex-1">
+            <div className="flex items-center gap-1">
+              <span className="text-[9px] text-zinc-600">W</span>
+              <input
+                type="number"
+                value={Math.round(tb.w)}
+                onChange={(e) => updateTextBox(tb.id, { w: Number(e.target.value) })}
+                className="w-14 text-[10px] font-mono px-1.5 py-0.5 bg-zinc-800 border border-zinc-700 rounded text-zinc-300 focus:border-amber-600 focus:outline-none"
+              />
+            </div>
+            <div className="flex items-center gap-1">
+              <span className="text-[9px] text-zinc-600">H</span>
+              <input
+                type="number"
+                value={Math.round(tb.h)}
+                onChange={(e) => updateTextBox(tb.id, { h: Number(e.target.value) })}
+                className="w-14 text-[10px] font-mono px-1.5 py-0.5 bg-zinc-800 border border-zinc-700 rounded text-zinc-300 focus:border-amber-600 focus:outline-none"
+              />
+            </div>
+          </div>
+        </div>
+      </TbSection>
     </>
   );
 }
@@ -769,16 +1205,41 @@ function PCBInspector({ pcb }: { pcb: PCB }) {
 export function InspectorPanel() {
   const selectedItem = useHarnessStore((s) => s.selectedItem);
   const selectedBundle = useHarnessStore((s) => s.selectedBundle);
+  const selectedTextBoxId = useHarnessStore((s) => s.selectedTextBoxId);
+  const textBoxLayouts = useHarnessStore((s) => s.textBoxLayouts);
   const findEntity = useHarnessStore((s) => s.findEntity);
   const harness = useHarnessStore((s) => s.harness);
-  const findPinOwner = useHarnessStore((s) => s.findPinOwner);
   const selectItem = useHarnessStore((s) => s.selectItem);
 
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     containerRef.current?.scrollTo(0, 0);
-  }, [selectedItem, selectedBundle]);
+  }, [selectedItem, selectedBundle, selectedTextBoxId]);
+
+  // Text box inspector
+  if (selectedTextBoxId) {
+    const tb = textBoxLayouts[selectedTextBoxId];
+    return (
+      <div ref={containerRef} className="overflow-y-auto h-full">
+        <div className="px-2 py-1 flex items-center gap-1.5">
+          <span className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">
+            Inspector
+          </span>
+          <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-900/40 text-amber-400 border border-amber-800/50">
+            Text Box
+          </span>
+        </div>
+        <div className="px-2 pb-3">
+          {tb ? (
+            <TextBoxInspector tb={tb} />
+          ) : (
+            <div className="text-xs text-zinc-500 italic">Text box not found</div>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   if (!harness) {
     return (
@@ -828,101 +1289,7 @@ export function InspectorPanel() {
     switch (selectedItem.type) {
       case 'enclosure': {
         const enc = entity as Enclosure;
-        const pcbs = harness.pcbs.filter((p) => p.parent === enc.id);
-        const allConnectors = getEnclosureConnectors(harness, enc.id);
-        const bulkheads = allConnectors.filter((c) => c.parent === enc.id);
-        const headers = allConnectors.filter((c) =>
-          harness.pcbs.some((p) => p.id === c.parent),
-        );
-
-        let internalWires = 0;
-        let externalWires = 0;
-        for (const wire of harness.wires) {
-          const fromCon = findPinOwner(wire.from);
-          const toCon = findPinOwner(wire.to);
-          if (!fromCon || !toCon) continue;
-          const fromEnc = getConnectorEnclosure(harness, fromCon.id);
-          const toEnc = getConnectorEnclosure(harness, toCon.id);
-          if (fromEnc === enc.id && toEnc === enc.id) internalWires++;
-          else if (fromEnc === enc.id || toEnc === enc.id)
-            externalWires++;
-        }
-
-        return (
-          <>
-            <div className="text-sm font-bold text-zinc-100 mb-1">
-              {enc.name}
-            </div>
-            {enc.parent && (
-              <div className="mb-1">
-                <ParentLink parentId={enc.parent} />
-              </div>
-            )}
-            {Object.entries(enc.properties).map(([k, v]) => (
-              <PropertyRow key={k} label={k} value={v} />
-            ))}
-
-            <div className="mt-2 pt-2 border-t border-zinc-700/50">
-              <TagEditor
-                entityType="enclosure"
-                entityId={enc.id}
-                tags={enc.tags}
-              />
-            </div>
-
-            <div className="mt-2 pt-2 border-t border-zinc-700/50">
-              <div className="text-[10px] text-zinc-500 font-medium mb-1">
-                Summary
-              </div>
-              <div className="text-[11px] text-zinc-300 space-y-0.5">
-                <div>{pcbs.length} PCBs</div>
-                <div>
-                  {allConnectors.length} connectors ({bulkheads.length}{' '}
-                  bulkheads, {headers.length} headers)
-                </div>
-                <div>
-                  {internalWires} wires internal, {externalWires} wires
-                  external
-                </div>
-              </div>
-            </div>
-
-            <div className="mt-2 pt-2 border-t border-zinc-700/50">
-              <div className="text-[10px] text-zinc-500 font-medium mb-1">
-                Bulkhead Connectors
-              </div>
-              {bulkheads.map((c) => (
-                <button
-                  key={c.id}
-                  onClick={() =>
-                    selectItem({ type: 'connector', id: c.id })
-                  }
-                  className="w-full text-left text-[11px] text-amber-400 hover:text-amber-300 py-0.5 flex items-center justify-between"
-                >
-                  <span>{c.name}</span>
-                  <span className="text-zinc-500 text-[10px]">
-                    {c.pins.length} pins
-                  </span>
-                </button>
-              ))}
-            </div>
-
-            <div className="mt-3 pt-2 border-t border-zinc-700/50">
-              <div className="border border-dashed border-zinc-700 rounded p-4 text-center">
-                <div className="text-zinc-600 text-[11px]">
-                  Drop image here
-                </div>
-                <div className="text-zinc-700 text-[9px]">
-                  (coming soon)
-                </div>
-              </div>
-            </div>
-          </>
-        );
-      }
-      case 'pcb': {
-        const pcb = entity as PCB;
-        return <PCBInspector pcb={pcb} />;
+        return <EnclosureInspector enc={enc} />;
       }
       case 'connector': {
         const con = entity as Connector;
@@ -975,6 +1342,7 @@ export function InspectorPanel() {
         const signalName = signalTag?.slice(7);
         const bundleTag = wire.tags.find((t) => t.startsWith('bundle:'));
         const bundleName = bundleTag?.slice(7);
+        const wireAppearance = getWireAppearance(wire);
 
         return (
           <>
@@ -990,7 +1358,19 @@ export function InspectorPanel() {
             <WireEndpointLink pinId={wire.from} label="From" />
             <WireEndpointLink pinId={wire.to} label="To" />
 
-            {signalName && <SignalInfo signalName={signalName} />}
+            <div className="mt-2 pt-2 border-t border-zinc-700/50">
+              <div className="flex items-center gap-2 py-0.5">
+                <span className="text-[10px] text-zinc-500 w-20 shrink-0 text-right">
+                  Color
+                </span>
+                <div className="flex items-center gap-2">
+                  <WireColorSwatch appearance={wireAppearance} className="w-3 h-3 rounded-sm" />
+                  <span className="text-[11px] text-zinc-300">{wireAppearance.label}</span>
+                </div>
+              </div>
+            </div>
+
+            {signalName && <SignalInfo signalName={signalName} appearance={wireAppearance} />}
 
             {Object.entries(wire.properties).map(([k, v]) => (
               <PropertyRow key={k} label={k} value={v} />
@@ -1027,7 +1407,6 @@ export function InspectorPanel() {
 
   const typeLabels: Record<string, string> = {
     enclosure: 'Enclosure',
-    pcb: 'PCB',
     connector: 'Connector',
     pin: 'Pin',
     wire: 'Wire',

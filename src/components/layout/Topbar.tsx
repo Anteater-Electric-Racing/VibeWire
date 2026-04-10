@@ -1,64 +1,11 @@
-import { useState } from 'react';
 import { useHarnessStore } from '../../store';
 
 export function Topbar() {
-  const isDirty = useHarnessStore((s) => s.isDirty);
-  const harness = useHarnessStore((s) => s.harness);
-  const nodeLayouts = useHarnessStore((s) => s.nodeLayouts);
-  const portLayouts = useHarnessStore((s) => s.portLayouts);
-  const sizeLayouts = useHarnessStore((s) => s.sizeLayouts);
-  const freePortLayouts = useHarnessStore((s) => s.freePortLayouts);
-  const backgroundLayouts = useHarnessStore((s) => s.backgroundLayouts);
-  const connectorTypeSizes = useHarnessStore((s) => s.connectorTypeSizes);
-  const connectorLibrary = useHarnessStore((s) => s.connectorLibrary);
-  const markClean = useHarnessStore((s) => s.markClean);
   const setSettingsOpen = useHarnessStore((s) => s.setSettingsOpen);
-  const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
-
-  const handleSave = async () => {
-    if (!harness || saveState === 'saving') return;
-    const harnessJson = JSON.stringify(harness, null, 2);
-    const layoutsJson = JSON.stringify(
-      { nodes: nodeLayouts, ports: portLayouts, sizes: sizeLayouts, free: freePortLayouts, backgrounds: backgroundLayouts, connectorTypeSizes },
-      null,
-      2,
-    );
-    const libraryJson = connectorLibrary ? JSON.stringify(connectorLibrary, null, 2) : null;
-    setSaveState('saving');
-
-    try {
-      const saves: Promise<Response>[] = [
-        fetch('/api/save-harness', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: harnessJson }),
-        fetch('/api/save-layouts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: layoutsJson }),
-      ];
-      if (libraryJson) {
-        saves.push(fetch('/api/save-library', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: libraryJson }));
-      }
-      const results = await Promise.all(saves);
-      if (results.every((r) => r.ok)) {
-        markClean();
-        setSaveState('saved');
-        setTimeout(() => setSaveState('idle'), 2000);
-        return;
-      }
-    } catch {
-      // dev server not available
-    }
-
-    // Fallback for production builds: download the harness file.
-    const blob = new Blob([harnessJson], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'fsae-car.json';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    markClean();
-    setSaveState('saved');
-    setTimeout(() => setSaveState('idle'), 2000);
-  };
+  const undo = useHarnessStore((s) => s.undo);
+  const redo = useHarnessStore((s) => s.redo);
+  const undoStack = useHarnessStore((s) => s.undoStack);
+  const redoStack = useHarnessStore((s) => s.redoStack);
 
   return (
     <header className="h-10 bg-zinc-900 border-b border-zinc-700 flex items-center px-3 gap-3 shrink-0">
@@ -79,23 +26,31 @@ export function Topbar() {
 
       <div className="flex-1" />
 
-      <button
-        onClick={handleSave}
-        disabled={saveState === 'saving'}
-        className={`relative px-2 py-1 text-xs rounded border transition-colors ${
-          saveState === 'saved'
-            ? 'bg-green-900/60 text-green-300 border-green-700'
-            : saveState === 'saving'
-            ? 'bg-zinc-800 text-zinc-500 border-zinc-700 cursor-wait'
-            : 'bg-zinc-800 text-zinc-300 border-zinc-600 hover:bg-zinc-700 hover:text-zinc-100'
-        }`}
-        title={isDirty ? 'Unsaved changes — click to save' : 'Save'}
-      >
-        {saveState === 'saving' ? 'Saving…' : saveState === 'saved' ? 'Saved ✓' : 'Save'}
-        {isDirty && saveState === 'idle' && (
-          <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-amber-500 rounded-full" />
-        )}
-      </button>
+      {/* Undo / Redo */}
+      <div className="flex items-center gap-0.5">
+        <button
+          onClick={undo}
+          disabled={undoStack.length === 0}
+          className="p-1 text-zinc-400 hover:text-zinc-100 disabled:opacity-25 disabled:cursor-not-allowed transition-colors"
+          title="Undo (⌘Z)"
+        >
+          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M3 7v6h6" />
+            <path d="M3 13C5 7 12 4 18 7s6 12 0 15" />
+          </svg>
+        </button>
+        <button
+          onClick={redo}
+          disabled={redoStack.length === 0}
+          className="p-1 text-zinc-400 hover:text-zinc-100 disabled:opacity-25 disabled:cursor-not-allowed transition-colors"
+          title="Redo (⌘⇧Z)"
+        >
+          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M21 7v6h-6" />
+            <path d="M21 13C19 7 12 4 6 7S0 19 6 22" />
+          </svg>
+        </button>
+      </div>
 
       <button
         onClick={() => setSettingsOpen(true)}

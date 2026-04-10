@@ -37,19 +37,16 @@ export function TagFilterPanel() {
 
   return (
     <div className="py-1 select-none">
-      <div className="px-2 py-1 flex items-center justify-between">
-        <span className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">
-          Filters
-        </span>
-        {hasActiveFilters && (
+      {hasActiveFilters && (
+        <div className="px-2 pt-1 flex justify-end">
           <button
             onClick={clearFilters}
             className="text-[10px] text-amber-500 hover:text-amber-400"
           >
-            Clear
+            Clear all
           </button>
-        )}
-      </div>
+        </div>
+      )}
       <div className="space-y-2 px-2 py-1">
         {namespaces.map(([namespace, values]) => (
           <div key={namespace}>

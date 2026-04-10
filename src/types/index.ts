@@ -9,7 +9,7 @@ export interface Pin {
 export interface Connector {
   id: string;
   name: string;
-  parent: string;
+  parent: string | null;
   connector_type: string;
   tags: string[];
   pins: Pin[];
@@ -20,14 +20,7 @@ export interface Enclosure {
   id: string;
   name: string;
   parent: string | null;
-  tags: string[];
-  properties: Record<string, string>;
-}
-
-export interface PCB {
-  id: string;
-  name: string;
-  parent: string;
+  container: boolean;
   tags: string[];
   properties: Record<string, string>;
 }
@@ -50,7 +43,6 @@ export interface Signal {
 export interface HarnessData {
   schema_version: string;
   enclosures: Enclosure[];
-  pcbs: PCB[];
   connectors: Connector[];
   wires: Wire[];
   signals: Signal[];
@@ -71,7 +63,7 @@ export interface ConnectorLibrary {
   connector_types: ConnectorType[];
 }
 
-export type EntityType = 'enclosure' | 'pcb' | 'connector' | 'pin' | 'wire' | 'signal';
+export type EntityType = 'enclosure' | 'connector' | 'pin' | 'wire' | 'signal';
 
 export interface SelectedItem {
   type: EntityType;
@@ -87,11 +79,9 @@ export interface NodeLayout {
   [nodeId: string]: { x: number; y: number };
 }
 
-export type PortEdge = 'top' | 'right' | 'bottom' | 'left';
-
 export interface PortPosition {
-  edge: PortEdge;
-  ratio: number;
+  x: number;
+  y: number;
 }
 
 export interface PortLayouts {
@@ -123,6 +113,10 @@ export interface ConnectorTypeSizes {
   [typeId: string]: { w: number; h: number };
 }
 
+export type TextBoxFontFamily = 'sans' | 'serif' | 'mono';
+export type TextBoxFontWeight = 'normal' | 'bold';
+export type TextBoxTextAlign = 'left' | 'center' | 'right';
+
 export interface TextBoxLayout {
   id: string;
   x: number;
@@ -133,8 +127,33 @@ export interface TextBoxLayout {
   bgColor: string;
   textColor: string;
   fontSize: number;
+  fontFamily: TextBoxFontFamily;
+  fontWeight: TextBoxFontWeight;
+  textAlign: TextBoxTextAlign;
+  borderColor: string;
+  borderWidth: number;
+  borderRadius: number;
+  opacity: number;
+  padding: number;
 }
 
 export interface TextBoxLayouts {
   [id: string]: TextBoxLayout;
+}
+
+export type WaypointItem = { x: number; y: number } | { junctionId: string };
+
+export interface WaypointLayouts {
+  [edgeId: string]: WaypointItem[];
+}
+
+export interface JunctionLayout {
+  id: string;
+  x: number;
+  y: number;
+  memberEdgeIds: string[];
+}
+
+export interface JunctionLayouts {
+  [id: string]: JunctionLayout;
 }

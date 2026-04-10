@@ -3,2799 +3,3690 @@
   "enclosures": [
     {
       "id": "enc_001",
-      "name": "Dashboard Box",
+      "name": "ROC (Rear of Car Enclosure)",
       "parent": null,
-      "tags": [
-        "location:front",
-        "system:driver"
-      ],
       "properties": {
-        "material": "3D-printed ASA",
-        "ip_rating": "IP54"
-      }
+        "image": "SCR-20260410-cknx.png"
+      },
+      "tags": [],
+      "container": true
     },
     {
       "id": "enc_002",
-      "name": "PDM Box",
+      "name": "FOC (Front of Car Enclosure)",
       "parent": null,
-      "tags": [
-        "location:center",
-        "system:power"
-      ],
       "properties": {
-        "material": "Aluminum 6061",
-        "ip_rating": "IP65"
-      }
+        "image": "SCR-20260410-cmct.png"
+      },
+      "tags": [],
+      "container": true
     },
     {
       "id": "enc_003",
-      "name": "ECU Box",
+      "name": "Light Tree",
       "parent": null,
-      "tags": [
-        "location:rear",
-        "system:engine"
-      ],
       "properties": {
-        "material": "Aluminum 6061",
-        "ip_rating": "IP67"
-      }
+        "note": "External device, no internals"
+      },
+      "tags": [],
+      "container": false
     },
     {
       "id": "enc_004",
-      "name": "Sensor Hub Box",
+      "name": "Brake Light",
       "parent": null,
-      "tags": [
-        "location:rear",
-        "system:engine"
-      ],
       "properties": {
-        "material": "Aluminum 6061",
-        "ip_rating": "IP67"
-      }
+        "note": "External device, no internals"
+      },
+      "tags": [],
+      "container": false
     },
     {
       "id": "enc_005",
-      "name": "Data Acquisition Box",
+      "name": "High Voltage Battery",
       "parent": null,
-      "tags": [
-        "location:center",
-        "system:CAN",
-        "system:engine",
-        "system:driver"
-      ],
       "properties": {
-        "material": "3D-printed ASA",
-        "ip_rating": "IP54",
-        "notes": "Houses DAQ Logger, Analog Front-End, and GPS/IMU boards"
-      }
+        "note": "External device"
+      },
+      "tags": [],
+      "container": false
     },
     {
       "id": "enc_006",
-      "name": "Brake System Box",
+      "name": "Wheel Speed Sensor 1",
       "parent": null,
-      "tags": [
-        "location:rear",
-        "system:SDC"
-      ],
       "properties": {
-        "material": "Aluminum 6061",
-        "ip_rating": "IP67",
-        "notes": "Houses Brake Pressure Interface and Brake Light Driver boards"
-      }
-    }
-  ],
-  "pcbs": [
+        "note": "External sensor — connector pinout TBD"
+      },
+      "tags": [],
+      "container": false
+    },
+    {
+      "id": "enc_007",
+      "name": "Wheel Speed Sensor 2",
+      "parent": null,
+      "properties": {
+        "note": "External sensor — connector pinout TBD"
+      },
+      "tags": [],
+      "container": false
+    },
+    {
+      "id": "enc_008",
+      "name": "Wheel Speed Sensor 3",
+      "parent": null,
+      "properties": {
+        "note": "External sensor — connector pinout TBD"
+      },
+      "tags": [],
+      "container": false
+    },
+    {
+      "id": "enc_009",
+      "name": "Wheel Speed Sensor 4",
+      "parent": null,
+      "properties": {
+        "note": "External sensor — connector pinout TBD"
+      },
+      "tags": [],
+      "container": false
+    },
     {
       "id": "pcb_001",
-      "name": "Dashboard PCB",
+      "name": "Human Interface Board",
       "parent": "enc_001",
-      "tags": [
-        "system:driver",
-        "location:front"
-      ],
-      "properties": {
-        "revision": "v2.1",
-        "layers": "4"
-      }
+      "container": false,
+      "tags": [],
+      "properties": {}
     },
     {
       "id": "pcb_002",
-      "name": "ECU PCB",
-      "parent": "enc_003",
-      "tags": [
-        "system:engine",
-        "location:rear"
-      ],
+      "name": "Safety Board",
+      "parent": "enc_002",
+      "container": false,
+      "tags": [],
       "properties": {
-        "revision": "v3.0",
-        "layers": "6"
+        "image": "SCR-20260409-ufwb.png"
       }
     },
     {
       "id": "pcb_003",
-      "name": "PDM Control PCB",
+      "name": "CCM",
       "parent": "enc_002",
-      "tags": [
-        "system:power",
-        "system:SDC",
-        "location:center"
-      ],
+      "container": false,
+      "tags": [],
       "properties": {
-        "revision": "v1.2",
-        "layers": "4",
-        "notes": "Monitors power channels and routes SDC loop through solid-state relay"
+        "note": "Central Compute Module",
+        "image": "SCR-20260410-bfpr.png"
       }
     },
     {
       "id": "pcb_004",
-      "name": "Sensor Breakout PCB",
-      "parent": "enc_004",
-      "tags": [
-        "system:engine",
-        "location:rear"
-      ],
-      "properties": {
-        "revision": "v1.0",
-        "layers": "2",
-        "notes": "Reads wheel speed sensors and coolant temp; forwards data over CAN"
-      }
-    },
-    {
-      "id": "pcb_005",
-      "name": "DAQ Logger PCB",
-      "parent": "enc_005",
-      "tags": [
-        "system:CAN",
-        "system:engine",
-        "system:driver",
-        "location:center"
-      ],
-      "properties": {
-        "revision": "v2.0",
-        "layers": "6",
-        "notes": "STM32H7 main controller: CAN gateway, SD card logger, SPI master to Analog Front-End, UART to GPS/IMU",
-        "image": "set_this_to_ONE_PCB.png"
-      }
-    },
-    {
-      "id": "pcb_006",
-      "name": "Analog Front-End PCB",
-      "parent": "enc_005",
-      "tags": [
-        "system:engine",
-        "location:center"
-      ],
-      "properties": {
-        "revision": "v1.1",
-        "layers": "4",
-        "notes": "ADS1256 8-channel 24-bit ADC; SPI slave to DAQ Logger; reads AIN_0–AIN_1 analog sensor channels"
-      }
-    },
-    {
-      "id": "pcb_007",
-      "name": "GPS/IMU PCB",
-      "parent": "enc_005",
-      "tags": [
-        "system:engine",
-        "system:driver",
-        "location:center"
-      ],
-      "properties": {
-        "revision": "v1.0",
-        "layers": "4",
-        "notes": "u-blox M9N GNSS + ICM-42688-P 6-axis IMU; UART to DAQ Logger at 460800 baud"
-      }
-    },
-    {
-      "id": "pcb_008",
-      "name": "Brake Pressure Interface PCB",
-      "parent": "enc_006",
-      "tags": [
-        "system:SDC",
-        "location:rear"
-      ],
-      "properties": {
-        "revision": "v1.0",
-        "layers": "2",
-        "notes": "Reads front and rear brake pressure sensors via analog inputs; publishes over I2C to Brake Light Driver"
-      }
-    },
-    {
-      "id": "pcb_009",
-      "name": "Brake Light Driver PCB",
-      "parent": "enc_006",
-      "tags": [
-        "system:SDC",
-        "location:rear"
-      ],
-      "properties": {
-        "revision": "v1.2",
-        "layers": "4",
-        "notes": "PWM drives brake light; implements BSPD logic; I2C master reads pressure data from Brake Pressure Interface"
-      }
+      "name": "Dash LEDs PCB",
+      "parent": "enc_002",
+      "container": false,
+      "tags": [],
+      "properties": {}
     }
   ],
   "connectors": [
     {
       "id": "con_001",
-      "name": "J1",
-      "parent": "enc_001",
-      "connector_type": "deutsch_dt_12p_female",
-      "tags": [
-        "system:CAN",
-        "system:power",
-        "location:front"
-      ],
+      "name": "4 Pin",
+      "parent": "pcb_001",
+      "connector_type": "molex_minifit_jr_4p",
       "pins": [
+        {
+          "id": "pin_204",
+          "pin_number": 0,
+          "name": "4 Pin-0",
+          "properties": {},
+          "tags": []
+        },
         {
           "id": "pin_001",
           "pin_number": 1,
-          "name": "J1-1",
-          "tags": [
-            "signal:CAN_H"
-          ],
-          "properties": {}
+          "name": "BSPD Reset",
+          "properties": {},
+          "tags": []
         },
         {
           "id": "pin_002",
           "pin_number": 2,
-          "name": "J1-2",
-          "tags": [
-            "signal:CAN_L"
-          ],
-          "properties": {}
+          "name": "IMD Reset+",
+          "properties": {},
+          "tags": []
         },
         {
           "id": "pin_003",
           "pin_number": 3,
-          "name": "J1-3",
-          "tags": [
-            "signal:12V_MAIN"
-          ],
-          "properties": {}
+          "name": "BMS Reset",
+          "properties": {},
+          "tags": []
         },
         {
           "id": "pin_004",
           "pin_number": 4,
-          "name": "J1-4",
-          "tags": [
-            "signal:GND"
-          ],
-          "properties": {}
+          "name": "IMD Reset-",
+          "properties": {},
+          "tags": []
         }
       ],
-      "properties": {}
+      "properties": {},
+      "tags": []
     },
     {
       "id": "con_002",
-      "name": "J2",
+      "name": "6 Pin",
       "parent": "pcb_001",
-      "connector_type": "molex_minifit_6p",
-      "tags": [
-        "system:driver",
-        "location:front"
-      ],
+      "connector_type": "molex_minifit_jr_6p",
       "pins": [
+        {
+          "id": "pin_205",
+          "pin_number": 0,
+          "name": "6 Pin-0",
+          "properties": {},
+          "tags": []
+        },
         {
           "id": "pin_005",
           "pin_number": 1,
-          "name": "J2-1",
-          "tags": [
-            "signal:CAN_H"
-          ],
-          "properties": {}
+          "name": "GND",
+          "properties": {},
+          "tags": []
         },
         {
           "id": "pin_006",
           "pin_number": 2,
-          "name": "J2-2",
-          "tags": [
-            "signal:CAN_L"
-          ],
-          "properties": {}
+          "name": "GND",
+          "properties": {},
+          "tags": []
         },
         {
           "id": "pin_007",
           "pin_number": 3,
-          "name": "J2-3",
-          "tags": [
-            "signal:12V_MAIN"
-          ],
-          "properties": {}
+          "name": "12V",
+          "properties": {},
+          "tags": []
         },
         {
           "id": "pin_008",
           "pin_number": 4,
-          "name": "J2-4",
-          "tags": [
-            "signal:GND"
-          ],
-          "properties": {}
-        }
-      ],
-      "properties": {}
-    },
-    {
-      "id": "con_003",
-      "name": "J3",
-      "parent": "enc_002",
-      "connector_type": "deutsch_dt_12p_male",
-      "tags": [
-        "system:power",
-        "system:CAN",
-        "location:center"
-      ],
-      "pins": [
+          "name": "BSPD LED",
+          "properties": {},
+          "tags": []
+        },
         {
           "id": "pin_009",
-          "pin_number": 1,
-          "name": "J3-1",
-          "tags": [
-            "signal:CAN_H"
-          ],
-          "properties": {}
+          "pin_number": 5,
+          "name": "IMD LED",
+          "properties": {},
+          "tags": []
         },
         {
           "id": "pin_010",
-          "pin_number": 2,
-          "name": "J3-2",
-          "tags": [
-            "signal:CAN_L"
-          ],
-          "properties": {}
+          "pin_number": 6,
+          "name": "BMS LED",
+          "properties": {},
+          "tags": []
+        }
+      ],
+      "properties": {},
+      "tags": []
+    },
+    {
+      "id": "con_003",
+      "name": "SDC Out",
+      "parent": "pcb_002",
+      "connector_type": "molex_minifit_jr_2p",
+      "pins": [
+        {
+          "id": "pin_206",
+          "pin_number": 0,
+          "name": "SDC Out-0",
+          "properties": {},
+          "tags": []
         },
         {
           "id": "pin_011",
-          "pin_number": 3,
-          "name": "J3-3",
-          "tags": [
-            "signal:12V_MAIN"
-          ],
-          "properties": {}
+          "pin_number": 1,
+          "name": "NC",
+          "properties": {
+            "note": "Must get plug/dummy pin"
+          },
+          "tags": []
         },
         {
           "id": "pin_012",
-          "pin_number": 4,
-          "name": "J3-4",
-          "tags": [
-            "signal:GND"
-          ],
-          "properties": {}
-        },
-        {
-          "id": "pin_013",
-          "pin_number": 5,
-          "name": "J3-5",
-          "tags": [
-            "signal:SDC_IN"
-          ],
-          "properties": {}
+          "pin_number": 2,
+          "name": "Safety Daisy Chain Out",
+          "properties": {},
+          "tags": []
         }
       ],
-      "properties": {}
+      "properties": {},
+      "tags": []
     },
     {
       "id": "con_004",
-      "name": "J4",
-      "parent": "enc_002",
-      "connector_type": "deutsch_dt_4p_female",
-      "tags": [
-        "system:SDC",
-        "location:center"
-      ],
+      "name": "E-Stop",
+      "parent": "pcb_002",
+      "connector_type": "molex_minifit_jr_2p",
       "pins": [
         {
-          "id": "pin_014",
-          "pin_number": 1,
-          "name": "J4-1",
-          "tags": [
-            "signal:SDC_IN"
-          ],
-          "properties": {}
+          "id": "pin_207",
+          "pin_number": 0,
+          "name": "E-Stop-0",
+          "properties": {},
+          "tags": []
         },
         {
-          "id": "pin_015",
+          "id": "pin_013",
+          "pin_number": 1,
+          "name": "E-Stop In",
+          "properties": {
+            "note": "Reversible pinout"
+          },
+          "tags": []
+        },
+        {
+          "id": "pin_014",
           "pin_number": 2,
-          "name": "J4-2",
-          "tags": [
-            "signal:SDC_OUT"
-          ],
-          "properties": {}
+          "name": "E-Stop Out",
+          "properties": {
+            "note": "Reversible pinout"
+          },
+          "tags": []
         }
       ],
-      "properties": {}
+      "properties": {},
+      "tags": []
     },
     {
       "id": "con_005",
-      "name": "J5",
-      "parent": "enc_003",
-      "connector_type": "deutsch_dt_12p_female",
-      "tags": [
-        "system:engine",
-        "system:CAN",
-        "location:rear"
-      ],
+      "name": "TS On SW",
+      "parent": "pcb_002",
+      "connector_type": "molex_minifit_jr_2p",
       "pins": [
         {
-          "id": "pin_016",
+          "id": "pin_208",
+          "pin_number": 0,
+          "name": "TS On SW-0",
+          "properties": {},
+          "tags": []
+        },
+        {
+          "id": "pin_015",
           "pin_number": 1,
-          "name": "J5-1",
-          "tags": [
-            "signal:CAN_H"
-          ],
-          "properties": {}
+          "name": "TS On SW In",
+          "properties": {
+            "note": "Reversible pinout"
+          },
+          "tags": []
         },
         {
-          "id": "pin_017",
+          "id": "pin_016",
           "pin_number": 2,
-          "name": "J5-2",
-          "tags": [
-            "signal:CAN_L"
-          ],
-          "properties": {}
-        },
-        {
-          "id": "pin_018",
-          "pin_number": 3,
-          "name": "J5-3",
-          "tags": [
-            "signal:12V_MAIN"
-          ],
-          "properties": {}
-        },
-        {
-          "id": "pin_019",
-          "pin_number": 4,
-          "name": "J5-4",
-          "tags": [
-            "signal:GND"
-          ],
-          "properties": {}
-        },
-        {
-          "id": "pin_020",
-          "pin_number": 5,
-          "name": "J5-5",
-          "tags": [
-            "signal:APPS_1"
-          ],
-          "properties": {}
+          "name": "TS On SW Out",
+          "properties": {
+            "note": "Reversible pinout"
+          },
+          "tags": []
         }
       ],
-      "properties": {}
+      "properties": {
+        "image": "SCR-20260410-bhll.png"
+      },
+      "tags": []
     },
     {
       "id": "con_006",
-      "name": "J6",
+      "name": "ACCU",
       "parent": "pcb_002",
-      "connector_type": "molex_minifit_4p",
-      "tags": [
-        "system:engine",
-        "location:rear"
-      ],
+      "connector_type": "molex_minifit_jr_4p",
       "pins": [
+        {
+          "id": "pin_209",
+          "pin_number": 0,
+          "name": "ACCU-0",
+          "properties": {},
+          "tags": []
+        },
+        {
+          "id": "pin_017",
+          "pin_number": 1,
+          "name": "Safety Daisy Chain Out",
+          "properties": {
+            "note": "Real SDC out to accumulator"
+          },
+          "tags": []
+        },
+        {
+          "id": "pin_018",
+          "pin_number": 2,
+          "name": "GND",
+          "properties": {},
+          "tags": []
+        },
+        {
+          "id": "pin_019",
+          "pin_number": 3,
+          "name": "IM Default",
+          "properties": {},
+          "tags": []
+        },
+        {
+          "id": "pin_020",
+          "pin_number": 4,
+          "name": "BMS Fault",
+          "properties": {},
+          "tags": []
+        }
+      ],
+      "properties": {},
+      "tags": []
+    },
+    {
+      "id": "con_007",
+      "name": "Current Sensor",
+      "parent": "pcb_002",
+      "connector_type": "molex_minifit_jr_4p",
+      "pins": [
+        {
+          "id": "pin_210",
+          "pin_number": 0,
+          "name": "Current Sensor-0",
+          "properties": {},
+          "tags": []
+        },
         {
           "id": "pin_021",
           "pin_number": 1,
-          "name": "J6-1",
-          "tags": [
-            "signal:CAN_H"
-          ],
-          "properties": {}
+          "name": "5V",
+          "properties": {},
+          "tags": []
         },
         {
           "id": "pin_022",
           "pin_number": 2,
-          "name": "J6-2",
-          "tags": [
-            "signal:CAN_L"
-          ],
-          "properties": {}
+          "name": "Current Sense Signal",
+          "properties": {},
+          "tags": []
         },
         {
           "id": "pin_023",
           "pin_number": 3,
-          "name": "J6-3",
-          "tags": [
-            "signal:APPS_1"
-          ],
-          "properties": {}
+          "name": "NC",
+          "properties": {},
+          "tags": []
         },
         {
           "id": "pin_024",
           "pin_number": 4,
-          "name": "J6-4",
-          "tags": [
-            "signal:GND"
-          ],
-          "properties": {}
+          "name": "GND",
+          "properties": {},
+          "tags": []
         }
       ],
-      "properties": {}
+      "properties": {},
+      "tags": []
     },
     {
-      "id": "con_007",
-      "name": "J7",
-      "parent": "enc_003",
-      "connector_type": "te_superseal_4p",
-      "tags": [
-        "system:SDC",
-        "location:rear"
-      ],
+      "id": "con_008",
+      "name": "Brake Light",
+      "parent": "pcb_002",
+      "connector_type": "molex_minifit_jr_2p",
       "pins": [
+        {
+          "id": "pin_211",
+          "pin_number": 0,
+          "name": "Brake Light-0",
+          "properties": {},
+          "tags": []
+        },
         {
           "id": "pin_025",
           "pin_number": 1,
-          "name": "J7-1",
-          "tags": [
-            "signal:SDC_IN"
-          ],
-          "properties": {}
+          "name": "12V",
+          "properties": {},
+          "tags": []
         },
         {
           "id": "pin_026",
           "pin_number": 2,
-          "name": "J7-2",
-          "tags": [
-            "signal:SDC_OUT"
-          ],
-          "properties": {}
+          "name": "GND (Low Side Switching)",
+          "properties": {},
+          "tags": []
         }
       ],
-      "properties": {}
+      "properties": {},
+      "tags": []
     },
     {
-      "id": "con_008",
-      "name": "J8",
-      "parent": "pcb_003",
-      "connector_type": "molex_minifit_6p",
-      "tags": [
-        "system:power",
-        "system:SDC",
-        "location:center"
-      ],
+      "id": "con_009",
+      "name": "TSSI",
+      "parent": "pcb_002",
+      "connector_type": "molex_minifit_jr_4p",
       "pins": [
+        {
+          "id": "pin_212",
+          "pin_number": 0,
+          "name": "TSSI-0",
+          "properties": {},
+          "tags": []
+        },
         {
           "id": "pin_027",
           "pin_number": 1,
-          "name": "J8-1",
-          "tags": [
-            "signal:SDC_IN"
-          ],
-          "properties": {}
+          "name": "12V",
+          "properties": {},
+          "tags": []
         },
         {
           "id": "pin_028",
           "pin_number": 2,
-          "name": "J8-2",
-          "tags": [
-            "signal:SDC_OUT"
-          ],
-          "properties": {}
+          "name": "12V",
+          "properties": {},
+          "tags": []
         },
         {
           "id": "pin_029",
           "pin_number": 3,
-          "name": "J8-3",
-          "tags": [
-            "signal:12V_MAIN"
-          ],
-          "properties": {}
+          "name": "Green LED",
+          "properties": {},
+          "tags": []
         },
         {
           "id": "pin_030",
           "pin_number": 4,
-          "name": "J8-4",
-          "tags": [
-            "signal:GND"
-          ],
-          "properties": {}
+          "name": "Red LED",
+          "properties": {},
+          "tags": []
         }
       ],
-      "properties": {}
+      "properties": {},
+      "tags": []
     },
     {
-      "id": "con_009",
-      "name": "J9",
-      "parent": "enc_004",
-      "connector_type": "deutsch_dt_12p_female",
-      "tags": [
-        "system:engine",
-        "system:CAN",
-        "location:rear"
-      ],
+      "id": "con_010",
+      "name": "24V Power In",
+      "parent": "pcb_002",
+      "connector_type": "molex_minifit_jr_2p",
       "pins": [
+        {
+          "id": "pin_213",
+          "pin_number": 0,
+          "name": "24V Power In-0",
+          "properties": {},
+          "tags": []
+        },
         {
           "id": "pin_031",
           "pin_number": 1,
-          "name": "J9-1",
-          "tags": [
-            "signal:CAN_H"
-          ],
-          "properties": {}
+          "name": "24V",
+          "properties": {},
+          "tags": []
         },
         {
           "id": "pin_032",
           "pin_number": 2,
-          "name": "J9-2",
-          "tags": [
-            "signal:CAN_L"
-          ],
-          "properties": {}
-        },
-        {
-          "id": "pin_033",
-          "pin_number": 3,
-          "name": "J9-3",
-          "tags": [
-            "signal:12V_MAIN"
-          ],
-          "properties": {}
-        },
-        {
-          "id": "pin_034",
-          "pin_number": 4,
-          "name": "J9-4",
-          "tags": [
-            "signal:GND"
-          ],
-          "properties": {}
-        },
-        {
-          "id": "pin_035",
-          "pin_number": 5,
-          "name": "J9-5",
-          "tags": [
-            "signal:WSS_FL"
-          ],
-          "properties": {}
-        },
-        {
-          "id": "pin_036",
-          "pin_number": 6,
-          "name": "J9-6",
-          "tags": [
-            "signal:TEMP_COOLANT"
-          ],
-          "properties": {}
+          "name": "GND",
+          "properties": {},
+          "tags": []
         }
       ],
-      "properties": {}
-    },
-    {
-      "id": "con_010",
-      "name": "J10",
-      "parent": "pcb_004",
-      "connector_type": "molex_minifit_6p",
-      "tags": [
-        "system:engine",
-        "location:rear"
-      ],
-      "pins": [
-        {
-          "id": "pin_037",
-          "pin_number": 1,
-          "name": "J10-1",
-          "tags": [
-            "signal:CAN_H"
-          ],
-          "properties": {}
-        },
-        {
-          "id": "pin_038",
-          "pin_number": 2,
-          "name": "J10-2",
-          "tags": [
-            "signal:CAN_L"
-          ],
-          "properties": {}
-        },
-        {
-          "id": "pin_039",
-          "pin_number": 3,
-          "name": "J10-3",
-          "tags": [
-            "signal:WSS_FL"
-          ],
-          "properties": {}
-        },
-        {
-          "id": "pin_040",
-          "pin_number": 4,
-          "name": "J10-4",
-          "tags": [
-            "signal:TEMP_COOLANT"
-          ],
-          "properties": {}
-        },
-        {
-          "id": "pin_041",
-          "pin_number": 5,
-          "name": "J10-5",
-          "tags": [
-            "signal:12V_MAIN"
-          ],
-          "properties": {}
-        },
-        {
-          "id": "pin_042",
-          "pin_number": 6,
-          "name": "J10-6",
-          "tags": [
-            "signal:GND"
-          ],
-          "properties": {}
-        },
-        {
-          "id": "pin_059",
-          "pin_number": 7,
-          "name": "J10-7",
-          "tags": [
-            "signal:WSS_FR"
-          ],
-          "properties": {}
-        },
-        {
-          "id": "pin_060",
-          "pin_number": 8,
-          "name": "J10-8",
-          "tags": [
-            "signal:WSS_RL"
-          ],
-          "properties": {}
-        },
-        {
-          "id": "pin_061",
-          "pin_number": 9,
-          "name": "J10-9",
-          "tags": [
-            "signal:WSS_RR"
-          ],
-          "properties": {}
-        }
-      ],
-      "properties": {}
+      "properties": {},
+      "tags": []
     },
     {
       "id": "con_011",
-      "name": "J11",
-      "parent": "pcb_001",
-      "connector_type": "molex_minifit_4p",
-      "tags": [
-        "system:driver",
-        "system:CAN",
-        "location:front"
-      ],
+      "name": "24V Expansion",
+      "parent": "pcb_002",
+      "connector_type": "molex_minifit_jr_2p",
       "pins": [
         {
-          "id": "pin_043",
+          "id": "pin_214",
+          "pin_number": 0,
+          "name": "24V Expansion-0",
+          "properties": {},
+          "tags": []
+        },
+        {
+          "id": "pin_033",
           "pin_number": 1,
-          "name": "J11-1",
-          "tags": [
-            "signal:CAN_H"
-          ],
-          "properties": {}
+          "name": "24V",
+          "properties": {},
+          "tags": []
         },
         {
-          "id": "pin_044",
+          "id": "pin_034",
           "pin_number": 2,
-          "name": "J11-2",
-          "tags": [
-            "signal:CAN_L"
-          ],
-          "properties": {}
-        },
-        {
-          "id": "pin_045",
-          "pin_number": 3,
-          "name": "J11-3",
-          "tags": [
-            "signal:12V_MAIN"
-          ],
-          "properties": {}
-        },
-        {
-          "id": "pin_046",
-          "pin_number": 4,
-          "name": "J11-4",
-          "tags": [
-            "signal:GND"
-          ],
-          "properties": {}
+          "name": "GND",
+          "properties": {},
+          "tags": []
         }
       ],
-      "properties": {
-        "notes": "Output to steering wheel display module"
-      }
+      "properties": {},
+      "tags": []
     },
     {
       "id": "con_012",
-      "name": "J12",
+      "name": "Dash LEDs",
       "parent": "pcb_002",
-      "connector_type": "molex_minifit_4p",
-      "tags": [
-        "system:engine",
-        "system:CAN",
-        "location:rear"
-      ],
+      "connector_type": "molex_minifit_jr_4p",
       "pins": [
         {
-          "id": "pin_047",
+          "id": "pin_215",
+          "pin_number": 0,
+          "name": "Dash LEDs-0",
+          "properties": {},
+          "tags": []
+        },
+        {
+          "id": "pin_035",
           "pin_number": 1,
-          "name": "J12-1",
-          "tags": [
-            "signal:CAN_H"
-          ],
-          "properties": {}
+          "name": "GND",
+          "properties": {},
+          "tags": []
         },
         {
-          "id": "pin_048",
+          "id": "pin_036",
           "pin_number": 2,
-          "name": "J12-2",
-          "tags": [
-            "signal:CAN_L"
-          ],
-          "properties": {}
+          "name": "BSPD Fault LED",
+          "properties": {},
+          "tags": []
         },
         {
-          "id": "pin_049",
+          "id": "pin_037",
           "pin_number": 3,
-          "name": "J12-3",
-          "tags": [
-            "signal:APPS_1"
-          ],
-          "properties": {}
+          "name": "BMS Fault LED",
+          "properties": {},
+          "tags": []
         },
         {
-          "id": "pin_050",
+          "id": "pin_038",
           "pin_number": 4,
-          "name": "J12-4",
-          "tags": [
-            "signal:GND"
-          ],
-          "properties": {}
+          "name": "IMD Fault LED",
+          "properties": {},
+          "tags": []
         }
       ],
-      "properties": {
-        "notes": "Diagnostic / secondary sensor conditioning port"
-      }
+      "properties": {},
+      "tags": []
     },
     {
       "id": "con_013",
-      "name": "J13",
-      "parent": "pcb_003",
-      "connector_type": "molex_minifit_4p",
-      "tags": [
-        "system:power",
-        "system:SDC",
-        "location:center"
-      ],
+      "name": "Shock/Wheel Sensor",
+      "parent": "pcb_002",
+      "connector_type": "molex_minifit_jr_12p",
       "pins": [
+        {
+          "id": "pin_216",
+          "pin_number": 0,
+          "name": "Shock/Wheel Sensor-0",
+          "properties": {},
+          "tags": []
+        },
+        {
+          "id": "pin_039",
+          "pin_number": 1,
+          "name": "5V",
+          "properties": {},
+          "tags": []
+        },
+        {
+          "id": "pin_040",
+          "pin_number": 2,
+          "name": "5V",
+          "properties": {},
+          "tags": []
+        },
+        {
+          "id": "pin_041",
+          "pin_number": 3,
+          "name": "GND",
+          "properties": {},
+          "tags": []
+        },
+        {
+          "id": "pin_042",
+          "pin_number": 4,
+          "name": "GND",
+          "properties": {},
+          "tags": []
+        },
+        {
+          "id": "pin_043",
+          "pin_number": 5,
+          "name": "GND",
+          "properties": {},
+          "tags": []
+        },
+        {
+          "id": "pin_044",
+          "pin_number": 6,
+          "name": "GND",
+          "properties": {},
+          "tags": []
+        },
+        {
+          "id": "pin_045",
+          "pin_number": 7,
+          "name": "5V",
+          "properties": {},
+          "tags": []
+        },
+        {
+          "id": "pin_046",
+          "pin_number": 8,
+          "name": "5V",
+          "properties": {},
+          "tags": []
+        },
+        {
+          "id": "pin_047",
+          "pin_number": 9,
+          "name": "Wheel/Shock 1",
+          "properties": {},
+          "tags": []
+        },
+        {
+          "id": "pin_048",
+          "pin_number": 10,
+          "name": "Wheel/Shock 2",
+          "properties": {},
+          "tags": []
+        },
+        {
+          "id": "pin_049",
+          "pin_number": 11,
+          "name": "Wheel/Shock 3",
+          "properties": {},
+          "tags": []
+        },
+        {
+          "id": "pin_050",
+          "pin_number": 12,
+          "name": "Wheel/Shock 4",
+          "properties": {},
+          "tags": []
+        }
+      ],
+      "properties": {},
+      "tags": []
+    },
+    {
+      "id": "con_014",
+      "name": "Footwell",
+      "parent": "pcb_002",
+      "connector_type": "molex_minifit_jr_14p",
+      "pins": [
+        {
+          "id": "pin_217",
+          "pin_number": 0,
+          "name": "Footwell-0",
+          "properties": {},
+          "tags": []
+        },
         {
           "id": "pin_051",
           "pin_number": 1,
-          "name": "J13-1",
-          "tags": [
-            "signal:SDC_IN"
-          ],
-          "properties": {}
+          "name": "NC",
+          "properties": {},
+          "tags": []
         },
         {
           "id": "pin_052",
           "pin_number": 2,
-          "name": "J13-2",
-          "tags": [
-            "signal:SDC_OUT"
-          ],
-          "properties": {}
+          "name": "GND",
+          "properties": {},
+          "tags": []
         },
         {
           "id": "pin_053",
           "pin_number": 3,
-          "name": "J13-3",
-          "tags": [
-            "signal:12V_MAIN"
-          ],
-          "properties": {}
+          "name": "GND",
+          "properties": {},
+          "tags": []
         },
         {
           "id": "pin_054",
           "pin_number": 4,
-          "name": "J13-4",
-          "tags": [
-            "signal:GND"
-          ],
-          "properties": {}
-        }
-      ],
-      "properties": {
-        "notes": "Output to relay coil drive circuitry"
-      }
-    },
-    {
-      "id": "con_014",
-      "name": "J14",
-      "parent": "pcb_004",
-      "connector_type": "molex_minifit_4p",
-      "tags": [
-        "system:engine",
-        "location:rear"
-      ],
-      "pins": [
+          "name": "3V3",
+          "properties": {},
+          "tags": []
+        },
         {
           "id": "pin_055",
-          "pin_number": 1,
-          "name": "J14-1",
-          "tags": [
-            "signal:WSS_FR"
-          ],
-          "properties": {}
+          "pin_number": 5,
+          "name": "GND",
+          "properties": {},
+          "tags": []
         },
         {
           "id": "pin_056",
-          "pin_number": 2,
-          "name": "J14-2",
-          "tags": [
-            "signal:WSS_RL"
-          ],
-          "properties": {}
+          "pin_number": 6,
+          "name": "GND",
+          "properties": {},
+          "tags": []
         },
         {
           "id": "pin_057",
-          "pin_number": 3,
-          "name": "J14-3",
-          "tags": [
-            "signal:WSS_RR"
-          ],
-          "properties": {}
+          "pin_number": 7,
+          "name": "5V",
+          "properties": {},
+          "tags": []
         },
         {
           "id": "pin_058",
-          "pin_number": 4,
-          "name": "J14-4",
-          "tags": [
-            "signal:GND"
-          ],
-          "properties": {}
-        }
-      ],
-      "properties": {
-        "notes": "Additional wheel speed sensor inputs (FR, RL, RR)"
-      }
-    },
-    {
-      "id": "con_015",
-      "name": "J15",
-      "parent": "enc_005",
-      "connector_type": "deutsch_dt_4p_female",
-      "tags": [
-        "system:CAN",
-        "system:power",
-        "location:center"
-      ],
-      "pins": [
+          "pin_number": 8,
+          "name": "NC",
+          "properties": {},
+          "tags": []
+        },
+        {
+          "id": "pin_059",
+          "pin_number": 9,
+          "name": "APPS2",
+          "properties": {},
+          "tags": []
+        },
+        {
+          "id": "pin_060",
+          "pin_number": 10,
+          "name": "APPS1",
+          "properties": {},
+          "tags": []
+        },
+        {
+          "id": "pin_061",
+          "pin_number": 11,
+          "name": "NC",
+          "properties": {
+            "note": "Listed as both 3V3 and NC — going with NC, verify before crimping"
+          },
+          "tags": []
+        },
         {
           "id": "pin_062",
-          "pin_number": 1,
-          "name": "J15-1",
-          "tags": [
-            "signal:CAN_H"
-          ],
-          "properties": {}
+          "pin_number": 12,
+          "name": "BPS2",
+          "properties": {},
+          "tags": []
         },
         {
           "id": "pin_063",
-          "pin_number": 2,
-          "name": "J15-2",
-          "tags": [
-            "signal:CAN_L"
-          ],
-          "properties": {}
+          "pin_number": 13,
+          "name": "BPS1",
+          "properties": {},
+          "tags": []
         },
         {
           "id": "pin_064",
-          "pin_number": 3,
-          "name": "J15-3",
-          "tags": [
-            "signal:12V_MAIN"
-          ],
-          "properties": {}
+          "pin_number": 14,
+          "name": "5V",
+          "properties": {},
+          "tags": []
+        }
+      ],
+      "properties": {},
+      "tags": []
+    },
+    {
+      "id": "con_015",
+      "name": "CCM",
+      "parent": "pcb_002",
+      "connector_type": "molex_minifit_jr_20p",
+      "pins": [
+        {
+          "id": "pin_218",
+          "pin_number": 0,
+          "name": "CCM-0",
+          "properties": {},
+          "tags": []
         },
         {
           "id": "pin_065",
-          "pin_number": 4,
-          "name": "J15-4",
-          "tags": [
-            "signal:GND"
-          ],
-          "properties": {}
-        }
-      ],
-      "properties": {
-        "notes": "Bulkhead: main harness CAN + 12 V power in"
-      }
-    },
-    {
-      "id": "con_016",
-      "name": "J16",
-      "parent": "pcb_005",
-      "connector_type": "molex_minifit_4p",
-      "tags": [
-        "system:CAN",
-        "system:power",
-        "location:center"
-      ],
-      "pins": [
+          "pin_number": 1,
+          "name": "TSSI Bypass",
+          "properties": {},
+          "tags": []
+        },
         {
           "id": "pin_066",
-          "pin_number": 1,
-          "name": "J16-1",
-          "tags": [
-            "signal:CAN_H"
-          ],
-          "properties": {}
+          "pin_number": 2,
+          "name": "Latch/TSSI Status Feedback",
+          "properties": {},
+          "tags": []
         },
         {
           "id": "pin_067",
-          "pin_number": 2,
-          "name": "J16-2",
-          "tags": [
-            "signal:CAN_L"
-          ],
-          "properties": {}
+          "pin_number": 3,
+          "name": "Speaker",
+          "properties": {},
+          "tags": []
         },
         {
           "id": "pin_068",
-          "pin_number": 3,
-          "name": "J16-3",
-          "tags": [
-            "signal:12V_MAIN"
-          ],
-          "properties": {}
+          "pin_number": 4,
+          "name": "GND",
+          "properties": {},
+          "tags": []
         },
         {
           "id": "pin_069",
-          "pin_number": 4,
-          "name": "J16-4",
-          "tags": [
-            "signal:GND"
-          ],
-          "properties": {}
-        }
-      ],
-      "properties": {
-        "notes": "DAQ Logger: harness input (CAN + 12 V)"
-      }
-    },
-    {
-      "id": "con_017",
-      "name": "J17",
-      "parent": "pcb_005",
-      "connector_type": "molex_minifit_6p",
-      "tags": [
-        "system:engine",
-        "location:center"
-      ],
-      "pins": [
+          "pin_number": 5,
+          "name": "BPS1 (Post LPF)",
+          "properties": {},
+          "tags": []
+        },
         {
           "id": "pin_070",
-          "pin_number": 1,
-          "name": "J17-1",
-          "tags": [
-            "signal:SPI_MOSI"
-          ],
-          "properties": {}
+          "pin_number": 6,
+          "name": "BPS2 (Post LPF)",
+          "properties": {},
+          "tags": []
         },
         {
           "id": "pin_071",
-          "pin_number": 2,
-          "name": "J17-2",
-          "tags": [
-            "signal:SPI_MISO"
-          ],
-          "properties": {}
+          "pin_number": 7,
+          "name": "3V3",
+          "properties": {},
+          "tags": []
         },
         {
           "id": "pin_072",
-          "pin_number": 3,
-          "name": "J17-3",
-          "tags": [
-            "signal:SPI_SCK"
-          ],
-          "properties": {}
+          "pin_number": 8,
+          "name": "APPS1 (Post LPF)",
+          "properties": {},
+          "tags": []
         },
         {
           "id": "pin_073",
-          "pin_number": 4,
-          "name": "J17-4",
-          "tags": [
-            "signal:SPI_CS_ADC"
-          ],
-          "properties": {}
+          "pin_number": 9,
+          "name": "APPS2 (Post LPF)",
+          "properties": {},
+          "tags": []
         },
         {
           "id": "pin_074",
-          "pin_number": 5,
-          "name": "J17-5",
-          "tags": [
-            "signal:3V3"
-          ],
-          "properties": {}
+          "pin_number": 10,
+          "name": "24V",
+          "properties": {},
+          "tags": []
         },
         {
           "id": "pin_075",
-          "pin_number": 6,
-          "name": "J17-6",
-          "tags": [
-            "signal:GND"
-          ],
-          "properties": {}
-        }
-      ],
-      "properties": {
-        "notes": "DAQ Logger: SPI master output to Analog Front-End PCB"
-      }
-    },
-    {
-      "id": "con_018",
-      "name": "J18",
-      "parent": "pcb_005",
-      "connector_type": "molex_minifit_4p",
-      "tags": [
-        "system:engine",
-        "location:center"
-      ],
-      "pins": [
+          "pin_number": 11,
+          "name": "Ready to Drive Button",
+          "properties": {},
+          "tags": []
+        },
         {
           "id": "pin_076",
-          "pin_number": 1,
-          "name": "J18-1",
-          "tags": [
-            "signal:UART_TX"
-          ],
-          "properties": {}
+          "pin_number": 12,
+          "name": "GND",
+          "properties": {},
+          "tags": []
         },
         {
           "id": "pin_077",
-          "pin_number": 2,
-          "name": "J18-2",
-          "tags": [
-            "signal:UART_RX"
-          ],
-          "properties": {}
+          "pin_number": 13,
+          "name": "5V",
+          "properties": {},
+          "tags": []
         },
         {
           "id": "pin_078",
-          "pin_number": 3,
-          "name": "J18-3",
-          "tags": [
-            "signal:3V3"
-          ],
-          "properties": {}
+          "pin_number": 14,
+          "name": "Wheel/Shock 1",
+          "properties": {},
+          "tags": []
         },
         {
           "id": "pin_079",
-          "pin_number": 4,
-          "name": "J18-4",
-          "tags": [
-            "signal:GND"
-          ],
-          "properties": {}
-        }
-      ],
-      "properties": {
-        "notes": "DAQ Logger: UART output to GPS/IMU PCB"
-      }
-    },
-    {
-      "id": "con_019",
-      "name": "J19",
-      "parent": "pcb_006",
-      "connector_type": "molex_minifit_6p",
-      "tags": [
-        "system:engine",
-        "location:center"
-      ],
-      "pins": [
+          "pin_number": 15,
+          "name": "Wheel/Shock 2",
+          "properties": {},
+          "tags": []
+        },
         {
           "id": "pin_080",
-          "pin_number": 1,
-          "name": "J19-1",
-          "tags": [
-            "signal:SPI_MOSI"
-          ],
-          "properties": {}
+          "pin_number": 16,
+          "name": "Wheel/Shock 3",
+          "properties": {},
+          "tags": []
         },
         {
           "id": "pin_081",
-          "pin_number": 2,
-          "name": "J19-2",
-          "tags": [
-            "signal:SPI_MISO"
-          ],
-          "properties": {}
+          "pin_number": 17,
+          "name": "Wheel/Shock 4",
+          "properties": {},
+          "tags": []
         },
         {
           "id": "pin_082",
-          "pin_number": 3,
-          "name": "J19-3",
-          "tags": [
-            "signal:SPI_SCK"
-          ],
-          "properties": {}
+          "pin_number": 18,
+          "name": "NC",
+          "properties": {},
+          "tags": []
         },
         {
           "id": "pin_083",
-          "pin_number": 4,
-          "name": "J19-4",
-          "tags": [
-            "signal:SPI_CS_ADC"
-          ],
-          "properties": {}
+          "pin_number": 19,
+          "name": "Brake Light",
+          "properties": {},
+          "tags": []
         },
         {
           "id": "pin_084",
-          "pin_number": 5,
-          "name": "J19-5",
-          "tags": [
-            "signal:3V3"
-          ],
-          "properties": {}
+          "pin_number": 20,
+          "name": "12V",
+          "properties": {},
+          "tags": []
+        }
+      ],
+      "properties": {},
+      "tags": []
+    },
+    {
+      "id": "con_016",
+      "name": "Power In",
+      "parent": "pcb_003",
+      "connector_type": "molex_minifit_jr_2p",
+      "pins": [
+        {
+          "id": "pin_219",
+          "pin_number": 0,
+          "name": "Power In-0",
+          "properties": {},
+          "tags": []
         },
         {
           "id": "pin_085",
-          "pin_number": 6,
-          "name": "J19-6",
-          "tags": [
-            "signal:GND"
-          ],
-          "properties": {}
-        }
-      ],
-      "properties": {
-        "notes": "Analog Front-End: SPI slave input from DAQ Logger"
-      }
-    },
-    {
-      "id": "con_020",
-      "name": "J20",
-      "parent": "pcb_006",
-      "connector_type": "molex_minifit_4p",
-      "tags": [
-        "system:engine",
-        "location:center"
-      ],
-      "pins": [
+          "pin_number": 1,
+          "name": "12V",
+          "properties": {},
+          "tags": []
+        },
         {
           "id": "pin_086",
-          "pin_number": 1,
-          "name": "J20-1",
-          "tags": [
-            "signal:AIN_0"
-          ],
-          "properties": {}
+          "pin_number": 2,
+          "name": "GND",
+          "properties": {},
+          "tags": []
+        }
+      ],
+      "properties": {},
+      "tags": []
+    },
+    {
+      "id": "con_017",
+      "name": "Accel/Brake Pedal",
+      "parent": "pcb_003",
+      "connector_type": "molex_minifit_jr_4p",
+      "pins": [
+        {
+          "id": "pin_220",
+          "pin_number": 0,
+          "name": "Accel/Brake Pedal-0",
+          "properties": {},
+          "tags": []
         },
         {
           "id": "pin_087",
-          "pin_number": 2,
-          "name": "J20-2",
-          "tags": [
-            "signal:AIN_1"
-          ],
-          "properties": {}
+          "pin_number": 1,
+          "name": "BPS1",
+          "properties": {},
+          "tags": []
         },
         {
           "id": "pin_088",
-          "pin_number": 3,
-          "name": "J20-3",
-          "tags": [
-            "signal:3V3"
-          ],
-          "properties": {}
+          "pin_number": 2,
+          "name": "APPS2",
+          "properties": {},
+          "tags": []
         },
         {
           "id": "pin_089",
-          "pin_number": 4,
-          "name": "J20-4",
-          "tags": [
-            "signal:GND"
-          ],
-          "properties": {}
-        }
-      ],
-      "properties": {
-        "notes": "Analog Front-End: analog sensor input channels"
-      }
-    },
-    {
-      "id": "con_021",
-      "name": "J21",
-      "parent": "pcb_007",
-      "connector_type": "molex_minifit_4p",
-      "tags": [
-        "system:engine",
-        "location:center"
-      ],
-      "pins": [
+          "pin_number": 3,
+          "name": "BPS2",
+          "properties": {},
+          "tags": []
+        },
         {
           "id": "pin_090",
-          "pin_number": 1,
-          "name": "J21-1",
-          "tags": [
-            "signal:UART_TX"
-          ],
-          "properties": {}
+          "pin_number": 4,
+          "name": "APPS1",
+          "properties": {},
+          "tags": []
+        }
+      ],
+      "properties": {},
+      "tags": []
+    },
+    {
+      "id": "con_018",
+      "name": "Wheel/Shock",
+      "parent": "pcb_003",
+      "connector_type": "molex_minifit_jr_4p",
+      "pins": [
+        {
+          "id": "pin_221",
+          "pin_number": 0,
+          "name": "Wheel/Shock-0",
+          "properties": {},
+          "tags": []
         },
         {
           "id": "pin_091",
-          "pin_number": 2,
-          "name": "J21-2",
-          "tags": [
-            "signal:UART_RX"
-          ],
-          "properties": {}
+          "pin_number": 1,
+          "name": "Wheel/Shock 4",
+          "properties": {},
+          "tags": []
         },
         {
           "id": "pin_092",
-          "pin_number": 3,
-          "name": "J21-3",
-          "tags": [
-            "signal:3V3"
-          ],
-          "properties": {}
+          "pin_number": 2,
+          "name": "Wheel/Shock 3",
+          "properties": {},
+          "tags": []
         },
         {
           "id": "pin_093",
+          "pin_number": 3,
+          "name": "Wheel/Shock 2",
+          "properties": {},
+          "tags": []
+        },
+        {
+          "id": "pin_094",
           "pin_number": 4,
-          "name": "J21-4",
-          "tags": [
-            "signal:GND"
-          ],
-          "properties": {}
+          "name": "Wheel/Shock 1",
+          "properties": {},
+          "tags": []
         }
       ],
       "properties": {
-        "notes": "GPS/IMU: UART input from DAQ Logger + 3.3 V power"
-      }
+        "note": "Dual-purpose: wheel speed sensors or linear pots — unified as Wheel/Shock"
+      },
+      "tags": []
     },
     {
-      "id": "con_022",
-      "name": "J22",
-      "parent": "enc_006",
-      "connector_type": "te_superseal_4p",
-      "tags": [
-        "system:SDC",
-        "system:power",
-        "location:rear"
-      ],
+      "id": "con_019",
+      "name": "Thermistors 1/2",
+      "parent": "pcb_003",
+      "connector_type": "molex_minifit_jr_4p",
       "pins": [
         {
-          "id": "pin_094",
-          "pin_number": 1,
-          "name": "J22-1",
-          "tags": [
-            "signal:12V_MAIN"
-          ],
-          "properties": {}
+          "id": "pin_222",
+          "pin_number": 0,
+          "name": "Thermistors 1/2-0",
+          "properties": {},
+          "tags": []
         },
         {
           "id": "pin_095",
-          "pin_number": 2,
-          "name": "J22-2",
-          "tags": [
-            "signal:GND"
-          ],
-          "properties": {}
+          "pin_number": 1,
+          "name": "Thermistor 2",
+          "properties": {},
+          "tags": []
         },
         {
           "id": "pin_096",
-          "pin_number": 3,
-          "name": "J22-3",
-          "tags": [
-            "signal:SDC_IN"
-          ],
-          "properties": {}
+          "pin_number": 2,
+          "name": "Thermistor 1",
+          "properties": {},
+          "tags": []
         },
         {
           "id": "pin_097",
+          "pin_number": 3,
+          "name": "GND",
+          "properties": {},
+          "tags": []
+        },
+        {
+          "id": "pin_098",
           "pin_number": 4,
-          "name": "J22-4",
-          "tags": [
-            "signal:BSPD_OUT"
-          ],
-          "properties": {}
+          "name": "GND",
+          "properties": {},
+          "tags": []
         }
       ],
       "properties": {
-        "notes": "Bulkhead: 12 V power in + SDC loop pass-through"
-      }
+        "image": "SCR-20260410-bhll.png"
+      },
+      "tags": []
     },
     {
-      "id": "con_023",
-      "name": "J23",
-      "parent": "pcb_008",
-      "connector_type": "molex_minifit_4p",
-      "tags": [
-        "system:SDC",
-        "location:rear"
-      ],
+      "id": "con_020",
+      "name": "Thermistors 3/4",
+      "parent": "pcb_003",
+      "connector_type": "molex_minifit_jr_4p",
       "pins": [
         {
-          "id": "pin_098",
-          "pin_number": 1,
-          "name": "J23-1",
-          "tags": [
-            "signal:BRAKE_PRESS_F"
-          ],
-          "properties": {}
+          "id": "pin_223",
+          "pin_number": 0,
+          "name": "Thermistors 3/4-0",
+          "properties": {},
+          "tags": []
         },
         {
           "id": "pin_099",
-          "pin_number": 2,
-          "name": "J23-2",
-          "tags": [
-            "signal:BRAKE_PRESS_R"
-          ],
-          "properties": {}
+          "pin_number": 1,
+          "name": "Thermistor 4",
+          "properties": {},
+          "tags": []
         },
         {
           "id": "pin_100",
-          "pin_number": 3,
-          "name": "J23-3",
-          "tags": [
-            "signal:3V3"
-          ],
-          "properties": {}
+          "pin_number": 2,
+          "name": "Thermistor 3",
+          "properties": {},
+          "tags": []
         },
         {
           "id": "pin_101",
+          "pin_number": 3,
+          "name": "GND",
+          "properties": {},
+          "tags": []
+        },
+        {
+          "id": "pin_102",
           "pin_number": 4,
-          "name": "J23-4",
-          "tags": [
-            "signal:GND"
-          ],
-          "properties": {}
+          "name": "GND",
+          "properties": {},
+          "tags": []
         }
       ],
       "properties": {
-        "notes": "Brake Pressure Interface: analog inputs from front/rear pressure sensors"
-      }
+        "image": "SCR-20260410-bhll.png"
+      },
+      "tags": []
     },
     {
-      "id": "con_024",
-      "name": "J24",
-      "parent": "pcb_008",
-      "connector_type": "molex_minifit_4p",
-      "tags": [
-        "system:SDC",
-        "location:rear"
-      ],
+      "id": "con_021",
+      "name": "GPIO 1/2",
+      "parent": "pcb_003",
+      "connector_type": "molex_minifit_jr_4p",
       "pins": [
         {
-          "id": "pin_102",
-          "pin_number": 1,
-          "name": "J24-1",
-          "tags": [
-            "signal:I2C_SDA"
-          ],
-          "properties": {}
+          "id": "pin_224",
+          "pin_number": 0,
+          "name": "GPIO 1/2-0",
+          "properties": {},
+          "tags": []
         },
         {
           "id": "pin_103",
-          "pin_number": 2,
-          "name": "J24-2",
-          "tags": [
-            "signal:I2C_SCL"
-          ],
-          "properties": {}
+          "pin_number": 1,
+          "name": "TSSI_LATCH (GPIO2)",
+          "properties": {
+            "note": "Mapped from Safety Board CCM connector pin 2 — using GPIO2"
+          },
+          "tags": []
         },
         {
           "id": "pin_104",
-          "pin_number": 3,
-          "name": "J24-3",
-          "tags": [
-            "signal:3V3"
-          ],
-          "properties": {}
+          "pin_number": 2,
+          "name": "TSSI_BYPASS (GPIO1)",
+          "properties": {
+            "note": "Mapped from Safety Board CCM connector pin 1 — using GPIO1"
+          },
+          "tags": []
         },
         {
           "id": "pin_105",
-          "pin_number": 4,
-          "name": "J24-4",
-          "tags": [
-            "signal:GND"
-          ],
-          "properties": {}
-        }
-      ],
-      "properties": {
-        "notes": "Brake Pressure Interface: I2C slave port to Brake Light Driver"
-      }
-    },
-    {
-      "id": "con_025",
-      "name": "J25",
-      "parent": "pcb_009",
-      "connector_type": "molex_minifit_4p",
-      "tags": [
-        "system:SDC",
-        "location:rear"
-      ],
-      "pins": [
+          "pin_number": 3,
+          "name": "GND",
+          "properties": {},
+          "tags": []
+        },
         {
           "id": "pin_106",
-          "pin_number": 1,
-          "name": "J25-1",
-          "tags": [
-            "signal:I2C_SDA"
-          ],
-          "properties": {}
+          "pin_number": 4,
+          "name": "GND",
+          "properties": {},
+          "tags": []
+        }
+      ],
+      "properties": {},
+      "tags": []
+    },
+    {
+      "id": "con_022",
+      "name": "GPIO 3/4",
+      "parent": "pcb_003",
+      "connector_type": "molex_minifit_jr_4p",
+      "pins": [
+        {
+          "id": "pin_225",
+          "pin_number": 0,
+          "name": "GPIO 3/4-0",
+          "properties": {},
+          "tags": []
         },
         {
           "id": "pin_107",
-          "pin_number": 2,
-          "name": "J25-2",
-          "tags": [
-            "signal:I2C_SCL"
-          ],
-          "properties": {}
+          "pin_number": 1,
+          "name": "GPIO4",
+          "properties": {
+            "note": "Spare — unassigned"
+          },
+          "tags": []
         },
         {
           "id": "pin_108",
-          "pin_number": 3,
-          "name": "J25-3",
-          "tags": [
-            "signal:3V3"
-          ],
-          "properties": {}
+          "pin_number": 2,
+          "name": "SPEAKER (GPIO3)",
+          "properties": {
+            "note": "Mapped from Safety Board CCM connector pin 3 — using GPIO3"
+          },
+          "tags": []
         },
         {
           "id": "pin_109",
-          "pin_number": 4,
-          "name": "J25-4",
-          "tags": [
-            "signal:GND"
-          ],
-          "properties": {}
-        }
-      ],
-      "properties": {
-        "notes": "Brake Light Driver: I2C master port to Brake Pressure Interface"
-      }
-    },
-    {
-      "id": "con_026",
-      "name": "J26",
-      "parent": "pcb_009",
-      "connector_type": "molex_minifit_4p",
-      "tags": [
-        "system:SDC",
-        "system:power",
-        "location:rear"
-      ],
-      "pins": [
+          "pin_number": 3,
+          "name": "GND",
+          "properties": {},
+          "tags": []
+        },
         {
           "id": "pin_110",
-          "pin_number": 1,
-          "name": "J26-1",
-          "tags": [
-            "signal:12V_MAIN"
-          ],
-          "properties": {}
+          "pin_number": 4,
+          "name": "GND",
+          "properties": {},
+          "tags": []
+        }
+      ],
+      "properties": {},
+      "tags": []
+    },
+    {
+      "id": "con_023",
+      "name": "Brake Light/RTD",
+      "parent": "pcb_003",
+      "connector_type": "molex_minifit_jr_2p",
+      "pins": [
+        {
+          "id": "pin_226",
+          "pin_number": 0,
+          "name": "Brake Light/RTD-0",
+          "properties": {},
+          "tags": []
         },
         {
           "id": "pin_111",
-          "pin_number": 2,
-          "name": "J26-2",
-          "tags": [
-            "signal:GND"
-          ],
-          "properties": {}
+          "pin_number": 1,
+          "name": "Ready to Drive Button",
+          "properties": {},
+          "tags": []
         },
         {
           "id": "pin_112",
-          "pin_number": 3,
-          "name": "J26-3",
-          "tags": [
-            "signal:SDC_IN"
-          ],
-          "properties": {}
+          "pin_number": 2,
+          "name": "Brake Light",
+          "properties": {},
+          "tags": []
+        }
+      ],
+      "properties": {},
+      "tags": []
+    },
+    {
+      "id": "con_024",
+      "name": "Pump 1",
+      "parent": "pcb_003",
+      "connector_type": "molex_minifit_jr_2p",
+      "pins": [
+        {
+          "id": "pin_227",
+          "pin_number": 0,
+          "name": "Pump 1-0",
+          "properties": {},
+          "tags": []
         },
         {
           "id": "pin_113",
+          "pin_number": 1,
+          "name": "24V",
+          "properties": {},
+          "tags": []
+        },
+        {
+          "id": "pin_114",
+          "pin_number": 2,
+          "name": "Pump 1",
+          "properties": {},
+          "tags": []
+        }
+      ],
+      "properties": {},
+      "tags": []
+    },
+    {
+      "id": "con_025",
+      "name": "Pump 2",
+      "parent": "pcb_003",
+      "connector_type": "molex_minifit_jr_2p",
+      "pins": [
+        {
+          "id": "pin_228",
+          "pin_number": 0,
+          "name": "Pump 2-0",
+          "properties": {},
+          "tags": []
+        },
+        {
+          "id": "pin_115",
+          "pin_number": 1,
+          "name": "24V",
+          "properties": {},
+          "tags": []
+        },
+        {
+          "id": "pin_116",
+          "pin_number": 2,
+          "name": "Pump 2",
+          "properties": {},
+          "tags": []
+        }
+      ],
+      "properties": {},
+      "tags": []
+    },
+    {
+      "id": "con_026",
+      "name": "Fans",
+      "parent": "pcb_003",
+      "connector_type": "molex_minifit_jr_4p",
+      "pins": [
+        {
+          "id": "pin_229",
+          "pin_number": 0,
+          "name": "Fans-0",
+          "properties": {},
+          "tags": []
+        },
+        {
+          "id": "pin_117",
+          "pin_number": 1,
+          "name": "24V",
+          "properties": {},
+          "tags": []
+        },
+        {
+          "id": "pin_118",
+          "pin_number": 2,
+          "name": "Fan PWM",
+          "properties": {},
+          "tags": []
+        },
+        {
+          "id": "pin_119",
+          "pin_number": 3,
+          "name": "GND",
+          "properties": {},
+          "tags": []
+        },
+        {
+          "id": "pin_120",
           "pin_number": 4,
-          "name": "J26-4",
-          "tags": [
-            "signal:BSPD_OUT"
-          ],
-          "properties": {}
+          "name": "NC",
+          "properties": {},
+          "tags": []
+        }
+      ],
+      "properties": {},
+      "tags": []
+    },
+    {
+      "id": "con_027",
+      "name": "24V In",
+      "parent": "pcb_003",
+      "connector_type": "molex_minifit_jr_2p",
+      "pins": [
+        {
+          "id": "pin_230",
+          "pin_number": 0,
+          "name": "24V In-0",
+          "properties": {},
+          "tags": []
+        },
+        {
+          "id": "pin_121",
+          "pin_number": 1,
+          "name": "24V",
+          "properties": {},
+          "tags": []
+        },
+        {
+          "id": "pin_122",
+          "pin_number": 2,
+          "name": "GND",
+          "properties": {},
+          "tags": []
+        }
+      ],
+      "properties": {},
+      "tags": []
+    },
+    {
+      "id": "con_028",
+      "name": "CAN 1",
+      "parent": "pcb_003",
+      "connector_type": "molex_minifit_jr_2p",
+      "pins": [
+        {
+          "id": "pin_231",
+          "pin_number": 0,
+          "name": "CAN 1-0",
+          "properties": {},
+          "tags": []
+        },
+        {
+          "id": "pin_123",
+          "pin_number": 1,
+          "name": "CAN Low",
+          "properties": {},
+          "tags": []
+        },
+        {
+          "id": "pin_124",
+          "pin_number": 2,
+          "name": "CAN High",
+          "properties": {},
+          "tags": []
+        }
+      ],
+      "properties": {},
+      "tags": []
+    },
+    {
+      "id": "con_029",
+      "name": "CAN 2",
+      "parent": "pcb_003",
+      "connector_type": "molex_minifit_jr_2p",
+      "pins": [
+        {
+          "id": "pin_232",
+          "pin_number": 0,
+          "name": "CAN 2-0",
+          "properties": {},
+          "tags": []
+        },
+        {
+          "id": "pin_125",
+          "pin_number": 1,
+          "name": "CAN Low",
+          "properties": {},
+          "tags": []
+        },
+        {
+          "id": "pin_126",
+          "pin_number": 2,
+          "name": "CAN High",
+          "properties": {},
+          "tags": []
+        }
+      ],
+      "properties": {},
+      "tags": []
+    },
+    {
+      "id": "con_030",
+      "name": "Dash LEDs Header",
+      "parent": "pcb_004",
+      "connector_type": "molex_minifit_jr_4p",
+      "pins": [
+        {
+          "id": "pin_233",
+          "pin_number": 0,
+          "name": "Dash LEDs Header-0",
+          "properties": {},
+          "tags": []
+        },
+        {
+          "id": "pin_127",
+          "pin_number": 1,
+          "name": "GND",
+          "properties": {},
+          "tags": []
+        },
+        {
+          "id": "pin_128",
+          "pin_number": 2,
+          "name": "BSPD Fault LED",
+          "properties": {},
+          "tags": []
+        },
+        {
+          "id": "pin_129",
+          "pin_number": 3,
+          "name": "BMS Fault LED",
+          "properties": {},
+          "tags": []
+        },
+        {
+          "id": "pin_130",
+          "pin_number": 4,
+          "name": "IMD Fault LED",
+          "properties": {},
+          "tags": []
+        }
+      ],
+      "properties": {},
+      "tags": []
+    },
+    {
+      "id": "con_031",
+      "name": "TSSI Bulkhead",
+      "parent": "enc_002",
+      "connector_type": "deutsch_dt_4p",
+      "pins": [
+        {
+          "id": "pin_234",
+          "pin_number": 0,
+          "name": "TSSI Bulkhead-0",
+          "properties": {},
+          "tags": []
+        },
+        {
+          "id": "pin_131",
+          "pin_number": 1,
+          "name": "12V",
+          "properties": {},
+          "tags": []
+        },
+        {
+          "id": "pin_132",
+          "pin_number": 2,
+          "name": "12V",
+          "properties": {},
+          "tags": []
+        },
+        {
+          "id": "pin_133",
+          "pin_number": 3,
+          "name": "Green LED",
+          "properties": {},
+          "tags": []
+        },
+        {
+          "id": "pin_134",
+          "pin_number": 4,
+          "name": "Red LED",
+          "properties": {},
+          "tags": []
+        }
+      ],
+      "properties": {},
+      "tags": []
+    },
+    {
+      "id": "con_032",
+      "name": "Current Sensor Bulkhead",
+      "parent": "enc_002",
+      "connector_type": "deutsch_dt_4p",
+      "pins": [
+        {
+          "id": "pin_235",
+          "pin_number": 0,
+          "name": "Current Sensor Bulkhead-0",
+          "properties": {},
+          "tags": []
+        },
+        {
+          "id": "pin_135",
+          "pin_number": 1,
+          "name": "5V",
+          "properties": {},
+          "tags": []
+        },
+        {
+          "id": "pin_136",
+          "pin_number": 2,
+          "name": "Current Sense Signal",
+          "properties": {},
+          "tags": []
+        },
+        {
+          "id": "pin_137",
+          "pin_number": 3,
+          "name": "NC",
+          "properties": {},
+          "tags": []
+        },
+        {
+          "id": "pin_138",
+          "pin_number": 4,
+          "name": "GND",
+          "properties": {},
+          "tags": []
+        }
+      ],
+      "properties": {},
+      "tags": []
+    },
+    {
+      "id": "con_033",
+      "name": "Shock/Wheel Bulkhead",
+      "parent": "enc_002",
+      "connector_type": "deutsch_hd_12p",
+      "pins": [
+        {
+          "id": "pin_236",
+          "pin_number": 0,
+          "name": "Shock/Wheel Bulkhead-0",
+          "properties": {},
+          "tags": []
+        },
+        {
+          "id": "pin_139",
+          "pin_number": 1,
+          "name": "5V",
+          "properties": {},
+          "tags": []
+        },
+        {
+          "id": "pin_140",
+          "pin_number": 2,
+          "name": "5V",
+          "properties": {},
+          "tags": []
+        },
+        {
+          "id": "pin_141",
+          "pin_number": 3,
+          "name": "GND",
+          "properties": {},
+          "tags": []
+        },
+        {
+          "id": "pin_142",
+          "pin_number": 4,
+          "name": "GND",
+          "properties": {},
+          "tags": []
+        },
+        {
+          "id": "pin_143",
+          "pin_number": 5,
+          "name": "GND",
+          "properties": {},
+          "tags": []
+        },
+        {
+          "id": "pin_144",
+          "pin_number": 6,
+          "name": "GND",
+          "properties": {},
+          "tags": []
+        },
+        {
+          "id": "pin_145",
+          "pin_number": 7,
+          "name": "5V",
+          "properties": {},
+          "tags": []
+        },
+        {
+          "id": "pin_146",
+          "pin_number": 8,
+          "name": "5V",
+          "properties": {},
+          "tags": []
+        },
+        {
+          "id": "pin_147",
+          "pin_number": 9,
+          "name": "Wheel/Shock 1",
+          "properties": {},
+          "tags": []
+        },
+        {
+          "id": "pin_148",
+          "pin_number": 10,
+          "name": "Wheel/Shock 2",
+          "properties": {},
+          "tags": []
+        },
+        {
+          "id": "pin_149",
+          "pin_number": 11,
+          "name": "Wheel/Shock 3",
+          "properties": {},
+          "tags": []
+        },
+        {
+          "id": "pin_150",
+          "pin_number": 12,
+          "name": "Wheel/Shock 4",
+          "properties": {},
+          "tags": []
+        }
+      ],
+      "properties": {},
+      "tags": []
+    },
+    {
+      "id": "con_034",
+      "name": "Brake Light Bulkhead",
+      "parent": "enc_002",
+      "connector_type": "molex_minifit_jr_2p",
+      "pins": [
+        {
+          "id": "pin_237",
+          "pin_number": 0,
+          "name": "Brake Light Bulkhead-0",
+          "properties": {},
+          "tags": []
+        },
+        {
+          "id": "pin_151",
+          "pin_number": 1,
+          "name": "12V",
+          "properties": {},
+          "tags": []
+        },
+        {
+          "id": "pin_152",
+          "pin_number": 2,
+          "name": "GND (Low Side Switching)",
+          "properties": {},
+          "tags": []
+        }
+      ],
+      "properties": {},
+      "tags": []
+    },
+    {
+      "id": "con_035",
+      "name": "Footwell Bulkhead",
+      "parent": "enc_002",
+      "connector_type": "deutsch_hd_14p",
+      "pins": [
+        {
+          "id": "pin_238",
+          "pin_number": 0,
+          "name": "Footwell Bulkhead-0",
+          "properties": {},
+          "tags": []
+        },
+        {
+          "id": "pin_153",
+          "pin_number": 1,
+          "name": "NC",
+          "properties": {},
+          "tags": []
+        },
+        {
+          "id": "pin_154",
+          "pin_number": 2,
+          "name": "GND",
+          "properties": {},
+          "tags": []
+        },
+        {
+          "id": "pin_155",
+          "pin_number": 3,
+          "name": "GND",
+          "properties": {},
+          "tags": []
+        },
+        {
+          "id": "pin_156",
+          "pin_number": 4,
+          "name": "3V3",
+          "properties": {},
+          "tags": []
+        },
+        {
+          "id": "pin_157",
+          "pin_number": 5,
+          "name": "GND",
+          "properties": {},
+          "tags": []
+        },
+        {
+          "id": "pin_158",
+          "pin_number": 6,
+          "name": "GND",
+          "properties": {},
+          "tags": []
+        },
+        {
+          "id": "pin_159",
+          "pin_number": 7,
+          "name": "5V",
+          "properties": {},
+          "tags": []
+        },
+        {
+          "id": "pin_160",
+          "pin_number": 8,
+          "name": "NC",
+          "properties": {},
+          "tags": []
+        },
+        {
+          "id": "pin_161",
+          "pin_number": 9,
+          "name": "APPS2",
+          "properties": {},
+          "tags": []
+        },
+        {
+          "id": "pin_162",
+          "pin_number": 10,
+          "name": "APPS1",
+          "properties": {},
+          "tags": []
+        },
+        {
+          "id": "pin_163",
+          "pin_number": 11,
+          "name": "NC",
+          "properties": {
+            "note": "Verify: was listed as 3V3 in brain dump"
+          },
+          "tags": []
+        },
+        {
+          "id": "pin_164",
+          "pin_number": 12,
+          "name": "BPS2",
+          "properties": {},
+          "tags": []
+        },
+        {
+          "id": "pin_165",
+          "pin_number": 13,
+          "name": "BPS1",
+          "properties": {},
+          "tags": []
+        },
+        {
+          "id": "pin_166",
+          "pin_number": 14,
+          "name": "5V",
+          "properties": {},
+          "tags": []
+        }
+      ],
+      "properties": {},
+      "tags": []
+    },
+    {
+      "id": "con_036",
+      "name": "Placeholder Bulkhead",
+      "parent": "enc_002",
+      "connector_type": "tbd",
+      "pins": [
+        {
+          "id": "pin_239",
+          "pin_number": 0,
+          "name": "Placeholder Bulkhead-0",
+          "properties": {},
+          "tags": []
+        },
+        {
+          "id": "pin_167",
+          "pin_number": 1,
+          "name": "SDC Out",
+          "properties": {
+            "source": "con_003 pin 2"
+          },
+          "tags": []
+        },
+        {
+          "id": "pin_168",
+          "pin_number": 2,
+          "name": "E-Stop In",
+          "properties": {
+            "source": "con_004 pin 1"
+          },
+          "tags": []
+        },
+        {
+          "id": "pin_169",
+          "pin_number": 3,
+          "name": "E-Stop Out",
+          "properties": {
+            "source": "con_004 pin 2"
+          },
+          "tags": []
+        },
+        {
+          "id": "pin_170",
+          "pin_number": 4,
+          "name": "TS On SW In",
+          "properties": {
+            "source": "con_005 pin 1"
+          },
+          "tags": []
+        },
+        {
+          "id": "pin_171",
+          "pin_number": 5,
+          "name": "TS On SW Out",
+          "properties": {
+            "source": "con_005 pin 2"
+          },
+          "tags": []
+        },
+        {
+          "id": "pin_172",
+          "pin_number": 6,
+          "name": "ACCU SDC Out",
+          "properties": {
+            "source": "con_006 pin 1"
+          },
+          "tags": []
+        },
+        {
+          "id": "pin_173",
+          "pin_number": 7,
+          "name": "ACCU GND",
+          "properties": {
+            "source": "con_006 pin 2"
+          },
+          "tags": []
+        },
+        {
+          "id": "pin_174",
+          "pin_number": 8,
+          "name": "ACCU IM Default",
+          "properties": {
+            "source": "con_006 pin 3"
+          },
+          "tags": []
+        },
+        {
+          "id": "pin_175",
+          "pin_number": 9,
+          "name": "ACCU BMS Fault",
+          "properties": {
+            "source": "con_006 pin 4"
+          },
+          "tags": []
+        },
+        {
+          "id": "pin_176",
+          "pin_number": 10,
+          "name": "24V Power In +",
+          "properties": {
+            "source": "con_010 pin 1"
+          },
+          "tags": []
+        },
+        {
+          "id": "pin_177",
+          "pin_number": 11,
+          "name": "24V Power In GND",
+          "properties": {
+            "source": "con_010 pin 2"
+          },
+          "tags": []
+        },
+        {
+          "id": "pin_178",
+          "pin_number": 12,
+          "name": "24V Expansion +",
+          "properties": {
+            "source": "con_011 pin 1"
+          },
+          "tags": []
+        },
+        {
+          "id": "pin_179",
+          "pin_number": 13,
+          "name": "24V Expansion GND",
+          "properties": {
+            "source": "con_011 pin 2"
+          },
+          "tags": []
         }
       ],
       "properties": {
-        "notes": "Brake Light Driver: 12 V power + SDC input and BSPD output"
-      }
+        "note": "Placeholder absorbing all unspecified external connections — identities TBD"
+      },
+      "tags": []
+    },
+    {
+      "id": "con_037",
+      "name": "Light Tree Connector",
+      "parent": "enc_003",
+      "connector_type": "deutsch_dt_4p",
+      "pins": [
+        {
+          "id": "pin_240",
+          "pin_number": 0,
+          "name": "Light Tree Connector-0",
+          "properties": {},
+          "tags": []
+        },
+        {
+          "id": "pin_180",
+          "pin_number": 1,
+          "name": "12V",
+          "properties": {},
+          "tags": []
+        },
+        {
+          "id": "pin_181",
+          "pin_number": 2,
+          "name": "12V",
+          "properties": {},
+          "tags": []
+        },
+        {
+          "id": "pin_182",
+          "pin_number": 3,
+          "name": "Green LED",
+          "properties": {},
+          "tags": []
+        },
+        {
+          "id": "pin_183",
+          "pin_number": 4,
+          "name": "Red LED",
+          "properties": {},
+          "tags": []
+        }
+      ],
+      "properties": {},
+      "tags": []
+    },
+    {
+      "id": "con_038",
+      "name": "Brake Light Connector",
+      "parent": "enc_004",
+      "connector_type": "molex_minifit_jr_2p",
+      "pins": [
+        {
+          "id": "pin_241",
+          "pin_number": 0,
+          "name": "Brake Light Connector-0",
+          "properties": {},
+          "tags": []
+        },
+        {
+          "id": "pin_184",
+          "pin_number": 1,
+          "name": "12V",
+          "properties": {},
+          "tags": []
+        },
+        {
+          "id": "pin_185",
+          "pin_number": 2,
+          "name": "GND (Low Side Switching)",
+          "properties": {},
+          "tags": []
+        }
+      ],
+      "properties": {},
+      "tags": []
+    },
+    {
+      "id": "con_039",
+      "name": "Current Sensor (HV Battery Side)",
+      "parent": "enc_005",
+      "connector_type": "deutsch_dt_4p",
+      "pins": [
+        {
+          "id": "pin_242",
+          "pin_number": 0,
+          "name": "Current Sensor (HV Battery Side)-0",
+          "properties": {},
+          "tags": []
+        },
+        {
+          "id": "pin_186",
+          "pin_number": 1,
+          "name": "5V",
+          "properties": {},
+          "tags": []
+        },
+        {
+          "id": "pin_187",
+          "pin_number": 2,
+          "name": "Current Sense Signal",
+          "properties": {},
+          "tags": []
+        },
+        {
+          "id": "pin_188",
+          "pin_number": 3,
+          "name": "NC",
+          "properties": {},
+          "tags": []
+        },
+        {
+          "id": "pin_189",
+          "pin_number": 4,
+          "name": "GND",
+          "properties": {},
+          "tags": []
+        }
+      ],
+      "properties": {
+        "image": "SCR-20260409-ufwb.png"
+      },
+      "tags": []
+    },
+    {
+      "id": "con_040",
+      "name": "Placeholder (3V3/5V)",
+      "parent": "pcb_003",
+      "connector_type": "tbd",
+      "pins": [
+        {
+          "id": "pin_243",
+          "pin_number": 0,
+          "name": "Placeholder (3V3/5V)-0",
+          "properties": {},
+          "tags": []
+        },
+        {
+          "id": "pin_190",
+          "pin_number": 1,
+          "name": "3V3",
+          "properties": {
+            "note": "Sourced from Safety Board CCM connector pin 7 — destination TBD"
+          },
+          "tags": []
+        },
+        {
+          "id": "pin_191",
+          "pin_number": 2,
+          "name": "5V",
+          "properties": {
+            "note": "Sourced from Safety Board CCM connector pin 13 — destination TBD"
+          },
+          "tags": []
+        }
+      ],
+      "properties": {
+        "note": "Placeholder for 3V3 and 5V rails arriving via Safety Board 20-pin — source not yet fully defined"
+      },
+      "tags": []
+    },
+    {
+      "id": "con_041",
+      "name": "Wheel Speed Sensor 1 Connector",
+      "parent": "enc_006",
+      "connector_type": "tbd",
+      "pins": [
+        {
+          "id": "pin_244",
+          "pin_number": 0,
+          "name": "Wheel Speed Sensor 1 Connector-0",
+          "properties": {},
+          "tags": []
+        },
+        {
+          "id": "pin_192",
+          "pin_number": 1,
+          "name": "5V",
+          "properties": {},
+          "tags": []
+        },
+        {
+          "id": "pin_193",
+          "pin_number": 2,
+          "name": "GND",
+          "properties": {},
+          "tags": []
+        },
+        {
+          "id": "pin_194",
+          "pin_number": 3,
+          "name": "Wheel/Shock 1",
+          "properties": {},
+          "tags": []
+        }
+      ],
+      "properties": {
+        "note": "Sensor pinout TBD",
+        "image": "IMG_1255.jpg"
+      },
+      "tags": []
+    },
+    {
+      "id": "con_042",
+      "name": "Wheel Speed Sensor 2 Connector",
+      "parent": "enc_007",
+      "connector_type": "tbd",
+      "pins": [
+        {
+          "id": "pin_245",
+          "pin_number": 0,
+          "name": "Wheel Speed Sensor 2 Connector-0",
+          "properties": {},
+          "tags": []
+        },
+        {
+          "id": "pin_195",
+          "pin_number": 1,
+          "name": "5V",
+          "properties": {},
+          "tags": []
+        },
+        {
+          "id": "pin_196",
+          "pin_number": 2,
+          "name": "GND",
+          "properties": {},
+          "tags": []
+        },
+        {
+          "id": "pin_197",
+          "pin_number": 3,
+          "name": "Wheel/Shock 2",
+          "properties": {},
+          "tags": []
+        }
+      ],
+      "properties": {
+        "note": "Sensor pinout TBD"
+      },
+      "tags": []
+    },
+    {
+      "id": "con_043",
+      "name": "Wheel Speed Sensor 3 Connector",
+      "parent": "enc_008",
+      "connector_type": "tbd",
+      "pins": [
+        {
+          "id": "pin_246",
+          "pin_number": 0,
+          "name": "Wheel Speed Sensor 3 Connector-0",
+          "properties": {},
+          "tags": []
+        },
+        {
+          "id": "pin_198",
+          "pin_number": 1,
+          "name": "5V",
+          "properties": {},
+          "tags": []
+        },
+        {
+          "id": "pin_199",
+          "pin_number": 2,
+          "name": "GND",
+          "properties": {},
+          "tags": []
+        },
+        {
+          "id": "pin_200",
+          "pin_number": 3,
+          "name": "Wheel/Shock 3",
+          "properties": {},
+          "tags": []
+        }
+      ],
+      "properties": {
+        "note": "Sensor pinout TBD"
+      },
+      "tags": []
+    },
+    {
+      "id": "con_044",
+      "name": "Wheel Speed Sensor 4 Connector",
+      "parent": "enc_009",
+      "connector_type": "tbd",
+      "pins": [
+        {
+          "id": "pin_247",
+          "pin_number": 0,
+          "name": "Wheel Speed Sensor 4 Connector-0",
+          "properties": {},
+          "tags": []
+        },
+        {
+          "id": "pin_201",
+          "pin_number": 1,
+          "name": "5V",
+          "properties": {},
+          "tags": []
+        },
+        {
+          "id": "pin_202",
+          "pin_number": 2,
+          "name": "GND",
+          "properties": {},
+          "tags": []
+        },
+        {
+          "id": "pin_203",
+          "pin_number": 3,
+          "name": "Wheel/Shock 4",
+          "properties": {},
+          "tags": []
+        }
+      ],
+      "properties": {
+        "note": "Sensor pinout TBD"
+      },
+      "tags": []
+    },
+    {
+      "id": "con_045",
+      "name": "FOC-C1",
+      "parent": "enc_002",
+      "connector_type": "deutsch_dt_12p_female",
+      "pins": [
+        {
+          "id": "pin_248",
+          "pin_number": 0,
+          "name": "FOC-C1-0",
+          "properties": {},
+          "tags": []
+        },
+        {
+          "id": "pin_249",
+          "pin_number": 1,
+          "name": "12V",
+          "properties": {},
+          "tags": []
+        },
+        {
+          "id": "pin_250",
+          "pin_number": 2,
+          "name": "GND_GLVMP",
+          "properties": {},
+          "tags": []
+        },
+        {
+          "id": "pin_251",
+          "pin_number": 3,
+          "name": "BMS Reset-",
+          "properties": {},
+          "tags": []
+        },
+        {
+          "id": "pin_252",
+          "pin_number": 4,
+          "name": "BMS LED+",
+          "properties": {},
+          "tags": []
+        },
+        {
+          "id": "pin_253",
+          "pin_number": 5,
+          "name": "BSPD Reset-",
+          "properties": {},
+          "tags": []
+        },
+        {
+          "id": "pin_254",
+          "pin_number": 6,
+          "name": "BSPD LED+",
+          "properties": {},
+          "tags": []
+        },
+        {
+          "id": "pin_255",
+          "pin_number": 7,
+          "name": "IMD Reset+",
+          "properties": {},
+          "tags": []
+        },
+        {
+          "id": "pin_256",
+          "pin_number": 8,
+          "name": "IMD Reset-",
+          "properties": {},
+          "tags": []
+        },
+        {
+          "id": "pin_257",
+          "pin_number": 9,
+          "name": "IMD LED+",
+          "properties": {},
+          "tags": []
+        },
+        {
+          "id": "pin_258",
+          "pin_number": 10,
+          "name": "LV MS-",
+          "properties": {},
+          "tags": []
+        },
+        {
+          "id": "pin_259",
+          "pin_number": 11,
+          "name": "Speaker+",
+          "properties": {},
+          "tags": []
+        },
+        {
+          "id": "pin_260",
+          "pin_number": 12,
+          "name": "Speaker-",
+          "properties": {},
+          "tags": []
+        }
+      ],
+      "properties": {},
+      "tags": []
+    },
+    {
+      "id": "con_046",
+      "name": "ROC-C1",
+      "parent": "enc_001",
+      "connector_type": "deutsch_dt_12p_male",
+      "pins": [
+        {
+          "id": "pin_261",
+          "pin_number": 0,
+          "name": "ROC-C1-0",
+          "properties": {},
+          "tags": []
+        },
+        {
+          "id": "pin_262",
+          "pin_number": 1,
+          "name": "12V",
+          "properties": {},
+          "tags": []
+        },
+        {
+          "id": "pin_263",
+          "pin_number": 2,
+          "name": "GND_GLVMP",
+          "properties": {},
+          "tags": []
+        },
+        {
+          "id": "pin_264",
+          "pin_number": 3,
+          "name": "BMS Reset-",
+          "properties": {},
+          "tags": []
+        },
+        {
+          "id": "pin_265",
+          "pin_number": 4,
+          "name": "BMS LED+",
+          "properties": {},
+          "tags": []
+        },
+        {
+          "id": "pin_266",
+          "pin_number": 5,
+          "name": "BSPD Reset-",
+          "properties": {},
+          "tags": []
+        },
+        {
+          "id": "pin_267",
+          "pin_number": 6,
+          "name": "BSPD LED+",
+          "properties": {},
+          "tags": []
+        },
+        {
+          "id": "pin_268",
+          "pin_number": 7,
+          "name": "IMD Reset+",
+          "properties": {},
+          "tags": []
+        },
+        {
+          "id": "pin_269",
+          "pin_number": 8,
+          "name": "IMD Reset-",
+          "properties": {},
+          "tags": []
+        },
+        {
+          "id": "pin_270",
+          "pin_number": 9,
+          "name": "IMD LED+",
+          "properties": {},
+          "tags": []
+        },
+        {
+          "id": "pin_271",
+          "pin_number": 10,
+          "name": "LV MS-",
+          "properties": {},
+          "tags": []
+        },
+        {
+          "id": "pin_272",
+          "pin_number": 11,
+          "name": "Speaker+",
+          "properties": {},
+          "tags": []
+        },
+        {
+          "id": "pin_273",
+          "pin_number": 12,
+          "name": "Speaker-",
+          "properties": {},
+          "tags": []
+        }
+      ],
+      "properties": {},
+      "tags": []
     }
   ],
   "wires": [
     {
       "id": "wire_001",
-      "from": "pin_001",
-      "to": "pin_005",
-      "tags": [
-        "signal:CAN_H",
-        "bundle:dash_internal",
-        "status:crimped"
-      ],
-      "properties": {
-        "length_mm": "150"
-      }
+      "from": "pin_027",
+      "to": "pin_131",
+      "properties": {},
+      "tags": []
     },
     {
       "id": "wire_002",
-      "from": "pin_002",
-      "to": "pin_006",
-      "tags": [
-        "signal:CAN_L",
-        "bundle:dash_internal",
-        "status:crimped"
-      ],
-      "properties": {
-        "length_mm": "150"
-      }
+      "from": "pin_028",
+      "to": "pin_132",
+      "properties": {},
+      "tags": []
     },
     {
       "id": "wire_003",
-      "from": "pin_001",
-      "to": "pin_009",
-      "tags": [
-        "signal:CAN_H",
-        "bundle:main_harness",
-        "status:crimped",
-        "status:verified"
-      ],
-      "properties": {
-        "length_mm": "1200"
-      }
+      "from": "pin_029",
+      "to": "pin_133",
+      "properties": {},
+      "tags": []
     },
     {
       "id": "wire_004",
-      "from": "pin_002",
-      "to": "pin_010",
-      "tags": [
-        "signal:CAN_L",
-        "bundle:main_harness",
-        "status:crimped",
-        "status:verified"
-      ],
-      "properties": {
-        "length_mm": "1200"
-      }
+      "from": "pin_030",
+      "to": "pin_134",
+      "properties": {},
+      "tags": []
     },
     {
       "id": "wire_005",
-      "from": "pin_009",
-      "to": "pin_016",
-      "tags": [
-        "signal:CAN_H",
-        "bundle:main_harness",
-        "status:crimped"
-      ],
-      "properties": {
-        "length_mm": "1800"
-      }
+      "from": "pin_131",
+      "to": "pin_180",
+      "properties": {},
+      "tags": []
     },
     {
       "id": "wire_006",
-      "from": "pin_010",
-      "to": "pin_017",
-      "tags": [
-        "signal:CAN_L",
-        "bundle:main_harness",
-        "status:crimped"
-      ],
-      "properties": {
-        "length_mm": "1800"
-      }
+      "from": "pin_132",
+      "to": "pin_181",
+      "properties": {},
+      "tags": []
     },
     {
       "id": "wire_007",
-      "from": "pin_011",
-      "to": "pin_003",
-      "tags": [
-        "signal:12V_MAIN",
-        "bundle:main_harness",
-        "status:verified"
-      ],
-      "properties": {
-        "length_mm": "1200"
-      }
+      "from": "pin_133",
+      "to": "pin_182",
+      "properties": {},
+      "tags": []
     },
     {
       "id": "wire_008",
-      "from": "pin_011",
-      "to": "pin_018",
-      "tags": [
-        "signal:12V_MAIN",
-        "bundle:main_harness"
-      ],
-      "properties": {
-        "length_mm": "1800"
-      }
+      "from": "pin_134",
+      "to": "pin_183",
+      "properties": {},
+      "tags": []
     },
     {
       "id": "wire_009",
-      "from": "pin_016",
-      "to": "pin_021",
-      "tags": [
-        "signal:CAN_H",
-        "bundle:ecu_internal"
-      ],
-      "properties": {
-        "length_mm": "100"
-      }
+      "from": "pin_021",
+      "to": "pin_135",
+      "properties": {},
+      "tags": []
     },
     {
       "id": "wire_010",
-      "from": "pin_017",
-      "to": "pin_022",
-      "tags": [
-        "signal:CAN_L",
-        "bundle:ecu_internal"
-      ],
-      "properties": {
-        "length_mm": "100"
-      }
+      "from": "pin_022",
+      "to": "pin_136",
+      "properties": {},
+      "tags": []
     },
     {
       "id": "wire_011",
-      "from": "pin_013",
-      "to": "pin_014",
-      "tags": [
-        "signal:SDC_IN",
-        "bundle:sdc_loop"
-      ],
-      "properties": {
-        "length_mm": "200"
-      }
+      "from": "pin_024",
+      "to": "pin_138",
+      "properties": {},
+      "tags": []
     },
     {
       "id": "wire_012",
-      "from": "pin_015",
-      "to": "pin_025",
-      "tags": [
-        "signal:SDC_OUT",
-        "bundle:sdc_loop"
-      ],
-      "properties": {
-        "length_mm": "2000"
-      }
+      "from": "pin_135",
+      "to": "pin_186",
+      "properties": {},
+      "tags": []
     },
     {
       "id": "wire_013",
-      "from": "pin_014",
-      "to": "pin_027",
-      "tags": [
-        "signal:SDC_IN",
-        "bundle:pdm_internal",
-        "status:crimped"
-      ],
-      "properties": {
-        "length_mm": "80"
-      }
+      "from": "pin_136",
+      "to": "pin_187",
+      "properties": {},
+      "tags": []
     },
     {
       "id": "wire_014",
-      "from": "pin_028",
-      "to": "pin_015",
-      "tags": [
-        "signal:SDC_OUT",
-        "bundle:pdm_internal",
-        "status:crimped"
-      ],
-      "properties": {
-        "length_mm": "80"
-      }
+      "from": "pin_138",
+      "to": "pin_189",
+      "properties": {},
+      "tags": []
     },
     {
       "id": "wire_015",
-      "from": "pin_011",
-      "to": "pin_029",
-      "tags": [
-        "signal:12V_MAIN",
-        "bundle:pdm_internal",
-        "status:crimped"
-      ],
-      "properties": {
-        "length_mm": "60"
-      }
+      "from": "pin_039",
+      "to": "pin_139",
+      "properties": {},
+      "tags": []
     },
     {
       "id": "wire_016",
-      "from": "pin_012",
-      "to": "pin_030",
-      "tags": [
-        "signal:GND",
-        "bundle:pdm_internal",
-        "status:crimped"
-      ],
-      "properties": {
-        "length_mm": "60"
-      }
+      "from": "pin_040",
+      "to": "pin_140",
+      "properties": {},
+      "tags": []
     },
     {
       "id": "wire_017",
-      "from": "pin_016",
-      "to": "pin_031",
-      "tags": [
-        "signal:CAN_H",
-        "bundle:main_harness"
-      ],
-      "properties": {
-        "length_mm": "300"
-      }
+      "from": "pin_041",
+      "to": "pin_141",
+      "properties": {},
+      "tags": []
     },
     {
       "id": "wire_018",
-      "from": "pin_017",
-      "to": "pin_032",
-      "tags": [
-        "signal:CAN_L",
-        "bundle:main_harness"
-      ],
-      "properties": {
-        "length_mm": "300"
-      }
+      "from": "pin_042",
+      "to": "pin_142",
+      "properties": {},
+      "tags": []
     },
     {
       "id": "wire_019",
-      "from": "pin_018",
-      "to": "pin_033",
-      "tags": [
-        "signal:12V_MAIN",
-        "bundle:main_harness"
-      ],
-      "properties": {
-        "length_mm": "300"
-      }
+      "from": "pin_043",
+      "to": "pin_143",
+      "properties": {},
+      "tags": []
     },
     {
       "id": "wire_020",
-      "from": "pin_019",
-      "to": "pin_034",
-      "tags": [
-        "signal:GND",
-        "bundle:main_harness"
-      ],
-      "properties": {
-        "length_mm": "300"
-      }
+      "from": "pin_044",
+      "to": "pin_144",
+      "properties": {},
+      "tags": []
     },
     {
       "id": "wire_021",
-      "from": "pin_031",
-      "to": "pin_037",
-      "tags": [
-        "signal:CAN_H",
-        "bundle:sensor_hub_internal"
-      ],
-      "properties": {
-        "length_mm": "90"
-      }
+      "from": "pin_045",
+      "to": "pin_145",
+      "properties": {},
+      "tags": []
     },
     {
       "id": "wire_022",
-      "from": "pin_032",
-      "to": "pin_038",
-      "tags": [
-        "signal:CAN_L",
-        "bundle:sensor_hub_internal"
-      ],
-      "properties": {
-        "length_mm": "90"
-      }
+      "from": "pin_046",
+      "to": "pin_146",
+      "properties": {},
+      "tags": []
     },
     {
       "id": "wire_023",
-      "from": "pin_035",
-      "to": "pin_039",
-      "tags": [
-        "signal:WSS_FL",
-        "bundle:sensor_hub_internal"
-      ],
-      "properties": {
-        "length_mm": "90"
-      }
+      "from": "pin_047",
+      "to": "pin_147",
+      "properties": {},
+      "tags": []
     },
     {
       "id": "wire_024",
-      "from": "pin_036",
-      "to": "pin_040",
-      "tags": [
-        "signal:TEMP_COOLANT",
-        "bundle:sensor_hub_internal"
-      ],
-      "properties": {
-        "length_mm": "90"
-      }
+      "from": "pin_048",
+      "to": "pin_148",
+      "properties": {},
+      "tags": []
     },
     {
       "id": "wire_025",
-      "from": "pin_033",
-      "to": "pin_041",
-      "tags": [
-        "signal:12V_MAIN",
-        "bundle:sensor_hub_internal"
-      ],
-      "properties": {
-        "length_mm": "90"
-      }
+      "from": "pin_049",
+      "to": "pin_149",
+      "properties": {},
+      "tags": []
     },
     {
       "id": "wire_026",
-      "from": "pin_034",
-      "to": "pin_042",
-      "tags": [
-        "signal:GND",
-        "bundle:sensor_hub_internal"
-      ],
-      "properties": {
-        "length_mm": "90"
-      }
+      "from": "pin_050",
+      "to": "pin_150",
+      "properties": {},
+      "tags": []
     },
     {
       "id": "wire_027",
-      "from": "pin_005",
-      "to": "pin_043",
-      "tags": [
-        "signal:CAN_H",
-        "bundle:dash_pcb_trace",
-        "status:verified"
-      ],
-      "properties": {
-        "length_mm": "10",
-        "notes": "PCB trace: J2 → J11 (steering wheel display)"
-      }
+      "from": "pin_025",
+      "to": "pin_151",
+      "properties": {},
+      "tags": []
     },
     {
       "id": "wire_028",
-      "from": "pin_006",
-      "to": "pin_044",
-      "tags": [
-        "signal:CAN_L",
-        "bundle:dash_pcb_trace",
-        "status:verified"
-      ],
-      "properties": {
-        "length_mm": "10",
-        "notes": "PCB trace: J2 → J11"
-      }
+      "from": "pin_026",
+      "to": "pin_152",
+      "properties": {},
+      "tags": []
     },
     {
       "id": "wire_029",
-      "from": "pin_007",
-      "to": "pin_045",
-      "tags": [
-        "signal:12V_MAIN",
-        "bundle:dash_pcb_trace"
-      ],
-      "properties": {
-        "length_mm": "8",
-        "notes": "PCB power plane: J2 → J11"
-      }
+      "from": "pin_151",
+      "to": "pin_184",
+      "properties": {},
+      "tags": []
     },
     {
       "id": "wire_030",
-      "from": "pin_008",
-      "to": "pin_046",
-      "tags": [
-        "signal:GND",
-        "bundle:dash_pcb_trace"
-      ],
-      "properties": {
-        "length_mm": "8",
-        "notes": "PCB ground plane: J2 → J11"
-      }
+      "from": "pin_152",
+      "to": "pin_185",
+      "properties": {},
+      "tags": []
     },
     {
       "id": "wire_031",
-      "from": "pin_021",
-      "to": "pin_047",
-      "tags": [
-        "signal:CAN_H",
-        "bundle:ecu_pcb_trace"
-      ],
-      "properties": {
-        "length_mm": "12",
-        "notes": "PCB trace: J6 → J12 (diagnostic port)"
-      }
+      "from": "pin_051",
+      "to": "pin_153",
+      "properties": {},
+      "tags": []
     },
     {
       "id": "wire_032",
-      "from": "pin_022",
-      "to": "pin_048",
-      "tags": [
-        "signal:CAN_L",
-        "bundle:ecu_pcb_trace"
-      ],
-      "properties": {
-        "length_mm": "12",
-        "notes": "PCB trace: J6 → J12"
-      }
+      "from": "pin_052",
+      "to": "pin_154",
+      "properties": {},
+      "tags": []
     },
     {
       "id": "wire_033",
-      "from": "pin_023",
-      "to": "pin_049",
-      "tags": [
-        "signal:APPS_1",
-        "bundle:ecu_pcb_trace"
-      ],
-      "properties": {
-        "length_mm": "15",
-        "notes": "PCB trace: J6 APPS_1 → J12 conditioning output"
-      }
+      "from": "pin_053",
+      "to": "pin_155",
+      "properties": {},
+      "tags": []
     },
     {
       "id": "wire_034",
-      "from": "pin_024",
-      "to": "pin_050",
-      "tags": [
-        "signal:GND",
-        "bundle:ecu_pcb_trace"
-      ],
-      "properties": {
-        "length_mm": "8",
-        "notes": "PCB ground plane: J6 → J12"
-      }
+      "from": "pin_054",
+      "to": "pin_156",
+      "properties": {},
+      "tags": []
     },
     {
       "id": "wire_035",
-      "from": "pin_027",
-      "to": "pin_051",
-      "tags": [
-        "signal:SDC_IN",
-        "bundle:pdm_pcb_trace"
-      ],
-      "properties": {
-        "length_mm": "10",
-        "notes": "PCB trace: J8 SDC_IN → J13 relay coil drive"
-      }
+      "from": "pin_055",
+      "to": "pin_157",
+      "properties": {},
+      "tags": []
     },
     {
       "id": "wire_036",
-      "from": "pin_028",
-      "to": "pin_052",
-      "tags": [
-        "signal:SDC_OUT",
-        "bundle:pdm_pcb_trace"
-      ],
-      "properties": {
-        "length_mm": "10",
-        "notes": "PCB trace: J8 SDC_OUT → J13"
-      }
+      "from": "pin_056",
+      "to": "pin_158",
+      "properties": {},
+      "tags": []
     },
     {
       "id": "wire_037",
-      "from": "pin_029",
-      "to": "pin_053",
-      "tags": [
-        "signal:12V_MAIN",
-        "bundle:pdm_pcb_trace"
-      ],
-      "properties": {
-        "length_mm": "8",
-        "notes": "PCB power plane: J8 → J13"
-      }
+      "from": "pin_057",
+      "to": "pin_159",
+      "properties": {},
+      "tags": []
     },
     {
       "id": "wire_038",
-      "from": "pin_030",
-      "to": "pin_054",
-      "tags": [
-        "signal:GND",
-        "bundle:pdm_pcb_trace"
-      ],
-      "properties": {
-        "length_mm": "8",
-        "notes": "PCB ground plane: J8 → J13"
-      }
+      "from": "pin_059",
+      "to": "pin_161",
+      "properties": {},
+      "tags": []
     },
     {
       "id": "wire_039",
-      "from": "pin_055",
-      "to": "pin_059",
-      "tags": [
-        "signal:WSS_FR",
-        "bundle:sensor_hub_pcb_trace"
-      ],
-      "properties": {
-        "length_mm": "14",
-        "notes": "PCB trace: J14 WSS_FR → J10-7 MCU input"
-      }
+      "from": "pin_060",
+      "to": "pin_162",
+      "properties": {},
+      "tags": []
     },
     {
       "id": "wire_040",
-      "from": "pin_056",
-      "to": "pin_060",
-      "tags": [
-        "signal:WSS_RL",
-        "bundle:sensor_hub_pcb_trace"
-      ],
-      "properties": {
-        "length_mm": "14",
-        "notes": "PCB trace: J14 WSS_RL → J10-8 MCU input"
-      }
+      "from": "pin_062",
+      "to": "pin_164",
+      "properties": {},
+      "tags": []
     },
     {
       "id": "wire_041",
-      "from": "pin_057",
-      "to": "pin_061",
-      "tags": [
-        "signal:WSS_RR",
-        "bundle:sensor_hub_pcb_trace"
-      ],
-      "properties": {
-        "length_mm": "14",
-        "notes": "PCB trace: J14 WSS_RR → J10-9 MCU input"
-      }
+      "from": "pin_063",
+      "to": "pin_165",
+      "properties": {},
+      "tags": []
     },
     {
       "id": "wire_042",
-      "from": "pin_058",
-      "to": "pin_042",
-      "tags": [
-        "signal:GND",
-        "bundle:sensor_hub_pcb_trace"
-      ],
-      "properties": {
-        "length_mm": "8",
-        "notes": "PCB ground plane: J14 → J10"
-      }
+      "from": "pin_064",
+      "to": "pin_166",
+      "properties": {},
+      "tags": []
     },
     {
       "id": "wire_043",
-      "from": "pin_062",
-      "to": "pin_066",
-      "tags": [
-        "signal:CAN_H",
-        "bundle:daq_box_internal"
-      ],
-      "properties": {
-        "length_mm": "120",
-        "notes": "DAQ Box: J15 bulkhead → J16 on Logger (CAN_H)"
-      }
+      "from": "pin_035",
+      "to": "pin_127",
+      "properties": {},
+      "tags": []
     },
     {
       "id": "wire_044",
-      "from": "pin_063",
-      "to": "pin_067",
-      "tags": [
-        "signal:CAN_L",
-        "bundle:daq_box_internal"
-      ],
-      "properties": {
-        "length_mm": "120",
-        "notes": "DAQ Box: J15 bulkhead → J16 on Logger (CAN_L)"
-      }
+      "from": "pin_036",
+      "to": "pin_128",
+      "properties": {},
+      "tags": []
     },
     {
       "id": "wire_045",
-      "from": "pin_064",
-      "to": "pin_068",
-      "tags": [
-        "signal:12V_MAIN",
-        "bundle:daq_box_internal"
-      ],
-      "properties": {
-        "length_mm": "120",
-        "notes": "DAQ Box: J15 bulkhead → J16 on Logger (12 V)"
-      }
+      "from": "pin_037",
+      "to": "pin_129",
+      "properties": {},
+      "tags": []
     },
     {
       "id": "wire_046",
-      "from": "pin_065",
-      "to": "pin_069",
-      "tags": [
-        "signal:GND",
-        "bundle:daq_box_internal"
-      ],
-      "properties": {
-        "length_mm": "120",
-        "notes": "DAQ Box: J15 bulkhead → J16 on Logger (GND)"
-      }
+      "from": "pin_038",
+      "to": "pin_130",
+      "properties": {},
+      "tags": []
     },
     {
       "id": "wire_047",
-      "from": "pin_070",
-      "to": "pin_080",
-      "tags": [
-        "signal:SPI_MOSI",
-        "bundle:daq_spi_bus"
-      ],
-      "properties": {
-        "length_mm": "80",
-        "notes": "SPI bus: DAQ Logger J17 → Analog Front-End J19 (MOSI)"
-      }
+      "from": "pin_012",
+      "to": "pin_167",
+      "properties": {},
+      "tags": []
     },
     {
       "id": "wire_048",
-      "from": "pin_071",
-      "to": "pin_081",
-      "tags": [
-        "signal:SPI_MISO",
-        "bundle:daq_spi_bus"
-      ],
-      "properties": {
-        "length_mm": "80",
-        "notes": "SPI bus: DAQ Logger J17 → Analog Front-End J19 (MISO)"
-      }
+      "from": "pin_013",
+      "to": "pin_168",
+      "properties": {},
+      "tags": []
     },
     {
       "id": "wire_049",
-      "from": "pin_072",
-      "to": "pin_082",
-      "tags": [
-        "signal:SPI_SCK",
-        "bundle:daq_spi_bus"
-      ],
-      "properties": {
-        "length_mm": "80",
-        "notes": "SPI bus: DAQ Logger J17 → Analog Front-End J19 (SCK)"
-      }
+      "from": "pin_014",
+      "to": "pin_169",
+      "properties": {},
+      "tags": []
     },
     {
       "id": "wire_050",
-      "from": "pin_073",
-      "to": "pin_083",
-      "tags": [
-        "signal:SPI_CS_ADC",
-        "bundle:daq_spi_bus"
-      ],
-      "properties": {
-        "length_mm": "80",
-        "notes": "SPI bus: DAQ Logger J17 → Analog Front-End J19 (CS)"
-      }
+      "from": "pin_015",
+      "to": "pin_170",
+      "properties": {},
+      "tags": []
     },
     {
       "id": "wire_051",
-      "from": "pin_074",
-      "to": "pin_084",
-      "tags": [
-        "signal:3V3",
-        "bundle:daq_spi_bus"
-      ],
-      "properties": {
-        "length_mm": "80",
-        "notes": "SPI bus: 3.3 V power from Logger to Analog Front-End"
-      }
+      "from": "pin_016",
+      "to": "pin_171",
+      "properties": {},
+      "tags": []
     },
     {
       "id": "wire_052",
-      "from": "pin_075",
-      "to": "pin_085",
-      "tags": [
-        "signal:GND",
-        "bundle:daq_spi_bus"
-      ],
-      "properties": {
-        "length_mm": "80",
-        "notes": "SPI bus: GND reference between Logger and Analog Front-End"
-      }
+      "from": "pin_017",
+      "to": "pin_172",
+      "properties": {},
+      "tags": []
     },
     {
       "id": "wire_053",
-      "from": "pin_076",
-      "to": "pin_090",
-      "tags": [
-        "signal:UART_TX",
-        "bundle:daq_uart_bus"
-      ],
-      "properties": {
-        "length_mm": "100",
-        "notes": "UART bus: DAQ Logger J18 TX → GPS/IMU J21 RX"
-      }
+      "from": "pin_018",
+      "to": "pin_173",
+      "properties": {},
+      "tags": []
     },
     {
       "id": "wire_054",
-      "from": "pin_077",
-      "to": "pin_091",
-      "tags": [
-        "signal:UART_RX",
-        "bundle:daq_uart_bus"
-      ],
-      "properties": {
-        "length_mm": "100",
-        "notes": "UART bus: GPS/IMU J21 TX → DAQ Logger J18 RX"
-      }
+      "from": "pin_019",
+      "to": "pin_174",
+      "properties": {},
+      "tags": []
     },
     {
       "id": "wire_055",
-      "from": "pin_078",
-      "to": "pin_092",
-      "tags": [
-        "signal:3V3",
-        "bundle:daq_uart_bus"
-      ],
-      "properties": {
-        "length_mm": "100",
-        "notes": "UART bus: 3.3 V power from Logger to GPS/IMU"
-      }
+      "from": "pin_020",
+      "to": "pin_175",
+      "properties": {},
+      "tags": []
     },
     {
       "id": "wire_056",
-      "from": "pin_079",
-      "to": "pin_093",
-      "tags": [
-        "signal:GND",
-        "bundle:daq_uart_bus"
-      ],
-      "properties": {
-        "length_mm": "100",
-        "notes": "UART bus: GND reference between Logger and GPS/IMU"
-      }
+      "from": "pin_031",
+      "to": "pin_176",
+      "properties": {},
+      "tags": []
     },
     {
       "id": "wire_057",
-      "from": "pin_094",
-      "to": "pin_110",
-      "tags": [
-        "signal:12V_MAIN",
-        "bundle:brake_box_internal"
-      ],
-      "properties": {
-        "length_mm": "90",
-        "notes": "Brake Box: J22 bulkhead → J26 on Light Driver (12 V)"
-      }
+      "from": "pin_032",
+      "to": "pin_177",
+      "properties": {},
+      "tags": []
     },
     {
       "id": "wire_058",
-      "from": "pin_095",
-      "to": "pin_111",
-      "tags": [
-        "signal:GND",
-        "bundle:brake_box_internal"
-      ],
-      "properties": {
-        "length_mm": "90",
-        "notes": "Brake Box: J22 bulkhead → J26 on Light Driver (GND)"
-      }
+      "from": "pin_033",
+      "to": "pin_178",
+      "properties": {},
+      "tags": []
     },
     {
       "id": "wire_059",
-      "from": "pin_096",
-      "to": "pin_112",
-      "tags": [
-        "signal:SDC_IN",
-        "bundle:brake_box_internal",
-        "bundle:sdc_loop"
-      ],
-      "properties": {
-        "length_mm": "90",
-        "notes": "Brake Box: SDC_IN from bulkhead to Light Driver BSPD circuit"
-      }
+      "from": "pin_034",
+      "to": "pin_179",
+      "properties": {},
+      "tags": []
     },
     {
       "id": "wire_060",
-      "from": "pin_097",
-      "to": "pin_113",
-      "tags": [
-        "signal:BSPD_OUT",
-        "bundle:brake_box_internal"
-      ],
-      "properties": {
-        "length_mm": "90",
-        "notes": "Brake Box: BSPD_OUT from J22 bulkhead to J26 on Light Driver"
-      }
+      "from": "pin_065",
+      "to": "pin_104",
+      "properties": {},
+      "tags": []
     },
     {
       "id": "wire_061",
-      "from": "pin_102",
-      "to": "pin_106",
-      "tags": [
-        "signal:I2C_SDA",
-        "bundle:brake_i2c_bus"
-      ],
-      "properties": {
-        "length_mm": "70",
-        "notes": "I2C bus: Brake Pressure Interface J24 ↔ Brake Light Driver J25 (SDA)"
-      }
+      "from": "pin_066",
+      "to": "pin_103",
+      "properties": {},
+      "tags": []
     },
     {
       "id": "wire_062",
-      "from": "pin_103",
-      "to": "pin_107",
-      "tags": [
-        "signal:I2C_SCL",
-        "bundle:brake_i2c_bus"
-      ],
-      "properties": {
-        "length_mm": "70",
-        "notes": "I2C bus: Brake Pressure Interface J24 ↔ Brake Light Driver J25 (SCL)"
-      }
+      "from": "pin_067",
+      "to": "pin_108",
+      "properties": {},
+      "tags": []
     },
     {
       "id": "wire_063",
-      "from": "pin_104",
-      "to": "pin_108",
-      "tags": [
-        "signal:3V3",
-        "bundle:brake_i2c_bus"
-      ],
-      "properties": {
-        "length_mm": "70",
-        "notes": "I2C bus: 3.3 V from Light Driver to Brake Pressure Interface"
-      }
+      "from": "pin_068",
+      "to": "pin_086",
+      "properties": {},
+      "tags": []
     },
     {
       "id": "wire_064",
-      "from": "pin_105",
-      "to": "pin_109",
-      "tags": [
-        "signal:GND",
-        "bundle:brake_i2c_bus"
-      ],
-      "properties": {
-        "length_mm": "70",
-        "notes": "I2C bus: GND reference between Brake boards"
-      }
+      "from": "pin_069",
+      "to": "pin_087",
+      "properties": {},
+      "tags": []
     },
     {
       "id": "wire_065",
-      "from": "pin_104",
-      "to": "pin_100",
-      "tags": [
-        "signal:3V3",
-        "bundle:brake_pcb_trace"
-      ],
-      "properties": {
-        "length_mm": "12",
-        "notes": "PCB trace: J24-3 3V3 → J23-3 sensor supply rail on Brake Pressure Interface"
-      }
+      "from": "pin_070",
+      "to": "pin_089",
+      "properties": {},
+      "tags": []
     },
     {
       "id": "wire_066",
-      "from": "pin_105",
-      "to": "pin_101",
-      "tags": [
-        "signal:GND",
-        "bundle:brake_pcb_trace"
-      ],
+      "from": "pin_071",
+      "to": "pin_190",
+      "properties": {},
+      "tags": []
+    },
+    {
+      "id": "wire_067",
+      "from": "pin_072",
+      "to": "pin_090",
+      "properties": {},
+      "tags": []
+    },
+    {
+      "id": "wire_068",
+      "from": "pin_073",
+      "to": "pin_088",
+      "properties": {},
+      "tags": []
+    },
+    {
+      "id": "wire_069",
+      "from": "pin_074",
+      "to": "pin_121",
+      "properties": {},
+      "tags": []
+    },
+    {
+      "id": "wire_070",
+      "from": "pin_075",
+      "to": "pin_111",
+      "properties": {},
+      "tags": []
+    },
+    {
+      "id": "wire_071",
+      "from": "pin_076",
+      "to": "pin_122",
+      "properties": {},
+      "tags": []
+    },
+    {
+      "id": "wire_072",
+      "from": "pin_077",
+      "to": "pin_191",
+      "properties": {},
+      "tags": []
+    },
+    {
+      "id": "wire_073",
+      "from": "pin_078",
+      "to": "pin_094",
+      "properties": {},
+      "tags": []
+    },
+    {
+      "id": "wire_074",
+      "from": "pin_079",
+      "to": "pin_093",
+      "properties": {},
+      "tags": []
+    },
+    {
+      "id": "wire_075",
+      "from": "pin_080",
+      "to": "pin_092",
+      "properties": {},
+      "tags": []
+    },
+    {
+      "id": "wire_076",
+      "from": "pin_081",
+      "to": "pin_091",
+      "properties": {},
+      "tags": []
+    },
+    {
+      "id": "wire_077",
+      "from": "pin_083",
+      "to": "pin_112",
+      "properties": {},
+      "tags": []
+    },
+    {
+      "id": "wire_078",
+      "from": "pin_084",
+      "to": "pin_085",
+      "properties": {},
+      "tags": []
+    },
+    {
+      "id": "wire_079",
+      "from": "pin_192",
+      "to": "pin_139",
+      "properties": {},
+      "tags": []
+    },
+    {
+      "id": "wire_080",
+      "from": "pin_193",
+      "to": "pin_141",
+      "properties": {},
+      "tags": []
+    },
+    {
+      "id": "wire_081",
+      "from": "pin_194",
+      "to": "pin_147",
+      "properties": {},
+      "tags": []
+    },
+    {
+      "id": "wire_082",
+      "from": "pin_195",
+      "to": "pin_140",
+      "properties": {},
+      "tags": []
+    },
+    {
+      "id": "wire_083",
+      "from": "pin_196",
+      "to": "pin_142",
+      "properties": {},
+      "tags": []
+    },
+    {
+      "id": "wire_084",
+      "from": "pin_197",
+      "to": "pin_148",
+      "properties": {},
+      "tags": []
+    },
+    {
+      "id": "wire_085",
+      "from": "pin_198",
+      "to": "pin_145",
+      "properties": {},
+      "tags": []
+    },
+    {
+      "id": "wire_086",
+      "from": "pin_199",
+      "to": "pin_143",
+      "properties": {},
+      "tags": []
+    },
+    {
+      "id": "wire_087",
+      "from": "pin_200",
+      "to": "pin_149",
+      "properties": {},
+      "tags": []
+    },
+    {
+      "id": "wire_088",
+      "from": "pin_201",
+      "to": "pin_146",
+      "properties": {},
+      "tags": []
+    },
+    {
+      "id": "wire_089",
+      "from": "pin_202",
+      "to": "pin_144",
+      "properties": {},
+      "tags": []
+    },
+    {
+      "id": "wire_090",
+      "from": "pin_203",
+      "to": "pin_150",
+      "properties": {},
+      "tags": []
+    },
+    {
+      "id": "wire_091",
+      "from": "pin_249",
+      "to": "pin_262",
       "properties": {
-        "length_mm": "12",
-        "notes": "PCB trace: J24-4 GND → J23-4 on Brake Pressure Interface"
-      }
+        "color": "red",
+        "gauge": "18 AWG",
+        "note": "12V"
+      },
+      "tags": []
+    },
+    {
+      "id": "wire_092",
+      "from": "pin_250",
+      "to": "pin_263",
+      "properties": {
+        "color": "black",
+        "gauge": "18 AWG",
+        "note": "GND_GLVMP"
+      },
+      "tags": []
+    },
+    {
+      "id": "wire_093",
+      "from": "pin_251",
+      "to": "pin_264",
+      "properties": {
+        "color": "gray",
+        "gauge": "18 AWG",
+        "note": "BMS Reset-"
+      },
+      "tags": []
+    },
+    {
+      "id": "wire_094",
+      "from": "pin_252",
+      "to": "pin_265",
+      "properties": {
+        "color": "gray",
+        "gauge": "18 AWG",
+        "note": "BMS LED+"
+      },
+      "tags": []
+    },
+    {
+      "id": "wire_095",
+      "from": "pin_253",
+      "to": "pin_266",
+      "properties": {
+        "color": "purple",
+        "gauge": "18 AWG",
+        "note": "BSPD Reset-"
+      },
+      "tags": []
+    },
+    {
+      "id": "wire_096",
+      "from": "pin_254",
+      "to": "pin_267",
+      "properties": {
+        "color": "gray",
+        "gauge": "18 AWG",
+        "note": "BSPD LED+"
+      },
+      "tags": []
+    },
+    {
+      "id": "wire_097",
+      "from": "pin_255",
+      "to": "pin_268",
+      "properties": {
+        "color": "purple",
+        "gauge": "18 AWG",
+        "note": "IMD Reset+"
+      },
+      "tags": []
+    },
+    {
+      "id": "wire_098",
+      "from": "pin_256",
+      "to": "pin_269",
+      "properties": {
+        "color": "purple",
+        "gauge": "18 AWG",
+        "note": "IMD Reset-"
+      },
+      "tags": []
+    },
+    {
+      "id": "wire_099",
+      "from": "pin_257",
+      "to": "pin_270",
+      "properties": {
+        "color": "gray",
+        "gauge": "18 AWG",
+        "note": "IMD LED+"
+      },
+      "tags": []
+    },
+    {
+      "id": "wire_100",
+      "from": "pin_258",
+      "to": "pin_271",
+      "properties": {
+        "color": "blue",
+        "gauge": "18 AWG",
+        "note": "LV MS-"
+      },
+      "tags": []
+    },
+    {
+      "id": "wire_101",
+      "from": "pin_259",
+      "to": "pin_272",
+      "properties": {
+        "color": "gray",
+        "gauge": "18 AWG",
+        "note": "Speaker+"
+      },
+      "tags": []
+    },
+    {
+      "id": "wire_102",
+      "from": "pin_260",
+      "to": "pin_273",
+      "properties": {
+        "color": "gray",
+        "gauge": "18 AWG",
+        "note": "Speaker-"
+      },
+      "tags": []
     }
   ],
   "signals": [
     {
-      "id": "sig_CAN_H",
-      "name": "CAN_H",
-      "tags": [
-        "system:CAN"
-      ],
-      "properties": {
-        "protocol": "CAN 2.0B",
-        "voltage": "0-5V",
-        "noise_sensitivity": "high",
-        "notes": "Twisted pair required with CAN_L"
-      }
-    },
-    {
-      "id": "sig_CAN_L",
-      "name": "CAN_L",
-      "tags": [
-        "system:CAN"
-      ],
-      "properties": {
-        "protocol": "CAN 2.0B",
-        "voltage": "0-5V",
-        "noise_sensitivity": "high",
-        "notes": "Twisted pair required with CAN_H"
-      }
-    },
-    {
-      "id": "sig_12V_MAIN",
-      "name": "12V_MAIN",
-      "tags": [
-        "system:power"
-      ],
-      "properties": {
-        "voltage": "13.2V nominal",
-        "max_current": "40A",
-        "fuse": "ATO 40A at PDM",
-        "notes": "Main battery bus"
-      }
-    },
-    {
       "id": "sig_GND",
       "name": "GND",
-      "tags": [
-        "system:power"
-      ],
-      "properties": {
-        "voltage": "0V",
-        "notes": "Chassis ground, star-ground at PDM"
-      }
+      "properties": {},
+      "tags": []
     },
     {
-      "id": "sig_APPS_1",
-      "name": "APPS_1",
-      "tags": [
-        "system:engine"
-      ],
+      "id": "sig_12V",
+      "name": "12V",
       "properties": {
-        "type": "analog",
-        "voltage": "0.5-4.5V",
-        "sensor": "Honeywell RTY090",
-        "notes": "Accelerator Pedal Position Sensor, primary channel"
-      }
+        "voltage": "12V"
+      },
+      "tags": []
     },
     {
-      "id": "sig_SDC_IN",
-      "name": "SDC_IN",
-      "tags": [
-        "system:SDC"
-      ],
+      "id": "sig_24V",
+      "name": "24V",
       "properties": {
-        "type": "discrete",
-        "voltage": "0-12V",
-        "notes": "Shutdown circuit input — must be continuous loop per FSAE rules"
-      }
+        "voltage": "24V"
+      },
+      "tags": []
     },
     {
-      "id": "sig_SDC_OUT",
-      "name": "SDC_OUT",
-      "tags": [
-        "system:SDC"
-      ],
+      "id": "sig_5V",
+      "name": "5V",
       "properties": {
-        "type": "discrete",
-        "voltage": "0-12V",
-        "notes": "Shutdown circuit output after safety relay"
-      }
-    },
-    {
-      "id": "sig_WSS_FL",
-      "name": "WSS_FL",
-      "tags": [
-        "system:engine"
-      ],
-      "properties": {
-        "type": "analog",
-        "voltage": "0-5V",
-        "sensor": "AMS 22B hall-effect",
-        "notes": "Front-left wheel speed sensor; 48 pulses per revolution"
-      }
-    },
-    {
-      "id": "sig_TEMP_COOLANT",
-      "name": "TEMP_COOLANT",
-      "tags": [
-        "system:engine"
-      ],
-      "properties": {
-        "type": "analog",
-        "voltage": "0.5-4.5V",
-        "sensor": "NTC 10kΩ thermistor",
-        "notes": "Engine coolant temperature; sampled at 10 Hz by Sensor Breakout PCB"
-      }
-    },
-    {
-      "id": "sig_WSS_FR",
-      "name": "WSS_FR",
-      "tags": [
-        "system:engine"
-      ],
-      "properties": {
-        "type": "analog",
-        "voltage": "0-5V",
-        "sensor": "AMS 22B hall-effect",
-        "notes": "Front-right wheel speed sensor; 48 pulses per revolution"
-      }
-    },
-    {
-      "id": "sig_WSS_RL",
-      "name": "WSS_RL",
-      "tags": [
-        "system:engine"
-      ],
-      "properties": {
-        "type": "analog",
-        "voltage": "0-5V",
-        "sensor": "AMS 22B hall-effect",
-        "notes": "Rear-left wheel speed sensor; 48 pulses per revolution"
-      }
-    },
-    {
-      "id": "sig_WSS_RR",
-      "name": "WSS_RR",
-      "tags": [
-        "system:engine"
-      ],
-      "properties": {
-        "type": "analog",
-        "voltage": "0-5V",
-        "sensor": "AMS 22B hall-effect",
-        "notes": "Rear-right wheel speed sensor; 48 pulses per revolution"
-      }
-    },
-    {
-      "id": "sig_SPI_MOSI",
-      "name": "SPI_MOSI",
-      "tags": [
-        "system:engine"
-      ],
-      "properties": {
-        "type": "digital",
-        "voltage": "0-3.3V",
-        "protocol": "SPI mode 1",
-        "notes": "Master Out Slave In; STM32H7 → ADS1256 at up to 10 MHz"
-      }
-    },
-    {
-      "id": "sig_SPI_MISO",
-      "name": "SPI_MISO",
-      "tags": [
-        "system:engine"
-      ],
-      "properties": {
-        "type": "digital",
-        "voltage": "0-3.3V",
-        "protocol": "SPI mode 1",
-        "notes": "Master In Slave Out; ADS1256 → STM32H7"
-      }
-    },
-    {
-      "id": "sig_SPI_SCK",
-      "name": "SPI_SCK",
-      "tags": [
-        "system:engine"
-      ],
-      "properties": {
-        "type": "digital",
-        "voltage": "0-3.3V",
-        "protocol": "SPI mode 1",
-        "notes": "SPI clock from DAQ Logger; max 10 MHz per ADS1256 spec"
-      }
-    },
-    {
-      "id": "sig_SPI_CS_ADC",
-      "name": "SPI_CS_ADC",
-      "tags": [
-        "system:engine"
-      ],
-      "properties": {
-        "type": "digital",
-        "voltage": "0-3.3V",
-        "protocol": "SPI mode 1",
-        "notes": "Chip select for ADS1256 on Analog Front-End PCB; active low"
-      }
-    },
-    {
-      "id": "sig_UART_TX",
-      "name": "UART_TX",
-      "tags": [
-        "system:engine"
-      ],
-      "properties": {
-        "type": "digital",
-        "voltage": "0-3.3V",
-        "protocol": "UART 460800 8N1",
-        "notes": "Transmit line from DAQ Logger to GPS/IMU; carries NMEA + UBX frames"
-      }
-    },
-    {
-      "id": "sig_UART_RX",
-      "name": "UART_RX",
-      "tags": [
-        "system:engine"
-      ],
-      "properties": {
-        "type": "digital",
-        "voltage": "0-3.3V",
-        "protocol": "UART 460800 8N1",
-        "notes": "Receive line from GPS/IMU back to DAQ Logger; carries GNSS fix + IMU packets"
-      }
+        "voltage": "5V"
+      },
+      "tags": []
     },
     {
       "id": "sig_3V3",
       "name": "3V3",
-      "tags": [
-        "system:power"
-      ],
       "properties": {
-        "voltage": "3.3V",
-        "max_current": "500mA",
-        "notes": "3.3 V regulated rail generated by DAQ Logger onboard LDO; supplies Analog Front-End and GPS/IMU"
-      }
+        "voltage": "3.3V"
+      },
+      "tags": []
     },
     {
-      "id": "sig_AIN_0",
-      "name": "AIN_0",
-      "tags": [
-        "system:engine"
-      ],
-      "properties": {
-        "type": "analog",
-        "voltage": "0-5V",
-        "notes": "Analog input channel 0 on Analog Front-End PCB; unassigned sensor slot"
-      }
+      "id": "sig_CAN_H",
+      "name": "CAN_H",
+      "properties": {},
+      "tags": []
     },
     {
-      "id": "sig_AIN_1",
-      "name": "AIN_1",
-      "tags": [
-        "system:engine"
-      ],
-      "properties": {
-        "type": "analog",
-        "voltage": "0-5V",
-        "notes": "Analog input channel 1 on Analog Front-End PCB; unassigned sensor slot"
-      }
+      "id": "sig_CAN_L",
+      "name": "CAN_L",
+      "properties": {},
+      "tags": []
     },
     {
-      "id": "sig_BRAKE_PRESS_F",
-      "name": "BRAKE_PRESS_F",
-      "tags": [
-        "system:SDC"
-      ],
-      "properties": {
-        "type": "analog",
-        "voltage": "0.5-4.5V",
-        "sensor": "Honeywell MLH series 0-100 bar",
-        "notes": "Front brake line pressure; used for BSPD detection per FSAE rules"
-      }
+      "id": "sig_SDC_OUT",
+      "name": "SDC_OUT",
+      "properties": {},
+      "tags": []
     },
     {
-      "id": "sig_BRAKE_PRESS_R",
-      "name": "BRAKE_PRESS_R",
-      "tags": [
-        "system:SDC"
-      ],
-      "properties": {
-        "type": "analog",
-        "voltage": "0.5-4.5V",
-        "sensor": "Honeywell MLH series 0-100 bar",
-        "notes": "Rear brake line pressure; differential vs front used for brake bias monitoring"
-      }
+      "id": "sig_ESTOP_IN",
+      "name": "ESTOP_IN",
+      "properties": {},
+      "tags": []
     },
     {
-      "id": "sig_BSPD_OUT",
-      "name": "BSPD_OUT",
-      "tags": [
-        "system:SDC"
-      ],
-      "properties": {
-        "type": "discrete",
-        "voltage": "0-12V",
-        "notes": "Brake System Plausibility Device output; opens SDC if brakes applied while >5 kW motor demand — required by FSAE EV rules"
-      }
+      "id": "sig_ESTOP_OUT",
+      "name": "ESTOP_OUT",
+      "properties": {},
+      "tags": []
     },
     {
-      "id": "sig_I2C_SDA",
-      "name": "I2C_SDA",
-      "tags": [
-        "system:SDC"
-      ],
-      "properties": {
-        "type": "digital",
-        "voltage": "0-3.3V",
-        "protocol": "I2C 400 kHz Fast-mode",
-        "notes": "I2C data line between Brake Light Driver (master) and Brake Pressure Interface (slave); 4.7 kΩ pull-up on master board"
-      }
+      "id": "sig_TS_ON_SW",
+      "name": "TS_ON_SW",
+      "properties": {},
+      "tags": []
     },
     {
-      "id": "sig_I2C_SCL",
-      "name": "I2C_SCL",
-      "tags": [
-        "system:SDC"
-      ],
+      "id": "sig_BSPD_RESET",
+      "name": "BSPD_RESET",
+      "properties": {},
+      "tags": []
+    },
+    {
+      "id": "sig_IMD_RESET_POS",
+      "name": "IMD_RESET_POS",
+      "properties": {},
+      "tags": []
+    },
+    {
+      "id": "sig_IMD_RESET_NEG",
+      "name": "IMD_RESET_NEG",
+      "properties": {},
+      "tags": []
+    },
+    {
+      "id": "sig_BMS_RESET",
+      "name": "BMS_RESET",
+      "properties": {},
+      "tags": []
+    },
+    {
+      "id": "sig_IM_DEFAULT",
+      "name": "IM_DEFAULT",
+      "properties": {},
+      "tags": []
+    },
+    {
+      "id": "sig_BMS_FAULT",
+      "name": "BMS_FAULT",
+      "properties": {},
+      "tags": []
+    },
+    {
+      "id": "sig_BSPD_LED",
+      "name": "BSPD_LED",
+      "properties": {},
+      "tags": []
+    },
+    {
+      "id": "sig_IMD_LED",
+      "name": "IMD_LED",
+      "properties": {},
+      "tags": []
+    },
+    {
+      "id": "sig_BMS_LED",
+      "name": "BMS_LED",
+      "properties": {},
+      "tags": []
+    },
+    {
+      "id": "sig_TSSI_GREEN",
+      "name": "TSSI_GREEN",
+      "properties": {},
+      "tags": []
+    },
+    {
+      "id": "sig_TSSI_RED",
+      "name": "TSSI_RED",
+      "properties": {},
+      "tags": []
+    },
+    {
+      "id": "sig_TSSI_BYPASS",
+      "name": "TSSI_BYPASS",
+      "properties": {},
+      "tags": []
+    },
+    {
+      "id": "sig_TSSI_LATCH",
+      "name": "TSSI_LATCH",
+      "properties": {},
+      "tags": []
+    },
+    {
+      "id": "sig_CURRENT_SENSE",
+      "name": "CURRENT_SENSE",
+      "properties": {},
+      "tags": []
+    },
+    {
+      "id": "sig_APPS_1",
+      "name": "APPS_1",
+      "properties": {},
+      "tags": []
+    },
+    {
+      "id": "sig_APPS_2",
+      "name": "APPS_2",
+      "properties": {},
+      "tags": []
+    },
+    {
+      "id": "sig_BPS_1",
+      "name": "BPS_1",
+      "properties": {},
+      "tags": []
+    },
+    {
+      "id": "sig_BPS_2",
+      "name": "BPS_2",
+      "properties": {},
+      "tags": []
+    },
+    {
+      "id": "sig_WHEEL_SHOCK_1",
+      "name": "WHEEL_SHOCK_1",
+      "properties": {},
+      "tags": []
+    },
+    {
+      "id": "sig_WHEEL_SHOCK_2",
+      "name": "WHEEL_SHOCK_2",
+      "properties": {},
+      "tags": []
+    },
+    {
+      "id": "sig_WHEEL_SHOCK_3",
+      "name": "WHEEL_SHOCK_3",
+      "properties": {},
+      "tags": []
+    },
+    {
+      "id": "sig_WHEEL_SHOCK_4",
+      "name": "WHEEL_SHOCK_4",
+      "properties": {},
+      "tags": []
+    },
+    {
+      "id": "sig_RTD_BTN",
+      "name": "RTD_BTN",
+      "properties": {},
+      "tags": []
+    },
+    {
+      "id": "sig_BRAKE_LIGHT",
+      "name": "BRAKE_LIGHT",
+      "properties": {},
+      "tags": []
+    },
+    {
+      "id": "sig_SPEAKER",
+      "name": "SPEAKER",
+      "properties": {},
+      "tags": []
+    },
+    {
+      "id": "sig_FAN_PWM",
+      "name": "FAN_PWM",
+      "properties": {},
+      "tags": []
+    },
+    {
+      "id": "sig_PUMP_1",
+      "name": "PUMP_1",
+      "properties": {},
+      "tags": []
+    },
+    {
+      "id": "sig_PUMP_2",
+      "name": "PUMP_2",
+      "properties": {},
+      "tags": []
+    },
+    {
+      "id": "sig_GPIO_1",
+      "name": "GPIO_1",
+      "properties": {},
+      "tags": []
+    },
+    {
+      "id": "sig_GPIO_2",
+      "name": "GPIO_2",
+      "properties": {},
+      "tags": []
+    },
+    {
+      "id": "sig_GPIO_3",
+      "name": "GPIO_3",
+      "properties": {},
+      "tags": []
+    },
+    {
+      "id": "sig_GPIO_4",
+      "name": "GPIO_4",
+      "properties": {},
+      "tags": []
+    },
+    {
+      "id": "sig_LIN_POT_1",
+      "name": "LIN_POT_1",
+      "properties": {},
+      "tags": []
+    },
+    {
+      "id": "sig_LIN_POT_2",
+      "name": "LIN_POT_2",
+      "properties": {},
+      "tags": []
+    },
+    {
+      "id": "sig_LIN_POT_3",
+      "name": "LIN_POT_3",
+      "properties": {},
+      "tags": []
+    },
+    {
+      "id": "sig_LIN_POT_4",
+      "name": "LIN_POT_4",
+      "properties": {},
+      "tags": []
+    },
+    {
+      "id": "sig_THERM_1",
+      "name": "THERM_1",
+      "properties": {},
+      "tags": []
+    },
+    {
+      "id": "sig_THERM_2",
+      "name": "THERM_2",
+      "properties": {},
+      "tags": []
+    },
+    {
+      "id": "sig_THERM_3",
+      "name": "THERM_3",
+      "properties": {},
+      "tags": []
+    },
+    {
+      "id": "sig_THERM_4",
+      "name": "THERM_4",
+      "properties": {},
+      "tags": []
+    },
+    {
+      "id": "sig_UNASSIGNED",
+      "name": "UNASSIGNED",
       "properties": {
-        "type": "digital",
-        "voltage": "0-3.3V",
-        "protocol": "I2C 400 kHz Fast-mode",
-        "notes": "I2C clock line; 4.7 kΩ pull-up on master board"
-      }
+        "note": "Placeholder signal. Wires tagged signal:UNASSIGNED are planned but not yet assigned to a specific pin."
+      },
+      "tags": []
+    },
+    {
+      "id": "sig_GND_GLVMP",
+      "name": "GND_GLVMP",
+      "properties": {
+        "note": "Grounded Low Voltage Main Power negative reference"
+      },
+      "tags": []
+    },
+    {
+      "id": "sig_LV_MS",
+      "name": "LV_MS",
+      "properties": {
+        "note": "Low Voltage Motor/System negative"
+      },
+      "tags": []
+    },
+    {
+      "id": "sig_SPEAKER_NEG",
+      "name": "SPEAKER_NEG",
+      "properties": {},
+      "tags": []
     }
   ]
 }

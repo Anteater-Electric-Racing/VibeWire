@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
-import { useHarnessStore } from './store';
+import { useHarnessStore, initAutoSave } from './store';
 import { AppShell } from './components/layout/AppShell';
-import type { HarnessData, ConnectorLibrary, NodeLayout, PortLayouts, SizeLayouts, FreePortLayouts, BackgroundLayouts, ConnectorTypeSizes } from './types';
+import type { HarnessData, ConnectorLibrary, NodeLayout, PortLayouts, SizeLayouts, FreePortLayouts, BackgroundLayouts, ConnectorTypeSizes, TextBoxLayouts, WaypointLayouts, JunctionLayouts } from './types';
 
 interface LayoutFile {
   nodes?: NodeLayout;
@@ -10,6 +10,9 @@ interface LayoutFile {
   free?: FreePortLayouts;
   backgrounds?: BackgroundLayouts;
   connectorTypeSizes?: ConnectorTypeSizes;
+  textBoxes?: TextBoxLayouts;
+  waypoints?: WaypointLayouts;
+  junctions?: JunctionLayouts;
 }
 
 export default function App() {
@@ -21,6 +24,9 @@ export default function App() {
   const loadFreePortLayouts = useHarnessStore((s) => s.loadFreePortLayouts);
   const loadBackgroundLayouts = useHarnessStore((s) => s.loadBackgroundLayouts);
   const loadConnectorTypeSizes = useHarnessStore((s) => s.loadConnectorTypeSizes);
+  const loadTextBoxLayouts = useHarnessStore((s) => s.loadTextBoxLayouts);
+  const loadWaypointLayouts = useHarnessStore((s) => s.loadWaypointLayouts);
+  const loadJunctionLayouts = useHarnessStore((s) => s.loadJunctionLayouts);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -34,7 +40,7 @@ export default function App() {
         if (!r.ok) throw new Error(`Failed to load connector library: ${r.status}`);
         return r.json() as Promise<ConnectorLibrary>;
       }),
-      fetch('/layouts.json')
+      fetch(`/layouts.json?v=${Date.now()}`)
         .then((r) => (r.ok ? (r.json() as Promise<LayoutFile>) : {}))
         .catch(() => ({}) as LayoutFile),
     ])
@@ -48,13 +54,17 @@ export default function App() {
         loadFreePortLayouts(lf.free ?? {});
         loadBackgroundLayouts(lf.backgrounds ?? {});
         loadConnectorTypeSizes(lf.connectorTypeSizes ?? {});
+        loadTextBoxLayouts(lf.textBoxes ?? {});
+        loadWaypointLayouts(lf.waypoints ?? {});
+        loadJunctionLayouts(lf.junctions ?? {});
+        initAutoSave();
         setLoading(false);
       })
       .catch((err: Error) => {
         setError(err.message);
         setLoading(false);
       });
-  }, [loadHarness, loadConnectorLibrary, loadLayouts, loadPortLayouts, loadSizeLayouts, loadFreePortLayouts, loadBackgroundLayouts, loadConnectorTypeSizes]);
+  }, [loadHarness, loadConnectorLibrary, loadLayouts, loadPortLayouts, loadSizeLayouts, loadFreePortLayouts, loadBackgroundLayouts, loadConnectorTypeSizes, loadTextBoxLayouts, loadWaypointLayouts, loadJunctionLayouts]);
 
   if (loading) {
     return (
