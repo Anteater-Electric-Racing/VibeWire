@@ -4,6 +4,11 @@ Changes to harness data, logged by the AI agent.
 
 ---
 
+## 2026-04-11 — Gabe
+- Added wire_103: FOC-C1 pin 1 (12V) → TSSI con_009 pin 1 (12V) — tagged "example"
+- Added wire_104: FOC-C1 pin 4 (BMS LED+) → Dash LEDs con_012 pin 2 (BSPD Fault LED) — tagged "example"
+- Added wire_105: FOC-C1 pin 11 (Speaker+) → CCM con_015 pin 3 (Speaker) — tagged "example"
+
 ## 2026-04-10 — Gabe
 - Renamed enc_001 from "BBC (Back Black Container)" to "ROC (Rear of Car Enclosure)"
 - Added FOC-C1 bulkhead connector (con_045) — 12-pin Deutsch DT female on FOC (enc_002) with pins 1–12 labeled per pinout table

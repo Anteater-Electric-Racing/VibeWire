@@ -1372,9 +1372,11 @@ export function InspectorPanel() {
 
             {signalName && <SignalInfo signalName={signalName} appearance={wireAppearance} />}
 
-            {Object.entries(wire.properties).map(([k, v]) => (
-              <PropertyRow key={k} label={k} value={v} />
-            ))}
+            {Object.entries(wire.properties)
+              .filter(([k]) => k !== 'wire_color' && k !== 'color')
+              .map(([k, v]) => (
+                <PropertyRow key={k} label={k} value={v} />
+              ))}
 
             <WireStatusEditor wireId={wire.id} tags={wire.tags} />
 

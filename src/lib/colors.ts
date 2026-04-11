@@ -141,11 +141,15 @@ function parsePhysicalWireAppearance(rawColor: string): WireAppearance | null {
   return createAppearance('striped', resolved, rawColor, `wire:${tokens.map(normalizeWireToken).join('/')}`);
 }
 
+export const WIRE_COLOR_PROPERTY_KEYS = ['wire_color', 'color'] as const;
+
 export function getWireAppearance(input: {
   properties?: Record<string, string>;
   tags: string[];
 }): WireAppearance {
-  const rawWireColor = input.properties?.wire_color?.trim();
+  const rawWireColor = (
+    input.properties?.wire_color ?? input.properties?.color
+  )?.trim();
   if (rawWireColor) {
     const parsed = parsePhysicalWireAppearance(rawWireColor);
     if (parsed) return parsed;
