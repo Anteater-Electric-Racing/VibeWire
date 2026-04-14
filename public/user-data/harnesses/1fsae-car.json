@@ -1,0 +1,2972 @@
+{
+  "schema_version": "0.1.0",
+  "enclosures": [
+    {
+      "id": "enc_001",
+      "name": "ROC (Rear of Car Enclosure)",
+      "parent": null,
+      "container": true,
+      "tags": [],
+      "properties": {
+        "image": "SCR-20260410-cknx.png"
+      }
+    },
+    {
+      "id": "enc_002",
+      "name": "FOC (Front of Car Enclosure)",
+      "parent": null,
+      "container": true,
+      "tags": [],
+      "properties": {
+        "image": "SCR-20260410-cmct.png"
+      }
+    },
+    {
+      "id": "enc_003",
+      "name": "Light Tree",
+      "parent": null,
+      "container": false,
+      "tags": [],
+      "properties": {
+        "note": "External device, no internals",
+        "image": "SCR-20260409-ufwb.png"
+      }
+    },
+    {
+      "id": "enc_004",
+      "name": "Brake Light",
+      "parent": null,
+      "container": false,
+      "tags": [],
+      "properties": {
+        "note": "External device, no internals"
+      }
+    },
+    {
+      "id": "enc_005",
+      "name": "High Voltage Battery",
+      "parent": null,
+      "container": false,
+      "tags": [],
+      "properties": {
+        "note": "External device"
+      }
+    },
+    {
+      "id": "enc_006",
+      "name": "Wheel Speed Sensor 1",
+      "parent": null,
+      "container": false,
+      "tags": [],
+      "properties": {
+        "note": "External sensor — connector pinout TBD"
+      }
+    },
+    {
+      "id": "enc_007",
+      "name": "Wheel Speed Sensor 2",
+      "parent": null,
+      "container": false,
+      "tags": [],
+      "properties": {
+        "note": "External sensor — connector pinout TBD"
+      }
+    },
+    {
+      "id": "enc_008",
+      "name": "Wheel Speed Sensor 3",
+      "parent": null,
+      "container": false,
+      "tags": [],
+      "properties": {
+        "note": "External sensor — connector pinout TBD"
+      }
+    },
+    {
+      "id": "enc_009",
+      "name": "Wheel Speed Sensor 4",
+      "parent": null,
+      "container": false,
+      "tags": [],
+      "properties": {
+        "note": "External sensor — connector pinout TBD"
+      }
+    },
+    {
+      "id": "pcb_001",
+      "name": "Human Interface Board",
+      "parent": "enc_001",
+      "container": false,
+      "tags": [],
+      "properties": {}
+    },
+    {
+      "id": "pcb_002",
+      "name": "Safety Board",
+      "parent": "enc_002",
+      "container": false,
+      "tags": [],
+      "properties": {
+        "image": "SCR-20260409-ufwb.png"
+      }
+    },
+    {
+      "id": "pcb_003",
+      "name": "CCM",
+      "parent": "enc_002",
+      "container": false,
+      "tags": [],
+      "properties": {
+        "note": "Central Compute Module",
+        "image": "SCR-20260410-bfpr.png"
+      }
+    },
+    {
+      "id": "pcb_004",
+      "name": "Dash LEDs PCB",
+      "parent": "enc_002",
+      "container": false,
+      "tags": [],
+      "properties": {}
+    }
+  ],
+  "connectors": [
+    {
+      "id": "con_001",
+      "name": "4 Pin",
+      "parent": "pcb_001",
+      "connector_type": "molex_minifit_jr_4p",
+      "tags": [],
+      "properties": {}
+    },
+    {
+      "id": "con_002",
+      "name": "6 Pin",
+      "parent": "pcb_001",
+      "connector_type": "molex_minifit_jr_6p",
+      "tags": [],
+      "properties": {}
+    },
+    {
+      "id": "con_003",
+      "name": "SDC Out",
+      "parent": "pcb_002",
+      "connector_type": "molex_minifit_jr_2p",
+      "tags": [],
+      "properties": {}
+    },
+    {
+      "id": "con_004",
+      "name": "E-Stop",
+      "parent": "pcb_002",
+      "connector_type": "molex_minifit_jr_2p",
+      "tags": [],
+      "properties": {}
+    },
+    {
+      "id": "con_005",
+      "name": "TS On SW",
+      "parent": "pcb_002",
+      "connector_type": "molex_minifit_jr_2p",
+      "tags": [],
+      "properties": {}
+    },
+    {
+      "id": "con_006",
+      "name": "ACCU",
+      "parent": "pcb_002",
+      "connector_type": "molex_minifit_jr_4p",
+      "tags": [],
+      "properties": {}
+    },
+    {
+      "id": "con_007",
+      "name": "Current Sensor",
+      "parent": "pcb_002",
+      "connector_type": "molex_minifit_jr_4p",
+      "tags": [],
+      "properties": {
+        "image": "SCR-20260410-bhll.png"
+      }
+    },
+    {
+      "id": "con_008",
+      "name": "Brake Light",
+      "parent": "pcb_002",
+      "connector_type": "molex_minifit_jr_2p",
+      "tags": [],
+      "properties": {
+        "image": "SCR-20260410-bhll.png"
+      }
+    },
+    {
+      "id": "con_009",
+      "name": "TSSI",
+      "parent": "pcb_002",
+      "connector_type": "molex_minifit_jr_4p",
+      "tags": [],
+      "properties": {}
+    },
+    {
+      "id": "con_010",
+      "name": "24V Power In",
+      "parent": "pcb_002",
+      "connector_type": "molex_minifit_jr_2p",
+      "tags": [],
+      "properties": {
+        "image": "SCR-20260410-bhll.png"
+      }
+    },
+    {
+      "id": "con_011",
+      "name": "24V Expansion",
+      "parent": "pcb_002",
+      "connector_type": "molex_minifit_jr_2p",
+      "tags": [],
+      "properties": {
+        "image": "SCR-20260410-bhll.png"
+      }
+    },
+    {
+      "id": "con_012",
+      "name": "Dash LEDs",
+      "parent": "pcb_002",
+      "connector_type": "molex_minifit_jr_4p",
+      "tags": [],
+      "properties": {}
+    },
+    {
+      "id": "con_013",
+      "name": "Shock/Wheel Sensor",
+      "parent": "pcb_002",
+      "connector_type": "molex_minifit_jr_12p",
+      "tags": [],
+      "properties": {}
+    },
+    {
+      "id": "con_014",
+      "name": "Footwell",
+      "parent": "pcb_002",
+      "connector_type": "molex_minifit_jr_14p",
+      "tags": [],
+      "properties": {}
+    },
+    {
+      "id": "con_015",
+      "name": "CCM",
+      "parent": "pcb_002",
+      "connector_type": "molex_minifit_jr_20p",
+      "tags": [],
+      "properties": {}
+    },
+    {
+      "id": "con_016",
+      "name": "Power In",
+      "parent": "pcb_003",
+      "connector_type": "molex_minifit_jr_2p",
+      "tags": [],
+      "properties": {}
+    },
+    {
+      "id": "con_017",
+      "name": "Accel/Brake Pedal",
+      "parent": "pcb_003",
+      "connector_type": "molex_minifit_jr_4p",
+      "tags": [],
+      "properties": {}
+    },
+    {
+      "id": "con_018",
+      "name": "Wheel/Shock",
+      "parent": "pcb_003",
+      "connector_type": "molex_minifit_jr_4p",
+      "tags": [],
+      "properties": {
+        "note": "Dual-purpose: wheel speed sensors or linear pots — unified as Wheel/Shock"
+      }
+    },
+    {
+      "id": "con_019",
+      "name": "Thermistors 1/2",
+      "parent": "pcb_003",
+      "connector_type": "molex_minifit_jr_4p",
+      "tags": [],
+      "properties": {
+        "image": "SCR-20260410-bhll.png"
+      }
+    },
+    {
+      "id": "con_020",
+      "name": "Thermistors 3/4",
+      "parent": "pcb_003",
+      "connector_type": "molex_minifit_jr_4p",
+      "tags": [],
+      "properties": {
+        "image": "SCR-20260410-bhll.png"
+      }
+    },
+    {
+      "id": "con_021",
+      "name": "GPIO 1/2",
+      "parent": "pcb_003",
+      "connector_type": "molex_minifit_jr_4p",
+      "tags": [],
+      "properties": {}
+    },
+    {
+      "id": "con_022",
+      "name": "GPIO 3/4",
+      "parent": "pcb_003",
+      "connector_type": "molex_minifit_jr_4p",
+      "tags": [],
+      "properties": {
+        "image": "SCR-20260411-lqpg.png"
+      }
+    },
+    {
+      "id": "con_023",
+      "name": "Brake Light/RTD",
+      "parent": "pcb_003",
+      "connector_type": "molex_minifit_jr_2p",
+      "tags": [],
+      "properties": {}
+    },
+    {
+      "id": "con_024",
+      "name": "Pump 1",
+      "parent": "pcb_003",
+      "connector_type": "molex_minifit_jr_2p",
+      "tags": [],
+      "properties": {}
+    },
+    {
+      "id": "con_025",
+      "name": "Pump 2",
+      "parent": "pcb_003",
+      "connector_type": "molex_minifit_jr_2p",
+      "tags": [],
+      "properties": {}
+    },
+    {
+      "id": "con_026",
+      "name": "Fans",
+      "parent": "pcb_003",
+      "connector_type": "molex_minifit_jr_4p",
+      "tags": [],
+      "properties": {}
+    },
+    {
+      "id": "con_027",
+      "name": "24V In",
+      "parent": "pcb_003",
+      "connector_type": "molex_minifit_jr_2p",
+      "tags": [],
+      "properties": {}
+    },
+    {
+      "id": "con_028",
+      "name": "CAN 1",
+      "parent": "pcb_003",
+      "connector_type": "molex_minifit_jr_2p",
+      "tags": [],
+      "properties": {}
+    },
+    {
+      "id": "con_029",
+      "name": "CAN 2",
+      "parent": "pcb_003",
+      "connector_type": "molex_minifit_jr_2p",
+      "tags": [],
+      "properties": {}
+    },
+    {
+      "id": "con_030",
+      "name": "Dash LEDs Header",
+      "parent": "pcb_004",
+      "connector_type": "molex_minifit_jr_4p",
+      "tags": [],
+      "properties": {}
+    },
+    {
+      "id": "con_031",
+      "name": "TSSI Bulkhead",
+      "parent": "enc_002",
+      "connector_type": "deutsch_dt_4p",
+      "tags": [],
+      "properties": {}
+    },
+    {
+      "id": "con_032",
+      "name": "Current Sensor Bulkhead",
+      "parent": "enc_002",
+      "connector_type": "deutsch_dt_4p",
+      "tags": [],
+      "properties": {}
+    },
+    {
+      "id": "con_033",
+      "name": "Shock/Wheel Bulkhead",
+      "parent": "enc_002",
+      "connector_type": "deutsch_hd_12p",
+      "tags": [],
+      "properties": {}
+    },
+    {
+      "id": "con_034",
+      "name": "Brake Light Bulkhead",
+      "parent": "enc_002",
+      "connector_type": "molex_minifit_jr_2p",
+      "tags": [],
+      "properties": {
+        "image": "SCR-20260410-bhll.png"
+      }
+    },
+    {
+      "id": "con_035",
+      "name": "Footwell Bulkhead",
+      "parent": "enc_002",
+      "connector_type": "deutsch_hd_14p",
+      "tags": [],
+      "properties": {}
+    },
+    {
+      "id": "con_036",
+      "name": "Placeholder Bulkhead",
+      "parent": "enc_002",
+      "connector_type": "tbd",
+      "tags": [],
+      "properties": {
+        "note": "Placeholder absorbing all unspecified external connections — identities TBD"
+      }
+    },
+    {
+      "id": "con_037",
+      "name": "Light Tree Connector",
+      "parent": "enc_003",
+      "connector_type": "deutsch_dt_4p",
+      "tags": [],
+      "properties": {
+        "image": "SCR-20260410-bhll.png"
+      }
+    },
+    {
+      "id": "con_038",
+      "name": "Brake Light Connector",
+      "parent": "enc_004",
+      "connector_type": "molex_minifit_jr_2p",
+      "tags": [],
+      "properties": {}
+    },
+    {
+      "id": "con_039",
+      "name": "Current Sensor (HV Battery Side)",
+      "parent": "enc_005",
+      "connector_type": "deutsch_dt_4p",
+      "tags": [],
+      "properties": {
+        "image": "SCR-20260410-bhll.png"
+      }
+    },
+    {
+      "id": "con_040",
+      "name": "Placeholder (3V3/5V)",
+      "parent": "pcb_003",
+      "connector_type": "tbd",
+      "tags": [],
+      "properties": {
+        "note": "Placeholder for 3V3 and 5V rails arriving via Safety Board 20-pin — source not yet fully defined"
+      }
+    },
+    {
+      "id": "con_041",
+      "name": "Wheel Speed Sensor 1 Connector",
+      "parent": "enc_006",
+      "connector_type": "tbd",
+      "tags": [],
+      "properties": {
+        "note": "Sensor pinout TBD",
+        "image": "IMG_1255.jpg"
+      }
+    },
+    {
+      "id": "con_042",
+      "name": "Wheel Speed Sensor 2 Connector",
+      "parent": "enc_007",
+      "connector_type": "tbd",
+      "tags": [],
+      "properties": {
+        "note": "Sensor pinout TBD"
+      }
+    },
+    {
+      "id": "con_043",
+      "name": "Wheel Speed Sensor 3 Connector",
+      "parent": "enc_008",
+      "connector_type": "tbd",
+      "tags": [],
+      "properties": {
+        "note": "Sensor pinout TBD"
+      }
+    },
+    {
+      "id": "con_044",
+      "name": "Wheel Speed Sensor 4 Connector",
+      "parent": "enc_009",
+      "connector_type": "tbd",
+      "tags": [],
+      "properties": {
+        "note": "Sensor pinout TBD"
+      }
+    },
+    {
+      "id": "con_045",
+      "name": "FOC-C1",
+      "parent": "enc_002",
+      "connector_type": "deutsch_dt_12p_female",
+      "tags": [
+        "FOC"
+      ],
+      "properties": {}
+    },
+    {
+      "id": "con_046",
+      "name": "ROC-C1",
+      "parent": "enc_001",
+      "connector_type": "deutsch_dt_12p_male",
+      "tags": [],
+      "properties": {}
+    }
+  ],
+  "mergePoints": [],
+  "paths": [
+    {
+      "id": "wire_001",
+      "name": "wire_001",
+      "tags": [],
+      "properties": {},
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_009",
+          "pin_number": 1
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_031",
+          "pin_number": 1
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "wire_002",
+      "name": "wire_002",
+      "tags": [],
+      "properties": {},
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_009",
+          "pin_number": 2
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_031",
+          "pin_number": 2
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "wire_003",
+      "name": "wire_003",
+      "tags": [],
+      "properties": {},
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_009",
+          "pin_number": 3
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_031",
+          "pin_number": 3
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "wire_004",
+      "name": "wire_004",
+      "tags": [],
+      "properties": {},
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_009",
+          "pin_number": 4
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_031",
+          "pin_number": 4
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "wire_005",
+      "name": "wire_005",
+      "tags": [],
+      "properties": {},
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_031",
+          "pin_number": 1
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_037",
+          "pin_number": 1
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "wire_006",
+      "name": "wire_006",
+      "tags": [],
+      "properties": {},
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_031",
+          "pin_number": 2
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_037",
+          "pin_number": 2
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "wire_007",
+      "name": "wire_007",
+      "tags": [],
+      "properties": {},
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_031",
+          "pin_number": 3
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_037",
+          "pin_number": 3
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "wire_008",
+      "name": "wire_008",
+      "tags": [],
+      "properties": {},
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_031",
+          "pin_number": 4
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_037",
+          "pin_number": 4
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "wire_009",
+      "name": "wire_009",
+      "tags": [],
+      "properties": {},
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_007",
+          "pin_number": 1
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_032",
+          "pin_number": 1
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "wire_010",
+      "name": "wire_010",
+      "tags": [],
+      "properties": {},
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_007",
+          "pin_number": 2
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_032",
+          "pin_number": 2
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "wire_011",
+      "name": "wire_011",
+      "tags": [],
+      "properties": {},
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_007",
+          "pin_number": 4
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_032",
+          "pin_number": 4
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "wire_012",
+      "name": "wire_012",
+      "tags": [],
+      "properties": {},
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_032",
+          "pin_number": 1
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_039",
+          "pin_number": 1
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "wire_013",
+      "name": "wire_013",
+      "tags": [],
+      "properties": {},
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_032",
+          "pin_number": 2
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_039",
+          "pin_number": 2
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "wire_014",
+      "name": "wire_014",
+      "tags": [],
+      "properties": {},
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_032",
+          "pin_number": 4
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_039",
+          "pin_number": 4
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "wire_015",
+      "name": "wire_015",
+      "tags": [],
+      "properties": {},
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_013",
+          "pin_number": 1
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_033",
+          "pin_number": 1
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "wire_016",
+      "name": "wire_016",
+      "tags": [],
+      "properties": {},
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_013",
+          "pin_number": 2
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_033",
+          "pin_number": 2
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "wire_017",
+      "name": "wire_017",
+      "tags": [],
+      "properties": {},
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_013",
+          "pin_number": 3
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_033",
+          "pin_number": 3
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "wire_018",
+      "name": "wire_018",
+      "tags": [],
+      "properties": {},
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_013",
+          "pin_number": 4
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_033",
+          "pin_number": 4
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "wire_019",
+      "name": "wire_019",
+      "tags": [],
+      "properties": {},
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_013",
+          "pin_number": 5
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_033",
+          "pin_number": 5
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "wire_020",
+      "name": "wire_020",
+      "tags": [],
+      "properties": {},
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_013",
+          "pin_number": 6
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_033",
+          "pin_number": 6
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "wire_021",
+      "name": "wire_021",
+      "tags": [],
+      "properties": {},
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_013",
+          "pin_number": 7
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_033",
+          "pin_number": 7
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "wire_022",
+      "name": "wire_022",
+      "tags": [],
+      "properties": {},
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_013",
+          "pin_number": 8
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_033",
+          "pin_number": 8
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "wire_023",
+      "name": "wire_023",
+      "tags": [],
+      "properties": {},
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_013",
+          "pin_number": 9
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_033",
+          "pin_number": 9
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "wire_024",
+      "name": "wire_024",
+      "tags": [],
+      "properties": {},
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_013",
+          "pin_number": 10
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_033",
+          "pin_number": 10
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "wire_025",
+      "name": "wire_025",
+      "tags": [],
+      "properties": {},
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_013",
+          "pin_number": 11
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_033",
+          "pin_number": 11
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "wire_026",
+      "name": "wire_026",
+      "tags": [],
+      "properties": {},
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_013",
+          "pin_number": 12
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_033",
+          "pin_number": 12
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "wire_027",
+      "name": "wire_027",
+      "tags": [],
+      "properties": {},
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_008",
+          "pin_number": 1
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_034",
+          "pin_number": 1
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "wire_028",
+      "name": "wire_028",
+      "tags": [],
+      "properties": {},
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_008",
+          "pin_number": 2
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_034",
+          "pin_number": 2
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "wire_029",
+      "name": "wire_029",
+      "tags": [],
+      "properties": {},
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_034",
+          "pin_number": 1
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_038",
+          "pin_number": 1
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "wire_030",
+      "name": "wire_030",
+      "tags": [
+        "status:crimped"
+      ],
+      "properties": {},
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_034",
+          "pin_number": 2
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_038",
+          "pin_number": 2
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "wire_031",
+      "name": "wire_031",
+      "tags": [],
+      "properties": {},
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_014",
+          "pin_number": 1
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_035",
+          "pin_number": 1
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "wire_032",
+      "name": "wire_032",
+      "tags": [],
+      "properties": {},
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_014",
+          "pin_number": 2
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_035",
+          "pin_number": 2
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "wire_033",
+      "name": "wire_033",
+      "tags": [],
+      "properties": {},
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_014",
+          "pin_number": 3
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_035",
+          "pin_number": 3
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "wire_034",
+      "name": "wire_034",
+      "tags": [],
+      "properties": {},
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_014",
+          "pin_number": 4
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_035",
+          "pin_number": 4
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "wire_035",
+      "name": "wire_035",
+      "tags": [],
+      "properties": {},
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_014",
+          "pin_number": 5
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_035",
+          "pin_number": 5
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "wire_036",
+      "name": "wire_036",
+      "tags": [],
+      "properties": {},
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_014",
+          "pin_number": 6
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_035",
+          "pin_number": 6
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "wire_037",
+      "name": "wire_037",
+      "tags": [],
+      "properties": {},
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_014",
+          "pin_number": 7
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_035",
+          "pin_number": 7
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "wire_038",
+      "name": "wire_038",
+      "tags": [],
+      "properties": {},
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_014",
+          "pin_number": 9
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_035",
+          "pin_number": 9
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "wire_039",
+      "name": "wire_039",
+      "tags": [],
+      "properties": {},
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_014",
+          "pin_number": 10
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_035",
+          "pin_number": 10
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "wire_040",
+      "name": "wire_040",
+      "tags": [],
+      "properties": {},
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_014",
+          "pin_number": 12
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_035",
+          "pin_number": 12
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "wire_041",
+      "name": "wire_041",
+      "tags": [],
+      "properties": {},
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_014",
+          "pin_number": 13
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_035",
+          "pin_number": 13
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "wire_042",
+      "name": "wire_042",
+      "tags": [],
+      "properties": {},
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_014",
+          "pin_number": 14
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_035",
+          "pin_number": 14
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "wire_043",
+      "name": "wire_043",
+      "tags": [],
+      "properties": {},
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_012",
+          "pin_number": 1
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_030",
+          "pin_number": 1
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "wire_044",
+      "name": "wire_044",
+      "tags": [],
+      "properties": {},
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_012",
+          "pin_number": 2
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_030",
+          "pin_number": 2
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "wire_045",
+      "name": "wire_045",
+      "tags": [],
+      "properties": {},
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_012",
+          "pin_number": 3
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_030",
+          "pin_number": 3
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "wire_046",
+      "name": "wire_046",
+      "tags": [],
+      "properties": {},
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_012",
+          "pin_number": 4
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_030",
+          "pin_number": 4
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "wire_047",
+      "name": "wire_047",
+      "tags": [],
+      "properties": {},
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_003",
+          "pin_number": 2
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_036",
+          "pin_number": 1
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "wire_048",
+      "name": "wire_048",
+      "tags": [],
+      "properties": {},
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_004",
+          "pin_number": 1
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_036",
+          "pin_number": 2
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "wire_049",
+      "name": "wire_049",
+      "tags": [],
+      "properties": {},
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_004",
+          "pin_number": 2
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_036",
+          "pin_number": 3
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "wire_050",
+      "name": "wire_050",
+      "tags": [],
+      "properties": {},
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_005",
+          "pin_number": 1
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_036",
+          "pin_number": 4
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "wire_051",
+      "name": "wire_051",
+      "tags": [],
+      "properties": {},
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_005",
+          "pin_number": 2
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_036",
+          "pin_number": 5
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "wire_052",
+      "name": "wire_052",
+      "tags": [],
+      "properties": {},
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_006",
+          "pin_number": 1
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_036",
+          "pin_number": 6
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "wire_053",
+      "name": "wire_053",
+      "tags": [],
+      "properties": {},
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_006",
+          "pin_number": 2
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_036",
+          "pin_number": 7
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "wire_054",
+      "name": "wire_054",
+      "tags": [],
+      "properties": {},
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_006",
+          "pin_number": 3
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_036",
+          "pin_number": 8
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "wire_055",
+      "name": "wire_055",
+      "tags": [],
+      "properties": {},
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_006",
+          "pin_number": 4
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_036",
+          "pin_number": 9
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "wire_056",
+      "name": "wire_056",
+      "tags": [],
+      "properties": {},
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_010",
+          "pin_number": 1
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_036",
+          "pin_number": 10
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "wire_057",
+      "name": "wire_057",
+      "tags": [],
+      "properties": {},
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_010",
+          "pin_number": 2
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_036",
+          "pin_number": 11
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "wire_058",
+      "name": "wire_058",
+      "tags": [],
+      "properties": {},
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_011",
+          "pin_number": 1
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_036",
+          "pin_number": 12
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "wire_059",
+      "name": "wire_059",
+      "tags": [],
+      "properties": {},
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_011",
+          "pin_number": 2
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_036",
+          "pin_number": 13
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "wire_060",
+      "name": "wire_060",
+      "tags": [],
+      "properties": {},
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_015",
+          "pin_number": 1
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_021",
+          "pin_number": 2
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "wire_061",
+      "name": "wire_061",
+      "tags": [],
+      "properties": {},
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_015",
+          "pin_number": 2
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_021",
+          "pin_number": 1
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "wire_062",
+      "name": "wire_062",
+      "tags": [],
+      "properties": {},
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_015",
+          "pin_number": 3
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_022",
+          "pin_number": 2
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "wire_063",
+      "name": "wire_063",
+      "tags": [],
+      "properties": {},
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_015",
+          "pin_number": 4
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_016",
+          "pin_number": 2
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "wire_064",
+      "name": "wire_064",
+      "tags": [],
+      "properties": {},
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_015",
+          "pin_number": 5
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_017",
+          "pin_number": 1
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "wire_065",
+      "name": "wire_065",
+      "tags": [],
+      "properties": {},
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_015",
+          "pin_number": 6
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_017",
+          "pin_number": 3
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "wire_066",
+      "name": "wire_066",
+      "tags": [],
+      "properties": {},
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_015",
+          "pin_number": 7
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_040",
+          "pin_number": 1
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "wire_067",
+      "name": "wire_067",
+      "tags": [],
+      "properties": {},
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_015",
+          "pin_number": 8
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_017",
+          "pin_number": 4
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "wire_068",
+      "name": "wire_068",
+      "tags": [],
+      "properties": {},
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_015",
+          "pin_number": 9
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_017",
+          "pin_number": 2
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "wire_069",
+      "name": "wire_069",
+      "tags": [],
+      "properties": {},
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_015",
+          "pin_number": 10
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_027",
+          "pin_number": 1
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "wire_070",
+      "name": "wire_070",
+      "tags": [],
+      "properties": {},
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_015",
+          "pin_number": 11
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_023",
+          "pin_number": 1
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "wire_071",
+      "name": "wire_071",
+      "tags": [],
+      "properties": {},
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_015",
+          "pin_number": 12
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_027",
+          "pin_number": 2
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "wire_072",
+      "name": "wire_072",
+      "tags": [],
+      "properties": {},
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_015",
+          "pin_number": 13
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_040",
+          "pin_number": 2
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "wire_073",
+      "name": "wire_073",
+      "tags": [],
+      "properties": {},
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_015",
+          "pin_number": 14
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_018",
+          "pin_number": 4
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "wire_074",
+      "name": "wire_074",
+      "tags": [],
+      "properties": {},
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_015",
+          "pin_number": 15
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_018",
+          "pin_number": 3
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "wire_075",
+      "name": "wire_075",
+      "tags": [],
+      "properties": {},
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_015",
+          "pin_number": 16
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_018",
+          "pin_number": 2
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "wire_076",
+      "name": "wire_076",
+      "tags": [],
+      "properties": {},
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_015",
+          "pin_number": 17
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_018",
+          "pin_number": 1
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "wire_077",
+      "name": "wire_077",
+      "tags": [],
+      "properties": {},
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_015",
+          "pin_number": 19
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_023",
+          "pin_number": 2
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "wire_078",
+      "name": "wire_078",
+      "tags": [],
+      "properties": {},
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_015",
+          "pin_number": 20
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_016",
+          "pin_number": 1
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "wire_079",
+      "name": "wire_079",
+      "tags": [],
+      "properties": {},
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_041",
+          "pin_number": 1
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_033",
+          "pin_number": 1
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "wire_080",
+      "name": "wire_080",
+      "tags": [],
+      "properties": {},
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_041",
+          "pin_number": 2
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_033",
+          "pin_number": 3
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "wire_081",
+      "name": "wire_081",
+      "tags": [
+        "status:cut",
+        "by:joe"
+      ],
+      "properties": {},
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_041",
+          "pin_number": 3
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_033",
+          "pin_number": 9
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "wire_082",
+      "name": "wire_082",
+      "tags": [],
+      "properties": {},
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_042",
+          "pin_number": 1
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_033",
+          "pin_number": 2
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "wire_083",
+      "name": "wire_083",
+      "tags": [],
+      "properties": {},
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_042",
+          "pin_number": 2
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_033",
+          "pin_number": 4
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "wire_084",
+      "name": "wire_084",
+      "tags": [],
+      "properties": {},
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_042",
+          "pin_number": 3
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_033",
+          "pin_number": 10
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "wire_085",
+      "name": "wire_085",
+      "tags": [],
+      "properties": {},
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_043",
+          "pin_number": 1
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_033",
+          "pin_number": 7
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "wire_086",
+      "name": "wire_086",
+      "tags": [],
+      "properties": {},
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_043",
+          "pin_number": 2
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_033",
+          "pin_number": 5
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "wire_087",
+      "name": "wire_087",
+      "tags": [],
+      "properties": {},
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_043",
+          "pin_number": 3
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_033",
+          "pin_number": 11
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "wire_088",
+      "name": "wire_088",
+      "tags": [],
+      "properties": {},
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_044",
+          "pin_number": 1
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_033",
+          "pin_number": 8
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "wire_089",
+      "name": "wire_089",
+      "tags": [
+        "status:crimped"
+      ],
+      "properties": {},
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_044",
+          "pin_number": 2
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_033",
+          "pin_number": 6
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "wire_090",
+      "name": "wire_090",
+      "tags": [],
+      "properties": {},
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_044",
+          "pin_number": 3
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_033",
+          "pin_number": 12
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "wire_091",
+      "name": "wire_091",
+      "tags": [
+        "5\"",
+        "status:crimped"
+      ],
+      "properties": {
+        "color": "red",
+        "wire_color": "orange",
+        "gauge": "18 AWG",
+        "note": "12V"
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_045",
+          "pin_number": 1
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_046",
+          "pin_number": 1
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "wire_092",
+      "name": "wire_092",
+      "tags": [
+        "status:qcd"
+      ],
+      "properties": {
+        "color": "black",
+        "wire_color": "blue",
+        "gauge": "18 AWG",
+        "note": "GND_GLVMP"
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_045",
+          "pin_number": 2
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_046",
+          "pin_number": 2
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "wire_093",
+      "name": "wire_093",
+      "tags": [],
+      "properties": {
+        "color": "gray",
+        "wire_color": "yellow",
+        "gauge": "18 AWG",
+        "note": "BMS Reset-"
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_045",
+          "pin_number": 3
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_046",
+          "pin_number": 3
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "wire_094",
+      "name": "wire_094",
+      "tags": [],
+      "properties": {
+        "color": "gray",
+        "wire_color": "green",
+        "gauge": "18 AWG",
+        "note": "BMS LED+"
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_045",
+          "pin_number": 4
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_046",
+          "pin_number": 4
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "wire_095",
+      "name": "wire_095",
+      "tags": [
+        "status:crimped"
+      ],
+      "properties": {
+        "color": "purple",
+        "wire_color": "red",
+        "gauge": "18 AWG",
+        "note": "BSPD Reset-"
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_045",
+          "pin_number": 5
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_046",
+          "pin_number": 5
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "wire_096",
+      "name": "wire_096",
+      "tags": [],
+      "properties": {
+        "color": "gray",
+        "wire_color": "pink",
+        "gauge": "18 AWG",
+        "note": "BSPD LED+"
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_045",
+          "pin_number": 6
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_046",
+          "pin_number": 6
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "wire_097",
+      "name": "wire_097",
+      "tags": [
+        "status:cut"
+      ],
+      "properties": {
+        "color": "purple",
+        "wire_color": "purple",
+        "gauge": "18 AWG",
+        "note": "IMD Reset+"
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_045",
+          "pin_number": 7
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_046",
+          "pin_number": 7
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "wire_098",
+      "name": "wire_098",
+      "tags": [],
+      "properties": {
+        "color": "purple",
+        "wire_color": "brown",
+        "gauge": "18 AWG",
+        "note": "IMD Reset-"
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_045",
+          "pin_number": 8
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_046",
+          "pin_number": 8
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "wire_099",
+      "name": "wire_099",
+      "tags": [],
+      "properties": {
+        "color": "gray",
+        "wire_color": "light blue",
+        "gauge": "18 AWG",
+        "note": "IMD LED+"
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_045",
+          "pin_number": 9
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_046",
+          "pin_number": 9
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "wire_100",
+      "name": "wire_100",
+      "tags": [],
+      "properties": {
+        "color": "blue",
+        "wire_color": "gray",
+        "gauge": "18 AWG",
+        "note": "LV MS-"
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_045",
+          "pin_number": 10
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_046",
+          "pin_number": 10
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "wire_101",
+      "name": "example",
+      "tags": [],
+      "properties": {
+        "color": "gray",
+        "wire_color": "green",
+        "gauge": "18 AWG",
+        "note": "Speaker+"
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_045",
+          "pin_number": 11
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_046",
+          "pin_number": 11
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "wire_102",
+      "name": "wire_102",
+      "tags": [],
+      "properties": {
+        "color": "gray",
+        "gauge": "18 AWG",
+        "note": "Speaker-"
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_045",
+          "pin_number": 12
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_046",
+          "pin_number": 12
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "wire_103",
+      "name": "wire_103",
+      "tags": [
+        "example"
+      ],
+      "properties": {
+        "note": "FOC-C1 pin 1 (12V) → TSSI pin 1 (12V) — example connection"
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_045",
+          "pin_number": 1
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_009",
+          "pin_number": 1
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "wire_104",
+      "name": "wire_104",
+      "tags": [
+        "example"
+      ],
+      "properties": {
+        "note": "FOC-C1 pin 4 (BMS LED+) → Dash LEDs pin 2 (BSPD Fault LED) — example connection"
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_045",
+          "pin_number": 4
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_012",
+          "pin_number": 2
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "wire_105",
+      "name": "wire_105",
+      "tags": [
+        "example",
+        "5\""
+      ],
+      "properties": {
+        "note": "FOC-C1 pin 11 (Speaker+) → CCM connector pin 3 (Speaker) — example connection"
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_045",
+          "pin_number": 11
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_015",
+          "pin_number": 3
+        }
+      ],
+      "measurements": []
+    }
+  ],
+  "signals": [
+    {
+      "id": "sig_GND",
+      "name": "GND",
+      "tags": [],
+      "properties": {}
+    },
+    {
+      "id": "sig_12V",
+      "name": "12V",
+      "tags": [],
+      "properties": {
+        "voltage": "12V"
+      }
+    },
+    {
+      "id": "sig_24V",
+      "name": "24V",
+      "tags": [],
+      "properties": {
+        "voltage": "24V"
+      }
+    },
+    {
+      "id": "sig_5V",
+      "name": "5V",
+      "tags": [],
+      "properties": {
+        "voltage": "5V"
+      }
+    },
+    {
+      "id": "sig_3V3",
+      "name": "3V3",
+      "tags": [],
+      "properties": {
+        "voltage": "3.3V"
+      }
+    },
+    {
+      "id": "sig_CAN_H",
+      "name": "CAN_H",
+      "tags": [],
+      "properties": {}
+    },
+    {
+      "id": "sig_CAN_L",
+      "name": "CAN_L",
+      "tags": [],
+      "properties": {}
+    },
+    {
+      "id": "sig_SDC_OUT",
+      "name": "SDC_OUT",
+      "tags": [],
+      "properties": {}
+    },
+    {
+      "id": "sig_ESTOP_IN",
+      "name": "ESTOP_IN",
+      "tags": [],
+      "properties": {}
+    },
+    {
+      "id": "sig_ESTOP_OUT",
+      "name": "ESTOP_OUT",
+      "tags": [],
+      "properties": {}
+    },
+    {
+      "id": "sig_TS_ON_SW",
+      "name": "TS_ON_SW",
+      "tags": [],
+      "properties": {}
+    },
+    {
+      "id": "sig_BSPD_RESET",
+      "name": "BSPD_RESET",
+      "tags": [],
+      "properties": {}
+    },
+    {
+      "id": "sig_IMD_RESET_POS",
+      "name": "IMD_RESET_POS",
+      "tags": [],
+      "properties": {}
+    },
+    {
+      "id": "sig_IMD_RESET_NEG",
+      "name": "IMD_RESET_NEG",
+      "tags": [],
+      "properties": {}
+    },
+    {
+      "id": "sig_BMS_RESET",
+      "name": "BMS_RESET",
+      "tags": [],
+      "properties": {}
+    },
+    {
+      "id": "sig_IM_DEFAULT",
+      "name": "IM_DEFAULT",
+      "tags": [],
+      "properties": {}
+    },
+    {
+      "id": "sig_BMS_FAULT",
+      "name": "BMS_FAULT",
+      "tags": [],
+      "properties": {}
+    },
+    {
+      "id": "sig_BSPD_LED",
+      "name": "BSPD_LED",
+      "tags": [],
+      "properties": {}
+    },
+    {
+      "id": "sig_IMD_LED",
+      "name": "IMD_LED",
+      "tags": [],
+      "properties": {}
+    },
+    {
+      "id": "sig_BMS_LED",
+      "name": "BMS_LED",
+      "tags": [],
+      "properties": {}
+    },
+    {
+      "id": "sig_TSSI_GREEN",
+      "name": "TSSI_GREEN",
+      "tags": [],
+      "properties": {}
+    },
+    {
+      "id": "sig_TSSI_RED",
+      "name": "TSSI_RED",
+      "tags": [],
+      "properties": {}
+    },
+    {
+      "id": "sig_TSSI_BYPASS",
+      "name": "TSSI_BYPASS",
+      "tags": [],
+      "properties": {}
+    },
+    {
+      "id": "sig_TSSI_LATCH",
+      "name": "TSSI_LATCH",
+      "tags": [],
+      "properties": {}
+    },
+    {
+      "id": "sig_CURRENT_SENSE",
+      "name": "CURRENT_SENSE",
+      "tags": [],
+      "properties": {}
+    },
+    {
+      "id": "sig_APPS_1",
+      "name": "APPS_1",
+      "tags": [],
+      "properties": {}
+    },
+    {
+      "id": "sig_APPS_2",
+      "name": "APPS_2",
+      "tags": [],
+      "properties": {}
+    },
+    {
+      "id": "sig_BPS_1",
+      "name": "BPS_1",
+      "tags": [],
+      "properties": {}
+    },
+    {
+      "id": "sig_BPS_2",
+      "name": "BPS_2",
+      "tags": [],
+      "properties": {}
+    },
+    {
+      "id": "sig_WHEEL_SHOCK_1",
+      "name": "WHEEL_SHOCK_1",
+      "tags": [],
+      "properties": {}
+    },
+    {
+      "id": "sig_WHEEL_SHOCK_2",
+      "name": "WHEEL_SHOCK_2",
+      "tags": [],
+      "properties": {}
+    },
+    {
+      "id": "sig_WHEEL_SHOCK_3",
+      "name": "WHEEL_SHOCK_3",
+      "tags": [],
+      "properties": {}
+    },
+    {
+      "id": "sig_WHEEL_SHOCK_4",
+      "name": "WHEEL_SHOCK_4",
+      "tags": [],
+      "properties": {}
+    },
+    {
+      "id": "sig_RTD_BTN",
+      "name": "RTD_BTN",
+      "tags": [],
+      "properties": {}
+    },
+    {
+      "id": "sig_BRAKE_LIGHT",
+      "name": "BRAKE_LIGHT",
+      "tags": [],
+      "properties": {}
+    },
+    {
+      "id": "sig_SPEAKER",
+      "name": "SPEAKER",
+      "tags": [],
+      "properties": {}
+    },
+    {
+      "id": "sig_FAN_PWM",
+      "name": "FAN_PWM",
+      "tags": [],
+      "properties": {}
+    },
+    {
+      "id": "sig_PUMP_1",
+      "name": "PUMP_1",
+      "tags": [],
+      "properties": {}
+    },
+    {
+      "id": "sig_PUMP_2",
+      "name": "PUMP_2",
+      "tags": [],
+      "properties": {}
+    },
+    {
+      "id": "sig_GPIO_1",
+      "name": "GPIO_1",
+      "tags": [],
+      "properties": {}
+    },
+    {
+      "id": "sig_GPIO_2",
+      "name": "GPIO_2",
+      "tags": [],
+      "properties": {}
+    },
+    {
+      "id": "sig_GPIO_3",
+      "name": "GPIO_3",
+      "tags": [],
+      "properties": {}
+    },
+    {
+      "id": "sig_GPIO_4",
+      "name": "GPIO_4",
+      "tags": [],
+      "properties": {}
+    },
+    {
+      "id": "sig_LIN_POT_1",
+      "name": "LIN_POT_1",
+      "tags": [],
+      "properties": {}
+    },
+    {
+      "id": "sig_LIN_POT_2",
+      "name": "LIN_POT_2",
+      "tags": [],
+      "properties": {}
+    },
+    {
+      "id": "sig_LIN_POT_3",
+      "name": "LIN_POT_3",
+      "tags": [],
+      "properties": {}
+    },
+    {
+      "id": "sig_LIN_POT_4",
+      "name": "LIN_POT_4",
+      "tags": [],
+      "properties": {}
+    },
+    {
+      "id": "sig_THERM_1",
+      "name": "THERM_1",
+      "tags": [],
+      "properties": {}
+    },
+    {
+      "id": "sig_THERM_2",
+      "name": "THERM_2",
+      "tags": [],
+      "properties": {}
+    },
+    {
+      "id": "sig_THERM_3",
+      "name": "THERM_3",
+      "tags": [],
+      "properties": {}
+    },
+    {
+      "id": "sig_THERM_4",
+      "name": "THERM_4",
+      "tags": [],
+      "properties": {}
+    },
+    {
+      "id": "sig_UNASSIGNED",
+      "name": "UNASSIGNED",
+      "tags": [],
+      "properties": {
+        "note": "Placeholder signal. Wires tagged signal:UNASSIGNED are planned but not yet assigned to a specific pin."
+      }
+    },
+    {
+      "id": "sig_GND_GLVMP",
+      "name": "GND_GLVMP",
+      "tags": [],
+      "properties": {
+        "note": "Grounded Low Voltage Main Power negative reference"
+      }
+    },
+    {
+      "id": "sig_LV_MS",
+      "name": "LV_MS",
+      "tags": [],
+      "properties": {
+        "note": "Low Voltage Motor/System negative"
+      }
+    },
+    {
+      "id": "sig_SPEAKER_NEG",
+      "name": "SPEAKER_NEG",
+      "tags": [],
+      "properties": {}
+    }
+  ]
+}

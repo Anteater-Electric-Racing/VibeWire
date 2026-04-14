@@ -14,8 +14,8 @@ import {
 import type { WaypointItem } from '../../types';
 
 type BundleEdgeData = {
-  wireIds: string[];
-  wireCount: number;
+  pathIds: string[];
+  pathCount: number;
   wireAppearances: WireAppearance[];
   bundleColor: string;
   matchesFilter: boolean;
@@ -35,6 +35,61 @@ const WIRE_GAP = 1.5;
 const MAX_BUNDLE_W = 28;
 const MIN_WIRE_W = 0.5;
 const FALLBACK_WIRE_APPEARANCE = getWireAppearance({ tags: [], properties: {} });
+
+function isSharpCorner(points: Point[], index: number): boolean {
+  if (index <= 0 || index >= points.length - 1) return false;
+  const prev = points[index - 1];
+  const curr = points[index];
+  const next = points[index + 1];
+  const ax = prev.x - curr.x;
+  const ay = prev.y - curr.y;
+  const bx = next.x - curr.x;
+  const by = next.y - curr.y;
+  const aLen = Math.hypot(ax, ay);
+  const bLen = Math.hypot(bx, by);
+  if (aLen < 0.001 || bLen < 0.001) return false;
+  const cross = ax * by - ay * bx;
+  return Math.abs(cross) / (aLen * bLen) > 0.01;
+}
+
+function buildInteractiveSegments(points: Point[], hitStrokeWidth: number): Array<{ start: Point; end: Point }> {
+  if (points.length < 2) return [];
+  const trim = Math.max(6, hitStrokeWidth * 0.45);
+  const segments: Array<{ start: Point; end: Point }> = [];
+
+  for (let i = 0; i < points.length - 1; i++) {
+    const start = points[i];
+    const end = points[i + 1];
+    const dx = end.x - start.x;
+    const dy = end.y - start.y;
+    const len = Math.hypot(dx, dy);
+    if (len < 0.001) continue;
+
+    let startTrim = i > 0 && isSharpCorner(points, i) ? trim : 0;
+    let endTrim = i < points.length - 2 && isSharpCorner(points, i + 1) ? trim : 0;
+
+    const maxTrimTotal = Math.max(0, len - 4);
+    const trimTotal = startTrim + endTrim;
+    if (trimTotal > maxTrimTotal && trimTotal > 0) {
+      const scale = maxTrimTotal / trimTotal;
+      startTrim *= scale;
+      endTrim *= scale;
+    }
+
+    const ux = dx / len;
+    const uy = dy / len;
+    segments.push({
+      start: { x: start.x + ux * startTrim, y: start.y + uy * startTrim },
+      end: { x: end.x - ux * endTrim, y: end.y - uy * endTrim },
+    });
+  }
+
+  return segments;
+}
+
+function getInteractiveCorners(points: Point[]): Point[] {
+  return points.filter((_, index) => isSharpCorner(points, index));
+}
 
 function offsetPolyline(points: Point[], offset: number): string {
   if (points.length < 2) return '';
@@ -99,7 +154,7 @@ export function BundleEdge(props: EdgeProps<BundleEdgeType>) {
   const dragPosRef = useRef<Point | null>(null);
   const rawWaypointsRef = useRef<WaypointItem[]>([]);
 
-  const wireCount = data?.wireCount ?? 1;
+  const wireCount = data?.pathCount ?? 1;
   const color = data?.bundleColor ?? '#666';
   const matchesFilter = data?.matchesFilter ?? true;
   const resolvedWaypoints = useMemo(
@@ -128,6 +183,16 @@ export function BundleEdge(props: EdgeProps<BundleEdgeType>) {
   const wireStep = wireW + wireGap;
   const bundleW = wireCount <= 1 ? wireW : (wireCount - 1) * wireStep + wireW;
   const strokeWidth = bundleW + 4;
+  const hitStrokeWidth = Math.max(20, strokeWidth + 14);
+  const cornerHitRadius = Math.max(4, Math.min(8, hitStrokeWidth * 0.2));
+  const interactiveSegments = useMemo(
+    () => buildInteractiveSegments(allPoints, hitStrokeWidth),
+    [allPoints, hitStrokeWidth],
+  );
+  const interactiveCorners = useMemo(
+    () => getInteractiveCorners(allPoints),
+    [allPoints],
+  );
 
   useEffect(() => {
     rawWaypointsRef.current = rawWaypoints;
@@ -178,9 +243,9 @@ export function BundleEdge(props: EdgeProps<BundleEdgeType>) {
   const handleHitAreaClick = useCallback(
     (e: React.MouseEvent) => {
       e.stopPropagation();
-      if (!selected && data?.wireIds) setSelectedBundle(data.wireIds);
+      if (!selected && data?.pathIds) setSelectedBundle(data.pathIds);
     },
-    [selected, data?.wireIds, setSelectedBundle],
+    [selected, data?.pathIds, setSelectedBundle],
   );
 
   // Double-click edge body: insert a bend point (only if not over a handle)
@@ -417,14 +482,14 @@ export function BundleEdge(props: EdgeProps<BundleEdgeType>) {
         <foreignObject x={labelPos.x - 30} y={labelPos.y - 12} width={60} height={24} pointerEvents="none" className="overflow-visible">
           <div className="flex items-center justify-center h-full">
             <span className="text-[11px] font-medium bg-zinc-800 text-zinc-100 px-2 py-0.5 rounded border border-zinc-600 whitespace-nowrap shadow">
-              {wireCount} wire{wireCount !== 1 ? 's' : ''}
+              {wireCount} path{wireCount !== 1 ? 's' : ''}
             </span>
           </div>
         </foreignObject>
       ) : (
         <foreignObject x={labelPos.x - 16} y={labelPos.y - 8} width={32} height={16} pointerEvents="none" className="overflow-visible">
           <div className="flex items-center justify-center h-full">
-            <span className="text-[7px] bg-zinc-900/50 text-zinc-600 px-0.5 rounded whitespace-nowrap">{wireCount}w</span>
+            <span className="text-[7px] bg-zinc-900/50 text-zinc-600 px-0.5 rounded whitespace-nowrap">{wireCount}p</span>
           </div>
         </foreignObject>
       )}
@@ -432,16 +497,34 @@ export function BundleEdge(props: EdgeProps<BundleEdgeType>) {
       {/* ── Layer 2: all interactive hit targets (on top of everything) ── */}
 
       {/* Edge body hit area — for selection + double-click to add bend */}
-      <path
-        d={edgePath}
-        fill="none"
-        stroke="transparent"
-        strokeWidth={Math.max(20, strokeWidth + 14)}
-        pointerEvents="all"
-        className="cursor-pointer"
-        onClick={handleHitAreaClick}
-        onDoubleClick={handlePathDoubleClick}
-      />
+      {interactiveSegments.map((segment, index) => (
+        <path
+          key={`hit-seg-${index}`}
+          d={`M ${segment.start.x} ${segment.start.y} L ${segment.end.x} ${segment.end.y}`}
+          fill="none"
+          stroke="transparent"
+          strokeWidth={hitStrokeWidth}
+          strokeLinecap="butt"
+          pointerEvents="all"
+          className="cursor-pointer"
+          onClick={handleHitAreaClick}
+          onDoubleClick={handlePathDoubleClick}
+        />
+      ))}
+
+      {interactiveCorners.map((point, index) => (
+        <circle
+          key={`hit-corner-${index}`}
+          cx={point.x}
+          cy={point.y}
+          r={cornerHitRadius}
+          fill="transparent"
+          pointerEvents="all"
+          className="cursor-pointer"
+          onClick={handleHitAreaClick}
+          onDoubleClick={handlePathDoubleClick}
+        />
+      ))}
 
       {/* Junction grab circles — on EVERY edge (not just owner) so the topmost
            edge in SVG paint order always has a grabbable target */}

@@ -1,18 +1,9 @@
-export interface Pin {
-  id: string;
-  pin_number: number;
-  name: string;
-  tags: string[];
-  properties: Record<string, string>;
-}
-
 export interface Connector {
   id: string;
   name: string;
   parent: string | null;
   connector_type: string;
   tags: string[];
-  pins: Pin[];
   properties: Record<string, string>;
 }
 
@@ -25,10 +16,10 @@ export interface Enclosure {
   properties: Record<string, string>;
 }
 
-export interface Wire {
+export interface MergePoint {
   id: string;
-  from: string;
-  to: string;
+  name: string;
+  parent: string | null;
   tags: string[];
   properties: Record<string, string>;
 }
@@ -40,11 +31,54 @@ export interface Signal {
   properties: Record<string, string>;
 }
 
+export interface ConnectorPathNode {
+  kind: 'connector';
+  connector_id: string;
+  pin_number: number;
+}
+
+export interface MergePointPathNode {
+  kind: 'merge';
+  merge_point_id: string;
+}
+
+export type PathNode = ConnectorPathNode | MergePointPathNode;
+
+export interface ConnectorPathNodeRef {
+  kind: 'connector';
+  connector_id: string;
+  pin_number: number;
+}
+
+export interface MergePointPathNodeRef {
+  kind: 'merge';
+  merge_point_id: string;
+}
+
+export type PathNodeRef = ConnectorPathNodeRef | MergePointPathNodeRef;
+
+export interface PathMeasurement {
+  from: PathNodeRef;
+  to: PathNodeRef;
+  length_mm?: number;
+  note?: string;
+}
+
+export interface Path {
+  id: string;
+  name: string;
+  tags: string[];
+  properties: Record<string, string>;
+  nodes: PathNode[];
+  measurements: PathMeasurement[];
+}
+
 export interface HarnessData {
   schema_version: string;
   enclosures: Enclosure[];
   connectors: Connector[];
-  wires: Wire[];
+  mergePoints: MergePoint[];
+  paths: Path[];
   signals: Signal[];
 }
 
@@ -63,7 +97,7 @@ export interface ConnectorLibrary {
   connector_types: ConnectorType[];
 }
 
-export type EntityType = 'enclosure' | 'connector' | 'pin' | 'wire' | 'signal';
+export type EntityType = 'enclosure' | 'connector' | 'mergePoint' | 'path' | 'signal';
 
 export interface SelectedItem {
   type: EntityType;
@@ -96,6 +130,17 @@ export interface FreePortLayouts {
   [connectorId: string]: { x: number; y: number };
 }
 
+export interface MergePointPosition {
+  x: number;
+  y: number;
+}
+
+export interface MergePointLayouts {
+  [contextKey: string]: {
+    [mergePointId: string]: MergePointPosition;
+  };
+}
+
 export interface BackgroundLayout {
   image: string;
   x: number;
@@ -119,6 +164,7 @@ export type TextBoxTextAlign = 'left' | 'center' | 'right';
 
 export interface TextBoxLayout {
   id: string;
+  contextKey: string;
   x: number;
   y: number;
   w: number;
@@ -156,4 +202,31 @@ export interface JunctionLayout {
 
 export interface JunctionLayouts {
   [id: string]: JunctionLayout;
+}
+
+export interface ConnectorOccupancy {
+  pinNumber: number;
+  pathId: string;
+  pathName: string;
+  signalName: string | null;
+  tags: string[];
+}
+
+export interface DerivedSegment {
+  id: string;
+  pathId: string;
+  pathName: string;
+  segmentIndex: number;
+  from: PathNode;
+  to: PathNode;
+  tags: string[];
+  properties: Record<string, string>;
+}
+
+export interface DerivedBundle {
+  id: string;
+  segmentIds: string[];
+  pathIds: string[];
+  sourceRefKey: string;
+  targetRefKey: string;
 }

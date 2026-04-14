@@ -8,7 +8,7 @@
       "wire_gauge": "20-16 AWG",
       "notes": "IP67, push-to-seat, 12-pin female DT series",
       "image": "deutsch-12p-m.png",
-      "side_image": "deutsch-12p-side.png"
+      "side_image": "deutsch-12p-m.png"
     },
     {
       "id": "deutsch_dt_12p_male",

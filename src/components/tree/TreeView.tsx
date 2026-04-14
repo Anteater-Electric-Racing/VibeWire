@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useHarnessStore } from '../../store';
-import type { Enclosure, Connector, Pin } from '../../types';
+import type { Enclosure, Connector, MergePoint } from '../../types';
+import { getConnectorOccupancy } from '../../lib/harness';
 
 function TagPill({ tag }: { tag: string }) {
   return (
@@ -10,10 +11,18 @@ function TagPill({ tag }: { tag: string }) {
   );
 }
 
-function PinRow({ pin, depth }: { pin: Pin; depth: number }) {
+function OccupancyRow({
+  pinNumber,
+  pathId,
+  depth,
+}: {
+  pinNumber: number;
+  pathId: string;
+  depth: number;
+}) {
   const selectedItem = useHarnessStore((s) => s.selectedItem);
   const selectItem = useHarnessStore((s) => s.selectItem);
-  const isSelected = selectedItem?.type === 'pin' && selectedItem.id === pin.id;
+  const isSelected = selectedItem?.type === 'path' && selectedItem.id === pathId;
 
   return (
     <div
@@ -23,17 +32,12 @@ function PinRow({ pin, depth }: { pin: Pin; depth: number }) {
           : 'text-zinc-400 hover:bg-zinc-800'
       }`}
       style={{ paddingLeft: (depth + 1) * 16 + 8 }}
-      onClick={() => selectItem({ type: 'pin', id: pin.id })}
+      onClick={() => selectItem({ type: 'path', id: pathId })}
     >
       <span className="text-zinc-600 font-mono text-[10px] w-4 text-right shrink-0">
-        {pin.pin_number}
+        {pinNumber}
       </span>
-      <span className="truncate">{pin.name}</span>
-      <div className="ml-auto flex gap-0.5 shrink-0">
-        {(pin.tags ?? []).slice(0, 2).map((t) => (
-          <TagPill key={t} tag={t} />
-        ))}
-      </div>
+      <span className="truncate">{pathId}</span>
     </div>
   );
 }
@@ -42,8 +46,10 @@ function ConnectorRow({ connector, depth }: { connector: Connector; depth: numbe
   const [expanded, setExpanded] = useState(false);
   const selectedItem = useHarnessStore((s) => s.selectedItem);
   const selectItem = useHarnessStore((s) => s.selectItem);
+  const harness = useHarnessStore((s) => s.harness);
   const isSelected =
     selectedItem?.type === 'connector' && selectedItem.id === connector.id;
+  const occupancy = harness ? getConnectorOccupancy(harness, connector.id) : [];
 
   return (
     <>
@@ -67,7 +73,7 @@ function ConnectorRow({ connector, depth }: { connector: Connector; depth: numbe
         </button>
         <span className="font-medium">{connector.name}</span>
         <span className="text-zinc-500 text-[10px]">
-          ({connector.pins.length}p)
+          ({occupancy.length} used)
         </span>
         <div className="ml-auto flex gap-0.5 shrink-0">
           {(connector.tags ?? []).slice(0, 2).map((t) => (
@@ -76,8 +82,35 @@ function ConnectorRow({ connector, depth }: { connector: Connector; depth: numbe
         </div>
       </div>
       {expanded &&
-        connector.pins.map((pin) => <PinRow key={pin.id} pin={pin} depth={depth + 1} />)}
+        occupancy.map((entry, index) => (
+          <OccupancyRow
+            key={`${entry.pathId}-${entry.pinNumber}-${index}`}
+            pinNumber={entry.pinNumber}
+            pathId={entry.pathId}
+            depth={depth + 1}
+          />
+        ))}
     </>
+  );
+}
+
+function MergePointRow({ mergePoint, depth }: { mergePoint: MergePoint; depth: number }) {
+  const selectedItem = useHarnessStore((s) => s.selectedItem);
+  const selectItem = useHarnessStore((s) => s.selectItem);
+  const isSelected =
+    selectedItem?.type === 'mergePoint' && selectedItem.id === mergePoint.id;
+
+  return (
+    <div
+      className={`pr-2 py-0.5 text-[11px] cursor-pointer flex items-center gap-1 ${
+        isSelected ? 'bg-amber-900/30 text-amber-200' : 'text-cyan-300 hover:bg-zinc-800'
+      }`}
+      style={{ paddingLeft: depth * 16 + 8 }}
+      onClick={() => selectItem({ type: 'mergePoint', id: mergePoint.id })}
+    >
+      <span className="text-cyan-500">+</span>
+      <span className="truncate">{mergePoint.name}</span>
+    </div>
   );
 }
 
@@ -85,11 +118,13 @@ function EnclosureRow({
   enclosure,
   allEnclosures,
   allConnectors,
+  allMergePoints,
   depth = 0,
 }: {
   enclosure: Enclosure;
   allEnclosures: Enclosure[];
   allConnectors: Connector[];
+  allMergePoints: MergePoint[];
   depth?: number;
 }) {
   const [expanded, setExpanded] = useState(true);
@@ -104,6 +139,9 @@ function EnclosureRow({
   );
   const directConnectors = allConnectors.filter(
     (c) => c.parent === enclosure.id,
+  );
+  const directMergePoints = allMergePoints.filter(
+    (mergePoint) => mergePoint.parent === enclosure.id,
   );
 
   const isContainer = enclosure.container;
@@ -164,11 +202,15 @@ function EnclosureRow({
               enclosure={child}
               allEnclosures={allEnclosures}
               allConnectors={allConnectors}
+              allMergePoints={allMergePoints}
               depth={depth + 1}
             />
           ))}
           {directConnectors.map((c) => (
             <ConnectorRow key={c.id} connector={c} depth={depth + 2} />
+          ))}
+          {directMergePoints.map((mergePoint) => (
+            <MergePointRow key={mergePoint.id} mergePoint={mergePoint} depth={depth + 2} />
           ))}
         </>
       )}
@@ -183,6 +225,7 @@ export function TreeView() {
 
   const rootEnclosures = harness.enclosures.filter((e) => e.parent === null);
   const rootConnectors = harness.connectors.filter((c) => c.parent === null);
+  const rootMergePoints = harness.mergePoints.filter((mergePoint) => mergePoint.parent === null);
 
   return (
     <div className="py-1 select-none">
@@ -192,7 +235,11 @@ export function TreeView() {
           enclosure={enc}
           allEnclosures={harness.enclosures}
           allConnectors={harness.connectors}
+          allMergePoints={harness.mergePoints}
         />
+      ))}
+      {rootMergePoints.map((mergePoint) => (
+        <MergePointRow key={mergePoint.id} mergePoint={mergePoint} depth={0} />
       ))}
       {rootConnectors.length > 0 && (
         <>

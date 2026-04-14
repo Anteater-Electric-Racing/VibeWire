@@ -17,29 +17,40 @@ import '@xyflow/react/dist/style.css';
 import { useHarnessStore } from '../../store';
 import { EnclosureNode } from './EnclosureNode';
 import { ConnectorNode } from './ConnectorNode';
+import { MergePointNode } from './MergePointNode';
 import { BundleEdge } from './BundleEdge';
 import { BackgroundImageNode } from './BackgroundImageNode';
 import { TextBoxNode } from './TextBoxNode';
 import { ImagePickerPanel } from './ImagePickerPanel';
 import { itemMatchesFilters } from '../../lib/tags';
-import { getWireAppearance } from '../../lib/colors';
 import {
+  countPathsTouchingConnectors,
+  deriveBundles,
+  getConnectorOccupancy,
   getChildEnclosures,
+  getEnclosureMergePoints,
   getEnclosurePorts,
-  getSpaceFreeConnectors,
   getEnclosureConnectors,
+  getPathById,
   getPortWireAppearance,
+  getSpaceFreeConnectors,
+  getSpaceFreeMergePoints,
+  getVisibleSegments,
 } from '../../lib/harness';
 import { nearestOnPolyline, type Point } from '../../lib/paths';
+import { getWireAppearance } from '../../lib/colors';
 
 const BG_NODE_ID = '__bg_image__';
 const TB_NODE_PREFIX = '__tb_';
 const FREE_CON_PREFIX = '__freecon_';
 const ENC_CON_PREFIX = '__enccon_';
+const FREE_MERGE_PREFIX = '__freemerge_';
+const ENC_MERGE_PREFIX = '__encmerge_';
 
 const nodeTypes = {
   enclosure: EnclosureNode,
   connector: ConnectorNode,
+  mergePoint: MergePointNode,
   backgroundImage: BackgroundImageNode,
   textBox: TextBoxNode,
 };
@@ -66,6 +77,16 @@ function AddTextBoxButton() {
   );
 }
 
+function ViewportResetter({ viewportKey }: { viewportKey: string }) {
+  const { setViewport } = useReactFlow();
+
+  useEffect(() => {
+    void setViewport({ x: 0, y: 0, zoom: 1 }, { duration: 0 });
+  }, [setViewport, viewportKey]);
+
+  return null;
+}
+
 export function GraphView() {
   const harness = useHarnessStore((s) => s.harness);
   const nodeLayouts = useHarnessStore((s) => s.nodeLayouts);
@@ -81,7 +102,6 @@ export function GraphView() {
   const selectedBundle = useHarnessStore((s) => s.selectedBundle);
   const selectItem = useHarnessStore((s) => s.selectItem);
   const activeFilters = useHarnessStore((s) => s.activeFilters);
-  const findPinOwner = useHarnessStore((s) => s.findPinOwner);
   const drillDownEnclosure = useHarnessStore((s) => s.drillDownEnclosure);
   const setDrillDown = useHarnessStore((s) => s.setDrillDown);
   const textBoxLayouts = useHarnessStore((s) => s.textBoxLayouts);
@@ -93,6 +113,8 @@ export function GraphView() {
   const linkEdgeToJunction = useHarnessStore((s) => s.linkEdgeToJunction);
   const draggingEdgeInfo = useHarnessStore((s) => s.draggingEdgeInfo);
   const pushUndoSnapshot = useHarnessStore((s) => s.pushUndoSnapshot);
+  const mergePointLayouts = useHarnessStore((s) => s.mergePointLayouts);
+  const updateMergePointLayout = useHarnessStore((s) => s.updateMergePointLayout);
 
   const spaceId = drillDownEnclosure ?? null;
   const bgKey = spaceId ?? 'graph';
@@ -120,9 +142,12 @@ export function GraphView() {
 
     const childEnclosures = getChildEnclosures(harness, spaceId);
     const freeConnectors = getSpaceFreeConnectors(harness, spaceId);
+    const freeMergePoints = getSpaceFreeMergePoints(harness, spaceId);
     const freeConIds = new Set(freeConnectors.map((c) => c.id));
-    // Tracks connector IDs that appear as child nodes inside enclosure rectangles
+    const freeMergeIds = new Set(freeMergePoints.map((mergePoint) => mergePoint.id));
     const enclosureConIds = new Set<string>();
+    const enclosureMergeIds = new Set<string>();
+    const mergeLayoutsForContext = mergePointLayouts[bgKey] ?? {};
 
     const gNodes: Node[] = [];
 
@@ -135,17 +160,9 @@ export function GraphView() {
 
       const directConnectors = getEnclosurePorts(harness, enc.id);
       const allConnectors = getEnclosureConnectors(harness, enc.id);
+      const directMergePoints = getEnclosureMergePoints(harness, enc.id);
       const childEncs = getChildEnclosures(harness, enc.id);
-
-      let wireCount = 0;
-      for (const wire of harness.wires) {
-        const fromCon = findPinOwner(wire.from);
-        const toCon = findPinOwner(wire.to);
-        if (!fromCon || !toCon) continue;
-        if (allConnectors.some((c) => c.id === fromCon.id) || allConnectors.some((c) => c.id === toCon.id)) {
-          wireCount++;
-        }
-      }
+      const pathCount = countPathsTouchingConnectors(harness, allConnectors.map((connector) => connector.id));
 
       gNodes.push({
         id: enc.id,
@@ -159,7 +176,7 @@ export function GraphView() {
           label: enc.name,
           tags: enc.tags,
           connectorCount: allConnectors.length,
-          wireCount,
+          pathCount,
           matchesFilter: itemMatchesFilters(enc.tags, activeFilters),
           isContainer: enc.container,
           image: enc.properties?.image,
@@ -190,11 +207,38 @@ export function GraphView() {
             label: con.name,
             parentName: '',
             connectorId: con.id,
-            pins: con.pins,
+            occupiedPins: getConnectorOccupancy(harness, con.id).map((entry) => ({
+              pinNumber: entry.pinNumber,
+              pathId: entry.pathId,
+              signalName: entry.signalName,
+            })),
+            pinCount: getConnectorOccupancy(harness, con.id).length,
             matchesFilter: itemMatchesFilters(con.tags, activeFilters),
             wireAppearance: getPortWireAppearance(harness, con),
             connectorTypeId: con.connector_type,
             instanceImage: (con.properties?.image as string) || '',
+          },
+        } as Node);
+      });
+
+      directMergePoints.forEach((mergePoint, mergeIndex) => {
+        enclosureMergeIds.add(mergePoint.id);
+        const savedPos = mergeLayoutsForContext[mergePoint.id];
+        const pos = savedPos ?? { x: 24 + (mergeIndex % 3) * 70, y: 96 + Math.floor(mergeIndex / 3) * 52 };
+        const size = sizeLayouts[mergePoint.id] ?? { w: 52, h: 28 };
+        gNodes.push({
+          id: `${ENC_MERGE_PREFIX}${mergePoint.id}`,
+          type: 'mergePoint',
+          parentId: enc.id,
+          extent: 'parent' as const,
+          deletable: false,
+          position: pos,
+          style: { width: size.w, height: size.h },
+          selected: selectedItem?.type === 'mergePoint' && selectedItem.id === mergePoint.id,
+          data: {
+            mergePointId: mergePoint.id,
+            label: mergePoint.name,
+            matchesFilter: itemMatchesFilters(mergePoint.tags, activeFilters),
           },
         } as Node);
       });
@@ -218,11 +262,35 @@ export function GraphView() {
           label: con.name,
           parentName: '',
           connectorId: con.id,
-          pins: con.pins,
+          occupiedPins: getConnectorOccupancy(harness, con.id).map((entry) => ({
+            pinNumber: entry.pinNumber,
+            pathId: entry.pathId,
+            signalName: entry.signalName,
+          })),
+          pinCount: getConnectorOccupancy(harness, con.id).length,
           matchesFilter: itemMatchesFilters(con.tags, activeFilters),
           wireAppearance: getPortWireAppearance(harness, con),
           connectorTypeId: con.connector_type,
           instanceImage: (con.properties?.image as string) || '',
+        },
+      } as Node);
+    }
+
+    for (const mergePoint of freeMergePoints) {
+      const nodeId = `${FREE_MERGE_PREFIX}${mergePoint.id}`;
+      const pos = mergeLayoutsForContext[mergePoint.id] ?? { x: 160, y: 420 + gNodes.length * 40 };
+      const size = sizeLayouts[mergePoint.id] ?? { w: 52, h: 28 };
+      gNodes.push({
+        id: nodeId,
+        type: 'mergePoint',
+        deletable: false,
+        position: { x: pos.x, y: pos.y },
+        style: { width: size.w, height: size.h },
+        selected: selectedItem?.type === 'mergePoint' && selectedItem.id === mergePoint.id,
+        data: {
+          mergePointId: mergePoint.id,
+          label: mergePoint.name,
+          matchesFilter: itemMatchesFilters(mergePoint.tags, activeFilters),
         },
       } as Node);
     }
@@ -237,7 +305,7 @@ export function GraphView() {
         draggable: !bg.locked,
         selectable: !bg.locked,
         data: {
-          imageUrl: `/img-assets/${bg.image}`,
+          imageUrl: `/user-data/images/${bg.image}`,
           w: bg.w,
           h: bg.h,
           locked: bg.locked,
@@ -250,6 +318,7 @@ export function GraphView() {
 
     // ── Text box nodes ───────────────────────────────────────────────────
     for (const tb of Object.values(textBoxLayouts)) {
+      if ((tb.contextKey ?? 'graph') !== bgKey) continue;
       gNodes.push({
         id: `${TB_NODE_PREFIX}${tb.id}`,
         type: 'textBox',
@@ -262,6 +331,14 @@ export function GraphView() {
           bgColor: tb.bgColor,
           textColor: tb.textColor,
           fontSize: tb.fontSize,
+          fontFamily: tb.fontFamily,
+          fontWeight: tb.fontWeight,
+          textAlign: tb.textAlign,
+          borderColor: tb.borderColor,
+          borderWidth: tb.borderWidth,
+          borderRadius: tb.borderRadius,
+          opacity: tb.opacity,
+          padding: tb.padding,
           w: tb.w,
           h: tb.h,
         },
@@ -271,68 +348,51 @@ export function GraphView() {
     }
 
     // ── Bundle edges — connect connector nodes directly ───────────────────
-    const getVisibleNodeId = (conId: string): string | null => {
-      if (freeConIds.has(conId)) return `${FREE_CON_PREFIX}${conId}`;
-      if (enclosureConIds.has(conId)) return `${ENC_CON_PREFIX}${conId}`;
+    const getVisibleNodeId = (refKey: string): string | null => {
+      if (refKey.startsWith('connector:')) {
+        const [, connectorId] = refKey.split(':');
+        if (freeConIds.has(connectorId)) return `${FREE_CON_PREFIX}${connectorId}`;
+        if (enclosureConIds.has(connectorId)) return `${ENC_CON_PREFIX}${connectorId}`;
+        return null;
+      }
+      if (refKey.startsWith('merge:')) {
+        const [, mergePointId] = refKey.split(':');
+        if (freeMergeIds.has(mergePointId)) return `${FREE_MERGE_PREFIX}${mergePointId}`;
+        if (enclosureMergeIds.has(mergePointId)) return `${ENC_MERGE_PREFIX}${mergePointId}`;
+        return null;
+      }
       return null;
     };
 
-    const bundleMap = new Map<
-      string,
-      { wireIds: string[]; sourceNodeId: string; targetNodeId: string }
-    >();
+    const visibleSegments = getVisibleSegments(harness, spaceId);
+    const bundles = deriveBundles(visibleSegments);
 
-    for (const wire of harness.wires) {
-      const fromCon = findPinOwner(wire.from);
-      const toCon = findPinOwner(wire.to);
-      if (!fromCon || !toCon) continue;
+    const gEdges: Edge[] = bundles.flatMap((bundle) => {
+      const sourceNodeId = getVisibleNodeId(bundle.sourceRefKey);
+      const targetNodeId = getVisibleNodeId(bundle.targetRefKey);
+      if (!sourceNodeId || !targetNodeId || sourceNodeId === targetNodeId) return [];
 
-      const fromNode = getVisibleNodeId(fromCon.id);
-      const toNode = getVisibleNodeId(toCon.id);
-      if (!fromNode || !toNode || fromNode === toNode) continue;
-
-      // Stable bundle key uses connector IDs so waypoints survive view changes
-      let srcId = fromCon.id;
-      let tgtId = toCon.id;
-      let srcNode = fromNode;
-      let tgtNode = toNode;
-      if (srcId > tgtId) {
-        [srcId, tgtId] = [tgtId, srcId];
-        [srcNode, tgtNode] = [tgtNode, srcNode];
-      }
-      const key = `bundle_${srcId}_${tgtId}`;
-
-      const existing = bundleMap.get(key);
-      if (existing) {
-        existing.wireIds.push(wire.id);
-      } else {
-        bundleMap.set(key, { wireIds: [wire.id], sourceNodeId: srcNode, targetNodeId: tgtNode });
-      }
-    }
-
-    const gEdges: Edge[] = [...bundleMap.entries()].map(([key, bundle]) => {
-      const wireAppearances = bundle.wireIds.map((wId) => {
-        const wire = harness.wires.find((candidate) => candidate.id === wId);
-        return wire ? getWireAppearance(wire) : getWireAppearance({ tags: [], properties: {} });
+      const pathAppearances = bundle.pathIds.map((pathId) => {
+        const path = getPathById(harness, pathId);
+        return path ? getWireAppearance(path) : getWireAppearance({ tags: [], properties: {} });
       });
       let matchesFilter = false;
-      for (const wId of bundle.wireIds) {
-        const w = harness.wires.find((wire) => wire.id === wId);
-        if (!w) continue;
-        if (itemMatchesFilters(w.tags, activeFilters)) matchesFilter = true;
+      for (const pathId of bundle.pathIds) {
+        const path = getPathById(harness, pathId);
+        if (path && itemMatchesFilters(path.tags, activeFilters)) matchesFilter = true;
       }
-      const firstAppearance = wireAppearances[0];
+      const firstAppearance = pathAppearances[0];
       const bundleColor =
-        firstAppearance && wireAppearances.every((a) => a.key === firstAppearance.key)
+        firstAppearance && pathAppearances.every((appearance) => appearance.key === firstAppearance.key)
           ? firstAppearance.primaryColor
           : '#666';
 
       const isSelected =
         selectedBundle &&
-        bundle.wireIds.every((id) => selectedBundle.includes(id)) &&
-        selectedBundle.every((id) => bundle.wireIds.includes(id));
+        bundle.pathIds.every((id) => selectedBundle.includes(id)) &&
+        selectedBundle.every((id) => bundle.pathIds.includes(id));
 
-      const rawWps = waypointLayouts[key] ?? [];
+      const rawWps = waypointLayouts[bundle.id] ?? [];
       const resolvedWaypoints: Point[] = rawWps.map((wp) => {
         if ('junctionId' in wp) {
           const j = junctionLayouts[wp.junctionId];
@@ -346,20 +406,20 @@ export function GraphView() {
         const j = junctionLayouts[wp.junctionId];
         if (!j) return { junctionId: null, isOwner: false, memberCount: 1 };
         const sortedMembers = [...j.memberEdgeIds].sort();
-        const isOwner = sortedMembers[0] === key;
+        const isOwner = sortedMembers[0] === bundle.id;
         return { junctionId: wp.junctionId, isOwner, memberCount: j.memberEdgeIds.length };
       });
 
-      return {
-        id: key,
-        source: bundle.sourceNodeId,
-        target: bundle.targetNodeId,
+      return [{
+        id: bundle.id,
+        source: sourceNodeId,
+        target: targetNodeId,
         type: 'bundle',
         selected: !!isSelected,
         data: {
-          wireIds: bundle.wireIds,
-          wireCount: bundle.wireIds.length,
-          wireAppearances,
+          pathIds: bundle.pathIds,
+          pathCount: bundle.pathIds.length,
+          wireAppearances: pathAppearances,
           bundleColor,
           matchesFilter,
           resolvedWaypoints,
@@ -367,14 +427,14 @@ export function GraphView() {
           sourceStub: 0,
           targetStub: 0,
         },
-      };
+      }];
     });
 
     return { graphNodes: gNodes, graphEdges: gEdges };
   }, [
     harness, nodeLayouts, sizeLayouts, freePortLayouts, portLayouts, selectedItem,
-    selectedBundle, activeFilters, findPinOwner, backgroundLayouts, bgKey,
-    textBoxLayouts, waypointLayouts, junctionLayouts, spaceId,
+    selectedBundle, activeFilters, backgroundLayouts, bgKey,
+    textBoxLayouts, waypointLayouts, junctionLayouts, spaceId, mergePointLayouts,
   ]);
 
   const [nodes, setNodes, onNodesChangeBase] = useNodesState(graphNodes);
@@ -462,6 +522,12 @@ export function GraphView() {
           } else if (change.id.startsWith(ENC_CON_PREFIX)) {
             const conId = change.id.slice(ENC_CON_PREFIX.length);
             updatePortLayout(conId, change.position.x, change.position.y);
+          } else if (change.id.startsWith(FREE_MERGE_PREFIX)) {
+            const mergePointId = change.id.slice(FREE_MERGE_PREFIX.length);
+            updateMergePointLayout(bgKey, mergePointId, change.position.x, change.position.y);
+          } else if (change.id.startsWith(ENC_MERGE_PREFIX)) {
+            const mergePointId = change.id.slice(ENC_MERGE_PREFIX.length);
+            updateMergePointLayout(bgKey, mergePointId, change.position.x, change.position.y);
           } else {
             updateNodePosition(change.id, change.position.x, change.position.y);
           }
@@ -469,7 +535,7 @@ export function GraphView() {
       }
     },
     [onNodesChangeBase, updateNodePosition, updateBackground, updateTextBox,
-     updateFreePortLayout, updatePortLayout, bgKey, pushUndoSnapshot],
+     updateFreePortLayout, updatePortLayout, updateMergePointLayout, bgKey, pushUndoSnapshot],
   );
 
   const onPaneClick = useCallback(() => {
@@ -499,6 +565,16 @@ export function GraphView() {
         selectItem({ type: 'connector', id: conId });
         return;
       }
+      if (node.id.startsWith(FREE_MERGE_PREFIX)) {
+        const mergePointId = node.id.slice(FREE_MERGE_PREFIX.length);
+        selectItem({ type: 'mergePoint', id: mergePointId });
+        return;
+      }
+      if (node.id.startsWith(ENC_MERGE_PREFIX)) {
+        const mergePointId = node.id.slice(ENC_MERGE_PREFIX.length);
+        selectItem({ type: 'mergePoint', id: mergePointId });
+        return;
+      }
       selectItem({ type: 'enclosure', id: node.id });
     },
     [selectItem, selectTextBox],
@@ -521,6 +597,7 @@ export function GraphView() {
         proOptions={{ hideAttribution: true }}
         defaultEdgeOptions={{ animated: false }}
       >
+        <ViewportResetter viewportKey={bgKey} />
         <Background
           variant={BackgroundVariant.Dots}
           gap={20}

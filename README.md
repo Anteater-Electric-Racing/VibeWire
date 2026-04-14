@@ -61,27 +61,27 @@ This is how you actually edit the harness. You don't need to know JSON or code �
 Once the agent has read the system prompt and knows who you are, just tell it what you want in plain English:
 
 - *"Add a new 4-pin Deutsch connector on the Dashboard Box for brake pressure"*
-- *"Wire pin 3 of J5 to pin 1 of J12 with a CAN_H signal"*
+- *"Add a path from J5 pin 3 to J12 pin 1 tagged `signal:CAN_H`"*
 - *"Add a new enclosure called Battery Box in the rear"*
-- *"Remove wire_042"*
+- *"Remove path_042"*
 
 The agent will edit the JSON files and log what it changed.
 
 ### Tips
 
 - **Be specific about connectors and pins** — use names or IDs when you can.
-- **You can ask questions too** — *"What pins are on con_003?"*, *"Show me all wires on the CAN system"*.
+- **You can ask questions too** — *"What paths touch con_003?"*, *"Show me the CAN_H signal net"*.
 - **If you start a new chat session**, tell the agent to read the system prompt again. It will pick up your saved identity automatically.
-- **After making changes**, click **Save** in the app's top bar or commit via git (see below).
+- **Changes auto-save while the dev server is running**. Commit via git when you're ready to share them.
 
 ## Saving and Sharing Changes
 
-The app has an in-browser **Save** button (top bar) that writes changes back to the JSON files on disk while the dev server is running. This also saves the layout positions and other visual state.
+The app auto-saves harness, layout, and connector-library changes back to disk while the dev server is running.
 
 To share your changes with the team:
 
 ```bash
-git add public/harnesses/fsae-car.json public/layouts.json connector_library/connector-library.json CHANGELOG.md
+git add public/user-data/ CHANGELOG.md
 git commit -m "Update harness data"
 git push
 ```
@@ -93,13 +93,17 @@ If you don't know git, ask the Cursor agent to do it for you.
 ```
 VibeWire/
 ├── public/
-│   └── harnesses/
-│       └── fsae-car.json            ← THE harness data file (main thing you edit)
-├── connector_library/
-│   ├── connector-library.json       ← connector type definitions (pin counts, specs, photos)
-│   └── *.png                        ← connector photos
-├── img_assets_besides_connectors/
-│   └── *.png                        ← background images and other assets
+│   ├── user-data/
+│   │   ├── harnesses/
+│   │   │   └── fsae-car.json        ← THE harness data file (main thing you edit)
+│   │   ├── connectors/
+│   │   │   ├── connector-library.json
+│   │   │   └── *.png                ← connector photos and pin guides
+│   │   ├── images/
+│   │   │   └── *.png                ← enclosure, background, and other user-picked images
+│   │   └── layouts.json             ← graph layout and annotations
+│   ├── favicon.svg
+│   └── icons.svg
 ├── src/                             ← React source code (you probably don't need to touch this)
 ├── CHANGELOG.md                     ← running log of who changed what and when
 └── .vibewire-user                   ← YOUR local identity file (not synced to git)
@@ -141,66 +145,64 @@ These are the files you will read and edit:
 
 | File | What it is |
 |------|-----------|
-| `public/harnesses/fsae-car.json` | **The harness data.** Enclosures, PCBs, connectors, pins, wires, signals. This is the primary file you edit. |
-| `connector_library/connector-library.json` | Connector type definitions — pin counts, crimp specs, wire gauge, photos. Reference this when adding connectors. |
-| `public/layouts.json` | Visual layout positions for the graph. You usually don't need to edit this directly. |
+| `public/user-data/harnesses/fsae-car.json` | **The harness data.** Enclosures, connectors, merge points, paths, and signals. This is the primary file you edit. |
+| `public/user-data/connectors/connector-library.json` | Connector type definitions — pin counts, crimp specs, wire gauge, photos. Path connector nodes must stay within these capacities. |
+| `public/user-data/layouts.json` | Visual layout positions for the graph, including context-aware merge-point placement. You usually don't need to edit this directly. |
 | `CHANGELOG.md` | Running log of changes. You MUST append to this after every edit. |
 
 ## Step 3: Understand the Schema
 
-The harness JSON (`public/harnesses/fsae-car.json`) contains these entity types:
+The harness JSON (`public/user-data/harnesses/fsae-car.json`) contains these entity types:
 
 ### Entities
 
 - **Enclosure**: Physical housing (Dashboard Box, PDM Box, ECU Box, etc.).
-  Fields: `id`, `name`, `parent` (null for top-level), `properties{}`
+  Fields: `id`, `name`, `parent` (null for top-level), `container`, `tags[]`, `properties{}`
+  - Older data may still contain legacy PCB-like surfaces; those are represented as enclosures with `container: false`.
 
-- **PCB**: Circuit board inside an enclosure.
-  Fields: `id`, `name`, `parent` (enclosure id), `properties{}`
+- **Connector**: Physical connector mounted on an enclosure.
+  Fields: `id`, `name`, `parent` (enclosure id or `null`), `connector_type` (references `connector-library.json`), `tags[]`, `properties{}`
 
-- **Connector**: Physical connector mounted on an enclosure or PCB.
-  Fields: `id`, `name`, `parent` (enclosure or PCB id), `connector_type` (references connector-library.json), `pins[]`, `properties{}`
-  - Connector type is DERIVED from parent: if parent is a PCB → header, if parent is an enclosure → bulkhead. Do NOT store a separate type field for this.
+- **Merge Point**: Semantic splice or bundle merge location that a path can traverse.
+  Fields: `id`, `name`, `parent` (enclosure id or `null`), `tags[]`, `properties{}`
 
-- **Pin**: A pin on a connector. Always nested inside a connector's `pins[]` array.
-  Fields: `id`, `pin_number`, `name`, `properties{}`
-  - **`pin_number: 0` is the universal placeholder pin.** Every connector has exactly one `pin_number: 0` pin named `{connector_name}-0`. Use it when you need to route a wire to a connector but the exact physical pin is not yet decided. The UI's pinout table renders `1..pinCount`, so the placeholder pin is invisible in normal views. Update the wire's `from`/`to` to the real pin once the pin assignment is confirmed.
-
-- **Wire**: A connection between two pins.
-  Fields: `id`, `from` (pin id), `to` (pin id), `properties{}`
+- **Path**: Ordered connection route through connector and merge-point nodes.
+  Fields: `id`, `name`, `tags[]`, `properties{}`, `nodes[]`, `measurements[]`
+  - `nodes[]` is an ordered list. Connector nodes store `kind: "connector"`, `connector_id`, and `pin_number`. Merge-point nodes store `kind: "merge"` and `merge_point_id`.
+  - `measurements[]` uses semantic `from` and `to` endpoint refs that match nodes already present in the path. Every node between those endpoints is part of the measured span.
 
 - **Signal**: A named electrical signal.
-  Fields: `id`, `name`, `properties{}`
-  - **`sig_UNASSIGNED`** is the reserved placeholder signal for unassigned wires. Pins and wires with an unassigned signal are planned connections whose signal or pin assignment is still TBD.
+  Fields: `id`, `name`, `tags[]`, `properties{}`
+  - Signal membership is usually expressed on paths via tags like `signal:CAN_H`.
 
 ### ID Convention
 
 | Entity | Pattern | Example |
 |--------|---------|---------|
 | Enclosure | `enc_###` | `enc_001` |
-| PCB | `pcb_###` | `pcb_001` |
 | Connector | `con_###` | `con_001` |
-| Pin | `pin_###` | `pin_001` |
-| Wire | `wire_###` | `wire_001` |
+| Merge Point | `mp_###` | `mp_001` |
+| Path | `path_###` | `path_001` |
 | Signal | `sig_<NAME>` | `sig_CAN_H` |
 
 When creating new entities, scan the existing file for the highest existing ID number in that category and increment from there.
 
 ### Editing Rules
 
-1. Pins are nested inside their parent connector's `pins[]` array — never at the top level.
-2. `wires[].from` and `wires[].to` reference pin `id` values.
-3. `connector_type` must match an `id` in `connector_library/connector-library.json`. Check that file before assigning a type.
-4. `parent` references the `id` of the containing enclosure or PCB.
-5. Every entity must have a `properties{}` object (can be empty `{}`).
-6. Do not reorder or reformat the JSON beyond the lines you are changing. Use the Cursor diff tools to make surgical edits.
-7. If you are unsure about a connector type, ask the user rather than guessing.
-8. **Placeholder routing**: When wiring a signal whose pin destination is not yet known, route the wire to the target connector's `pin_number: 0` pin (named `{connector_name}-0`). Every connector already has one. When the real pin is determined, update the wire's `from`/`to` to that pin. Do not add a second `pin_number: 0` to a connector that already has one.
-9. **When adding a new connector**, immediately add a `pin_number: 0` placeholder pin as the first entry in its `pins[]` array, following the same pattern: `id` sequenced from the highest existing `pin_###`, `name` = `{connector_name}-0`, `properties: {}`.
+1. Connectors do not own nested `pins[]`. Pin usage is declared on `paths[].nodes[]`.
+2. `connector_type` must match an `id` in `public/user-data/connectors/connector-library.json`. Check that file before assigning a type.
+3. `parent` on connectors and merge points references an enclosure `id` or `null`.
+4. Every entity must have a `properties{}` object and may have `tags[]`.
+5. Paths are linear ordered lists of nodes. Keep node order semantically meaningful because rendering and measurements derive from that order.
+6. Path measurements must reference endpoints that exist exactly once on the same path. Overlapping measurements are allowed.
+7. If two path nodes use the same connector and pin number, that is a validation problem. Do not add duplicate occupancy unless the user explicitly wants to model and then fix it.
+8. Merge-point existence belongs in the harness JSON; merge-point position belongs in `public/user-data/layouts.json`.
+9. Do not reorder or reformat the JSON beyond the lines you are changing. Use the Cursor diff tools to make surgical edits.
+10. If you are unsure about a connector type or path topology, ask the user rather than guessing.
 
 ### Harness JSON Template
 
-Minimal example showing all entity types and how they connect:
+Minimal example showing all current entity types and how they connect:
 
 ```json
 {
@@ -210,14 +212,8 @@ Minimal example showing all entity types and how they connect:
       "id": "enc_001",
       "name": "My Box",
       "parent": null,
-      "properties": {}
-    }
-  ],
-  "pcbs": [
-    {
-      "id": "pcb_001",
-      "name": "My PCB",
-      "parent": "enc_001",
+      "container": true,
+      "tags": [],
       "properties": {}
     }
   ],
@@ -227,67 +223,52 @@ Minimal example showing all entity types and how they connect:
       "name": "J1",
       "parent": "enc_001",
       "connector_type": "deutsch_dt_4p_female",
-      "pins": [
-        {
-          "id": "pin_001",
-          "pin_number": 1,
-          "name": "J1-1",
-          "properties": {}
-        },
-        {
-          "id": "pin_002",
-          "pin_number": 2,
-          "name": "J1-2",
-          "properties": {}
-        }
-      ],
+      "tags": [],
       "properties": {}
     },
     {
       "id": "con_002",
       "name": "J2",
-      "parent": "pcb_001",
+      "parent": "enc_001",
       "connector_type": "molex_microfit_4p_male",
-      "pins": [
-        {
-          "id": "pin_003",
-          "pin_number": 1,
-          "name": "J2-1",
-          "properties": {}
-        },
-        {
-          "id": "pin_004",
-          "pin_number": 2,
-          "name": "J2-2",
-          "properties": {}
-        }
-      ],
+      "tags": [],
       "properties": {}
     }
   ],
-  "wires": [
+  "mergePoints": [
     {
-      "id": "wire_001",
-      "from": "pin_001",
-      "to": "pin_003",
-      "properties": { "length_mm": "300" }
-    },
-    {
-      "id": "wire_002",
-      "from": "pin_002",
-      "to": "pin_004",
+      "id": "mp_001",
+      "name": "S201",
+      "parent": "enc_001",
+      "tags": [],
       "properties": {}
+    }
+  ],
+  "paths": [
+    {
+      "id": "path_001",
+      "name": "CAN_H_MAIN",
+      "tags": ["signal:CAN_H"],
+      "properties": {},
+      "nodes": [
+        { "kind": "connector", "connector_id": "con_001", "pin_number": 1 },
+        { "kind": "merge", "merge_point_id": "mp_001" },
+        { "kind": "connector", "connector_id": "con_002", "pin_number": 1 }
+      ],
+      "measurements": [
+        {
+          "from": { "kind": "connector", "connector_id": "con_001", "pin_number": 1 },
+          "to": { "kind": "connector", "connector_id": "con_002", "pin_number": 1 },
+          "length_mm": 300
+        }
+      ]
     }
   ],
   "signals": [
     {
-      "id": "sig_12V_MAIN",
-      "name": "12V_MAIN",
-      "properties": { "voltage": "12V" }
-    },
-    {
-      "id": "sig_GND",
-      "name": "GND",
+      "id": "sig_CAN_H",
+      "name": "CAN_H",
+      "tags": [],
       "properties": {}
     }
   ]

@@ -1,7 +1,22 @@
 import { useEffect, useState } from 'react';
 import { useHarnessStore, initAutoSave } from './store';
 import { AppShell } from './components/layout/AppShell';
-import type { HarnessData, ConnectorLibrary, NodeLayout, PortLayouts, SizeLayouts, FreePortLayouts, BackgroundLayouts, ConnectorTypeSizes, TextBoxLayouts, WaypointLayouts, JunctionLayouts } from './types';
+import type {
+  BackgroundLayouts,
+  ConnectorLibrary,
+  ConnectorTypeSizes,
+  FreePortLayouts,
+  HarnessData,
+  JunctionLayouts,
+  MergePointLayouts,
+  NodeLayout,
+  PortLayouts,
+  SizeLayouts,
+  TextBoxLayouts,
+  WaypointLayouts,
+} from './types';
+
+const USER_DATA_BASE = '/user-data';
 
 interface LayoutFile {
   nodes?: NodeLayout;
@@ -13,6 +28,7 @@ interface LayoutFile {
   textBoxes?: TextBoxLayouts;
   waypoints?: WaypointLayouts;
   junctions?: JunctionLayouts;
+  mergePoints?: MergePointLayouts;
 }
 
 export default function App() {
@@ -27,20 +43,21 @@ export default function App() {
   const loadTextBoxLayouts = useHarnessStore((s) => s.loadTextBoxLayouts);
   const loadWaypointLayouts = useHarnessStore((s) => s.loadWaypointLayouts);
   const loadJunctionLayouts = useHarnessStore((s) => s.loadJunctionLayouts);
+  const loadMergePointLayouts = useHarnessStore((s) => s.loadMergePointLayouts);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     Promise.all([
-      fetch('/harnesses/fsae-car.json').then((r) => {
+      fetch(`${USER_DATA_BASE}/harnesses/fsae-car.json`).then((r) => {
         if (!r.ok) throw new Error(`Failed to load harness: ${r.status}`);
         return r.json() as Promise<HarnessData>;
       }),
-      fetch('/connector-library.json').then((r) => {
+      fetch(`${USER_DATA_BASE}/connectors/connector-library.json`).then((r) => {
         if (!r.ok) throw new Error(`Failed to load connector library: ${r.status}`);
         return r.json() as Promise<ConnectorLibrary>;
       }),
-      fetch(`/layouts.json?v=${Date.now()}`)
+      fetch(`${USER_DATA_BASE}/layouts.json?v=${Date.now()}`)
         .then((r) => (r.ok ? (r.json() as Promise<LayoutFile>) : {}))
         .catch(() => ({}) as LayoutFile),
     ])
@@ -57,6 +74,7 @@ export default function App() {
         loadTextBoxLayouts(lf.textBoxes ?? {});
         loadWaypointLayouts(lf.waypoints ?? {});
         loadJunctionLayouts(lf.junctions ?? {});
+        loadMergePointLayouts(lf.mergePoints ?? {});
         initAutoSave();
         setLoading(false);
       })
@@ -64,7 +82,7 @@ export default function App() {
         setError(err.message);
         setLoading(false);
       });
-  }, [loadHarness, loadConnectorLibrary, loadLayouts, loadPortLayouts, loadSizeLayouts, loadFreePortLayouts, loadBackgroundLayouts, loadConnectorTypeSizes, loadTextBoxLayouts, loadWaypointLayouts, loadJunctionLayouts]);
+  }, [loadHarness, loadConnectorLibrary, loadLayouts, loadPortLayouts, loadSizeLayouts, loadFreePortLayouts, loadBackgroundLayouts, loadConnectorTypeSizes, loadTextBoxLayouts, loadWaypointLayouts, loadJunctionLayouts, loadMergePointLayouts]);
 
   if (loading) {
     return (

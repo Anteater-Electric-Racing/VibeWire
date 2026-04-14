@@ -8,7 +8,7 @@ import { getSignalColor, getSignalFromTags } from '../../lib/colors';
 import { useHarnessStore } from '../../store';
 
 type SignalEdgeData = {
-  wireId: string;
+  pathId: string;
   tags: string[];
   matchesFilter: boolean;
 };
@@ -47,8 +47,8 @@ export function SignalEdge(props: EdgeProps<SignalEdgeType>) {
     <g
       onClick={(e) => {
         e.stopPropagation();
-        if (data?.wireId) {
-          selectItem({ type: 'wire', id: data.wireId });
+        if (data?.pathId) {
+          selectItem({ type: 'path', id: data.pathId });
         }
       }}
       className="cursor-pointer"
@@ -72,8 +72,8 @@ export function SignalEdge(props: EdgeProps<SignalEdgeType>) {
         className="cursor-pointer"
         onClick={(e) => {
           e.stopPropagation();
-          if (data?.wireId) {
-            selectItem({ type: 'wire', id: data.wireId });
+          if (data?.pathId) {
+            selectItem({ type: 'path', id: data.pathId });
           }
         }}
       />

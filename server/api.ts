@@ -2,23 +2,12 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
 
-// ─── Types (mirrored from src/types for standalone use) ─────────────────────
-
-interface Pin {
-  id: string;
-  pin_number: number;
-  name: string;
-  tags: string[];
-  properties: Record<string, string>;
-}
-
 interface Connector {
   id: string;
   name: string;
   parent: string | null;
   connector_type: string;
   tags: string[];
-  pins: Pin[];
   properties: Record<string, string>;
 }
 
@@ -31,12 +20,42 @@ interface Enclosure {
   properties: Record<string, string>;
 }
 
-interface Wire {
+interface MergePoint {
   id: string;
-  from: string;
-  to: string;
+  name: string;
+  parent: string | null;
   tags: string[];
   properties: Record<string, string>;
+}
+
+interface ConnectorPathNode {
+  kind: 'connector';
+  connector_id: string;
+  pin_number: number;
+}
+
+interface MergePointPathNode {
+  kind: 'merge';
+  merge_point_id: string;
+}
+
+type PathNode = ConnectorPathNode | MergePointPathNode;
+type PathNodeRef = PathNode;
+
+interface PathMeasurement {
+  from: PathNodeRef;
+  to: PathNodeRef;
+  length_mm?: number;
+  note?: string;
+}
+
+interface PathEntity {
+  id: string;
+  name: string;
+  tags: string[];
+  properties: Record<string, string>;
+  nodes: PathNode[];
+  measurements: PathMeasurement[];
 }
 
 interface Signal {
@@ -50,7 +69,8 @@ interface HarnessData {
   schema_version: string;
   enclosures: Enclosure[];
   connectors: Connector[];
-  wires: Wire[];
+  mergePoints: MergePoint[];
+  paths: PathEntity[];
   signals: Signal[];
 }
 
@@ -69,7 +89,18 @@ interface ConnectorLibrary {
   connector_types: ConnectorType[];
 }
 
-// ─── Router infrastructure ──────────────────────────────────────────────────
+interface LayoutData {
+  nodes?: Record<string, { x: number; y: number }>;
+  ports?: Record<string, { x: number; y: number }>;
+  sizes?: Record<string, { w: number; h: number }>;
+  free?: Record<string, { x: number; y: number }>;
+  backgrounds?: Record<string, any>;
+  connectorTypeSizes?: Record<string, { w: number; h: number }>;
+  textBoxes?: Record<string, any>;
+  waypoints?: Record<string, any>;
+  junctions?: Record<string, any>;
+  mergePoints?: Record<string, Record<string, { x: number; y: number }>>;
+}
 
 type Params = Record<string, string>;
 type Handler = (
@@ -86,7 +117,291 @@ interface Route {
   handler: Handler;
 }
 
-// ─── Public API ─────────────────────────────────────────────────────────────
+type TaggedEntity = {
+  id: string;
+  tags: string[];
+  properties: Record<string, string>;
+};
+
+type HarnessCollectionKey = 'enclosures' | 'connectors' | 'mergePoints' | 'paths' | 'signals';
+
+function normalizeHarness(raw: any): HarnessData {
+  const harness = structuredClone(raw ?? {}) as Partial<HarnessData> & { pcbs?: any[] };
+  harness.schema_version ??= '0.1.0';
+  harness.enclosures ??= [];
+  harness.connectors ??= [];
+  harness.mergePoints ??= [];
+  harness.paths ??= [];
+  harness.signals ??= [];
+
+  if (Array.isArray(harness.pcbs)) {
+    for (const pcb of harness.pcbs) {
+      harness.enclosures.push({
+        id: pcb.id,
+        name: pcb.name,
+        parent: pcb.parent ?? null,
+        container: false,
+        tags: pcb.tags ?? [],
+        properties: pcb.properties ?? {},
+      });
+    }
+    delete harness.pcbs;
+  }
+
+  for (const enclosure of harness.enclosures) {
+    enclosure.parent ??= null;
+    enclosure.container ??= true;
+    enclosure.tags ??= [];
+    enclosure.properties ??= {};
+  }
+  for (const connector of harness.connectors) {
+    connector.parent ??= null;
+    connector.connector_type ??= '';
+    connector.tags ??= [];
+    connector.properties ??= {};
+    if ('pins' in connector) delete (connector as any).pins;
+  }
+  for (const mergePoint of harness.mergePoints) {
+    mergePoint.name ??= mergePoint.id;
+    mergePoint.parent ??= null;
+    mergePoint.tags ??= [];
+    mergePoint.properties ??= {};
+  }
+  for (const pathItem of harness.paths) {
+    pathItem.name ??= pathItem.id;
+    pathItem.tags ??= [];
+    pathItem.properties ??= {};
+    const rawNodes = (pathItem.nodes ?? []) as Array<any>;
+    const legacyNodeById = new Map<string, any>();
+    for (const rawNode of rawNodes) {
+      if (typeof rawNode?.id === 'string') legacyNodeById.set(rawNode.id, rawNode);
+    }
+    pathItem.nodes = rawNodes.map((rawNode) => {
+      const { id: _legacyId, ...nodeWithoutId } = rawNode ?? {};
+      return nodeWithoutId;
+    });
+    pathItem.measurements = (pathItem.measurements ?? []).map((measurement: any) => {
+      if (measurement?.from && measurement?.to) return measurement;
+      const fromNode = typeof measurement?.from_node_id === 'string'
+        ? legacyNodeById.get(measurement.from_node_id)
+        : null;
+      const toNode = typeof measurement?.to_node_id === 'string'
+        ? legacyNodeById.get(measurement.to_node_id)
+        : null;
+      if (!fromNode || !toNode) return measurement;
+      return {
+        from: fromNode.kind === 'connector'
+          ? { kind: 'connector', connector_id: fromNode.connector_id, pin_number: fromNode.pin_number }
+          : { kind: 'merge', merge_point_id: fromNode.merge_point_id },
+        to: toNode.kind === 'connector'
+          ? { kind: 'connector', connector_id: toNode.connector_id, pin_number: toNode.pin_number }
+          : { kind: 'merge', merge_point_id: toNode.merge_point_id },
+        ...(measurement.length_mm !== undefined ? { length_mm: measurement.length_mm } : {}),
+        ...(measurement.note !== undefined ? { note: measurement.note } : {}),
+      };
+    });
+  }
+  for (const signal of harness.signals) {
+    signal.tags ??= [];
+    signal.properties ??= {};
+  }
+
+  return harness as HarnessData;
+}
+
+function getPathSignalName(pathItem: Pick<PathEntity, 'tags'>): string | null {
+  return pathItem.tags.find((tag) => tag.startsWith('signal:'))?.slice(7) ?? null;
+}
+
+function getPathNodeRefKey(node: PathNode): string {
+  return node.kind === 'connector'
+    ? `connector:${node.connector_id}:${node.pin_number}`
+    : `merge:${node.merge_point_id}`;
+}
+
+function derivePathSegments(harness: HarnessData) {
+  return harness.paths.flatMap((pathItem) =>
+    pathItem.nodes.slice(0, -1).map((node, index) => ({
+      id: `${pathItem.id}::${index}`,
+      pathId: pathItem.id,
+      from: node,
+      to: pathItem.nodes[index + 1],
+    })),
+  );
+}
+
+function getConnectorOccupancy(harness: HarnessData, connectorId: string) {
+  return harness.paths.flatMap((pathItem) =>
+    pathItem.nodes
+      .filter((node): node is ConnectorPathNode => node.kind === 'connector' && node.connector_id === connectorId)
+      .map((node) => ({
+        connectorId,
+        pinNumber: node.pin_number,
+        pathId: pathItem.id,
+        pathName: pathItem.name,
+        signalName: getPathSignalName(pathItem),
+      })),
+  );
+}
+
+function getTaggable(harness: HarnessData, entityType: string, entityId: string): TaggedEntity | undefined {
+  switch (entityType) {
+    case 'enclosure':
+      return harness.enclosures.find((entity) => entity.id === entityId);
+    case 'connector':
+      return harness.connectors.find((entity) => entity.id === entityId);
+    case 'mergePoint':
+      return harness.mergePoints.find((entity) => entity.id === entityId);
+    case 'path':
+      return harness.paths.find((entity) => entity.id === entityId);
+    case 'signal':
+      return harness.signals.find((entity) => entity.id === entityId);
+    default:
+      return undefined;
+  }
+}
+
+function findConnector(harness: HarnessData, connectorRef: string): Connector | undefined {
+  return harness.connectors.find((connector) => connector.id === connectorRef || connector.name === connectorRef);
+}
+
+function resolveConnectorPathNode(
+  harness: HarnessData,
+  connectorRef: string,
+  pinRef: string | number,
+): ConnectorPathNode | null {
+  const connector = findConnector(harness, connectorRef);
+  if (!connector) return null;
+  const pinNumber = typeof pinRef === 'number' ? pinRef : Number(pinRef);
+  if (!Number.isInteger(pinNumber) || pinNumber <= 0) return null;
+  return {
+    kind: 'connector',
+    connector_id: connector.id,
+    pin_number: pinNumber,
+  };
+}
+
+function countPathNodeRefMatches(pathItem: Pick<PathEntity, 'nodes'>, ref: PathNodeRef): number {
+  const refKey = getPathNodeRefKey(ref);
+  return pathItem.nodes.filter((node) => getPathNodeRefKey(node) === refKey).length;
+}
+
+function validateHarnessData(harness: HarnessData, library: ConnectorLibrary | null) {
+  const errors: string[] = [];
+  const warnings: string[] = [];
+  const allIds = new Map<string, string>();
+  const registerId = (entityType: string, id: string) => {
+    const existing = allIds.get(id);
+    if (existing) errors.push(`Duplicate ID '${id}' used by both ${existing} and ${entityType}`);
+    else allIds.set(id, entityType);
+  };
+
+  harness.enclosures.forEach((entity) => registerId('enclosure', entity.id));
+  harness.connectors.forEach((entity) => registerId('connector', entity.id));
+  harness.mergePoints.forEach((entity) => registerId('mergePoint', entity.id));
+  harness.paths.forEach((entity) => registerId('path', entity.id));
+  harness.signals.forEach((entity) => registerId('signal', entity.id));
+
+  const enclosureIds = new Set(harness.enclosures.map((entity) => entity.id));
+  const connectorIds = new Set(harness.connectors.map((entity) => entity.id));
+  const mergePointIds = new Set(harness.mergePoints.map((entity) => entity.id));
+  const signalNames = new Set(harness.signals.map((entity) => entity.name));
+  const connectorTypeById = new Map((library?.connector_types ?? []).map((item) => [item.id, item]));
+  const occupancy = new Map<string, string[]>();
+
+  for (const enclosure of harness.enclosures) {
+    if (enclosure.parent && !enclosureIds.has(enclosure.parent)) {
+      errors.push(`Enclosure '${enclosure.id}' references missing parent enclosure '${enclosure.parent}'`);
+    }
+  }
+
+  for (const connector of harness.connectors) {
+    if (connector.parent && !enclosureIds.has(connector.parent)) {
+      warnings.push(`Connector '${connector.id}' parent '${connector.parent}' is not an enclosure`);
+    }
+    if (connector.connector_type && !connectorTypeById.has(connector.connector_type)) {
+      warnings.push(`Connector '${connector.id}' references unknown connector type '${connector.connector_type}'`);
+    }
+  }
+  for (const mergePoint of harness.mergePoints) {
+    if (mergePoint.parent && !enclosureIds.has(mergePoint.parent)) {
+      warnings.push(`Merge point '${mergePoint.id}' parent '${mergePoint.parent}' is not an enclosure`);
+    }
+  }
+
+  for (const pathItem of harness.paths) {
+    if (pathItem.nodes.length < 2) {
+      warnings.push(`Path '${pathItem.id}' has fewer than 2 nodes`);
+    }
+    for (const node of pathItem.nodes) {
+      if (node.kind === 'connector') {
+        if (!connectorIds.has(node.connector_id)) {
+          errors.push(`Path '${pathItem.id}' references missing connector '${node.connector_id}'`);
+          continue;
+        }
+        const connector = harness.connectors.find((item) => item.id === node.connector_id);
+        const connectorType = connector?.connector_type ? connectorTypeById.get(connector.connector_type) : undefined;
+        if (connectorType && node.pin_number > connectorType.pin_count) {
+          errors.push(`Path '${pathItem.id}' uses connector '${node.connector_id}' pin ${node.pin_number}, exceeding type capacity ${connectorType.pin_count}`);
+        }
+        if (node.pin_number <= 0) {
+          errors.push(`Path '${pathItem.id}' uses invalid pin number ${node.pin_number} on connector '${node.connector_id}'`);
+        }
+        const key = `${node.connector_id}:${node.pin_number}`;
+        const refs = occupancy.get(key) ?? [];
+        refs.push(pathItem.id);
+        occupancy.set(key, refs);
+      } else if (!mergePointIds.has(node.merge_point_id)) {
+        errors.push(`Path '${pathItem.id}' references missing merge point '${node.merge_point_id}'`);
+      }
+    }
+    for (const measurement of pathItem.measurements) {
+      const fromMatches = countPathNodeRefMatches(pathItem, measurement.from);
+      if (fromMatches === 0) {
+        errors.push(`Measurement on path '${pathItem.id}' references missing from endpoint '${getPathNodeRefKey(measurement.from)}'`);
+      } else if (fromMatches > 1) {
+        errors.push(`Measurement on path '${pathItem.id}' references ambiguous from endpoint '${getPathNodeRefKey(measurement.from)}'`);
+      }
+      const toMatches = countPathNodeRefMatches(pathItem, measurement.to);
+      if (toMatches === 0) {
+        errors.push(`Measurement on path '${pathItem.id}' references missing to endpoint '${getPathNodeRefKey(measurement.to)}'`);
+      } else if (toMatches > 1) {
+        errors.push(`Measurement on path '${pathItem.id}' references ambiguous to endpoint '${getPathNodeRefKey(measurement.to)}'`);
+      }
+      if (measurement.length_mm !== undefined && measurement.length_mm < 0) {
+        errors.push(`Measurement on path '${pathItem.id}' has a negative length`);
+      }
+    }
+    const signalName = getPathSignalName(pathItem);
+    if (signalName && !signalNames.has(signalName)) {
+      warnings.push(`Path '${pathItem.id}' references signal '${signalName}' with no matching signal entity`);
+    }
+  }
+
+  for (const [ref, pathIds] of occupancy.entries()) {
+    if (pathIds.length > 1) {
+      warnings.push(`Connector pin '${ref}' is occupied by multiple paths: ${pathIds.join(', ')}`);
+    }
+  }
+
+  for (const mergePoint of harness.mergePoints) {
+    const incidentSegments = derivePathSegments(harness).filter((segment) =>
+      (segment.from.kind === 'merge' && segment.from.merge_point_id === mergePoint.id) ||
+      (segment.to.kind === 'merge' && segment.to.merge_point_id === mergePoint.id),
+    );
+    if (incidentSegments.length < 2) {
+      warnings.push(`Merge point '${mergePoint.id}' has fewer than 2 incident path segments`);
+    }
+  }
+
+  return {
+    valid: errors.length === 0,
+    error_count: errors.length,
+    warning_count: warnings.length,
+    errors,
+    warnings,
+  };
+}
 
 export function createApiMiddleware(projectRoot: string) {
   const routes: Route[] = [];
@@ -97,85 +412,84 @@ export function createApiMiddleware(projectRoot: string) {
       paramNames.push(name);
       return '([^/]+)';
     });
-    routes.push({
-      method: method.toUpperCase(),
-      pattern: new RegExp(`^${regexStr}$`),
-      paramNames,
-      handler,
-    });
+    routes.push({ method: method.toUpperCase(), pattern: new RegExp(`^${regexStr}$`), paramNames, handler });
   }
-
-  // ─── File helpers ───────────────────────────────────────────────────────
 
   function sanitizeName(name: string) {
     return name.replace(/[^a-zA-Z0-9_-]/g, '');
   }
 
   function harnessFile(name = 'fsae-car') {
-    return path.join(projectRoot, 'public', 'harnesses', `${sanitizeName(name)}.json`);
+    return path.join(projectRoot, 'public', 'user-data', 'harnesses', `${sanitizeName(name)}.json`);
   }
+
   function layoutsFile() {
-    return path.join(projectRoot, 'public', 'layouts.json');
+    return path.join(projectRoot, 'public', 'user-data', 'layouts.json');
   }
+
   function libraryFile() {
-    return path.join(projectRoot, 'connector_library', 'connector-library.json');
+    return path.join(projectRoot, 'public', 'user-data', 'connectors', 'connector-library.json');
   }
 
   function readJSON<T>(filePath: string): T {
     return JSON.parse(fs.readFileSync(filePath, 'utf-8'));
   }
+
   function writeJSON(filePath: string, data: unknown) {
     fs.mkdirSync(path.dirname(filePath), { recursive: true });
     fs.writeFileSync(filePath, JSON.stringify(data, null, 2) + '\n', 'utf-8');
   }
 
   function readHarness(name?: string): HarnessData {
-    const raw = readJSON<any>(harnessFile(name));
-    // Backward-compat: migrate old format with pcbs array
-    if (Array.isArray(raw.pcbs)) {
-      for (const pcb of raw.pcbs) {
-        (raw.enclosures ??= []).push({
-          id: pcb.id,
-          name: pcb.name,
-          parent: pcb.parent,
-          container: false,
-          tags: pcb.tags ?? [],
-          properties: pcb.properties ?? {},
-        });
-      }
-      delete raw.pcbs;
-    }
-    // Ensure defaults for all entities
-    for (const enc of (raw.enclosures ?? [])) {
-      enc.container ??= true;
-      enc.tags ??= [];
-      enc.properties ??= {};
-    }
-    for (const conn of (raw.connectors ?? [])) {
-      conn.tags ??= [];
-      conn.properties ??= {};
-      conn.parent ??= null;
-      for (const pin of (conn.pins ?? [])) {
-        pin.tags ??= [];
-        pin.properties ??= {};
-      }
-    }
-    return raw as HarnessData;
-  }
-  function writeHarness(data: HarnessData, name?: string) {
-    writeJSON(harnessFile(name), data);
+    return normalizeHarness(readJSON<any>(harnessFile(name)));
   }
 
-  // ─── HTTP helpers ───────────────────────────────────────────────────────
+  function writeHarness(data: HarnessData, name?: string) {
+    writeJSON(harnessFile(name), normalizeHarness(data));
+  }
+
+  function readLibrary(): ConnectorLibrary | null {
+    try {
+      return readJSON<ConnectorLibrary>(libraryFile());
+    } catch {
+      return null;
+    }
+  }
+
+  function readLayouts(): LayoutData {
+    try {
+      return readJSON<LayoutData>(layoutsFile());
+    } catch {
+      return {};
+    }
+  }
+
+  function writeLayouts(data: LayoutData) {
+    writeJSON(layoutsFile(), data);
+  }
+
+  function harnessName(query: URLSearchParams) {
+    return query.get('harness') ?? undefined;
+  }
+
+  function genId(prefix: string) {
+    return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  }
 
   function parseBody(req: IncomingMessage): Promise<any> {
     return new Promise((resolve, reject) => {
       let body = '';
       req.on('data', (chunk: Buffer) => { body += chunk.toString(); });
       req.on('end', () => {
-        if (!body) { resolve(undefined); return; }
-        try { resolve(JSON.parse(body)); }
-        catch { reject(new Error('Invalid JSON body')); }
+        if (!body) {
+          resolve(undefined);
+          return;
+        }
+        try {
+          resolve(JSON.parse(body));
+        } catch {
+          reject(new Error('Invalid JSON body'));
+        }
       });
       req.on('error', reject);
     });
@@ -191,1782 +505,559 @@ export function createApiMiddleware(projectRoot: string) {
     json(res, { error: message }, status);
   }
 
-  function genId(prefix: string) {
-    return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-  }
-
-  function harnessName(query: URLSearchParams) {
-    return query.get('harness') ?? undefined;
-  }
-
-  // ─── Shared entity lookup ──────────────────────────────────────────────
-
-  function findTaggable(
-    h: HarnessData,
-    type: string,
-    id: string,
-  ): { tags: string[]; properties: Record<string, string> } | undefined {
-    switch (type) {
-      case 'enclosure': return h.enclosures.find(e => e.id === id);
-      case 'connector': return h.connectors.find(c => c.id === id);
-      case 'pin':
-        for (const c of h.connectors) {
-          const pin = c.pins.find(p => p.id === id);
-          if (pin) return pin;
-        }
-        return undefined;
-      case 'wire': return h.wires.find(w => w.id === id);
-      case 'signal': return h.signals.find(s => s.id === id);
-      default: return undefined;
-    }
-  }
-
-  // ─── Generic entity CRUD factory ──────────────────────────────────────
-
-  type Tagged = { id: string; tags: string[]; properties: Record<string, string> };
-
-  function entityRoutes<T extends Tagged>(
+  function entityRoutes<T extends TaggedEntity>(
     basePath: string,
-    collectionKey: 'enclosures' | 'connectors' | 'wires' | 'signals',
+    collectionKey: HarnessCollectionKey,
     idPrefix: string,
     requiredFields: string[],
     defaults: () => Partial<T>,
   ) {
-    // List
-    addRoute('GET', basePath, (_req, res, _p, query) => {
+    addRoute('GET', basePath, (_req, res, _params, query) => {
       try {
-        const h = readHarness(harnessName(query));
-        let items = h[collectionKey] as T[];
+        const harness = readHarness(harnessName(query));
+        let items = harness[collectionKey] as unknown as T[];
         const tagFilter = query.get('tag');
-        if (tagFilter) items = items.filter(i => i.tags.includes(tagFilter));
+        if (tagFilter) items = items.filter((item) => item.tags.includes(tagFilter));
         json(res, items);
-      } catch (e: any) { err(res, e.message, 404); }
+      } catch (error: any) {
+        err(res, error.message, 404);
+      }
     });
 
-    // Create
-    addRoute('POST', basePath, async (req, res, _p, query) => {
+    addRoute('POST', basePath, async (req, res, _params, query) => {
       const body = await parseBody(req);
-      if (!body) { err(res, 'Request body required'); return; }
-      for (const f of requiredFields) {
-        if (body[f] === undefined) { err(res, `Field '${f}' is required`); return; }
+      if (!body) {
+        err(res, 'Request body required');
+        return;
       }
-      const hn = harnessName(query);
-      const h = readHarness(hn);
-      const item = { ...defaults(), ...body, id: body.id ?? genId(idPrefix) } as T;
-      if (!item.tags) item.tags = [];
-      if (!item.properties) item.properties = {};
-      const coll = h[collectionKey] as T[];
-      if (coll.some(e => e.id === item.id)) {
-        err(res, `Entity with id '${item.id}' already exists`, 409); return;
+      for (const field of requiredFields) {
+        if (body[field] === undefined) {
+          err(res, `Field '${field}' is required`);
+          return;
+        }
       }
-      coll.push(item);
-      writeHarness(h, hn);
-      json(res, item, 201);
+      const harness = readHarness(harnessName(query));
+      const entity = { ...defaults(), ...body, id: body.id ?? genId(idPrefix) } as T;
+      entity.tags ??= [];
+      entity.properties ??= {};
+      const collection = harness[collectionKey] as unknown as T[];
+      if (collection.some((item) => item.id === entity.id)) {
+        err(res, `Entity with id '${entity.id}' already exists`, 409);
+        return;
+      }
+      collection.push(entity);
+      writeHarness(harness, harnessName(query));
+      json(res, entity, 201);
     });
 
-    // Get by ID
     addRoute('GET', `${basePath}/:id`, (_req, res, params, query) => {
       try {
-        const h = readHarness(harnessName(query));
-        const item = (h[collectionKey] as T[]).find(e => e.id === params.id);
-        if (!item) { err(res, `Not found: ${params.id}`, 404); return; }
+        const harness = readHarness(harnessName(query));
+        const item = (harness[collectionKey] as unknown as T[]).find((entity) => entity.id === params.id);
+        if (!item) {
+          err(res, `Not found: ${params.id}`, 404);
+          return;
+        }
         json(res, item);
-      } catch (e: any) { err(res, e.message, 404); }
+      } catch (error: any) {
+        err(res, error.message, 404);
+      }
     });
 
-    // Full replace
     addRoute('PUT', `${basePath}/:id`, async (req, res, params, query) => {
       const body = await parseBody(req);
-      if (!body) { err(res, 'Request body required'); return; }
-      const hn = harnessName(query);
-      const h = readHarness(hn);
-      const coll = h[collectionKey] as T[];
-      const idx = coll.findIndex(e => e.id === params.id);
-      if (idx === -1) { err(res, `Not found: ${params.id}`, 404); return; }
-      coll[idx] = { ...body, id: params.id } as T;
-      if (!coll[idx].tags) coll[idx].tags = [];
-      if (!coll[idx].properties) coll[idx].properties = {};
-      writeHarness(h, hn);
-      json(res, coll[idx]);
+      if (!body) {
+        err(res, 'Request body required');
+        return;
+      }
+      const harness = readHarness(harnessName(query));
+      const collection = harness[collectionKey] as unknown as T[];
+      const index = collection.findIndex((entity) => entity.id === params.id);
+      if (index === -1) {
+        err(res, `Not found: ${params.id}`, 404);
+        return;
+      }
+      collection[index] = { ...body, id: params.id, tags: body.tags ?? [], properties: body.properties ?? {} } as T;
+      writeHarness(harness, harnessName(query));
+      json(res, collection[index]);
     });
-
-    // Partial update
     addRoute('PATCH', `${basePath}/:id`, async (req, res, params, query) => {
       const body = await parseBody(req);
-      if (!body) { err(res, 'Request body required'); return; }
-      const hn = harnessName(query);
-      const h = readHarness(hn);
-      const coll = h[collectionKey] as T[];
-      const idx = coll.findIndex(e => e.id === params.id);
-      if (idx === -1) { err(res, `Not found: ${params.id}`, 404); return; }
-      coll[idx] = { ...coll[idx], ...body, id: params.id } as T;
-      writeHarness(h, hn);
-      json(res, coll[idx]);
+      if (!body) {
+        err(res, 'Request body required');
+        return;
+      }
+      const harness = readHarness(harnessName(query));
+      const collection = harness[collectionKey] as unknown as T[];
+      const index = collection.findIndex((entity) => entity.id === params.id);
+      if (index === -1) {
+        err(res, `Not found: ${params.id}`, 404);
+        return;
+      }
+      collection[index] = {
+        ...collection[index],
+        ...body,
+        id: params.id,
+        tags: body.tags ?? collection[index].tags,
+        properties: body.properties ?? collection[index].properties,
+      } as T;
+      writeHarness(harness, harnessName(query));
+      json(res, collection[index]);
     });
 
-    // Delete
     addRoute('DELETE', `${basePath}/:id`, (_req, res, params, query) => {
-      const hn = harnessName(query);
-      const h = readHarness(hn);
-      const coll = h[collectionKey] as T[];
-      const idx = coll.findIndex(e => e.id === params.id);
-      if (idx === -1) { err(res, `Not found: ${params.id}`, 404); return; }
-
-      const deleted = coll.splice(idx, 1)[0];
-      const warnings: string[] = [];
-
-      if (collectionKey === 'enclosures') {
-        const childEnc = h.enclosures.filter(e => e.parent === params.id).length;
-        const childConn = h.connectors.filter(c => c.parent === params.id).length;
-        if (childEnc) warnings.push(`${childEnc} child enclosure(s) still reference this as parent`);
-        if (childConn) warnings.push(`${childConn} connector(s) still reference this as parent`);
+      const harness = readHarness(harnessName(query));
+      const collection = harness[collectionKey] as unknown as T[];
+      const index = collection.findIndex((entity) => entity.id === params.id);
+      if (index === -1) {
+        err(res, `Not found: ${params.id}`, 404);
+        return;
       }
-
-      writeHarness(h, hn);
-      json(res, warnings.length ? { deleted, warnings } : deleted);
+      const deleted = collection.splice(index, 1)[0];
+      writeHarness(harness, harnessName(query));
+      json(res, deleted);
     });
   }
-
-  // ═══════════════════════════════════════════════════════════════════════
-  //  ROUTE DEFINITIONS
-  // ═══════════════════════════════════════════════════════════════════════
-
-  // ─── Meta ─────────────────────────────────────────────────────────────
 
   addRoute('GET', '/api', (_req, res) => {
     json(res, {
       name: 'VibeWire API',
-      version: '2.0.0',
-      note: 'All entity endpoints accept ?harness=<name> query param (default: fsae-car)',
+      version: '3.0.0',
+      note: 'Entity endpoints accept ?harness=<name> (default: fsae-car)',
       sections: {
-        harness_files: {
-          'GET    /api/harnesses':                       'List available harness files',
-          'POST   /api/harnesses':                       'Create new harness file { name, data? }',
-          'DELETE /api/harnesses/:name':                 'Delete a harness file',
-          'POST   /api/harnesses/:name/copy':            'Copy harness { newName }',
-          'POST   /api/harnesses/:name/rename':          'Rename harness { newName }',
-        },
         harness_document: {
-          'GET    /api/harness':                         'Get full harness JSON',
-          'PUT    /api/harness':                         'Replace full harness JSON',
-          'GET    /api/harness/stats':                   'Harness summary statistics',
+          'GET /api/harness': 'Get full harness JSON',
+          'PUT /api/harness': 'Replace full harness JSON',
+          'GET /api/harness/stats': 'Harness summary statistics',
+          'GET /api/validate': 'Validate path and merge-point semantics',
         },
-        enclosures: {
-          'GET    /api/enclosures':                      'List enclosures (?tag=filter)',
-          'POST   /api/enclosures':                      'Create enclosure { name, parent?, container?, tags?, properties? }',
-          'GET    /api/enclosures/:id':                  'Get enclosure by ID',
-          'PUT    /api/enclosures/:id':                  'Replace enclosure',
-          'PATCH  /api/enclosures/:id':                  'Partial-update enclosure',
-          'DELETE /api/enclosures/:id':                  'Delete enclosure',
-          'GET    /api/enclosures/:id/children':         'Get all children (enclosures, connectors)',
-        },
-        connectors: {
-          'GET    /api/connectors':                      'List connectors (?tag=filter)',
-          'POST   /api/connectors':                      'Create connector { name, parent }',
-          'POST   /api/connectors-auto':                 'Create connector with auto-generated pins from library { name, parent, connector_type, pin_count?, pin_id_prefix?, pin_name_prefix?, default_pin_tags?, default_pin_properties? }',
-          'GET    /api/connectors/:id':                  'Get connector by ID',
-          'PUT    /api/connectors/:id':                  'Replace connector',
-          'PATCH  /api/connectors/:id':                  'Partial-update connector',
-          'DELETE /api/connectors/:id':                  'Delete connector',
-          'GET    /api/connectors/:id/wires':            'Get all wires connected to connector',
-        },
-        pins: {
-          'GET    /api/connectors/:id/pins':             'List pins for connector',
-          'POST   /api/connectors/:id/pins':             'Add pin to connector',
-          'GET    /api/connectors/:cid/pins/:pid':       'Get pin',
-          'PUT    /api/connectors/:cid/pins/:pid':       'Replace pin',
-          'PATCH  /api/connectors/:cid/pins/:pid':       'Partial-update pin',
-          'DELETE /api/connectors/:cid/pins/:pid':       'Delete pin',
-          'GET    /api/pins/:id/wires':                  'Get all wires connected to pin',
-        },
-        wires: {
-          'GET    /api/wires':                           'List wires (?tag=filter)',
-          'POST   /api/wires':                           'Create wire { from, to } (pin IDs)',
-          'POST   /api/wire-by-name':                    'Create wire by connector/pin name { from_connector, from_pin, to_connector, to_pin }',
-          'GET    /api/wires/:id':                       'Get wire by ID',
-          'PUT    /api/wires/:id':                       'Replace wire',
-          'PATCH  /api/wires/:id':                       'Partial-update wire',
-          'DELETE /api/wires/:id':                       'Delete wire',
-        },
-        signals: {
-          'GET    /api/signals':                         'List signals (?tag=filter)',
-          'POST   /api/signals':                         'Create signal { name }',
-          'GET    /api/signals/:id':                     'Get signal by ID',
-          'PUT    /api/signals/:id':                     'Replace signal',
-          'PATCH  /api/signals/:id':                     'Partial-update signal',
-          'DELETE /api/signals/:id':                     'Delete signal',
-          'GET    /api/signals/:id/net':                 'Get signal net (all wires & pins with signal tag)',
-        },
-        batch_operations: {
-          'POST   /api/batch/enclosures':                'Bulk-create enclosures (array body)',
-          'POST   /api/batch/connectors':                'Bulk-create connectors (array body, supports auto_pins flag)',
-          'POST   /api/batch/pins/:cid':                 'Bulk-create pins on connector (array body)',
-          'POST   /api/batch/wires':                     'Bulk-create wires (array body)',
-          'POST   /api/batch/wire-by-name':              'Bulk-create wires by name (array body)',
-          'POST   /api/batch/signals':                   'Bulk-create signals (array body)',
-          'POST   /api/batch/delete':                    'Bulk-delete entities { items: [{ type, id }] }',
-        },
-        tags: {
-          'GET    /api/tags':                            'List all unique tags',
-          'POST   /api/tags':                            'Add tag { entityType, entityId, tag }',
-          'DELETE /api/tags':                             'Remove tag { entityType, entityId, tag }',
-        },
-        properties: {
-          'GET    /api/properties?type=&id=':            'Get properties for entity',
-          'PUT    /api/properties':                      'Replace all properties { type, id, properties }',
-          'PATCH  /api/properties':                      'Merge properties { type, id, properties }',
-          'DELETE /api/properties':                      'Delete property keys { type, id, keys[] }',
-        },
-        relationships: {
-          'GET    /api/connectivity/:pinId':             'Trace full connectivity net from a pin',
-          'GET    /api/unconnected-pins':                'List all pins with no wires',
-        },
-        entity_operations: {
-          'POST   /api/move':                            'Reparent entity { type, id, newParent }',
-          'POST   /api/duplicate':                       'Clone entity { type, id, newId?, newName?, duplicateWires? }',
-        },
-        validation: {
-          'GET    /api/validate':                        'Validate harness integrity (orphans, dangling refs, duplicates)',
-        },
-        connector_library: {
-          'GET    /api/library':                         'Get full connector library',
-          'PUT    /api/library':                         'Replace full connector library',
-          'GET    /api/library/types':                   'List connector types',
-          'POST   /api/library/types':                   'Create connector type { name, pin_count, ... }',
-          'GET    /api/library/types/:id':               'Get connector type',
-          'PUT    /api/library/types/:id':               'Update connector type',
-          'DELETE /api/library/types/:id':               'Delete connector type',
-        },
-        layouts: {
-          'GET    /api/layouts':                         'Get all layouts',
-          'PUT    /api/layouts':                         'Replace all layouts',
-          'GET    /api/layouts/nodes':                   'Get all node positions',
-          'GET    /api/layouts/nodes/:id':               'Get node position',
-          'PUT    /api/layouts/nodes/:id':               'Set node position { x, y }',
-          'PATCH  /api/layouts/nodes':                   'Merge multiple node positions { nodeId: {x,y} }',
-          'DELETE /api/layouts/nodes/:id':               'Delete node position',
-          'GET    /api/layouts/ports':                   'Get all port positions',
-          'GET    /api/layouts/ports/:id':               'Get port position',
-          'PUT    /api/layouts/ports/:id':               'Set port position { edge, ratio }',
-          'PATCH  /api/layouts/ports':                   'Merge multiple port positions',
-          'DELETE /api/layouts/ports/:id':               'Delete port position',
-          'GET    /api/layouts/sizes':                   'Get all node sizes',
-          'GET    /api/layouts/sizes/:id':               'Get node size',
-          'PUT    /api/layouts/sizes/:id':               'Set node size { w, h }',
-          'DELETE /api/layouts/sizes/:id':               'Delete node size',
-          'GET    /api/layouts/free':                    'Get all free connector positions',
-          'GET    /api/layouts/free/:id':                'Get free connector position',
-          'PUT    /api/layouts/free/:id':                'Set free connector position { x, y }',
-          'PATCH  /api/layouts/free':                    'Merge free connector positions',
-          'DELETE /api/layouts/free/:id':                'Delete free connector position',
-          'GET    /api/layouts/backgrounds':             'Get all backgrounds',
-          'GET    /api/layouts/backgrounds/:id':         'Get background',
-          'PUT    /api/layouts/backgrounds/:id':         'Set background { image, x, y, w, h, locked }',
-          'DELETE /api/layouts/backgrounds/:id':         'Delete background',
-          'GET    /api/layouts/textboxes':               'Get all text boxes',
-          'GET    /api/layouts/textboxes/:id':           'Get text box',
-          'POST   /api/layouts/textboxes':               'Create text box',
-          'PUT    /api/layouts/textboxes/:id':           'Replace text box',
-          'PATCH  /api/layouts/textboxes/:id':           'Partial-update text box',
-          'DELETE /api/layouts/textboxes/:id':           'Delete text box',
-          'GET    /api/layouts/waypoints':               'Get all waypoints',
-          'GET    /api/layouts/waypoints/:id':           'Get waypoints for edge',
-          'PUT    /api/layouts/waypoints/:id':           'Set waypoints for edge (array body)',
-          'DELETE /api/layouts/waypoints/:id':           'Delete waypoints for edge',
-          'GET    /api/layouts/junctions':               'Get all junctions',
-          'GET    /api/layouts/junctions/:id':           'Get junction',
-          'POST   /api/layouts/junctions':               'Create junction { x, y, memberEdgeIds }',
-          'PUT    /api/layouts/junctions/:id':           'Replace junction',
-          'DELETE /api/layouts/junctions/:id':           'Delete junction',
-          'GET    /api/layouts/connector-type-sizes':    'Get connector type size overrides',
-          'PUT    /api/layouts/connector-type-sizes/:id':'Set connector type size { w, h }',
-          'DELETE /api/layouts/connector-type-sizes/:id':'Delete connector type size',
-        },
-        search: {
-          'GET    /api/search?q=...':                    'Search entities by name/id/tag',
-        },
-        assets: {
-          'GET    /api/list-assets':                     'List non-connector image assets',
-          'GET    /api/list-connector-assets':           'List connector image assets',
+        entities: {
+          'GET /api/enclosures': 'List enclosures',
+          'GET /api/connectors': 'List connectors',
+          'GET /api/merge-points': 'List merge points',
+          'GET /api/paths': 'List paths',
+          'GET /api/signals': 'List signals',
         },
       },
     });
   });
 
-  // ─── Harness files ────────────────────────────────────────────────────
-
   addRoute('GET', '/api/harnesses', (_req, res) => {
-    const dir = path.join(projectRoot, 'public', 'harnesses');
+    const dir = path.join(projectRoot, 'public', 'user-data', 'harnesses');
     try {
-      const files = fs.readdirSync(dir)
-        .filter(f => f.endsWith('.json'))
-        .map(f => f.replace('.json', ''));
+      const files = fs.readdirSync(dir).filter((file) => file.endsWith('.json')).map((file) => file.replace('.json', ''));
       json(res, files);
-    } catch { json(res, []); }
+    } catch {
+      json(res, []);
+    }
   });
 
-  addRoute('POST', '/api/harnesses', async (req, res) => {
-    const body = await parseBody(req);
-    const name = body?.name;
-    if (!name || typeof name !== 'string') { err(res, 'name is required'); return; }
-    const fp = harnessFile(name);
-    if (fs.existsSync(fp)) { err(res, `Harness '${name}' already exists`, 409); return; }
-    const data: HarnessData = body.data ?? {
-      schema_version: '1.0',
-      enclosures: [],
-      connectors: [],
-      wires: [],
-      signals: [],
-    };
-    writeJSON(fp, data);
-    json(res, { created: sanitizeName(name), data }, 201);
-  });
-
-  // ─── Harness document ─────────────────────────────────────────────────
-
-  addRoute('GET', '/api/harness', (_req, res, _p, query) => {
+  addRoute('GET', '/api/harness', (_req, res, _params, query) => {
     try {
       json(res, readHarness(harnessName(query)));
-    } catch (e: any) { err(res, e.message, 404); }
+    } catch (error: any) {
+      err(res, error.message, 404);
+    }
   });
 
-  addRoute('PUT', '/api/harness', async (req, res, _p, query) => {
+  addRoute('PUT', '/api/harness', async (req, res, _params, query) => {
     const body = await parseBody(req);
     if (!body?.schema_version) {
-      err(res, 'Invalid harness data — must include schema_version'); return;
+      err(res, 'Invalid harness data — must include schema_version');
+      return;
     }
     writeHarness(body as HarnessData, harnessName(query));
     json(res, { ok: true });
   });
 
-  addRoute('GET', '/api/harness/stats', (_req, res, _p, query) => {
+  addRoute('GET', '/api/harness/stats', (_req, res, _params, query) => {
     try {
-      const h = readHarness(harnessName(query));
+      const harness = readHarness(harnessName(query));
       const allTags = new Set<string>();
-      const addTags = (items: Array<{ tags: string[] }>) =>
-        items.forEach(i => i.tags.forEach(t => allTags.add(t)));
-      addTags(h.enclosures); addTags(h.connectors);
-      addTags(h.connectors.flatMap(c => c.pins)); addTags(h.wires); addTags(h.signals);
+      for (const item of [...harness.enclosures, ...harness.connectors, ...harness.mergePoints, ...harness.paths, ...harness.signals]) {
+        item.tags.forEach((tag) => allTags.add(tag));
+      }
       json(res, {
-        schema_version: h.schema_version,
+        schema_version: harness.schema_version,
         counts: {
-          enclosures: h.enclosures.length,
-          connectors: h.connectors.length,
-          pins: h.connectors.reduce((n, c) => n + c.pins.length, 0),
-          wires: h.wires.length,
-          signals: h.signals.length,
+          enclosures: harness.enclosures.length,
+          connectors: harness.connectors.length,
+          mergePoints: harness.mergePoints.length,
+          paths: harness.paths.length,
+          signals: harness.signals.length,
         },
-        enclosure_ids: h.enclosures.map(e => e.id),
-        connector_ids: h.connectors.map(c => c.id),
-        wire_ids: h.wires.map(w => w.id),
-        signal_ids: h.signals.map(s => s.id),
         tags: [...allTags].sort(),
       });
-    } catch (e: any) { err(res, e.message, 404); }
-  });
-
-  // ─── Entity CRUD (enclosures, connectors, wires, signals) ─────────────
-
-  entityRoutes<Enclosure>('/api/enclosures', 'enclosures', 'enc', ['name'], () => ({
-    parent: null, container: true, tags: [], properties: {},
-  } as Partial<Enclosure>));
-
-  entityRoutes<Connector>('/api/connectors', 'connectors', 'conn', ['name'], () => ({
-    parent: null, connector_type: '', tags: [], pins: [], properties: {},
-  } as Partial<Connector>));
-
-  entityRoutes<Wire>('/api/wires', 'wires', 'wire', ['from', 'to'], () => ({
-    tags: [], properties: {},
-  } as Partial<Wire>));
-
-  entityRoutes<Signal>('/api/signals', 'signals', 'sig', ['name'], () => ({
-    tags: [], properties: {},
-  } as Partial<Signal>));
-
-  // ─── Pins (nested under connectors) ───────────────────────────────────
-
-  addRoute('GET', '/api/connectors/:cid/pins', (_req, res, params, query) => {
-    try {
-      const h = readHarness(harnessName(query));
-      const conn = h.connectors.find(c => c.id === params.cid);
-      if (!conn) { err(res, `Connector not found: ${params.cid}`, 404); return; }
-      json(res, conn.pins);
-    } catch (e: any) { err(res, e.message, 404); }
-  });
-
-  addRoute('POST', '/api/connectors/:cid/pins', async (req, res, params, query) => {
-    const body = await parseBody(req);
-    if (!body) { err(res, 'Request body required'); return; }
-    const hn = harnessName(query);
-    const h = readHarness(hn);
-    const conn = h.connectors.find(c => c.id === params.cid);
-    if (!conn) { err(res, `Connector not found: ${params.cid}`, 404); return; }
-    const pin: Pin = {
-      id: body.id ?? genId('pin'),
-      pin_number: body.pin_number ?? conn.pins.length + 1,
-      name: body.name ?? '',
-      tags: body.tags ?? [],
-      properties: body.properties ?? {},
-    };
-    if (conn.pins.some(p => p.id === pin.id)) {
-      err(res, `Pin '${pin.id}' already exists in connector`, 409); return;
+    } catch (error: any) {
+      err(res, error.message, 404);
     }
-    conn.pins.push(pin);
-    writeHarness(h, hn);
-    json(res, pin, 201);
   });
 
-  addRoute('GET', '/api/connectors/:cid/pins/:pid', (_req, res, params, query) => {
+  entityRoutes<Enclosure>('/api/enclosures', 'enclosures', 'enc', ['name'], () => ({ parent: null, container: true, tags: [], properties: {} }));
+  entityRoutes<Connector>('/api/connectors', 'connectors', 'con', ['name'], () => ({ parent: null, connector_type: '', tags: [], properties: {} }));
+  entityRoutes<MergePoint>('/api/merge-points', 'mergePoints', 'mp', ['name'], () => ({ parent: null, tags: [], properties: {} }));
+  entityRoutes<PathEntity>('/api/paths', 'paths', 'path', ['name', 'nodes'], () => ({ tags: [], properties: {}, nodes: [], measurements: [] }));
+  entityRoutes<Signal>('/api/signals', 'signals', 'sig', ['name'], () => ({ tags: [], properties: {} }));
+
+  addRoute('GET', '/api/tags', (_req, res, _params, query) => {
     try {
-      const h = readHarness(harnessName(query));
-      const conn = h.connectors.find(c => c.id === params.cid);
-      if (!conn) { err(res, `Connector not found: ${params.cid}`, 404); return; }
-      const pin = conn.pins.find(p => p.id === params.pid);
-      if (!pin) { err(res, `Pin not found: ${params.pid}`, 404); return; }
-      json(res, pin);
-    } catch (e: any) { err(res, e.message, 404); }
-  });
-
-  addRoute('PUT', '/api/connectors/:cid/pins/:pid', async (req, res, params, query) => {
-    const body = await parseBody(req);
-    if (!body) { err(res, 'Request body required'); return; }
-    const hn = harnessName(query);
-    const h = readHarness(hn);
-    const conn = h.connectors.find(c => c.id === params.cid);
-    if (!conn) { err(res, `Connector not found: ${params.cid}`, 404); return; }
-    const idx = conn.pins.findIndex(p => p.id === params.pid);
-    if (idx === -1) { err(res, `Pin not found: ${params.pid}`, 404); return; }
-    conn.pins[idx] = { ...body, id: params.pid };
-    if (!conn.pins[idx].tags) conn.pins[idx].tags = [];
-    if (!conn.pins[idx].properties) conn.pins[idx].properties = {};
-    writeHarness(h, hn);
-    json(res, conn.pins[idx]);
-  });
-
-  addRoute('PATCH', '/api/connectors/:cid/pins/:pid', async (req, res, params, query) => {
-    const body = await parseBody(req);
-    if (!body) { err(res, 'Request body required'); return; }
-    const hn = harnessName(query);
-    const h = readHarness(hn);
-    const conn = h.connectors.find(c => c.id === params.cid);
-    if (!conn) { err(res, `Connector not found: ${params.cid}`, 404); return; }
-    const idx = conn.pins.findIndex(p => p.id === params.pid);
-    if (idx === -1) { err(res, `Pin not found: ${params.pid}`, 404); return; }
-    conn.pins[idx] = { ...conn.pins[idx], ...body, id: params.pid };
-    writeHarness(h, hn);
-    json(res, conn.pins[idx]);
-  });
-
-  addRoute('DELETE', '/api/connectors/:cid/pins/:pid', (_req, res, params, query) => {
-    const hn = harnessName(query);
-    const h = readHarness(hn);
-    const conn = h.connectors.find(c => c.id === params.cid);
-    if (!conn) { err(res, `Connector not found: ${params.cid}`, 404); return; }
-    const idx = conn.pins.findIndex(p => p.id === params.pid);
-    if (idx === -1) { err(res, `Pin not found: ${params.pid}`, 404); return; }
-    const deleted = conn.pins.splice(idx, 1)[0];
-    writeHarness(h, hn);
-    json(res, deleted);
-  });
-
-  // ─── Tags ─────────────────────────────────────────────────────────────
-
-  addRoute('GET', '/api/tags', (_req, res, _p, query) => {
-    try {
-      const h = readHarness(harnessName(query));
-      const tagSet = new Set<string>();
-      const add = (items: Array<{ tags: string[] }>) =>
-        items.forEach(i => i.tags.forEach(t => tagSet.add(t)));
-      add(h.enclosures); add(h.connectors);
-      add(h.connectors.flatMap(c => c.pins)); add(h.wires); add(h.signals);
-      json(res, [...tagSet].sort());
-    } catch (e: any) { err(res, e.message, 404); }
-  });
-
-  addRoute('POST', '/api/tags', async (req, res, _p, query) => {
-    const body = await parseBody(req);
-    if (!body?.entityType || !body?.entityId || !body?.tag) {
-      err(res, 'Required fields: entityType, entityId, tag'); return;
-    }
-    const hn = harnessName(query);
-    const h = readHarness(hn);
-    const target = findTaggable(h, body.entityType, body.entityId);
-    if (!target) { err(res, `Entity not found: ${body.entityType}/${body.entityId}`, 404); return; }
-    if (!target.tags.includes(body.tag)) {
-      target.tags.push(body.tag);
-      writeHarness(h, hn);
-    }
-    json(res, target);
-  });
-
-  addRoute('DELETE', '/api/tags', async (req, res, _p, query) => {
-    const body = await parseBody(req);
-    if (!body?.entityType || !body?.entityId || !body?.tag) {
-      err(res, 'Required fields: entityType, entityId, tag'); return;
-    }
-    const hn = harnessName(query);
-    const h = readHarness(hn);
-    const target = findTaggable(h, body.entityType, body.entityId);
-    if (!target) { err(res, `Entity not found: ${body.entityType}/${body.entityId}`, 404); return; }
-    target.tags = target.tags.filter(t => t !== body.tag);
-    writeHarness(h, hn);
-    json(res, target);
-  });
-
-  // ─── Connector library ────────────────────────────────────────────────
-
-  addRoute('GET', '/api/library', (_req, res) => {
-    try { json(res, readJSON<ConnectorLibrary>(libraryFile())); }
-    catch { json(res, { connector_types: [] }); }
-  });
-
-  addRoute('PUT', '/api/library', async (req, res) => {
-    const body = await parseBody(req);
-    if (!body) { err(res, 'Request body required'); return; }
-    writeJSON(libraryFile(), body);
-    json(res, { ok: true });
-  });
-
-  addRoute('GET', '/api/library/types', (_req, res) => {
-    try { json(res, readJSON<ConnectorLibrary>(libraryFile()).connector_types); }
-    catch { json(res, []); }
-  });
-
-  addRoute('POST', '/api/library/types', async (req, res) => {
-    const body = await parseBody(req);
-    if (!body?.name) { err(res, 'name is required'); return; }
-    let lib: ConnectorLibrary;
-    try { lib = readJSON<ConnectorLibrary>(libraryFile()); }
-    catch { lib = { connector_types: [] }; }
-    const ct: ConnectorType = {
-      id: body.id ?? genId('ct'),
-      name: body.name,
-      pin_count: body.pin_count ?? 0,
-      crimp_spec: body.crimp_spec ?? '',
-      wire_gauge: body.wire_gauge ?? '',
-      notes: body.notes ?? '',
-      ...(body.image && { image: body.image }),
-      ...(body.side_image && { side_image: body.side_image }),
-    };
-    if (lib.connector_types.some(t => t.id === ct.id)) {
-      err(res, `Connector type '${ct.id}' already exists`, 409); return;
-    }
-    lib.connector_types.push(ct);
-    writeJSON(libraryFile(), lib);
-    json(res, ct, 201);
-  });
-
-  addRoute('GET', '/api/library/types/:id', (_req, res, params) => {
-    try {
-      const lib = readJSON<ConnectorLibrary>(libraryFile());
-      const ct = lib.connector_types.find(t => t.id === params.id);
-      if (!ct) { err(res, `Not found: ${params.id}`, 404); return; }
-      json(res, ct);
-    } catch { err(res, 'Library not found', 404); }
-  });
-
-  addRoute('PUT', '/api/library/types/:id', async (req, res, params) => {
-    const body = await parseBody(req);
-    if (!body) { err(res, 'Request body required'); return; }
-    let lib: ConnectorLibrary;
-    try { lib = readJSON<ConnectorLibrary>(libraryFile()); }
-    catch { err(res, 'Library not found', 404); return; }
-    const idx = lib.connector_types.findIndex(t => t.id === params.id);
-    if (idx === -1) { err(res, `Not found: ${params.id}`, 404); return; }
-    lib.connector_types[idx] = { ...body, id: params.id };
-    writeJSON(libraryFile(), lib);
-    json(res, lib.connector_types[idx]);
-  });
-
-  addRoute('DELETE', '/api/library/types/:id', (_req, res, params) => {
-    let lib: ConnectorLibrary;
-    try { lib = readJSON<ConnectorLibrary>(libraryFile()); }
-    catch { err(res, 'Library not found', 404); return; }
-    const idx = lib.connector_types.findIndex(t => t.id === params.id);
-    if (idx === -1) { err(res, `Not found: ${params.id}`, 404); return; }
-    const deleted = lib.connector_types.splice(idx, 1)[0];
-    writeJSON(libraryFile(), lib);
-    json(res, deleted);
-  });
-
-  // ─── Layouts ──────────────────────────────────────────────────────────
-
-  addRoute('GET', '/api/layouts', (_req, res) => {
-    try { json(res, readJSON(layoutsFile())); }
-    catch { json(res, {}); }
-  });
-
-  addRoute('PUT', '/api/layouts', async (req, res) => {
-    const body = await parseBody(req);
-    if (!body) { err(res, 'Request body required'); return; }
-    writeJSON(layoutsFile(), body);
-    json(res, { ok: true });
-  });
-
-  // ─── Search ───────────────────────────────────────────────────────────
-
-  addRoute('GET', '/api/search', (_req, res, _p, query) => {
-    const q = (query.get('q') ?? '').toLowerCase();
-    if (!q) { err(res, 'Query parameter q is required'); return; }
-    try {
-      const h = readHarness(harnessName(query));
-      const results: Array<{ type: string; id: string; name?: string; match: string }> = [];
-
-      const matches = (fields: string[]) => fields.some(f => f.toLowerCase().includes(q));
-
-      for (const enc of h.enclosures) {
-        if (matches([enc.id, enc.name, ...enc.tags]))
-          results.push({ type: 'enclosure', id: enc.id, name: enc.name, match: enc.name });
+      const harness = readHarness(harnessName(query));
+      const tags = new Set<string>();
+      for (const item of [...harness.enclosures, ...harness.connectors, ...harness.mergePoints, ...harness.paths, ...harness.signals]) {
+        item.tags.forEach((tag) => tags.add(tag));
       }
-      for (const conn of h.connectors) {
-        if (matches([conn.id, conn.name, ...conn.tags]))
-          results.push({ type: 'connector', id: conn.id, name: conn.name, match: conn.name });
-        for (const pin of conn.pins) {
-          if (matches([pin.id, pin.name, ...pin.tags]))
-            results.push({ type: 'pin', id: pin.id, name: pin.name, match: `${conn.name} → ${pin.name}` });
+      json(res, [...tags].sort());
+    } catch (error: any) {
+      err(res, error.message, 404);
+    }
+  });
+
+  addRoute('POST', '/api/tags', async (req, res, _params, query) => {
+    const body = await parseBody(req);
+    if (!body?.entityType || !body?.entityId || !body?.tag) {
+      err(res, 'Required fields: entityType, entityId, tag');
+      return;
+    }
+    const harness = readHarness(harnessName(query));
+    const entity = getTaggable(harness, body.entityType, body.entityId);
+    if (!entity) {
+      err(res, `Entity not found: ${body.entityType}/${body.entityId}`, 404);
+      return;
+    }
+    if (!entity.tags.includes(body.tag)) entity.tags.push(body.tag);
+    writeHarness(harness, harnessName(query));
+    json(res, entity);
+  });
+
+  addRoute('DELETE', '/api/tags', async (req, res, _params, query) => {
+    const body = await parseBody(req);
+    if (!body?.entityType || !body?.entityId || !body?.tag) {
+      err(res, 'Required fields: entityType, entityId, tag');
+      return;
+    }
+    const harness = readHarness(harnessName(query));
+    const entity = getTaggable(harness, body.entityType, body.entityId);
+    if (!entity) {
+      err(res, `Entity not found: ${body.entityType}/${body.entityId}`, 404);
+      return;
+    }
+    entity.tags = entity.tags.filter((tag) => tag !== body.tag);
+    writeHarness(harness, harnessName(query));
+    json(res, entity);
+  });
+
+  addRoute('GET', '/api/search', (_req, res, _params, query) => {
+    const q = (query.get('q') ?? '').toLowerCase();
+    if (!q) {
+      err(res, 'Query parameter q is required');
+      return;
+    }
+    try {
+      const harness = readHarness(harnessName(query));
+      const results: Array<{ type: string; id: string; name?: string; match: string }> = [];
+      const matches = (fields: string[]) => fields.some((field) => field.toLowerCase().includes(q));
+
+      for (const enclosure of harness.enclosures) {
+        if (matches([enclosure.id, enclosure.name, ...enclosure.tags])) results.push({ type: 'enclosure', id: enclosure.id, name: enclosure.name, match: enclosure.name });
+      }
+      for (const connector of harness.connectors) {
+        const pins = getConnectorOccupancy(harness, connector.id).map((entry) => String(entry.pinNumber));
+        if (matches([connector.id, connector.name, ...connector.tags, ...pins])) results.push({ type: 'connector', id: connector.id, name: connector.name, match: connector.name });
+      }
+      for (const mergePoint of harness.mergePoints) {
+        if (matches([mergePoint.id, mergePoint.name, ...mergePoint.tags])) results.push({ type: 'mergePoint', id: mergePoint.id, name: mergePoint.name, match: mergePoint.name });
+      }
+      for (const pathItem of harness.paths) {
+        const nodeLabels = pathItem.nodes.map((node) => getPathNodeRefKey(node));
+        if (matches([pathItem.id, pathItem.name, ...pathItem.tags, ...Object.values(pathItem.properties), ...nodeLabels])) {
+          results.push({ type: 'path', id: pathItem.id, name: pathItem.name, match: `${pathItem.name} (${pathItem.nodes.length} nodes)` });
         }
       }
-      for (const wire of h.wires) {
-        if (matches([wire.id, ...wire.tags, ...Object.values(wire.properties)]))
-          results.push({ type: 'wire', id: wire.id, match: `${wire.from} → ${wire.to}` });
-      }
-      for (const sig of h.signals) {
-        if (matches([sig.id, sig.name, ...sig.tags]))
-          results.push({ type: 'signal', id: sig.id, name: sig.name, match: sig.name });
+      for (const signal of harness.signals) {
+        if (matches([signal.id, signal.name, ...signal.tags])) results.push({ type: 'signal', id: signal.id, name: signal.name, match: signal.name });
       }
 
       json(res, results);
-    } catch (e: any) { err(res, e.message, 404); }
-  });
-
-  // ─── Harness file management ──────────────────────────────────────────
-
-  addRoute('DELETE', '/api/harnesses/:name', (_req, res, params) => {
-    const fp = harnessFile(params.name);
-    if (!fs.existsSync(fp)) { err(res, `Harness '${params.name}' not found`, 404); return; }
-    fs.unlinkSync(fp);
-    json(res, { deleted: params.name });
-  });
-
-  addRoute('POST', '/api/harnesses/:name/copy', async (req, res, params) => {
-    const body = await parseBody(req);
-    const newName = body?.newName;
-    if (!newName || typeof newName !== 'string') { err(res, 'newName is required'); return; }
-    const srcFp = harnessFile(params.name);
-    if (!fs.existsSync(srcFp)) { err(res, `Harness '${params.name}' not found`, 404); return; }
-    const destFp = harnessFile(newName);
-    if (fs.existsSync(destFp)) { err(res, `Harness '${sanitizeName(newName)}' already exists`, 409); return; }
-    fs.copyFileSync(srcFp, destFp);
-    json(res, { copied: params.name, newName: sanitizeName(newName) }, 201);
-  });
-
-  addRoute('POST', '/api/harnesses/:name/rename', async (req, res, params) => {
-    const body = await parseBody(req);
-    const newName = body?.newName;
-    if (!newName || typeof newName !== 'string') { err(res, 'newName is required'); return; }
-    const srcFp = harnessFile(params.name);
-    if (!fs.existsSync(srcFp)) { err(res, `Harness '${params.name}' not found`, 404); return; }
-    const destFp = harnessFile(newName);
-    if (fs.existsSync(destFp)) { err(res, `Harness '${sanitizeName(newName)}' already exists`, 409); return; }
-    fs.renameSync(srcFp, destFp);
-    json(res, { renamed: params.name, newName: sanitizeName(newName) });
-  });
-
-  // ─── Batch operations ────────────────────────────────────────────────
-
-  addRoute('POST', '/api/batch/enclosures', async (req, res, _p, query) => {
-    const body = await parseBody(req);
-    if (!Array.isArray(body)) { err(res, 'Request body must be an array'); return; }
-    const hn = harnessName(query);
-    const h = readHarness(hn);
-    const created: Enclosure[] = [];
-    for (const item of body) {
-      if (!item.name) { err(res, `Each enclosure requires a 'name' field`); return; }
-      const enc: Enclosure = {
-        id: item.id ?? genId('enc'),
-        name: item.name,
-        parent: item.parent ?? null,
-        container: item.container ?? true,
-        tags: item.tags ?? [],
-        properties: item.properties ?? {},
-      };
-      if (h.enclosures.some(e => e.id === enc.id)) {
-        err(res, `Enclosure '${enc.id}' already exists`, 409); return;
-      }
-      h.enclosures.push(enc);
-      created.push(enc);
+    } catch (error: any) {
+      err(res, error.message, 404);
     }
-    writeHarness(h, hn);
-    json(res, created, 201);
   });
 
-  addRoute('POST', '/api/batch/connectors', async (req, res, _p, query) => {
-    const body = await parseBody(req);
-    if (!Array.isArray(body)) { err(res, 'Request body must be an array'); return; }
-    const hn = harnessName(query);
-    const h = readHarness(hn);
-    const created: Connector[] = [];
-    for (const item of body) {
-      if (!item.name) { err(res, `Each connector requires a 'name' field`); return; }
-      const conn: Connector = {
-        id: item.id ?? genId('conn'),
-        name: item.name,
-        parent: item.parent ?? null,
-        connector_type: item.connector_type ?? '',
-        tags: item.tags ?? [],
-        pins: item.pins ?? [],
-        properties: item.properties ?? {},
-      };
-      if (h.connectors.some(c => c.id === conn.id)) {
-        err(res, `Connector '${conn.id}' already exists`, 409); return;
-      }
-      // Auto-generate pins if auto_pins flag is set and connector_type references library
-      if (item.auto_pins && conn.connector_type) {
-        try {
-          const lib = readJSON<ConnectorLibrary>(libraryFile());
-          const ct = lib.connector_types.find(t => t.id === conn.connector_type);
-          if (ct && ct.pin_count > 0 && conn.pins.length === 0) {
-            for (let i = 1; i <= ct.pin_count; i++) {
-              conn.pins.push({
-                id: genId('pin'),
-                pin_number: i,
-                name: `${conn.name}.${i}`,
-                tags: [],
-                properties: {},
-              });
-            }
-          }
-        } catch { /* library not found, skip auto-gen */ }
-      }
-      h.connectors.push(conn);
-      created.push(conn);
-    }
-    writeHarness(h, hn);
-    json(res, created, 201);
-  });
-
-  addRoute('POST', '/api/batch/pins/:cid', async (req, res, params, query) => {
-    const body = await parseBody(req);
-    if (!Array.isArray(body)) { err(res, 'Request body must be an array'); return; }
-    const hn = harnessName(query);
-    const h = readHarness(hn);
-    const conn = h.connectors.find(c => c.id === params.cid);
-    if (!conn) { err(res, `Connector not found: ${params.cid}`, 404); return; }
-    const created: Pin[] = [];
-    for (const item of body) {
-      const pin: Pin = {
-        id: item.id ?? genId('pin'),
-        pin_number: item.pin_number ?? conn.pins.length + 1,
-        name: item.name ?? '',
-        tags: item.tags ?? [],
-        properties: item.properties ?? {},
-      };
-      if (conn.pins.some(p => p.id === pin.id)) {
-        err(res, `Pin '${pin.id}' already exists in connector`, 409); return;
-      }
-      conn.pins.push(pin);
-      created.push(pin);
-    }
-    writeHarness(h, hn);
-    json(res, created, 201);
-  });
-
-  addRoute('POST', '/api/batch/wires', async (req, res, _p, query) => {
-    const body = await parseBody(req);
-    if (!Array.isArray(body)) { err(res, 'Request body must be an array'); return; }
-    const hn = harnessName(query);
-    const h = readHarness(hn);
-    const created: Wire[] = [];
-    for (const item of body) {
-      if (!item.from || !item.to) { err(res, `Each wire requires 'from' and 'to'`); return; }
-      const wire: Wire = {
-        id: item.id ?? genId('wire'),
-        from: item.from,
-        to: item.to,
-        tags: item.tags ?? [],
-        properties: item.properties ?? {},
-      };
-      if (h.wires.some(w => w.id === wire.id)) {
-        err(res, `Wire '${wire.id}' already exists`, 409); return;
-      }
-      h.wires.push(wire);
-      created.push(wire);
-    }
-    writeHarness(h, hn);
-    json(res, created, 201);
-  });
-
-  addRoute('POST', '/api/batch/signals', async (req, res, _p, query) => {
-    const body = await parseBody(req);
-    if (!Array.isArray(body)) { err(res, 'Request body must be an array'); return; }
-    const hn = harnessName(query);
-    const h = readHarness(hn);
-    const created: Signal[] = [];
-    for (const item of body) {
-      if (!item.name) { err(res, `Each signal requires a 'name'`); return; }
-      const sig: Signal = {
-        id: item.id ?? genId('sig'),
-        name: item.name,
-        tags: item.tags ?? [],
-        properties: item.properties ?? {},
-      };
-      if (h.signals.some(s => s.id === sig.id)) {
-        err(res, `Signal '${sig.id}' already exists`, 409); return;
-      }
-      h.signals.push(sig);
-      created.push(sig);
-    }
-    writeHarness(h, hn);
-    json(res, created, 201);
-  });
-
-  addRoute('POST', '/api/batch/delete', async (req, res, _p, query) => {
-    const body = await parseBody(req);
-    if (!body?.items || !Array.isArray(body.items)) {
-      err(res, 'Required: items array of { type, id }'); return;
-    }
-    const hn = harnessName(query);
-    const h = readHarness(hn);
-    const deleted: Array<{ type: string; id: string }> = [];
-    for (const { type, id } of body.items) {
-      let idx: number;
-      switch (type) {
-        case 'enclosure':
-          idx = h.enclosures.findIndex(e => e.id === id);
-          if (idx !== -1) { h.enclosures.splice(idx, 1); deleted.push({ type, id }); }
-          break;
-        case 'connector':
-          idx = h.connectors.findIndex(c => c.id === id);
-          if (idx !== -1) { h.connectors.splice(idx, 1); deleted.push({ type, id }); }
-          break;
-        case 'wire':
-          idx = h.wires.findIndex(w => w.id === id);
-          if (idx !== -1) { h.wires.splice(idx, 1); deleted.push({ type, id }); }
-          break;
-        case 'signal':
-          idx = h.signals.findIndex(s => s.id === id);
-          if (idx !== -1) { h.signals.splice(idx, 1); deleted.push({ type, id }); }
-          break;
-      }
-    }
-    writeHarness(h, hn);
-    json(res, { deleted, count: deleted.length });
-  });
-
-  // ─── Auto-pin connector creation ────────────────────────────────────
-
-  addRoute('POST', '/api/connectors-auto', async (req, res, _p, query) => {
-    const body = await parseBody(req);
-    if (!body) { err(res, 'Request body required'); return; }
-    if (!body.name) { err(res, `Field 'name' is required`); return; }
-    const hn = harnessName(query);
-    const h = readHarness(hn);
-    const conn: Connector = {
-      id: body.id ?? genId('conn'),
-      name: body.name,
-      parent: body.parent ?? null,
-      connector_type: body.connector_type ?? '',
-      tags: body.tags ?? [],
-      pins: body.pins ?? [],
-      properties: body.properties ?? {},
-    };
-    if (h.connectors.some(c => c.id === conn.id)) {
-      err(res, `Connector '${conn.id}' already exists`, 409); return;
-    }
-    // Auto-generate pins from library or explicit pin_count
-    const pinCount = body.pin_count ?? (() => {
-      if (!conn.connector_type) return 0;
-      try {
-        const lib = readJSON<ConnectorLibrary>(libraryFile());
-        return lib.connector_types.find(t => t.id === conn.connector_type)?.pin_count ?? 0;
-      } catch { return 0; }
-    })();
-    if (pinCount > 0 && conn.pins.length === 0) {
-      for (let i = 1; i <= pinCount; i++) {
-        conn.pins.push({
-          id: body.pin_id_prefix ? `${body.pin_id_prefix}_${i}` : genId('pin'),
-          pin_number: i,
-          name: body.pin_name_prefix ? `${body.pin_name_prefix}.${i}` : `${conn.name}.${i}`,
-          tags: body.default_pin_tags ?? [],
-          properties: body.default_pin_properties ?? {},
-        });
-      }
-    }
-    h.connectors.push(conn);
-    writeHarness(h, hn);
-    json(res, conn, 201);
-  });
-
-  // ─── Granular layout management ──────────────────────────────────────
-
-  interface LayoutData {
-    nodes?: Record<string, { x: number; y: number }>;
-    ports?: Record<string, { edge: string; ratio: number }>;
-    sizes?: Record<string, { w: number; h: number }>;
-    free?: Record<string, { x: number; y: number }>;
-    backgrounds?: Record<string, any>;
-    connectorTypeSizes?: Record<string, { w: number; h: number }>;
-    textBoxes?: Record<string, any>;
-    waypoints?: Record<string, any>;
-    junctions?: Record<string, any>;
-  }
-
-  function readLayouts(): LayoutData {
-    try { return readJSON<LayoutData>(layoutsFile()); }
-    catch { return {}; }
-  }
-  function writeLayouts(data: LayoutData) {
-    writeJSON(layoutsFile(), data);
-  }
-
-  // -- Node positions
-  addRoute('GET', '/api/layouts/nodes', (_req, res) => {
-    json(res, readLayouts().nodes ?? {});
-  });
-  addRoute('GET', '/api/layouts/nodes/:id', (_req, res, params) => {
-    const pos = readLayouts().nodes?.[params.id];
-    if (!pos) { err(res, `Node position not found: ${params.id}`, 404); return; }
-    json(res, pos);
-  });
-  addRoute('PUT', '/api/layouts/nodes/:id', async (req, res, params) => {
-    const body = await parseBody(req);
-    if (body?.x === undefined || body?.y === undefined) { err(res, 'x and y are required'); return; }
-    const layouts = readLayouts();
-    if (!layouts.nodes) layouts.nodes = {};
-    layouts.nodes[params.id] = { x: body.x, y: body.y };
-    writeLayouts(layouts);
-    json(res, layouts.nodes[params.id]);
-  });
-  addRoute('DELETE', '/api/layouts/nodes/:id', (_req, res, params) => {
-    const layouts = readLayouts();
-    if (!layouts.nodes?.[params.id]) { err(res, `Not found: ${params.id}`, 404); return; }
-    delete layouts.nodes[params.id];
-    writeLayouts(layouts);
-    json(res, { deleted: params.id });
-  });
-  addRoute('PATCH', '/api/layouts/nodes', async (req, res) => {
-    const body = await parseBody(req);
-    if (!body || typeof body !== 'object') { err(res, 'Object of { nodeId: {x, y} } required'); return; }
-    const layouts = readLayouts();
-    if (!layouts.nodes) layouts.nodes = {};
-    Object.assign(layouts.nodes, body);
-    writeLayouts(layouts);
-    json(res, layouts.nodes);
-  });
-
-  // -- Port positions
-  addRoute('GET', '/api/layouts/ports', (_req, res) => {
-    json(res, readLayouts().ports ?? {});
-  });
-  addRoute('GET', '/api/layouts/ports/:id', (_req, res, params) => {
-    const port = readLayouts().ports?.[params.id];
-    if (!port) { err(res, `Port not found: ${params.id}`, 404); return; }
-    json(res, port);
-  });
-  addRoute('PUT', '/api/layouts/ports/:id', async (req, res, params) => {
-    const body = await parseBody(req);
-    if (!body?.edge || body?.ratio === undefined) { err(res, 'edge and ratio are required'); return; }
-    const layouts = readLayouts();
-    if (!layouts.ports) layouts.ports = {};
-    layouts.ports[params.id] = { edge: body.edge, ratio: body.ratio };
-    writeLayouts(layouts);
-    json(res, layouts.ports[params.id]);
-  });
-  addRoute('DELETE', '/api/layouts/ports/:id', (_req, res, params) => {
-    const layouts = readLayouts();
-    if (!layouts.ports?.[params.id]) { err(res, `Not found: ${params.id}`, 404); return; }
-    delete layouts.ports[params.id];
-    writeLayouts(layouts);
-    json(res, { deleted: params.id });
-  });
-  addRoute('PATCH', '/api/layouts/ports', async (req, res) => {
-    const body = await parseBody(req);
-    if (!body || typeof body !== 'object') { err(res, 'Object required'); return; }
-    const layouts = readLayouts();
-    if (!layouts.ports) layouts.ports = {};
-    Object.assign(layouts.ports, body);
-    writeLayouts(layouts);
-    json(res, layouts.ports);
-  });
-
-  // -- Node sizes
-  addRoute('GET', '/api/layouts/sizes', (_req, res) => {
-    json(res, readLayouts().sizes ?? {});
-  });
-  addRoute('GET', '/api/layouts/sizes/:id', (_req, res, params) => {
-    const size = readLayouts().sizes?.[params.id];
-    if (!size) { err(res, `Size not found: ${params.id}`, 404); return; }
-    json(res, size);
-  });
-  addRoute('PUT', '/api/layouts/sizes/:id', async (req, res, params) => {
-    const body = await parseBody(req);
-    if (body?.w === undefined || body?.h === undefined) { err(res, 'w and h are required'); return; }
-    const layouts = readLayouts();
-    if (!layouts.sizes) layouts.sizes = {};
-    layouts.sizes[params.id] = { w: body.w, h: body.h };
-    writeLayouts(layouts);
-    json(res, layouts.sizes[params.id]);
-  });
-  addRoute('DELETE', '/api/layouts/sizes/:id', (_req, res, params) => {
-    const layouts = readLayouts();
-    if (!layouts.sizes?.[params.id]) { err(res, `Not found: ${params.id}`, 404); return; }
-    delete layouts.sizes[params.id];
-    writeLayouts(layouts);
-    json(res, { deleted: params.id });
-  });
-
-  // -- Free connector positions
-  addRoute('GET', '/api/layouts/free', (_req, res) => {
-    json(res, readLayouts().free ?? {});
-  });
-  addRoute('GET', '/api/layouts/free/:id', (_req, res, params) => {
-    const pos = readLayouts().free?.[params.id];
-    if (!pos) { err(res, `Free position not found: ${params.id}`, 404); return; }
-    json(res, pos);
-  });
-  addRoute('PUT', '/api/layouts/free/:id', async (req, res, params) => {
-    const body = await parseBody(req);
-    if (body?.x === undefined || body?.y === undefined) { err(res, 'x and y are required'); return; }
-    const layouts = readLayouts();
-    if (!layouts.free) layouts.free = {};
-    layouts.free[params.id] = { x: body.x, y: body.y };
-    writeLayouts(layouts);
-    json(res, layouts.free[params.id]);
-  });
-  addRoute('DELETE', '/api/layouts/free/:id', (_req, res, params) => {
-    const layouts = readLayouts();
-    if (!layouts.free?.[params.id]) { err(res, `Not found: ${params.id}`, 404); return; }
-    delete layouts.free[params.id];
-    writeLayouts(layouts);
-    json(res, { deleted: params.id });
-  });
-  addRoute('PATCH', '/api/layouts/free', async (req, res) => {
-    const body = await parseBody(req);
-    if (!body || typeof body !== 'object') { err(res, 'Object required'); return; }
-    const layouts = readLayouts();
-    if (!layouts.free) layouts.free = {};
-    Object.assign(layouts.free, body);
-    writeLayouts(layouts);
-    json(res, layouts.free);
-  });
-
-  // -- Backgrounds
-  addRoute('GET', '/api/layouts/backgrounds', (_req, res) => {
-    json(res, readLayouts().backgrounds ?? {});
-  });
-  addRoute('GET', '/api/layouts/backgrounds/:id', (_req, res, params) => {
-    const bg = readLayouts().backgrounds?.[params.id];
-    if (!bg) { err(res, `Background not found: ${params.id}`, 404); return; }
-    json(res, bg);
-  });
-  addRoute('PUT', '/api/layouts/backgrounds/:id', async (req, res, params) => {
-    const body = await parseBody(req);
-    if (!body) { err(res, 'Request body required'); return; }
-    const layouts = readLayouts();
-    if (!layouts.backgrounds) layouts.backgrounds = {};
-    layouts.backgrounds[params.id] = body;
-    writeLayouts(layouts);
-    json(res, layouts.backgrounds[params.id]);
-  });
-  addRoute('DELETE', '/api/layouts/backgrounds/:id', (_req, res, params) => {
-    const layouts = readLayouts();
-    if (!layouts.backgrounds?.[params.id]) { err(res, `Not found: ${params.id}`, 404); return; }
-    delete layouts.backgrounds[params.id];
-    writeLayouts(layouts);
-    json(res, { deleted: params.id });
-  });
-
-  // -- Text boxes
-  addRoute('GET', '/api/layouts/textboxes', (_req, res) => {
-    json(res, readLayouts().textBoxes ?? {});
-  });
-  addRoute('GET', '/api/layouts/textboxes/:id', (_req, res, params) => {
-    const tb = readLayouts().textBoxes?.[params.id];
-    if (!tb) { err(res, `Text box not found: ${params.id}`, 404); return; }
-    json(res, tb);
-  });
-  addRoute('POST', '/api/layouts/textboxes', async (req, res) => {
-    const body = await parseBody(req);
-    if (!body) { err(res, 'Request body required'); return; }
-    const layouts = readLayouts();
-    if (!layouts.textBoxes) layouts.textBoxes = {};
-    const id = body.id ?? genId('tb');
-    const tb = {
-      id,
-      x: body.x ?? 0,
-      y: body.y ?? 0,
-      w: body.w ?? 200,
-      h: body.h ?? 100,
-      text: body.text ?? '',
-      bgColor: body.bgColor ?? '#ffffff',
-      textColor: body.textColor ?? '#000000',
-      fontSize: body.fontSize ?? 14,
-      fontFamily: body.fontFamily ?? 'sans',
-      fontWeight: body.fontWeight ?? 'normal',
-      textAlign: body.textAlign ?? 'left',
-      borderColor: body.borderColor ?? '#cccccc',
-      borderWidth: body.borderWidth ?? 1,
-      borderRadius: body.borderRadius ?? 4,
-      opacity: body.opacity ?? 1,
-      padding: body.padding ?? 8,
-    };
-    layouts.textBoxes[id] = tb;
-    writeLayouts(layouts);
-    json(res, tb, 201);
-  });
-  addRoute('PUT', '/api/layouts/textboxes/:id', async (req, res, params) => {
-    const body = await parseBody(req);
-    if (!body) { err(res, 'Request body required'); return; }
-    const layouts = readLayouts();
-    if (!layouts.textBoxes) layouts.textBoxes = {};
-    layouts.textBoxes[params.id] = { ...body, id: params.id };
-    writeLayouts(layouts);
-    json(res, layouts.textBoxes[params.id]);
-  });
-  addRoute('PATCH', '/api/layouts/textboxes/:id', async (req, res, params) => {
-    const body = await parseBody(req);
-    if (!body) { err(res, 'Request body required'); return; }
-    const layouts = readLayouts();
-    if (!layouts.textBoxes?.[params.id]) { err(res, `Not found: ${params.id}`, 404); return; }
-    layouts.textBoxes[params.id] = { ...layouts.textBoxes[params.id], ...body, id: params.id };
-    writeLayouts(layouts);
-    json(res, layouts.textBoxes[params.id]);
-  });
-  addRoute('DELETE', '/api/layouts/textboxes/:id', (_req, res, params) => {
-    const layouts = readLayouts();
-    if (!layouts.textBoxes?.[params.id]) { err(res, `Not found: ${params.id}`, 404); return; }
-    delete layouts.textBoxes[params.id];
-    writeLayouts(layouts);
-    json(res, { deleted: params.id });
-  });
-
-  // -- Waypoints
-  addRoute('GET', '/api/layouts/waypoints', (_req, res) => {
-    json(res, readLayouts().waypoints ?? {});
-  });
-  addRoute('GET', '/api/layouts/waypoints/:id', (_req, res, params) => {
-    const wp = readLayouts().waypoints?.[params.id];
-    if (!wp) { err(res, `Waypoints not found: ${params.id}`, 404); return; }
-    json(res, wp);
-  });
-  addRoute('PUT', '/api/layouts/waypoints/:id', async (req, res, params) => {
-    const body = await parseBody(req);
-    if (!Array.isArray(body)) { err(res, 'Body must be an array of waypoint items'); return; }
-    const layouts = readLayouts();
-    if (!layouts.waypoints) layouts.waypoints = {};
-    layouts.waypoints[params.id] = body;
-    writeLayouts(layouts);
-    json(res, layouts.waypoints[params.id]);
-  });
-  addRoute('DELETE', '/api/layouts/waypoints/:id', (_req, res, params) => {
-    const layouts = readLayouts();
-    if (!layouts.waypoints?.[params.id]) { err(res, `Not found: ${params.id}`, 404); return; }
-    delete layouts.waypoints[params.id];
-    writeLayouts(layouts);
-    json(res, { deleted: params.id });
-  });
-
-  // -- Junctions
-  addRoute('GET', '/api/layouts/junctions', (_req, res) => {
-    json(res, readLayouts().junctions ?? {});
-  });
-  addRoute('GET', '/api/layouts/junctions/:id', (_req, res, params) => {
-    const jn = readLayouts().junctions?.[params.id];
-    if (!jn) { err(res, `Junction not found: ${params.id}`, 404); return; }
-    json(res, jn);
-  });
-  addRoute('POST', '/api/layouts/junctions', async (req, res) => {
-    const body = await parseBody(req);
-    if (!body) { err(res, 'Request body required'); return; }
-    const layouts = readLayouts();
-    if (!layouts.junctions) layouts.junctions = {};
-    const id = body.id ?? genId('jn');
-    const jn = {
-      id,
-      x: body.x ?? 0,
-      y: body.y ?? 0,
-      memberEdgeIds: body.memberEdgeIds ?? [],
-    };
-    layouts.junctions[id] = jn;
-    writeLayouts(layouts);
-    json(res, jn, 201);
-  });
-  addRoute('PUT', '/api/layouts/junctions/:id', async (req, res, params) => {
-    const body = await parseBody(req);
-    if (!body) { err(res, 'Request body required'); return; }
-    const layouts = readLayouts();
-    if (!layouts.junctions) layouts.junctions = {};
-    layouts.junctions[params.id] = { ...body, id: params.id };
-    writeLayouts(layouts);
-    json(res, layouts.junctions[params.id]);
-  });
-  addRoute('DELETE', '/api/layouts/junctions/:id', (_req, res, params) => {
-    const layouts = readLayouts();
-    if (!layouts.junctions?.[params.id]) { err(res, `Not found: ${params.id}`, 404); return; }
-    delete layouts.junctions[params.id];
-    writeLayouts(layouts);
-    json(res, { deleted: params.id });
-  });
-
-  // -- Connector type sizes
-  addRoute('GET', '/api/layouts/connector-type-sizes', (_req, res) => {
-    json(res, readLayouts().connectorTypeSizes ?? {});
-  });
-  addRoute('PUT', '/api/layouts/connector-type-sizes/:id', async (req, res, params) => {
-    const body = await parseBody(req);
-    if (body?.w === undefined || body?.h === undefined) { err(res, 'w and h are required'); return; }
-    const layouts = readLayouts();
-    if (!layouts.connectorTypeSizes) layouts.connectorTypeSizes = {};
-    layouts.connectorTypeSizes[params.id] = { w: body.w, h: body.h };
-    writeLayouts(layouts);
-    json(res, layouts.connectorTypeSizes[params.id]);
-  });
-  addRoute('DELETE', '/api/layouts/connector-type-sizes/:id', (_req, res, params) => {
-    const layouts = readLayouts();
-    if (!layouts.connectorTypeSizes?.[params.id]) { err(res, `Not found: ${params.id}`, 404); return; }
-    delete layouts.connectorTypeSizes[params.id];
-    writeLayouts(layouts);
-    json(res, { deleted: params.id });
-  });
-
-  // ─── Wiring helpers ──────────────────────────────────────────────────
-
-  addRoute('POST', '/api/wire-by-name', async (req, res, _p, query) => {
-    const body = await parseBody(req);
-    if (!body) { err(res, 'Request body required'); return; }
-    const { from_connector, from_pin, to_connector, to_pin } = body;
-    if (!from_connector || !from_pin || !to_connector || !to_pin) {
-      err(res, 'Required: from_connector, from_pin, to_connector, to_pin (names or pin numbers)');
-      return;
-    }
-    const hn = harnessName(query);
-    const h = readHarness(hn);
-
-    function resolvePin(connectorRef: string, pinRef: string | number): string | null {
-      const conn = h.connectors.find(c => c.name === connectorRef || c.id === connectorRef);
-      if (!conn) return null;
-      const pin = typeof pinRef === 'number'
-        ? conn.pins.find(p => p.pin_number === pinRef)
-        : conn.pins.find(p => p.name === pinRef || p.id === pinRef || p.pin_number === Number(pinRef));
-      return pin?.id ?? null;
-    }
-
-    const fromPinId = resolvePin(from_connector, from_pin);
-    const toPinId = resolvePin(to_connector, to_pin);
-    if (!fromPinId) { err(res, `Could not resolve pin: ${from_connector} / ${from_pin}`, 404); return; }
-    if (!toPinId) { err(res, `Could not resolve pin: ${to_connector} / ${to_pin}`, 404); return; }
-
-    const wire: Wire = {
-      id: body.id ?? genId('wire'),
-      from: fromPinId,
-      to: toPinId,
-      tags: body.tags ?? [],
-      properties: body.properties ?? {},
-    };
-    if (h.wires.some(w => w.id === wire.id)) {
-      err(res, `Wire '${wire.id}' already exists`, 409); return;
-    }
-    h.wires.push(wire);
-    writeHarness(h, hn);
-    json(res, wire, 201);
-  });
-
-  addRoute('POST', '/api/batch/wire-by-name', async (req, res, _p, query) => {
-    const body = await parseBody(req);
-    if (!Array.isArray(body)) { err(res, 'Request body must be an array'); return; }
-    const hn = harnessName(query);
-    const h = readHarness(hn);
-
-    function resolvePin(connectorRef: string, pinRef: string | number): string | null {
-      const conn = h.connectors.find(c => c.name === connectorRef || c.id === connectorRef);
-      if (!conn) return null;
-      const pin = typeof pinRef === 'number'
-        ? conn.pins.find(p => p.pin_number === pinRef)
-        : conn.pins.find(p => p.name === pinRef || p.id === pinRef || p.pin_number === Number(pinRef));
-      return pin?.id ?? null;
-    }
-
-    const created: Wire[] = [];
-    for (const item of body) {
-      const { from_connector, from_pin, to_connector, to_pin } = item;
-      if (!from_connector || !from_pin || !to_connector || !to_pin) {
-        err(res, `Each wire needs from_connector, from_pin, to_connector, to_pin`); return;
-      }
-      const fromPinId = resolvePin(from_connector, from_pin);
-      const toPinId = resolvePin(to_connector, to_pin);
-      if (!fromPinId) { err(res, `Could not resolve: ${from_connector} / ${from_pin}`, 404); return; }
-      if (!toPinId) { err(res, `Could not resolve: ${to_connector} / ${to_pin}`, 404); return; }
-      const wire: Wire = {
-        id: item.id ?? genId('wire'),
-        from: fromPinId,
-        to: toPinId,
-        tags: item.tags ?? [],
-        properties: item.properties ?? {},
-      };
-      if (h.wires.some(w => w.id === wire.id)) {
-        err(res, `Wire '${wire.id}' already exists`, 409); return;
-      }
-      h.wires.push(wire);
-      created.push(wire);
-    }
-    writeHarness(h, hn);
-    json(res, created, 201);
-  });
-
-  addRoute('GET', '/api/unconnected-pins', (_req, res, _p, query) => {
+  addRoute('GET', '/api/connectors/:id/paths', (_req, res, params, query) => {
     try {
-      const h = readHarness(harnessName(query));
-      const connectedPinIds = new Set<string>();
-      for (const w of h.wires) {
-        connectedPinIds.add(w.from);
-        connectedPinIds.add(w.to);
+      const harness = readHarness(harnessName(query));
+      const connector = harness.connectors.find((item) => item.id === params.id);
+      if (!connector) {
+        err(res, `Connector not found: ${params.id}`, 404);
+        return;
       }
-      const unconnected: Array<{ connector_id: string; connector_name: string; pin: Pin }> = [];
-      for (const conn of h.connectors) {
-        for (const pin of conn.pins) {
-          if (!connectedPinIds.has(pin.id)) {
-            unconnected.push({ connector_id: conn.id, connector_name: conn.name, pin });
-          }
-        }
-      }
-      json(res, { count: unconnected.length, pins: unconnected });
-    } catch (e: any) { err(res, e.message, 404); }
+      const paths = harness.paths.filter((pathItem) => pathItem.nodes.some((node) => node.kind === 'connector' && node.connector_id === params.id));
+      json(res, { connector: connector.id, connector_name: connector.name, path_count: paths.length, paths });
+    } catch (error: any) {
+      err(res, error.message, 404);
+    }
   });
 
-  // ─── Relationship queries ──────────────────────────────────────────
-
-  addRoute('GET', '/api/enclosures/:id/children', (_req, res, params, query) => {
+  addRoute('GET', '/api/merge-points/:id/paths', (_req, res, params, query) => {
     try {
-      const h = readHarness(harnessName(query));
-      const enclosure = h.enclosures.find(e => e.id === params.id);
-      if (!enclosure) { err(res, `Enclosure not found: ${params.id}`, 404); return; }
-      const childEnclosures = h.enclosures.filter(e => e.parent === params.id);
-      const childConnectors = h.connectors.filter(c => c.parent === params.id);
-      json(res, {
-        enclosure,
-        children: {
-          enclosures: childEnclosures,
-          connectors: childConnectors,
-        },
-      });
-    } catch (e: any) { err(res, e.message, 404); }
-  });
-
-  addRoute('GET', '/api/connectors/:id/wires', (_req, res, params, query) => {
-    try {
-      const h = readHarness(harnessName(query));
-      const conn = h.connectors.find(c => c.id === params.id);
-      if (!conn) { err(res, `Connector not found: ${params.id}`, 404); return; }
-      const pinIds = new Set(conn.pins.map(p => p.id));
-      const wires = h.wires.filter(w => pinIds.has(w.from) || pinIds.has(w.to));
-      json(res, { connector: conn.id, connector_name: conn.name, wire_count: wires.length, wires });
-    } catch (e: any) { err(res, e.message, 404); }
-  });
-
-  addRoute('GET', '/api/pins/:id/wires', (_req, res, params, query) => {
-    try {
-      const h = readHarness(harnessName(query));
-      const wires = h.wires.filter(w => w.from === params.id || w.to === params.id);
-      let pinInfo: { connector_id: string; connector_name: string; pin: Pin } | undefined;
-      for (const conn of h.connectors) {
-        const pin = conn.pins.find(p => p.id === params.id);
-        if (pin) {
-          pinInfo = { connector_id: conn.id, connector_name: conn.name, pin };
-          break;
-        }
+      const harness = readHarness(harnessName(query));
+      const mergePoint = harness.mergePoints.find((item) => item.id === params.id);
+      if (!mergePoint) {
+        err(res, `Merge point not found: ${params.id}`, 404);
+        return;
       }
-      if (!pinInfo) { err(res, `Pin not found: ${params.id}`, 404); return; }
-      json(res, { ...pinInfo, wires });
-    } catch (e: any) { err(res, e.message, 404); }
+      const paths = harness.paths.filter((pathItem) => pathItem.nodes.some((node) => node.kind === 'merge' && node.merge_point_id === params.id));
+      json(res, { mergePoint: mergePoint.id, merge_point_name: mergePoint.name, path_count: paths.length, paths });
+    } catch (error: any) {
+      err(res, error.message, 404);
+    }
   });
 
   addRoute('GET', '/api/signals/:id/net', (_req, res, params, query) => {
     try {
-      const h = readHarness(harnessName(query));
-      const signal = h.signals.find(s => s.id === params.id);
-      if (!signal) { err(res, `Signal not found: ${params.id}`, 404); return; }
+      const harness = readHarness(harnessName(query));
+      const signal = harness.signals.find((item) => item.id === params.id);
+      if (!signal) {
+        err(res, `Signal not found: ${params.id}`, 404);
+        return;
+      }
       const signalTag = `signal:${signal.name}`;
-      const wires = h.wires.filter(w => w.tags.includes(signalTag));
-      const pinIds = new Set<string>();
-      wires.forEach(w => { pinIds.add(w.from); pinIds.add(w.to); });
-      const pins: Array<{ connector_id: string; connector_name: string; pin: Pin }> = [];
-      for (const conn of h.connectors) {
-        for (const pin of conn.pins) {
-          if (pinIds.has(pin.id) || pin.tags.includes(signalTag)) {
-            pins.push({ connector_id: conn.id, connector_name: conn.name, pin });
-          }
+      const paths = harness.paths.filter((pathItem) => pathItem.tags.includes(signalTag));
+      const connectorIds = new Set<string>();
+      const mergePointIds = new Set<string>();
+      for (const pathItem of paths) {
+        for (const node of pathItem.nodes) {
+          if (node.kind === 'connector') connectorIds.add(node.connector_id);
+          else mergePointIds.add(node.merge_point_id);
         }
       }
-      json(res, { signal, wires, pins });
-    } catch (e: any) { err(res, e.message, 404); }
+      json(res, {
+        signal,
+        paths,
+        connectors: harness.connectors.filter((connector) => connectorIds.has(connector.id)),
+        mergePoints: harness.mergePoints.filter((mergePoint) => mergePointIds.has(mergePoint.id)),
+      });
+    } catch (error: any) {
+      err(res, error.message, 404);
+    }
   });
 
   addRoute('GET', '/api/connectivity/:id', (_req, res, params, query) => {
     try {
-      const h = readHarness(harnessName(query));
-      // Find all pins reachable from the given pin through wires (trace the net)
-      const visited = new Set<string>();
-      const queue = [params.id];
-      const traceWires: Wire[] = [];
-      while (queue.length > 0) {
-        const current = queue.shift()!;
-        if (visited.has(current)) continue;
-        visited.add(current);
-        for (const w of h.wires) {
-          if (w.from === current && !visited.has(w.to)) {
-            queue.push(w.to);
-            traceWires.push(w);
-          } else if (w.to === current && !visited.has(w.from)) {
-            queue.push(w.from);
-            traceWires.push(w);
-          }
-        }
-      }
-      const connectedPins: Array<{ connector_id: string; connector_name: string; pin: Pin }> = [];
-      for (const conn of h.connectors) {
-        for (const pin of conn.pins) {
-          if (visited.has(pin.id)) {
-            connectedPins.push({ connector_id: conn.id, connector_name: conn.name, pin });
-          }
-        }
-      }
-      json(res, { root_pin: params.id, pins: connectedPins, wires: traceWires });
-    } catch (e: any) { err(res, e.message, 404); }
-  });
-
-  // ─── Entity operations (move, duplicate, properties) ────────────────
-
-  addRoute('POST', '/api/move', async (req, res, _p, query) => {
-    const body = await parseBody(req);
-    if (!body?.type || !body?.id || body?.newParent === undefined) {
-      err(res, 'Required: type, id, newParent'); return;
-    }
-    const hn = harnessName(query);
-    const h = readHarness(hn);
-    let target: any;
-    switch (body.type) {
-      case 'enclosure':
-        target = h.enclosures.find(e => e.id === body.id);
-        break;
-      case 'connector':
-        target = h.connectors.find(c => c.id === body.id);
-        break;
-      default:
-        err(res, `Cannot move type: ${body.type}`); return;
-    }
-    if (!target) { err(res, `Not found: ${body.type}/${body.id}`, 404); return; }
-    target.parent = body.newParent;
-    writeHarness(h, hn);
-    json(res, target);
-  });
-
-  addRoute('POST', '/api/duplicate', async (req, res, _p, query) => {
-    const body = await parseBody(req);
-    if (!body?.type || !body?.id) { err(res, 'Required: type, id'); return; }
-    const hn = harnessName(query);
-    const h = readHarness(hn);
-    const newIdSuffix = () => `_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
-
-    switch (body.type) {
-      case 'enclosure': {
-        const src = h.enclosures.find(e => e.id === body.id);
-        if (!src) { err(res, `Not found: ${body.id}`, 404); return; }
-        const dup: Enclosure = {
-          ...JSON.parse(JSON.stringify(src)),
-          id: body.newId ?? `enc${newIdSuffix()}`,
-          name: body.newName ?? `${src.name} (copy)`,
-        };
-        h.enclosures.push(dup);
-        writeHarness(h, hn);
-        json(res, dup, 201);
-        return;
-      }
-      case 'connector': {
-        const src = h.connectors.find(c => c.id === body.id);
-        if (!src) { err(res, `Not found: ${body.id}`, 404); return; }
-        const pinIdMap = new Map<string, string>();
-        const dupPins = src.pins.map(p => {
-          const newPinId = genId('pin');
-          pinIdMap.set(p.id, newPinId);
-          return { ...JSON.parse(JSON.stringify(p)), id: newPinId };
-        });
-        const dup: Connector = {
-          ...JSON.parse(JSON.stringify(src)),
-          id: body.newId ?? `conn${newIdSuffix()}`,
-          name: body.newName ?? `${src.name} (copy)`,
-          pins: dupPins,
-        };
-        h.connectors.push(dup);
-        // Optionally duplicate wires too
-        if (body.duplicateWires) {
-          const srcPinIds = new Set(src.pins.map(p => p.id));
-          const srcWires = h.wires.filter(w => srcPinIds.has(w.from) || srcPinIds.has(w.to));
-          for (const w of srcWires) {
-            const newFrom = pinIdMap.get(w.from) ?? w.from;
-            const newTo = pinIdMap.get(w.to) ?? w.to;
-            h.wires.push({
-              ...JSON.parse(JSON.stringify(w)),
-              id: genId('wire'),
-              from: newFrom,
-              to: newTo,
-            });
-          }
-        }
-        writeHarness(h, hn);
-        json(res, dup, 201);
-        return;
-      }
-      default:
-        err(res, `Cannot duplicate type: ${body.type}`); return;
-    }
-  });
-
-  // Properties CRUD on any entity
-  addRoute('GET', '/api/properties', (_req, res, _p, query) => {
-    const type = query.get('type');
-    const id = query.get('id');
-    if (!type || !id) { err(res, 'Query params type and id are required'); return; }
-    try {
-      const h = readHarness(harnessName(query));
-      const entity = findTaggable(h, type, id);
-      if (!entity) { err(res, `Not found: ${type}/${id}`, 404); return; }
-      json(res, entity.properties);
-    } catch (e: any) { err(res, e.message, 404); }
-  });
-
-  addRoute('PUT', '/api/properties', async (req, res, _p, query) => {
-    const body = await parseBody(req);
-    if (!body?.type || !body?.id || !body?.properties) {
-      err(res, 'Required: type, id, properties'); return;
-    }
-    const hn = harnessName(query);
-    const h = readHarness(hn);
-    const entity = findTaggable(h, body.type, body.id);
-    if (!entity) { err(res, `Not found: ${body.type}/${body.id}`, 404); return; }
-    entity.properties = body.properties;
-    writeHarness(h, hn);
-    json(res, entity);
-  });
-
-  addRoute('PATCH', '/api/properties', async (req, res, _p, query) => {
-    const body = await parseBody(req);
-    if (!body?.type || !body?.id || !body?.properties) {
-      err(res, 'Required: type, id, properties'); return;
-    }
-    const hn = harnessName(query);
-    const h = readHarness(hn);
-    const entity = findTaggable(h, body.type, body.id);
-    if (!entity) { err(res, `Not found: ${body.type}/${body.id}`, 404); return; }
-    Object.assign(entity.properties, body.properties);
-    writeHarness(h, hn);
-    json(res, entity);
-  });
-
-  addRoute('DELETE', '/api/properties', async (req, res, _p, query) => {
-    const body = await parseBody(req);
-    if (!body?.type || !body?.id || !body?.keys || !Array.isArray(body.keys)) {
-      err(res, 'Required: type, id, keys (array of property names)'); return;
-    }
-    const hn = harnessName(query);
-    const h = readHarness(hn);
-    const entity = findTaggable(h, body.type, body.id);
-    if (!entity) { err(res, `Not found: ${body.type}/${body.id}`, 404); return; }
-    for (const key of body.keys) {
-      delete entity.properties[key];
-    }
-    writeHarness(h, hn);
-    json(res, entity);
-  });
-
-  // ─── Validation ──────────────────────────────────────────────────────
-
-  addRoute('GET', '/api/validate', (_req, res, _p, query) => {
-    try {
-      const h = readHarness(harnessName(query));
-      const errors: string[] = [];
-      const warnings: string[] = [];
-
-      // Check for duplicate IDs
-      const allIds = new Map<string, string>();
-      const checkId = (type: string, id: string) => {
-        if (allIds.has(id)) {
-          errors.push(`Duplicate ID '${id}' used by both ${allIds.get(id)} and ${type}`);
-        } else {
-          allIds.set(id, type);
-        }
+      const harness = readHarness(harnessName(query));
+      const rootId = params.id;
+      const adjacency = new Map<string, Set<string>>();
+      const addEdge = (a: string, b: string) => {
+        if (!adjacency.has(a)) adjacency.set(a, new Set());
+        if (!adjacency.has(b)) adjacency.set(b, new Set());
+        adjacency.get(a)?.add(b);
+        adjacency.get(b)?.add(a);
       };
-      h.enclosures.forEach(e => checkId('enclosure', e.id));
-      h.connectors.forEach(c => {
-        checkId('connector', c.id);
-        c.pins.forEach(p => checkId('pin', p.id));
-      });
-      h.wires.forEach(w => checkId('wire', w.id));
-      h.signals.forEach(s => checkId('signal', s.id));
-
-      // Validate parent references for enclosures
-      const encIds = new Set(h.enclosures.map(e => e.id));
-
-      for (const e of h.enclosures) {
-        if (e.parent && !encIds.has(e.parent)) {
-          errors.push(`Enclosure '${e.id}' (${e.name}) references non-existent parent '${e.parent}'`);
-        }
-      }
-      for (const c of h.connectors) {
-        if (c.parent && !encIds.has(c.parent)) {
-          warnings.push(`Connector '${c.id}' (${c.name}) parent '${c.parent}' not found as enclosure`);
-        }
+      for (const segment of derivePathSegments(harness)) {
+        addEdge(getPathNodeRefKey(segment.from), getPathNodeRefKey(segment.to));
       }
 
-      // Validate wire endpoints
-      const allPinIds = new Set<string>();
-      h.connectors.forEach(c => c.pins.forEach(p => allPinIds.add(p.id)));
-      for (const w of h.wires) {
-        if (!allPinIds.has(w.from)) {
-          errors.push(`Wire '${w.id}' 'from' references non-existent pin '${w.from}'`);
-        }
-        if (!allPinIds.has(w.to)) {
-          errors.push(`Wire '${w.id}' 'to' references non-existent pin '${w.to}'`);
-        }
-        if (w.from === w.to) {
-          warnings.push(`Wire '${w.id}' connects a pin to itself ('${w.from}')`);
+      const connectorRoot = harness.connectors.find((connector) => connector.id === rootId);
+      const mergeRoot = harness.mergePoints.find((mergePoint) => mergePoint.id === rootId);
+      const startKeys = connectorRoot
+        ? getConnectorOccupancy(harness, connectorRoot.id).map((entry) => `connector:${connectorRoot.id}:${entry.pinNumber}`)
+        : mergeRoot
+          ? [`merge:${mergeRoot.id}`]
+          : [];
+      if (startKeys.length === 0) {
+        err(res, `Connectivity root not found: ${rootId}`, 404);
+        return;
+      }
+
+      const visited = new Set<string>();
+      const queue = [...startKeys];
+      while (queue.length > 0) {
+        const current = queue.shift();
+        if (!current || visited.has(current)) continue;
+        visited.add(current);
+        for (const next of adjacency.get(current) ?? []) {
+          if (!visited.has(next)) queue.push(next);
         }
       }
 
-      // Find unconnected pins
-      const connectedPinIds = new Set<string>();
-      h.wires.forEach(w => { connectedPinIds.add(w.from); connectedPinIds.add(w.to); });
-      const unconnectedCount = [...allPinIds].filter(id => !connectedPinIds.has(id)).length;
-      if (unconnectedCount > 0) {
-        warnings.push(`${unconnectedCount} pin(s) have no wires connected`);
+      const connectedConnectors = new Set<string>();
+      const connectedMergePoints = new Set<string>();
+      const connectedPaths = new Set<string>();
+      for (const ref of visited) {
+        if (ref.startsWith('connector:')) connectedConnectors.add(ref.split(':')[1]);
+        if (ref.startsWith('merge:')) connectedMergePoints.add(ref.split(':')[1]);
       }
-
-      // Check for duplicate wires (same from/to pair)
-      const wireEndpoints = new Set<string>();
-      for (const w of h.wires) {
-        const key = [w.from, w.to].sort().join('↔');
-        if (wireEndpoints.has(key)) {
-          warnings.push(`Duplicate wire between '${w.from}' and '${w.to}'`);
-        }
-        wireEndpoints.add(key);
-      }
-
-      // Check connectors with no pins
-      for (const c of h.connectors) {
-        if (c.pins.length === 0) {
-          warnings.push(`Connector '${c.id}' (${c.name}) has no pins`);
-        }
-      }
-
-      // Check for orphan enclosures (no children)
-      for (const e of h.enclosures) {
-        const hasChildEnc = h.enclosures.some(c => c.parent === e.id);
-        const hasChildConn = h.connectors.some(c => c.parent === e.id);
-        if (!hasChildEnc && !hasChildConn) {
-          warnings.push(`Enclosure '${e.id}' (${e.name}) has no children`);
-        }
+      for (const pathItem of harness.paths) {
+        if (pathItem.nodes.some((node) => visited.has(getPathNodeRefKey(node)))) connectedPaths.add(pathItem.id);
       }
 
       json(res, {
-        valid: errors.length === 0,
-        error_count: errors.length,
-        warning_count: warnings.length,
-        errors,
-        warnings,
+        root: rootId,
+        connectors: harness.connectors.filter((connector) => connectedConnectors.has(connector.id)),
+        mergePoints: harness.mergePoints.filter((mergePoint) => connectedMergePoints.has(mergePoint.id)),
+        paths: harness.paths.filter((pathItem) => connectedPaths.has(pathItem.id)),
       });
-    } catch (e: any) { err(res, e.message, 404); }
+    } catch (error: any) {
+      err(res, error.message, 404);
+    }
   });
 
-  // ─── Legacy save endpoints (used by the UI's Topbar) ──────────────────
+  addRoute('GET', '/api/unoccupied-pins', (_req, res, _params, query) => {
+    try {
+      const harness = readHarness(harnessName(query));
+      const library = readLibrary();
+      const byType = new Map((library?.connector_types ?? []).map((item) => [item.id, item]));
+      const pins: Array<{ connector_id: string; connector_name: string; pin_number: number }> = [];
+      for (const connector of harness.connectors) {
+        const connectorType = byType.get(connector.connector_type);
+        if (!connectorType || connectorType.pin_count <= 0) continue;
+        const occupied = new Set(getConnectorOccupancy(harness, connector.id).map((entry) => entry.pinNumber));
+        for (let pinNumber = 1; pinNumber <= connectorType.pin_count; pinNumber++) {
+          if (!occupied.has(pinNumber)) {
+            pins.push({ connector_id: connector.id, connector_name: connector.name, pin_number: pinNumber });
+          }
+        }
+      }
+      json(res, { count: pins.length, pins });
+    } catch (error: any) {
+      err(res, error.message, 404);
+    }
+  });
+
+  addRoute('GET', '/api/validate', (_req, res, _params, query) => {
+    try {
+      json(res, validateHarnessData(readHarness(harnessName(query)), readLibrary()));
+    } catch (error: any) {
+      err(res, error.message, 404);
+    }
+  });
+
+  addRoute('GET', '/api/layouts', (_req, res) => {
+    json(res, readLayouts());
+  });
+
+  addRoute('PUT', '/api/layouts', async (req, res) => {
+    const body = await parseBody(req);
+    if (!body) {
+      err(res, 'Request body required');
+      return;
+    }
+    writeLayouts(body);
+    json(res, { ok: true });
+  });
+
+  addRoute('GET', '/api/layouts/merge-points', (_req, res) => {
+    json(res, readLayouts().mergePoints ?? {});
+  });
+
+  addRoute('POST', '/api/path-by-name', async (req, res, _params, query) => {
+    const body = await parseBody(req);
+    if (!body?.from_connector || body?.from_pin === undefined || !body?.to_connector || body?.to_pin === undefined) {
+      err(res, 'Required: from_connector, from_pin, to_connector, to_pin');
+      return;
+    }
+    const harness = readHarness(harnessName(query));
+    const fromNode = resolveConnectorPathNode(harness, body.from_connector, body.from_pin);
+    const toNode = resolveConnectorPathNode(harness, body.to_connector, body.to_pin);
+    if (!fromNode || !toNode) {
+      err(res, 'Could not resolve one or both connector pin references', 404);
+      return;
+    }
+    const pathItem: PathEntity = {
+      id: body.id ?? genId('path'),
+      name: body.name ?? body.id ?? genId('path'),
+      tags: body.tags ?? [],
+      properties: body.properties ?? {},
+      nodes: [fromNode, toNode],
+      measurements: body.measurements ?? [],
+    };
+    harness.paths.push(pathItem);
+    writeHarness(harness, harnessName(query));
+    json(res, pathItem, 201);
+  });
+
+  addRoute('GET', '/api/library', (_req, res) => {
+    json(res, readLibrary() ?? { connector_types: [] });
+  });
 
   addRoute('POST', '/api/save-harness', async (req, res) => {
     const body = await parseBody(req);
-    try {
-      JSON.stringify(body);
-      writeJSON(path.join(projectRoot, 'public/harnesses/fsae-car.json'), body);
-      json(res, { ok: true });
-    } catch (e: any) { err(res, e.message); }
+    writeJSON(harnessFile(), normalizeHarness(body));
+    json(res, { ok: true });
   });
 
   addRoute('POST', '/api/save-layouts', async (req, res) => {
     const body = await parseBody(req);
-    try {
-      writeJSON(layoutsFile(), body);
-      json(res, { ok: true });
-    } catch (e: any) { err(res, e.message); }
+    writeJSON(layoutsFile(), body);
+    json(res, { ok: true });
   });
 
   addRoute('POST', '/api/save-library', async (req, res) => {
     const body = await parseBody(req);
-    try {
-      writeJSON(libraryFile(), body);
-      json(res, { ok: true });
-    } catch (e: any) { err(res, e.message); }
+    writeJSON(libraryFile(), body);
+    json(res, { ok: true });
   });
 
-  // ─── Asset listing (used by ImagePickerPanel) ─────────────────────────
-
   addRoute('GET', '/api/list-assets', (_req, res) => {
-    const dir = path.join(projectRoot, 'img_assets_besides_connectors');
+    const dir = path.join(projectRoot, 'public', 'user-data', 'images');
     try {
-      const files = fs.existsSync(dir)
-        ? fs.readdirSync(dir).filter(f => /\.(png|jpe?g|webp|gif)$/i.test(f))
-        : [];
+      const files = fs.existsSync(dir) ? fs.readdirSync(dir).filter((file) => /\.(png|jpe?g|webp|gif)$/i.test(file)) : [];
       json(res, files);
-    } catch { json(res, []); }
+    } catch {
+      json(res, []);
+    }
   });
 
   addRoute('GET', '/api/list-connector-assets', (_req, res) => {
-    const dir = path.join(projectRoot, 'connector_library');
+    const dir = path.join(projectRoot, 'public', 'user-data', 'connectors');
     try {
-      const files = fs.existsSync(dir)
-        ? fs.readdirSync(dir).filter(f => /\.(png|jpe?g|webp|gif)$/i.test(f))
-        : [];
+      const files = fs.existsSync(dir) ? fs.readdirSync(dir).filter((file) => /\.(png|jpe?g|webp|gif)$/i.test(file)) : [];
       json(res, files);
-    } catch { json(res, []); }
+    } catch {
+      json(res, []);
+    }
   });
 
-  // ═══════════════════════════════════════════════════════════════════════
-  //  Middleware dispatch
-  // ═══════════════════════════════════════════════════════════════════════
-
-  return function apiMiddleware(
-    req: IncomingMessage,
-    res: ServerResponse,
-    next: () => void,
-  ) {
+  return function apiMiddleware(req: IncomingMessage, res: ServerResponse, next: () => void) {
     const parsed = new URL(req.url ?? '/', `http://${req.headers.host ?? 'localhost'}`);
     const pathname = parsed.pathname;
     const method = req.method?.toUpperCase() ?? 'GET';
 
-    // CORS
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
-    if (method === 'OPTIONS') { res.statusCode = 204; res.end(); return; }
-    if (!pathname.startsWith('/api')) { next(); return; }
+    if (method === 'OPTIONS') {
+      res.statusCode = 204;
+      res.end();
+      return;
+    }
+    if (!pathname.startsWith('/api')) {
+      next();
+      return;
+    }
 
-    for (const r of routes) {
-      if (r.method !== method) continue;
-      const match = pathname.match(r.pattern);
+    for (const route of routes) {
+      if (route.method !== method) continue;
+      const match = pathname.match(route.pattern);
       if (!match) continue;
 
       const params: Params = {};
-      r.paramNames.forEach((name, i) => {
-        params[name] = decodeURIComponent(match[i + 1]);
+      route.paramNames.forEach((name, index) => {
+        params[name] = decodeURIComponent(match[index + 1]);
       });
 
       try {
-        const result = r.handler(req, res, params, parsed.searchParams);
+        const result = route.handler(req, res, params, parsed.searchParams);
         if (result instanceof Promise) {
-          result.catch(e => {
-            console.error('API error:', e);
-            if (!res.headersSent) err(res, e.message ?? 'Internal error', 500);
+          result.catch((error) => {
+            console.error('API error:', error);
+            if (!res.headersSent) err(res, error.message ?? 'Internal error', 500);
           });
         }
-      } catch (e: any) {
-        console.error('API error:', e);
-        if (!res.headersSent) err(res, e.message ?? 'Internal error', 500);
+      } catch (error: any) {
+        console.error('API error:', error);
+        if (!res.headersSent) err(res, error.message ?? 'Internal error', 500);
       }
       return;
     }

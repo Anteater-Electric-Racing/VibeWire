@@ -1,6 +1,5 @@
 import { memo } from 'react';
 import { Handle, NodeResizer, Position, type Node, type NodeProps } from '@xyflow/react';
-import type { Pin } from '../../types';
 import { useHarnessStore } from '../../store';
 import {
   getWireBackground,
@@ -12,7 +11,12 @@ type ConnectorNodeData = {
   label: string;
   parentName: string;
   connectorId: string;
-  pins: Pin[];
+  occupiedPins: Array<{
+    pinNumber: number;
+    pathId: string;
+    signalName: string | null;
+  }>;
+  pinCount: number;
   matchesFilter: boolean;
   wireAppearance: WireAppearance | null;
   connectorTypeId?: string;
@@ -41,9 +45,9 @@ export const ConnectorNode = memo(function ConnectorNode({
 
   // Instance image takes priority over connector-type image
   const displayImg = data.instanceImage
-    ? { src: `/img-assets/${data.instanceImage}`, isInstance: true }
+    ? { src: `/user-data/images/${data.instanceImage}`, isInstance: true }
     : typeImg
-    ? { src: `/connector-lib-photos/${typeImg}`, isInstance: false }
+    ? { src: `/user-data/connectors/${typeImg}`, isInstance: false }
     : null;
 
   const borderColor = getWireBorderColor(data.wireAppearance);
@@ -70,8 +74,18 @@ export const ConnectorNode = memo(function ConnectorNode({
         onResizeEnd={(_, params) => updateNodeSize(data.connectorId, params.width, params.height)}
       />
 
-      <Handle type="target" position={Position.Left} className="!w-2 !h-2 !bg-zinc-400 !border-zinc-600" />
-      <Handle type="source" position={Position.Right} className="!w-2 !h-2 !bg-zinc-400 !border-zinc-600" />
+      <Handle
+        type="target"
+        position={Position.Left}
+        className="!w-2 !h-2 !bg-zinc-400 !border-zinc-600"
+        style={{ left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }}
+      />
+      <Handle
+        type="source"
+        position={Position.Right}
+        className="!w-2 !h-2 !bg-zinc-400 !border-zinc-600"
+        style={{ left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }}
+      />
 
       {displayImg ? (
         // ── Image mode ────────────────────────────────────────────────────────
@@ -152,31 +166,32 @@ export const ConnectorNode = memo(function ConnectorNode({
 
       {isExpanded && (
         <div className="border-t border-zinc-700/50 overflow-y-auto" style={{ maxHeight: 'calc(100% - 36px)' }}>
-          {data.pins.map((pin: Pin) => (
-            <div
-              key={pin.id}
-              className="px-2.5 py-0.5 text-[10px] text-zinc-400 hover:bg-zinc-700/40 cursor-pointer flex items-center gap-1.5 border-b border-zinc-800 last:border-b-0"
-              onClick={(e) => {
-                e.stopPropagation();
-                selectItem({ type: 'pin', id: pin.id });
-              }}
-            >
-              <span className="text-zinc-500 font-mono w-3 text-right shrink-0">
-                {pin.pin_number}
-              </span>
-              <span className="text-zinc-300 truncate">{pin.name}</span>
-              {pin.tags
-                .filter((t: string) => t.startsWith('signal:'))
-                .map((t: string) => (
-                  <span
-                    key={t}
-                    className="ml-auto shrink-0 text-[9px] px-1 rounded bg-zinc-700 text-zinc-400"
-                  >
-                    {t.slice(7)}
+          {data.occupiedPins.length > 0 ? (
+            data.occupiedPins.map((pin, index) => (
+              <div
+                key={`${pin.pathId}-${pin.pinNumber}-${index}`}
+                className="px-2.5 py-0.5 text-[10px] text-zinc-400 hover:bg-zinc-700/40 cursor-pointer flex items-center gap-1.5 border-b border-zinc-800 last:border-b-0"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  selectItem({ type: 'path', id: pin.pathId });
+                }}
+              >
+                <span className="text-zinc-500 font-mono w-5 text-right shrink-0">
+                  {pin.pinNumber}
+                </span>
+                <span className="text-zinc-300 truncate">{pin.pathId}</span>
+                {pin.signalName && (
+                  <span className="ml-auto shrink-0 text-[9px] px-1 rounded bg-zinc-700 text-zinc-400">
+                    {pin.signalName}
                   </span>
-                ))}
+                )}
+              </div>
+            ))
+          ) : (
+            <div className="px-2.5 py-1 text-[10px] text-zinc-500">
+              No occupied pins
             </div>
-          ))}
+          )}
         </div>
       )}
     </div>

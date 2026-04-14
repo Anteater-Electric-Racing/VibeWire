@@ -4,10 +4,17 @@ interface Props {
   onPick: (filename: string) => void;
   onClose: () => void;
   listEndpoint?: string; // default '/api/list-assets'
-  baseUrl?: string;      // default '/img-assets/'
+  baseUrl?: string;      // default '/user-data/images/'
+  emptyStatePath?: string;
 }
 
-export function ImagePickerPanel({ onPick, onClose, listEndpoint = '/api/list-assets', baseUrl = '/img-assets/' }: Props) {
+export function ImagePickerPanel({
+  onPick,
+  onClose,
+  listEndpoint = '/api/list-assets',
+  baseUrl = '/user-data/images/',
+  emptyStatePath = 'public/user-data/images/',
+}: Props) {
   const [assets, setAssets] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const ref = useRef<HTMLDivElement>(null);
@@ -50,7 +57,7 @@ export function ImagePickerPanel({ onPick, onClose, listEndpoint = '/api/list-as
       {!loading && assets.length === 0 && (
         <div className="text-[10px] text-zinc-500 italic py-2 text-center">
           No images found in<br />
-          <span className="font-mono">img_assets_besides_connectors/</span>
+          <span className="font-mono">{emptyStatePath}</span>
         </div>
       )}
       {!loading && assets.length > 0 && (

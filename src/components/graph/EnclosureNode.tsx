@@ -11,7 +11,7 @@ type EnclosureNodeData = {
   label: string;
   tags: string[];
   connectorCount: number;
-  wireCount: number;
+  pathCount: number;
   matchesFilter: boolean;
   isContainer: boolean;
   image?: string;
@@ -74,7 +74,7 @@ export const EnclosureNode = memo(function EnclosureNode({
       {data.image && (
         <div className="absolute inset-0 overflow-hidden rounded-lg pointer-events-none">
           <img
-            src={`/img-assets/${data.image}`}
+            src={`/user-data/images/${data.image}`}
             alt=""
             draggable={false}
             className="w-full h-full object-contain select-none"
@@ -105,7 +105,7 @@ export const EnclosureNode = memo(function EnclosureNode({
           {data.connectorCount > 0 && (
             <div>{data.connectorCount} connector{data.connectorCount !== 1 ? 's' : ''}</div>
           )}
-          <div>{data.wireCount} wire{data.wireCount !== 1 ? 's' : ''}</div>
+          <div>{data.pathCount} path{data.pathCount !== 1 ? 's' : ''}</div>
         </div>
         {hovered && data.isContainer && (
           <div className="text-[9px] text-zinc-600 mt-1 italic transition-opacity">

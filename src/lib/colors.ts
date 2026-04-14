@@ -1,12 +1,51 @@
 const SIGNAL_COLORS: Record<string, string> = {
+  // Power rails
+  GND: '#111827',       // Black — all grounds
+  '12V': '#ef4444',     // Red — 12V
+  '24V': '#2563eb',     // Blue — 24V
+  '5V': '#facc15',      // Yellow — 5V
+  HV: '#f97316',        // Orange — High Voltage / Tractive System
+
+  // Safety
+  SDC: '#22c55e',       // Green — Safety Daisy Chain
+
+  // Control / logic (violet)
+  FAULT_RESET: '#8b5cf6',
+  BRAKE_LIGHT: '#8b5cf6',
+  RTDB: '#8b5cf6',      // Ready-to-Drive Button
+  KL15: '#8b5cf6',      // KL15 ignition signal
+
+  // Digital / grey signals
+  FAULT_LED: '#9ca3af',
+  FAULT_SIGNAL: '#9ca3af',
+  SPEAKER: '#9ca3af',
+  RASPI: '#9ca3af',
+  DRIVETRAIN: '#9ca3af',
+
+  // Analog / white signals (primary colour; stripes set via wire_color property)
+  CURRENT_SENSE: '#f8fafc',  // White + Grey stripe
+  WHEEL_SPEED: '#f8fafc',    // White + Brown stripe
+  APPS: '#f8fafc',           // White (shielded pair)
+  BSE: '#f8fafc',            // White (shielded pair — brake sensor)
+  THERMISTOR: '#f8fafc',     // White (shielded pair)
+
+  // Special LED wires (primary colour; stripes set via wire_color property)
+  RTM_LED: '#f97316',        // Black + Orange stripe
+  TSSI_GREEN: '#22c55e',     // Black + Green stripe
+  TSSI_RED: '#ef4444',       // Black + Red stripe
+
+  // CAN (shielded pairs — amber)
+  CAN_ACC_H: '#f59e0b',
+  CAN_ACC_L: '#d97706',
+  CAN1_INV_H: '#f59e0b',
+  CAN1_INV_L: '#d97706',
+
+  // Legacy / kept for backwards compat
   CAN_H: '#f59e0b',
   CAN_L: '#d97706',
   '12V_MAIN': '#ef4444',
-  GND: '#6b7280',
   SDC_IN: '#3b82f6',
   SDC_OUT: '#60a5fa',
-  APPS_1: '#22c55e',
-  APPS_2: '#16a34a',
 };
 
 const FALLBACK_PALETTE = [

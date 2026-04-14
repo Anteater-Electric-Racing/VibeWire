@@ -29,10 +29,10 @@ export function SettingsModal() {
           </div>
           <div>
             <label className="block text-xs text-zinc-400 mb-1">
-              Data File
+              User Data Folder
             </label>
             <p className="text-sm text-zinc-300 font-mono">
-              harnesses/fsae-car.json
+              public/user-data/
             </p>
           </div>
           <div>
