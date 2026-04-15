@@ -15,6 +15,7 @@ import type {
   NodeLayout,
   Path,
   PortLayouts,
+  RotationLayouts,
   SelectedItem,
   Signal,
   SizeLayouts,
@@ -39,6 +40,7 @@ interface LayoutSnapshot {
   waypointLayouts: WaypointLayouts;
   junctionLayouts: JunctionLayouts;
   mergePointLayouts: MergePointLayouts;
+  rotationLayouts: RotationLayouts;
 }
 
 const MAX_HISTORY = 60;
@@ -64,6 +66,7 @@ interface HarnessStore {
   waypointLayouts: WaypointLayouts;
   junctionLayouts: JunctionLayouts;
   mergePointLayouts: MergePointLayouts;
+  rotationLayouts: RotationLayouts;
 
   loadHarness: (data: HarnessData) => void;
   loadConnectorLibrary: (data: ConnectorLibrary) => void;
@@ -76,6 +79,8 @@ interface HarnessStore {
   loadWaypointLayouts: (wps: WaypointLayouts) => void;
   loadJunctionLayouts: (junctions: JunctionLayouts) => void;
   loadMergePointLayouts: (layouts: MergePointLayouts) => void;
+  loadRotationLayouts: (rotations: RotationLayouts) => void;
+  rotateConnector: (connectorId: string) => void;
 
   updateBackground: (contextKey: string, patch: Partial<BackgroundLayout>) => void;
   removeBackground: (contextKey: string) => void;
@@ -236,6 +241,7 @@ function makeSnapshot(state: HarnessStore): LayoutSnapshot {
     waypointLayouts: state.waypointLayouts,
     junctionLayouts: state.junctionLayouts,
     mergePointLayouts: state.mergePointLayouts,
+    rotationLayouts: state.rotationLayouts,
   };
 }
 
@@ -260,6 +266,7 @@ export const useHarnessStore = create<HarnessStore>((set, get) => ({
   waypointLayouts: {},
   junctionLayouts: {},
   mergePointLayouts: {},
+  rotationLayouts: {},
   draggingEdgeInfo: null,
   undoStack: [],
   redoStack: [],
@@ -289,6 +296,13 @@ export const useHarnessStore = create<HarnessStore>((set, get) => ({
   loadWaypointLayouts: (wps) => set({ waypointLayouts: wps }),
   loadJunctionLayouts: (junctions) => set({ junctionLayouts: junctions }),
   loadMergePointLayouts: (layouts) => set({ mergePointLayouts: layouts }),
+  loadRotationLayouts: (rotations) => set({ rotationLayouts: rotations }),
+  rotateConnector: (connectorId) =>
+    set((state) => {
+      const current = state.rotationLayouts[connectorId] ?? 0;
+      const next = (current + 90) % 360;
+      return { rotationLayouts: { ...state.rotationLayouts, [connectorId]: next }, isDirty: true };
+    }),
 
   updateBackground: (contextKey, patch) =>
     set((state) => {
@@ -693,6 +707,7 @@ async function performAutoSave(what: Set<'harness' | 'layouts' | 'library'>) {
           waypoints: state.waypointLayouts,
           junctions: state.junctionLayouts,
           mergePoints: state.mergePointLayouts,
+          rotations: state.rotationLayouts,
         }, null, 2),
       }));
     }
@@ -727,7 +742,8 @@ export function initAutoSave() {
       state.textBoxLayouts !== prev.textBoxLayouts ||
       state.waypointLayouts !== prev.waypointLayouts ||
       state.junctionLayouts !== prev.junctionLayouts ||
-      state.mergePointLayouts !== prev.mergePointLayouts;
+      state.mergePointLayouts !== prev.mergePointLayouts ||
+      state.rotationLayouts !== prev.rotationLayouts;
     const harnessChanged = state.harness !== prev.harness;
     const libraryChanged = state.connectorLibrary !== prev.connectorLibrary;
 

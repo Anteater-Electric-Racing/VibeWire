@@ -48,7 +48,8 @@
         "system:safety"
       ],
       "properties": {
-        "description": "Safety Board PCB inside FOC"
+        "description": "Safety Board PCB inside FOC",
+        "image": "SCR-20260409-ufwb.png"
       }
     },
     {
@@ -58,7 +59,8 @@
       "container": false,
       "tags": [],
       "properties": {
-        "description": "Central Compute Module PCB inside FOC"
+        "description": "Central Compute Module PCB inside FOC",
+        "image": "SCR-20260410-bfpr.png"
       }
     },
     {
@@ -324,14 +326,14 @@
     {
       "id": "enc_030",
       "name": "RTD",
-      "parent": null,
+      "parent": "enc_001",
       "container": false,
       "tags": [
         "system:safety",
         "system:sdc"
       ],
       "properties": {
-        "description": "Ready to Drive device in SDC chain"
+        "description": "Ready to Drive device in SDC chain (inside FOC)"
       }
     },
     {
@@ -359,7 +361,7 @@
     {
       "id": "enc_033",
       "name": "Estop Cockpit",
-      "parent": null,
+      "parent": "enc_001",
       "container": false,
       "tags": [
         "system:safety",
@@ -724,6 +726,19 @@
       "tags": [],
       "properties": {
         "description": "Pin 1 = LED GND, Pin 2 = BSPD LED+, Pin 3 = BMS LED+, Pin 4 = IMD LED+"
+      }
+    },
+    {
+      "id": "con_094",
+      "name": "RTD SDC",
+      "parent": "enc_004",
+      "connector_type": "molex_minifit_jr_2p",
+      "tags": [
+        "system:safety",
+        "system:sdc"
+      ],
+      "properties": {
+        "description": "Safety Board RTD SDC header (inside FOC). Pin 1 = RTD In, Pin 2 = RTD Out"
       }
     },
     {
@@ -1225,9 +1240,7 @@
       "name": "RTD-C1",
       "parent": "enc_030",
       "connector_type": "deutsch_dt_2p_female",
-      "tags": [
-        "system:sdc"
-      ],
+      "tags": [],
       "properties": {
         "description": "Ready to Drive SDC connector. Pin 1 = RTD in (BOTS out), Pin 2 = RTD out (to ES-CKP)"
       }
@@ -1353,53 +1366,28 @@
       }
     },
     {
-      "id": "con_084",
-      "name": "THRS1-FEM",
+      "id": "con_092",
+      "name": "APPS-FEM",
       "parent": "enc_001",
-      "connector_type": "deutsch_dt_3p_female",
+      "connector_type": "deutsch_dt_6p_female",
       "tags": [
         "zone:bulkhead",
         "system:sensors"
       ],
       "properties": {
-        "description": "APPS throttle sensor 1 footwell connector female side"
+        "description": "APPS throttle sensors 1+2 footwell connector female side (6-pin). Pins 1-3 = THRS1 (3V3, GND, OUT), Pins 4-6 = THRS2 (3V3, GND, OUT)"
       }
     },
     {
-      "id": "con_085",
-      "name": "THRS1-MALE",
+      "id": "con_093",
+      "name": "APPS-MALE",
       "parent": "enc_036",
-      "connector_type": "deutsch_dt_3p_male",
+      "connector_type": "deutsch_dt_6p_male",
       "tags": [
         "system:sensors"
       ],
       "properties": {
-        "description": "APPS throttle sensor 1 mating connector"
-      }
-    },
-    {
-      "id": "con_086",
-      "name": "THRS2-FEM",
-      "parent": "enc_001",
-      "connector_type": "deutsch_dt_3p_female",
-      "tags": [
-        "zone:bulkhead",
-        "system:sensors"
-      ],
-      "properties": {
-        "description": "APPS throttle sensor 2 footwell connector female side"
-      }
-    },
-    {
-      "id": "con_087",
-      "name": "THRS2-MALE",
-      "parent": "enc_036",
-      "connector_type": "deutsch_dt_3p_male",
-      "tags": [
-        "system:sensors"
-      ],
-      "properties": {
-        "description": "APPS throttle sensor 2 mating connector"
+        "description": "APPS throttle sensors 1+2 mating connector (6-pin). Pins 1-3 = THRS1 (3V3, GND, OUT), Pins 4-6 = THRS2 (3V3, GND, OUT)"
       }
     },
     {
@@ -1484,217 +1472,11 @@
   ],
   "paths": [
     {
-      "id": "path_001",
-      "name": "12V ROC to FOC",
-      "tags": [
-        "signal:12V",
-        "system:power"
-      ],
-      "properties": {
-        "source_file": "EXT_ROC_H1"
-      },
-      "nodes": [
-        {
-          "kind": "connector",
-          "connector_id": "con_009",
-          "pin_number": 1
-        },
-        {
-          "kind": "connector",
-          "connector_id": "con_001",
-          "pin_number": 1
-        }
-      ],
-      "measurements": []
-    },
-    {
-      "id": "path_002",
-      "name": "GND GLVMP ROC to FOC",
-      "tags": [
-        "system:power"
-      ],
-      "properties": {
-        "source_file": "EXT_ROC_H1"
-      },
-      "nodes": [
-        {
-          "kind": "connector",
-          "connector_id": "con_009",
-          "pin_number": 2
-        },
-        {
-          "kind": "connector",
-          "connector_id": "con_001",
-          "pin_number": 2
-        }
-      ],
-      "measurements": []
-    },
-    {
-      "id": "path_003",
-      "name": "BMS Reset-",
-      "tags": [
-        "system:safety"
-      ],
-      "properties": {
-        "source_file": "EXT_ROC_H1"
-      },
-      "nodes": [
-        {
-          "kind": "connector",
-          "connector_id": "con_009",
-          "pin_number": 3
-        },
-        {
-          "kind": "connector",
-          "connector_id": "con_001",
-          "pin_number": 3
-        }
-      ],
-      "measurements": []
-    },
-    {
-      "id": "path_004",
-      "name": "BMS LED+",
-      "tags": [
-        "system:safety"
-      ],
-      "properties": {
-        "source_file": "EXT_ROC_H1"
-      },
-      "nodes": [
-        {
-          "kind": "connector",
-          "connector_id": "con_009",
-          "pin_number": 4
-        },
-        {
-          "kind": "connector",
-          "connector_id": "con_001",
-          "pin_number": 4
-        }
-      ],
-      "measurements": []
-    },
-    {
-      "id": "path_005",
-      "name": "BSPD Reset-",
-      "tags": [
-        "system:safety"
-      ],
-      "properties": {
-        "source_file": "EXT_ROC_H1"
-      },
-      "nodes": [
-        {
-          "kind": "connector",
-          "connector_id": "con_009",
-          "pin_number": 5
-        },
-        {
-          "kind": "connector",
-          "connector_id": "con_001",
-          "pin_number": 5
-        }
-      ],
-      "measurements": []
-    },
-    {
-      "id": "path_006",
-      "name": "BSPD LED+",
-      "tags": [
-        "system:safety"
-      ],
-      "properties": {
-        "source_file": "EXT_ROC_H1"
-      },
-      "nodes": [
-        {
-          "kind": "connector",
-          "connector_id": "con_009",
-          "pin_number": 6
-        },
-        {
-          "kind": "connector",
-          "connector_id": "con_001",
-          "pin_number": 6
-        }
-      ],
-      "measurements": []
-    },
-    {
-      "id": "path_007",
-      "name": "IMD Reset+",
-      "tags": [
-        "system:safety"
-      ],
-      "properties": {
-        "source_file": "EXT_ROC_H1"
-      },
-      "nodes": [
-        {
-          "kind": "connector",
-          "connector_id": "con_009",
-          "pin_number": 7
-        },
-        {
-          "kind": "connector",
-          "connector_id": "con_001",
-          "pin_number": 7
-        }
-      ],
-      "measurements": []
-    },
-    {
-      "id": "path_008",
-      "name": "IMD Reset-",
-      "tags": [
-        "system:safety"
-      ],
-      "properties": {
-        "source_file": "EXT_ROC_H1"
-      },
-      "nodes": [
-        {
-          "kind": "connector",
-          "connector_id": "con_009",
-          "pin_number": 8
-        },
-        {
-          "kind": "connector",
-          "connector_id": "con_001",
-          "pin_number": 8
-        }
-      ],
-      "measurements": []
-    },
-    {
-      "id": "path_009",
-      "name": "IMD LED+",
-      "tags": [
-        "system:safety"
-      ],
-      "properties": {
-        "source_file": "EXT_ROC_H1"
-      },
-      "nodes": [
-        {
-          "kind": "connector",
-          "connector_id": "con_009",
-          "pin_number": 9
-        },
-        {
-          "kind": "connector",
-          "connector_id": "con_001",
-          "pin_number": 9
-        }
-      ],
-      "measurements": []
-    },
-    {
       "id": "path_010",
       "name": "LV MS-",
-      "tags": [],
+      "tags": [
+        "signal:GND"
+      ],
       "properties": {
         "source_file": "EXT_ROC_H1"
       },
@@ -1715,7 +1497,9 @@
     {
       "id": "path_011",
       "name": "Speaker+",
-      "tags": [],
+      "tags": [
+        "signal:SPEAKER"
+      ],
       "properties": {
         "source_file": "EXT_ROC_H1"
       },
@@ -1736,7 +1520,9 @@
     {
       "id": "path_012",
       "name": "Speaker-",
-      "tags": [],
+      "tags": [
+        "signal:SPEAKER"
+      ],
       "properties": {
         "source_file": "EXT_ROC_H1"
       },
@@ -1782,7 +1568,8 @@
       "id": "path_014",
       "name": "IMD Reset+ — Latch to FOC-C1",
       "tags": [
-        "system:safety"
+        "system:safety",
+        "signal:FAULT_RESET"
       ],
       "properties": {
         "source_file": "FOC_H8"
@@ -1805,7 +1592,8 @@
       "id": "path_015",
       "name": "GND GLVMP — Latch to FOC-C1",
       "tags": [
-        "system:power"
+        "system:power",
+        "signal:GND"
       ],
       "properties": {
         "source_file": "FOC_H8"
@@ -1828,7 +1616,8 @@
       "id": "path_016",
       "name": "BSPD Reset- — Latch to FOC-C1",
       "tags": [
-        "system:safety"
+        "system:safety",
+        "signal:FAULT_RESET"
       ],
       "properties": {
         "source_file": "FOC_H8"
@@ -1851,7 +1640,8 @@
       "id": "path_017",
       "name": "IMD Reset- — Latch to FOC-C1",
       "tags": [
-        "system:safety"
+        "system:safety",
+        "signal:FAULT_RESET"
       ],
       "properties": {
         "source_file": "FOC_H8"
@@ -1874,7 +1664,8 @@
       "id": "path_018",
       "name": "BMS Reset- — Latch to FOC-C1",
       "tags": [
-        "system:safety"
+        "system:safety",
+        "signal:FAULT_RESET"
       ],
       "properties": {
         "source_file": "FOC_H8"
@@ -1897,7 +1688,8 @@
       "id": "path_019",
       "name": "BMS LED+ — Latch to FOC-C1",
       "tags": [
-        "system:safety"
+        "system:safety",
+        "signal:FAULT_LED"
       ],
       "properties": {
         "source_file": "FOC_H8"
@@ -1920,7 +1712,8 @@
       "id": "path_020",
       "name": "IMD LED+ — Latch to FOC-C1",
       "tags": [
-        "system:safety"
+        "system:safety",
+        "signal:FAULT_LED"
       ],
       "properties": {
         "source_file": "FOC_H8"
@@ -1943,7 +1736,8 @@
       "id": "path_021",
       "name": "BSPD LED+ — Latch to FOC-C1",
       "tags": [
-        "system:safety"
+        "system:safety",
+        "signal:FAULT_LED"
       ],
       "properties": {
         "source_file": "FOC_H8"
@@ -1965,7 +1759,9 @@
     {
       "id": "path_022",
       "name": "Speaker+ — CCM to FOC-C1",
-      "tags": [],
+      "tags": [
+        "signal:SPEAKER"
+      ],
       "properties": {
         "source_file": "FOC_H8"
       },
@@ -1986,7 +1782,9 @@
     {
       "id": "path_023",
       "name": "Speaker- — CCM to FOC-C1",
-      "tags": [],
+      "tags": [
+        "signal:SPEAKER"
+      ],
       "properties": {
         "source_file": "FOC_H8"
       },
@@ -2007,7 +1805,9 @@
     {
       "id": "path_024",
       "name": "LV MS- — FOC-C1 to PDB",
-      "tags": [],
+      "tags": [
+        "signal:GND"
+      ],
       "properties": {
         "source_file": "FOC_H8"
       },
@@ -2027,7 +1827,7 @@
     },
     {
       "id": "path_025",
-      "name": "12V ROC link — ROC-C1 to HI Board ROC 6p",
+      "name": "12V ROC link",
       "tags": [
         "signal:12V",
         "system:power"
@@ -2045,15 +1845,21 @@
           "kind": "connector",
           "connector_id": "con_009",
           "pin_number": 1
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_001",
+          "pin_number": 1
         }
       ],
       "measurements": []
     },
     {
       "id": "path_026",
-      "name": "GND GLVMP — HI ROC to ROC-C1",
+      "name": "GND GLVMP",
       "tags": [
-        "system:power"
+        "system:power",
+        "signal:GND"
       ],
       "properties": {
         "source_file": "Inside_ROC"
@@ -2068,15 +1874,21 @@
           "kind": "connector",
           "connector_id": "con_009",
           "pin_number": 2
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_001",
+          "pin_number": 2
         }
       ],
       "measurements": []
     },
     {
       "id": "path_027",
-      "name": "BMS Reset- — HI ROC 4p to ROC-C1",
+      "name": "BMS Reset-",
       "tags": [
-        "system:safety"
+        "system:safety",
+        "signal:FAULT_RESET"
       ],
       "properties": {
         "source_file": "Inside_ROC"
@@ -2091,15 +1903,21 @@
           "kind": "connector",
           "connector_id": "con_009",
           "pin_number": 3
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_001",
+          "pin_number": 3
         }
       ],
       "measurements": []
     },
     {
       "id": "path_028",
-      "name": "BMS LED+ — HI ROC 6p to ROC-C1",
+      "name": "BMS LED+",
       "tags": [
-        "system:safety"
+        "system:safety",
+        "signal:FAULT_LED"
       ],
       "properties": {
         "source_file": "Inside_ROC"
@@ -2114,15 +1932,21 @@
           "kind": "connector",
           "connector_id": "con_009",
           "pin_number": 4
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_001",
+          "pin_number": 4
         }
       ],
       "measurements": []
     },
     {
       "id": "path_029",
-      "name": "BSPD Reset- — HI ROC 4p to ROC-C1",
+      "name": "BSPD Reset-",
       "tags": [
-        "system:safety"
+        "system:safety",
+        "signal:FAULT_RESET"
       ],
       "properties": {
         "source_file": "Inside_ROC"
@@ -2137,15 +1961,21 @@
           "kind": "connector",
           "connector_id": "con_009",
           "pin_number": 5
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_001",
+          "pin_number": 5
         }
       ],
       "measurements": []
     },
     {
       "id": "path_030",
-      "name": "BSPD LED+ — HI ROC 6p to ROC-C1",
+      "name": "BSPD LED+",
       "tags": [
-        "system:safety"
+        "system:safety",
+        "signal:FAULT_LED"
       ],
       "properties": {
         "source_file": "Inside_ROC"
@@ -2160,15 +1990,21 @@
           "kind": "connector",
           "connector_id": "con_009",
           "pin_number": 6
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_001",
+          "pin_number": 6
         }
       ],
       "measurements": []
     },
     {
       "id": "path_031",
-      "name": "IMD Reset+ — HI ROC 4p to ROC-C1",
+      "name": "IMD Reset+",
       "tags": [
-        "system:safety"
+        "system:safety",
+        "signal:FAULT_RESET"
       ],
       "properties": {
         "source_file": "Inside_ROC"
@@ -2183,15 +2019,21 @@
           "kind": "connector",
           "connector_id": "con_009",
           "pin_number": 7
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_001",
+          "pin_number": 7
         }
       ],
       "measurements": []
     },
     {
       "id": "path_032",
-      "name": "IMD Reset- — HI ROC 4p to ROC-C1",
+      "name": "IMD Reset-",
       "tags": [
-        "system:safety"
+        "system:safety",
+        "signal:FAULT_RESET"
       ],
       "properties": {
         "source_file": "Inside_ROC"
@@ -2206,15 +2048,21 @@
           "kind": "connector",
           "connector_id": "con_009",
           "pin_number": 8
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_001",
+          "pin_number": 8
         }
       ],
       "measurements": []
     },
     {
       "id": "path_033",
-      "name": "IMD LED+ — HI ROC 6p to ROC-C1",
+      "name": "IMD LED+",
       "tags": [
-        "system:safety"
+        "system:safety",
+        "signal:FAULT_LED"
       ],
       "properties": {
         "source_file": "Inside_ROC"
@@ -2229,6 +2077,11 @@
           "kind": "connector",
           "connector_id": "con_009",
           "pin_number": 9
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_001",
+          "pin_number": 9
         }
       ],
       "measurements": []
@@ -2236,7 +2089,9 @@
     {
       "id": "path_034",
       "name": "LV MS post — ROC-C1 to LV MS",
-      "tags": [],
+      "tags": [
+        "signal:GND"
+      ],
       "properties": {
         "source_file": "Inside_ROC"
       },
@@ -2257,7 +2112,9 @@
     {
       "id": "path_035",
       "name": "Speaker+ — ROC-C1 to Speaker",
-      "tags": [],
+      "tags": [
+        "signal:SPEAKER"
+      ],
       "properties": {
         "source_file": "Inside_ROC"
       },
@@ -2278,7 +2135,9 @@
     {
       "id": "path_036",
       "name": "Speaker- — ROC-C1 to Speaker",
-      "tags": [],
+      "tags": [
+        "signal:SPEAKER"
+      ],
       "properties": {
         "source_file": "Inside_ROC"
       },
@@ -2300,7 +2159,8 @@
       "id": "path_037",
       "name": "HV MS+ — ROC-C2 to HV MS",
       "tags": [
-        "system:hv"
+        "system:hv",
+        "signal:HV"
       ],
       "properties": {
         "source_file": "Inside_ROC"
@@ -2323,7 +2183,8 @@
       "id": "path_038",
       "name": "HV MS- — ROC-C2 to HV MS",
       "tags": [
-        "system:hv"
+        "system:hv",
+        "signal:HV"
       ],
       "properties": {
         "source_file": "Inside_ROC"
@@ -2345,7 +2206,9 @@
     {
       "id": "path_039",
       "name": "LV MS pre — ROC-C2 to LV MS",
-      "tags": [],
+      "tags": [
+        "signal:GND"
+      ],
       "properties": {
         "source_file": "Inside_ROC"
       },
@@ -2367,7 +2230,8 @@
       "id": "path_040",
       "name": "LV Battery GND — ROC-C2 to HI ROC",
       "tags": [
-        "system:power"
+        "system:power",
+        "signal:GND"
       ],
       "properties": {
         "source_file": "Inside_ROC"
@@ -2391,7 +2255,8 @@
       "name": "HV MS+ — ROC-C2 to ES-RT",
       "tags": [
         "system:hv",
-        "system:sdc"
+        "system:sdc",
+        "signal:HV"
       ],
       "properties": {
         "source_file": "EXT_ROC_H2"
@@ -2414,7 +2279,8 @@
       "id": "path_042",
       "name": "HV MS- — ROC-C2 to HVB-C1",
       "tags": [
-        "system:hv"
+        "system:hv",
+        "signal:HV"
       ],
       "properties": {
         "source_file": "EXT_ROC_H2"
@@ -2435,8 +2301,12 @@
     },
     {
       "id": "path_043",
-      "name": "LV MS pre — ROC-C2 to LV Batt C1",
-      "tags": [],
+      "name": "LV MS pre",
+      "tags": [
+        "system:lv",
+        "system:power",
+        "signal:GND"
+      ],
       "properties": {
         "source_file": "EXT_ROC_H2"
       },
@@ -2446,49 +2316,6 @@
           "connector_id": "con_010",
           "pin_number": 3
         },
-        {
-          "kind": "connector",
-          "connector_id": "con_011",
-          "pin_number": 1
-        }
-      ],
-      "measurements": []
-    },
-    {
-      "id": "path_044",
-      "name": "LV Batt GND — ROC-C2 to LV Batt C1",
-      "tags": [
-        "system:lv",
-        "system:power"
-      ],
-      "properties": {
-        "source_file": "EXT_ROC_H2"
-      },
-      "nodes": [
-        {
-          "kind": "connector",
-          "connector_id": "con_010",
-          "pin_number": 4
-        },
-        {
-          "kind": "connector",
-          "connector_id": "con_011",
-          "pin_number": 2
-        }
-      ],
-      "measurements": []
-    },
-    {
-      "id": "path_045",
-      "name": "LV Batt+ — LV Batt C1 to LV Battery",
-      "tags": [
-        "system:lv",
-        "system:power"
-      ],
-      "properties": {
-        "source_file": "EXT_H8"
-      },
-      "nodes": [
         {
           "kind": "connector",
           "connector_id": "con_011",
@@ -2503,16 +2330,22 @@
       "measurements": []
     },
     {
-      "id": "path_046",
-      "name": "LV Batt- — LV Batt C1 to LV Battery",
+      "id": "path_044",
+      "name": "LV Batt GND",
       "tags": [
         "system:lv",
-        "system:power"
+        "system:power",
+        "signal:GND"
       ],
       "properties": {
-        "source_file": "EXT_H8"
+        "source_file": "EXT_ROC_H2"
       },
       "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_010",
+          "pin_number": 4
+        },
         {
           "kind": "connector",
           "connector_id": "con_011",
@@ -2530,7 +2363,8 @@
       "id": "path_047",
       "name": "BMS Fault — FOC-C69 to HVB J4",
       "tags": [
-        "system:safety"
+        "system:safety",
+        "signal:FAULT_SIGNAL"
       ],
       "properties": {
         "source_file": "FOC_H1"
@@ -2553,7 +2387,8 @@
       "id": "path_048",
       "name": "IMD Fault — FOC-C69 to HVB J4",
       "tags": [
-        "system:safety"
+        "system:safety",
+        "signal:FAULT_SIGNAL"
       ],
       "properties": {
         "source_file": "FOC_H1"
@@ -2600,7 +2435,8 @@
       "id": "path_050",
       "name": "HVB GND — FOC-C69 to HVB J4",
       "tags": [
-        "system:power"
+        "system:power",
+        "signal:GND"
       ],
       "properties": {
         "source_file": "FOC_H1"
@@ -2621,12 +2457,14 @@
     },
     {
       "id": "path_051",
-      "name": "Current Sensor 5V — Safety Board J9 to FOC-C7",
+      "name": "Current Sensor 5V",
       "tags": [
-        "system:sensors"
+        "system:sensors",
+        "signal:5V"
       ],
       "properties": {
-        "source_file": "FOC_H7"
+        "source_file": "FOC_H7",
+        "notes": "PLACEHOLDER — current sensor device inside HVB"
       },
       "nodes": [
         {
@@ -2637,6 +2475,16 @@
         {
           "kind": "connector",
           "connector_id": "con_005",
+          "pin_number": 1
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_013",
+          "pin_number": 1
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_090",
           "pin_number": 1
         }
       ],
@@ -2644,12 +2492,14 @@
     },
     {
       "id": "path_052",
-      "name": "Current Sense Signal — Safety Board J9 to FOC-C7",
+      "name": "Current Sense Signal",
       "tags": [
-        "system:sensors"
+        "system:sensors",
+        "signal:CURRENT_SENSE"
       ],
       "properties": {
-        "source_file": "FOC_H7"
+        "source_file": "FOC_H7",
+        "wire_color": "white/grey"
       },
       "nodes": [
         {
@@ -2661,15 +2511,26 @@
           "kind": "connector",
           "connector_id": "con_005",
           "pin_number": 2
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_013",
+          "pin_number": 2
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_090",
+          "pin_number": 2
         }
       ],
       "measurements": []
     },
     {
       "id": "path_053",
-      "name": "Current Sense GND — Safety Board J9 to FOC-C7",
+      "name": "Current Sense GND",
       "tags": [
-        "system:sensors"
+        "system:sensors",
+        "signal:GND"
       ],
       "properties": {
         "source_file": "FOC_H7"
@@ -2684,136 +2545,7 @@
           "kind": "connector",
           "connector_id": "con_005",
           "pin_number": 3
-        }
-      ],
-      "measurements": []
-    },
-    {
-      "id": "path_054",
-      "name": "Current Sensor 5V — FOC-C7 to HVB-C2",
-      "tags": [
-        "system:sensors"
-      ],
-      "properties": {
-        "source_file": "EXT_H7"
-      },
-      "nodes": [
-        {
-          "kind": "connector",
-          "connector_id": "con_005",
-          "pin_number": 1
         },
-        {
-          "kind": "connector",
-          "connector_id": "con_013",
-          "pin_number": 1
-        }
-      ],
-      "measurements": []
-    },
-    {
-      "id": "path_055",
-      "name": "Current Sense Signal — FOC-C7 to HVB-C2",
-      "tags": [
-        "system:sensors"
-      ],
-      "properties": {
-        "source_file": "EXT_H7"
-      },
-      "nodes": [
-        {
-          "kind": "connector",
-          "connector_id": "con_005",
-          "pin_number": 2
-        },
-        {
-          "kind": "connector",
-          "connector_id": "con_013",
-          "pin_number": 2
-        }
-      ],
-      "measurements": []
-    },
-    {
-      "id": "path_056",
-      "name": "Current Sense GND — FOC-C7 to HVB-C2",
-      "tags": [
-        "system:sensors"
-      ],
-      "properties": {
-        "source_file": "EXT_H7"
-      },
-      "nodes": [
-        {
-          "kind": "connector",
-          "connector_id": "con_005",
-          "pin_number": 3
-        },
-        {
-          "kind": "connector",
-          "connector_id": "con_013",
-          "pin_number": 3
-        }
-      ],
-      "measurements": []
-    },
-    {
-      "id": "path_057",
-      "name": "Current Sensor 5V — HVB-C2 to CURR-SENS",
-      "tags": [
-        "system:sensors"
-      ],
-      "properties": {
-        "source_file": "EXT_H7",
-        "notes": "PLACEHOLDER — current sensor device inside HVB"
-      },
-      "nodes": [
-        {
-          "kind": "connector",
-          "connector_id": "con_013",
-          "pin_number": 1
-        },
-        {
-          "kind": "connector",
-          "connector_id": "con_090",
-          "pin_number": 1
-        }
-      ],
-      "measurements": []
-    },
-    {
-      "id": "path_058",
-      "name": "Current Sense Signal — HVB-C2 to CURR-SENS",
-      "tags": [
-        "system:sensors"
-      ],
-      "properties": {
-        "source_file": "EXT_H7"
-      },
-      "nodes": [
-        {
-          "kind": "connector",
-          "connector_id": "con_013",
-          "pin_number": 2
-        },
-        {
-          "kind": "connector",
-          "connector_id": "con_090",
-          "pin_number": 2
-        }
-      ],
-      "measurements": []
-    },
-    {
-      "id": "path_059",
-      "name": "Current Sense GND — HVB-C2 to CURR-SENS",
-      "tags": [
-        "system:sensors"
-      ],
-      "properties": {
-        "source_file": "EXT_H7"
-      },
-      "nodes": [
         {
           "kind": "connector",
           "connector_id": "con_013",
@@ -2829,7 +2561,7 @@
     },
     {
       "id": "path_060",
-      "name": "TSSI 12V — Safety Board to FOC-C3",
+      "name": "TSSI 12V",
       "tags": [
         "signal:12V"
       ],
@@ -2842,110 +2574,6 @@
           "connector_id": "con_020",
           "pin_number": 1
         },
-        {
-          "kind": "connector",
-          "connector_id": "con_003",
-          "pin_number": 1
-        }
-      ],
-      "measurements": []
-    },
-    {
-      "id": "path_061",
-      "name": "TSSI Green — Safety Board to FOC-C3",
-      "tags": [],
-      "properties": {
-        "source_file": "FOC_H3"
-      },
-      "nodes": [
-        {
-          "kind": "connector",
-          "connector_id": "con_020",
-          "pin_number": 3
-        },
-        {
-          "kind": "connector",
-          "connector_id": "con_003",
-          "pin_number": 2
-        }
-      ],
-      "measurements": []
-    },
-    {
-      "id": "path_062",
-      "name": "TSSI Red — Safety Board to FOC-C3",
-      "tags": [],
-      "properties": {
-        "source_file": "FOC_H3"
-      },
-      "nodes": [
-        {
-          "kind": "connector",
-          "connector_id": "con_020",
-          "pin_number": 4
-        },
-        {
-          "kind": "connector",
-          "connector_id": "con_003",
-          "pin_number": 3
-        }
-      ],
-      "measurements": []
-    },
-    {
-      "id": "path_063",
-      "name": "Brake Light 12V — Safety Board to FOC-C3",
-      "tags": [
-        "signal:12V"
-      ],
-      "properties": {
-        "source_file": "FOC_H3"
-      },
-      "nodes": [
-        {
-          "kind": "connector",
-          "connector_id": "con_019",
-          "pin_number": 1
-        },
-        {
-          "kind": "connector",
-          "connector_id": "con_003",
-          "pin_number": 4
-        }
-      ],
-      "measurements": []
-    },
-    {
-      "id": "path_064",
-      "name": "Brake Light — Safety Board to FOC-C3",
-      "tags": [],
-      "properties": {
-        "source_file": "FOC_H3"
-      },
-      "nodes": [
-        {
-          "kind": "connector",
-          "connector_id": "con_019",
-          "pin_number": 2
-        },
-        {
-          "kind": "connector",
-          "connector_id": "con_003",
-          "pin_number": 5
-        }
-      ],
-      "measurements": []
-    },
-    {
-      "id": "path_065",
-      "name": "TSSI 12V — FOC-C3 to TSSI",
-      "tags": [
-        "signal:12V"
-      ],
-      "properties": {
-        "source_file": "EXT_H3"
-      },
-      "nodes": [
         {
           "kind": "connector",
           "connector_id": "con_003",
@@ -2974,13 +2602,64 @@
       ]
     },
     {
-      "id": "path_066",
-      "name": "TSSI Red — FOC-C3 to TSSI",
-      "tags": [],
+      "id": "path_061",
+      "name": "TSSI Green",
+      "tags": [
+        "signal:TSSI_GREEN"
+      ],
       "properties": {
-        "source_file": "EXT_H3"
+        "source_file": "FOC_H3",
+        "wire_color": "black/green"
       },
       "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_020",
+          "pin_number": 3
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_003",
+          "pin_number": 2
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_069",
+          "pin_number": 3
+        }
+      ],
+      "measurements": [
+        {
+          "from": {
+            "kind": "connector",
+            "connector_id": "con_003",
+            "pin_number": 2
+          },
+          "to": {
+            "kind": "connector",
+            "connector_id": "con_069",
+            "pin_number": 3
+          },
+          "length_mm": 1905
+        }
+      ]
+    },
+    {
+      "id": "path_062",
+      "name": "TSSI Red",
+      "tags": [
+        "signal:TSSI_RED"
+      ],
+      "properties": {
+        "source_file": "FOC_H3",
+        "wire_color": "black/red"
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_020",
+          "pin_number": 4
+        },
         {
           "kind": "connector",
           "connector_id": "con_003",
@@ -3009,22 +2688,29 @@
       ]
     },
     {
-      "id": "path_067",
-      "name": "TSSI Green — FOC-C3 to TSSI",
-      "tags": [],
+      "id": "path_063",
+      "name": "Brake Light 12V",
+      "tags": [
+        "signal:12V"
+      ],
       "properties": {
-        "source_file": "EXT_H3"
+        "source_file": "FOC_H3"
       },
       "nodes": [
         {
           "kind": "connector",
-          "connector_id": "con_003",
-          "pin_number": 2
+          "connector_id": "con_019",
+          "pin_number": 1
         },
         {
           "kind": "connector",
-          "connector_id": "con_069",
-          "pin_number": 3
+          "connector_id": "con_003",
+          "pin_number": 4
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_070",
+          "pin_number": 1
         }
       ],
       "measurements": [
@@ -3032,23 +2718,49 @@
           "from": {
             "kind": "connector",
             "connector_id": "con_003",
-            "pin_number": 2
+            "pin_number": 4
           },
           "to": {
             "kind": "connector",
-            "connector_id": "con_069",
-            "pin_number": 3
+            "connector_id": "con_070",
+            "pin_number": 1
           },
-          "length_mm": 1905
+          "length_mm": 1981
         }
       ]
+    },
+    {
+      "id": "path_064",
+      "name": "Brake Light — Safety Board to FOC-C3",
+      "tags": [
+        "signal:BRAKE_LIGHT"
+      ],
+      "properties": {
+        "source_file": "FOC_H3"
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_019",
+          "pin_number": 2
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_003",
+          "pin_number": 5
+        }
+      ],
+      "measurements": []
     },
     {
       "id": "path_068",
       "name": "RTM-LT — HVB-C1 to TSSI",
-      "tags": [],
+      "tags": [
+        "signal:RTM_LED"
+      ],
       "properties": {
-        "source_file": "EXT_H3"
+        "source_file": "EXT_H3",
+        "wire_color": "black/orange"
       },
       "nodes": [
         {
@@ -3079,46 +2791,11 @@
       ]
     },
     {
-      "id": "path_069",
-      "name": "Brake Light 12V — FOC-C3 to Brake Light",
-      "tags": [
-        "signal:12V"
-      ],
-      "properties": {
-        "source_file": "EXT_H3"
-      },
-      "nodes": [
-        {
-          "kind": "connector",
-          "connector_id": "con_003",
-          "pin_number": 4
-        },
-        {
-          "kind": "connector",
-          "connector_id": "con_070",
-          "pin_number": 1
-        }
-      ],
-      "measurements": [
-        {
-          "from": {
-            "kind": "connector",
-            "connector_id": "con_003",
-            "pin_number": 4
-          },
-          "to": {
-            "kind": "connector",
-            "connector_id": "con_070",
-            "pin_number": 1
-          },
-          "length_mm": 1981
-        }
-      ]
-    },
-    {
       "id": "path_070",
       "name": "Brake Light GND — FOC-C3 to Brake Light",
-      "tags": [],
+      "tags": [
+        "signal:GND"
+      ],
       "properties": {
         "source_file": "EXT_H3"
       },
@@ -3153,7 +2830,9 @@
     {
       "id": "path_071",
       "name": "Brake Light — FOC-C3 to Brake Light",
-      "tags": [],
+      "tags": [
+        "signal:BRAKE_LIGHT"
+      ],
       "properties": {
         "source_file": "EXT_H3"
       },
@@ -3187,10 +2866,11 @@
     },
     {
       "id": "path_072",
-      "name": "SDC — Safety Board to FOC-C8",
+      "name": "SDC",
       "tags": [
         "system:sdc",
-        "system:safety"
+        "system:safety",
+        "signal:SDC"
       ],
       "properties": {
         "source_file": "EXT_H4"
@@ -3205,25 +2885,6 @@
           "kind": "connector",
           "connector_id": "con_006",
           "pin_number": 1
-        }
-      ],
-      "measurements": []
-    },
-    {
-      "id": "path_073",
-      "name": "SDC — FOC-C8 through BOTS",
-      "tags": [
-        "system:sdc",
-        "system:safety"
-      ],
-      "properties": {
-        "source_file": "EXT_H4"
-      },
-      "nodes": [
-        {
-          "kind": "connector",
-          "connector_id": "con_006",
-          "pin_number": 1
         },
         {
           "kind": "connector",
@@ -3234,6 +2895,36 @@
           "kind": "connector",
           "connector_id": "con_071",
           "pin_number": 1
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_072",
+          "pin_number": 2
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_072",
+          "pin_number": 1
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_074",
+          "pin_number": 1
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_074",
+          "pin_number": 2
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_075",
+          "pin_number": 1
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_075",
+          "pin_number": 2
         }
       ],
       "measurements": [
@@ -3249,181 +2940,7 @@
             "pin_number": 2
           },
           "length_mm": 1041
-        }
-      ]
-    },
-    {
-      "id": "path_074",
-      "name": "SDC — BOTS through RTD",
-      "tags": [
-        "system:sdc",
-        "system:safety"
-      ],
-      "properties": {
-        "source_file": "EXT_H4"
-      },
-      "nodes": [
-        {
-          "kind": "connector",
-          "connector_id": "con_071",
-          "pin_number": 1
         },
-        {
-          "kind": "connector",
-          "connector_id": "con_073",
-          "pin_number": 1
-        },
-        {
-          "kind": "connector",
-          "connector_id": "con_073",
-          "pin_number": 2
-        }
-      ],
-      "measurements": [
-        {
-          "from": {
-            "kind": "connector",
-            "connector_id": "con_071",
-            "pin_number": 1
-          },
-          "to": {
-            "kind": "connector",
-            "connector_id": "con_073",
-            "pin_number": 1
-          },
-          "length_mm": 1524
-        }
-      ]
-    },
-    {
-      "id": "path_075",
-      "name": "SDC — RTD through Estop Cockpit",
-      "tags": [
-        "system:sdc",
-        "system:safety"
-      ],
-      "properties": {
-        "source_file": "EXT_H4"
-      },
-      "nodes": [
-        {
-          "kind": "connector",
-          "connector_id": "con_073",
-          "pin_number": 2
-        },
-        {
-          "kind": "connector",
-          "connector_id": "con_076",
-          "pin_number": 1
-        },
-        {
-          "kind": "connector",
-          "connector_id": "con_076",
-          "pin_number": 2
-        }
-      ],
-      "measurements": [
-        {
-          "from": {
-            "kind": "connector",
-            "connector_id": "con_073",
-            "pin_number": 2
-          },
-          "to": {
-            "kind": "connector",
-            "connector_id": "con_076",
-            "pin_number": 1
-          },
-          "length_mm": 127
-        }
-      ]
-    },
-    {
-      "id": "path_076",
-      "name": "SDC — Estop Cockpit through Inertia Switch",
-      "tags": [
-        "system:sdc",
-        "system:safety"
-      ],
-      "properties": {
-        "source_file": "EXT_H4"
-      },
-      "nodes": [
-        {
-          "kind": "connector",
-          "connector_id": "con_076",
-          "pin_number": 2
-        },
-        {
-          "kind": "connector",
-          "connector_id": "con_072",
-          "pin_number": 2
-        },
-        {
-          "kind": "connector",
-          "connector_id": "con_072",
-          "pin_number": 1
-        }
-      ],
-      "measurements": []
-    },
-    {
-      "id": "path_077",
-      "name": "SDC — Inertia Switch through Estop Left",
-      "tags": [
-        "system:sdc",
-        "system:safety"
-      ],
-      "properties": {
-        "source_file": "EXT_H4"
-      },
-      "nodes": [
-        {
-          "kind": "connector",
-          "connector_id": "con_072",
-          "pin_number": 1
-        },
-        {
-          "kind": "connector",
-          "connector_id": "con_074",
-          "pin_number": 1
-        },
-        {
-          "kind": "connector",
-          "connector_id": "con_074",
-          "pin_number": 2
-        }
-      ],
-      "measurements": []
-    },
-    {
-      "id": "path_078",
-      "name": "SDC — Estop Left through Estop Right",
-      "tags": [
-        "system:sdc",
-        "system:safety"
-      ],
-      "properties": {
-        "source_file": "EXT_H4"
-      },
-      "nodes": [
-        {
-          "kind": "connector",
-          "connector_id": "con_074",
-          "pin_number": 2
-        },
-        {
-          "kind": "connector",
-          "connector_id": "con_075",
-          "pin_number": 1
-        },
-        {
-          "kind": "connector",
-          "connector_id": "con_075",
-          "pin_number": 2
-        }
-      ],
-      "measurements": [
         {
           "from": {
             "kind": "connector",
@@ -3440,12 +2957,75 @@
       ]
     },
     {
+      "id": "path_171",
+      "name": "SDC — Safety Board E-stop to Cockpit Estop",
+      "tags": [
+        "system:sdc",
+        "system:safety",
+        "signal:SDC"
+      ],
+      "properties": {},
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_015",
+          "pin_number": 1
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_076",
+          "pin_number": 1
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_076",
+          "pin_number": 2
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_015",
+          "pin_number": 2
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_172",
+      "name": "SDC — Safety Board RTD to RTD Switch",
+      "tags": [],
+      "properties": {},
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_094",
+          "pin_number": 1
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_073",
+          "pin_number": 1
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_073",
+          "pin_number": 2
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_094",
+          "pin_number": 2
+        }
+      ],
+      "measurements": []
+    },
+    {
       "id": "path_079",
       "name": "SDC — Estop Right to ROC BBC-C1",
       "tags": [
         "system:sdc",
         "system:safety",
-        "system:hv"
+        "system:hv",
+        "signal:SDC"
       ],
       "properties": {
         "source_file": "EXT_H4"
@@ -3482,7 +3062,8 @@
       "id": "path_080",
       "name": "CAN ACC H — FOC-C1 to HVB-C1",
       "tags": [
-        "system:can"
+        "system:can",
+        "signal:CAN_ACC_H"
       ],
       "properties": {
         "source_file": "EXT_1_MZ"
@@ -3505,7 +3086,8 @@
       "id": "path_081",
       "name": "CAN ACC L — FOC-C1 to HVB-C1",
       "tags": [
-        "system:can"
+        "system:can",
+        "signal:CAN_ACC_L"
       ],
       "properties": {
         "source_file": "EXT_1_MZ"
@@ -3528,7 +3110,8 @@
       "id": "path_082",
       "name": "BMS Fault — FOC-C1 to HVB-C1",
       "tags": [
-        "system:safety"
+        "system:safety",
+        "signal:FAULT_SIGNAL"
       ],
       "properties": {
         "source_file": "EXT_1_MZ"
@@ -3551,7 +3134,8 @@
       "id": "path_083",
       "name": "IMD Fault — FOC-C1 to HVB-C1",
       "tags": [
-        "system:safety"
+        "system:safety",
+        "signal:FAULT_SIGNAL"
       ],
       "properties": {
         "source_file": "EXT_1_MZ"
@@ -3572,7 +3156,7 @@
     },
     {
       "id": "path_084",
-      "name": "12V ACCU — FOC-C1 to 12V ACCU splice",
+      "name": "12V ACCU",
       "tags": [
         "signal:12V",
         "system:power"
@@ -3586,24 +3170,6 @@
           "connector_id": "con_001",
           "pin_number": 7
         },
-        {
-          "kind": "merge",
-          "merge_point_id": "mp_001"
-        }
-      ],
-      "measurements": []
-    },
-    {
-      "id": "path_085",
-      "name": "12V ACCU splice — to HVB-C1",
-      "tags": [
-        "signal:12V",
-        "system:power"
-      ],
-      "properties": {
-        "source_file": "EXT_1_MZ"
-      },
-      "nodes": [
         {
           "kind": "merge",
           "merge_point_id": "mp_001"
@@ -3623,7 +3189,7 @@
     },
     {
       "id": "path_086",
-      "name": "12V INV — FOC-C1 to 12V INV splice",
+      "name": "12V INV",
       "tags": [
         "signal:12V",
         "system:power"
@@ -3637,24 +3203,6 @@
           "connector_id": "con_001",
           "pin_number": 6
         },
-        {
-          "kind": "merge",
-          "merge_point_id": "mp_002"
-        }
-      ],
-      "measurements": []
-    },
-    {
-      "id": "path_087",
-      "name": "12V INV splice — to INV LV",
-      "tags": [
-        "signal:12V",
-        "system:power"
-      ],
-      "properties": {
-        "source_file": "EXT_1_MZ"
-      },
-      "nodes": [
         {
           "kind": "merge",
           "merge_point_id": "mp_002"
@@ -3674,9 +3222,10 @@
     },
     {
       "id": "path_088",
-      "name": "GND INV — FOC-C1 to GND splice",
+      "name": "GND INV",
       "tags": [
-        "system:power"
+        "system:power",
+        "signal:GND"
       ],
       "properties": {
         "source_file": "EXT_1_MZ"
@@ -3687,23 +3236,6 @@
           "connector_id": "con_001",
           "pin_number": 5
         },
-        {
-          "kind": "merge",
-          "merge_point_id": "mp_003"
-        }
-      ],
-      "measurements": []
-    },
-    {
-      "id": "path_089",
-      "name": "GND INV splice — to INV LV",
-      "tags": [
-        "system:power"
-      ],
-      "properties": {
-        "source_file": "EXT_1_MZ"
-      },
-      "nodes": [
         {
           "kind": "merge",
           "merge_point_id": "mp_003"
@@ -3725,7 +3257,8 @@
       "id": "path_090",
       "name": "GND ACCU — FOC-C1 to HVB-C1",
       "tags": [
-        "system:power"
+        "system:power",
+        "signal:GND"
       ],
       "properties": {
         "source_file": "EXT_1_MZ"
@@ -3748,7 +3281,8 @@
       "id": "path_091",
       "name": "CAN1 INV H — INV LV to FOC-C1",
       "tags": [
-        "system:can"
+        "system:can",
+        "signal:CAN1_INV_H"
       ],
       "properties": {
         "source_file": "EXT_1_MZ"
@@ -3771,7 +3305,8 @@
       "id": "path_092",
       "name": "CAN1 INV L — INV LV to FOC-C1",
       "tags": [
-        "system:can"
+        "system:can",
+        "signal:CAN1_INV_L"
       ],
       "properties": {
         "source_file": "EXT_1_MZ"
@@ -3793,7 +3328,9 @@
     {
       "id": "path_093",
       "name": "D INPUT 1 12V KS — FOC-C1 to INV LV",
-      "tags": [],
+      "tags": [
+        "signal:KL15"
+      ],
       "properties": {
         "source_file": "EXT_1_MZ"
       },
@@ -3815,7 +3352,8 @@
       "id": "path_094",
       "name": "MS HV- — ROC BBC-C1 to HVB-C1",
       "tags": [
-        "system:hv"
+        "system:hv",
+        "signal:HV"
       ],
       "properties": {
         "source_file": "EXT_1_MZ"
@@ -3837,9 +3375,12 @@
     {
       "id": "path_095",
       "name": "RTM OUT — HVB-C1 to TSL-C1",
-      "tags": [],
+      "tags": [
+        "signal:RTM_LED"
+      ],
       "properties": {
-        "source_file": "EXT_1_MZ"
+        "source_file": "EXT_1_MZ",
+        "wire_color": "black/orange"
       },
       "nodes": [
         {
@@ -3859,7 +3400,8 @@
       "id": "path_096",
       "name": "MOT-SENS A to RLS Encoder A — ABI B+",
       "tags": [
-        "system:drivetrain"
+        "system:drivetrain",
+        "signal:DRIVETRAIN"
       ],
       "properties": {
         "source_file": "EXT_1_MZ",
@@ -3883,7 +3425,8 @@
       "id": "path_097",
       "name": "MOT-SENS B to RLS Encoder B — ABI B-",
       "tags": [
-        "system:drivetrain"
+        "system:drivetrain",
+        "signal:DRIVETRAIN"
       ],
       "properties": {
         "source_file": "EXT_1_MZ"
@@ -3906,7 +3449,8 @@
       "id": "path_098",
       "name": "MOT-SENS C to RLS Encoder C — ABI A+",
       "tags": [
-        "system:drivetrain"
+        "system:drivetrain",
+        "signal:DRIVETRAIN"
       ],
       "properties": {
         "source_file": "EXT_1_MZ"
@@ -3929,7 +3473,8 @@
       "id": "path_099",
       "name": "MOT-SENS D to RLS Encoder D — ABI Z-",
       "tags": [
-        "system:drivetrain"
+        "system:drivetrain",
+        "signal:DRIVETRAIN"
       ],
       "properties": {
         "source_file": "EXT_1_MZ"
@@ -3952,7 +3497,8 @@
       "id": "path_100",
       "name": "MOT-SENS E to RLS Encoder E — Temp sensor 1",
       "tags": [
-        "system:sensors"
+        "system:sensors",
+        "signal:THERMISTOR"
       ],
       "properties": {
         "source_file": "EXT_1_MZ"
@@ -3975,7 +3521,8 @@
       "id": "path_101",
       "name": "MOT-SENS F to RLS Encoder F — Temp sensor 2",
       "tags": [
-        "system:sensors"
+        "system:sensors",
+        "signal:THERMISTOR"
       ],
       "properties": {
         "source_file": "EXT_1_MZ"
@@ -3998,7 +3545,8 @@
       "id": "path_102",
       "name": "MOT-SENS H to RLS Encoder H — ABI A-",
       "tags": [
-        "system:drivetrain"
+        "system:drivetrain",
+        "signal:DRIVETRAIN"
       ],
       "properties": {
         "source_file": "EXT_1_MZ"
@@ -4021,7 +3569,8 @@
       "id": "path_103",
       "name": "MOT-SENS J to RLS Encoder J — ABI Z+",
       "tags": [
-        "system:drivetrain"
+        "system:drivetrain",
+        "signal:DRIVETRAIN"
       ],
       "properties": {
         "source_file": "EXT_1_MZ"
@@ -4044,7 +3593,8 @@
       "id": "path_104",
       "name": "MOT-SENS K to RLS Encoder K — Sensor 5V",
       "tags": [
-        "system:sensors"
+        "system:sensors",
+        "signal:5V"
       ],
       "properties": {
         "source_file": "EXT_1_MZ"
@@ -4067,7 +3617,8 @@
       "id": "path_105",
       "name": "MOT-SENS L to RLS Encoder L — Sensor GND",
       "tags": [
-        "system:sensors"
+        "system:sensors",
+        "signal:GND"
       ],
       "properties": {
         "source_file": "EXT_1_MZ"
@@ -4088,9 +3639,10 @@
     },
     {
       "id": "path_106",
-      "name": "BPS1 GND — CCM Footwell to FOC-C2",
+      "name": "BPS1 GND",
       "tags": [
-        "system:sensors"
+        "system:sensors",
+        "signal:GND"
       ],
       "properties": {
         "source_file": "FOC_H2"
@@ -4105,6 +3657,11 @@
           "kind": "connector",
           "connector_id": "con_002",
           "pin_number": 1
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_082",
+          "pin_number": 2
         }
       ],
       "measurements": [
@@ -4125,9 +3682,10 @@
     },
     {
       "id": "path_107",
-      "name": "BPS1 — CCM Footwell to FOC-C2",
+      "name": "BPS1",
       "tags": [
-        "system:sensors"
+        "system:sensors",
+        "signal:BSE"
       ],
       "properties": {
         "source_file": "FOC_H2"
@@ -4142,6 +3700,11 @@
           "kind": "connector",
           "connector_id": "con_002",
           "pin_number": 2
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_082",
+          "pin_number": 1
         }
       ],
       "measurements": [
@@ -4162,9 +3725,10 @@
     },
     {
       "id": "path_108",
-      "name": "BPS1 5V — CCM Footwell to FOC-C2",
+      "name": "BPS1 5V",
       "tags": [
-        "system:sensors"
+        "system:sensors",
+        "signal:5V"
       ],
       "properties": {
         "source_file": "FOC_H2"
@@ -4178,6 +3742,11 @@
         {
           "kind": "connector",
           "connector_id": "con_002",
+          "pin_number": 3
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_082",
           "pin_number": 3
         }
       ],
@@ -4199,9 +3768,10 @@
     },
     {
       "id": "path_109",
-      "name": "APPS1 3V3 — CCM Footwell to FOC-C2",
+      "name": "APPS1 3V3",
       "tags": [
-        "system:sensors"
+        "system:sensors",
+        "signal:RASPI"
       ],
       "properties": {
         "source_file": "FOC_H2"
@@ -4216,6 +3786,11 @@
           "kind": "connector",
           "connector_id": "con_002",
           "pin_number": 4
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_092",
+          "pin_number": 1
         }
       ],
       "measurements": [
@@ -4236,9 +3811,10 @@
     },
     {
       "id": "path_110",
-      "name": "APPS1 — CCM Footwell to FOC-C2",
+      "name": "APPS1",
       "tags": [
-        "system:sensors"
+        "system:sensors",
+        "signal:APPS"
       ],
       "properties": {
         "source_file": "FOC_H2"
@@ -4253,6 +3829,11 @@
           "kind": "connector",
           "connector_id": "con_002",
           "pin_number": 5
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_092",
+          "pin_number": 3
         }
       ],
       "measurements": [
@@ -4273,9 +3854,10 @@
     },
     {
       "id": "path_111",
-      "name": "APPS1 GND — CCM Footwell to FOC-C2",
+      "name": "APPS1 GND",
       "tags": [
-        "system:sensors"
+        "system:sensors",
+        "signal:GND"
       ],
       "properties": {
         "source_file": "FOC_H2"
@@ -4290,6 +3872,11 @@
           "kind": "connector",
           "connector_id": "con_002",
           "pin_number": 6
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_092",
+          "pin_number": 2
         }
       ],
       "measurements": [
@@ -4310,9 +3897,10 @@
     },
     {
       "id": "path_112",
-      "name": "APPS2 GND — CCM Footwell to FOC-C2",
+      "name": "APPS2 GND",
       "tags": [
-        "system:sensors"
+        "system:sensors",
+        "signal:GND"
       ],
       "properties": {
         "source_file": "FOC_H2"
@@ -4327,6 +3915,11 @@
           "kind": "connector",
           "connector_id": "con_002",
           "pin_number": 7
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_092",
+          "pin_number": 5
         }
       ],
       "measurements": [
@@ -4347,9 +3940,10 @@
     },
     {
       "id": "path_113",
-      "name": "APPS2 — CCM Footwell to FOC-C2",
+      "name": "APPS2",
       "tags": [
-        "system:sensors"
+        "system:sensors",
+        "signal:APPS"
       ],
       "properties": {
         "source_file": "FOC_H2"
@@ -4364,6 +3958,11 @@
           "kind": "connector",
           "connector_id": "con_002",
           "pin_number": 8
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_092",
+          "pin_number": 6
         }
       ],
       "measurements": [
@@ -4384,9 +3983,10 @@
     },
     {
       "id": "path_114",
-      "name": "APPS2 3V3 — CCM Footwell to FOC-C2",
+      "name": "APPS2 3V3",
       "tags": [
-        "system:sensors"
+        "system:sensors",
+        "signal:RASPI"
       ],
       "properties": {
         "source_file": "FOC_H2"
@@ -4401,6 +4001,11 @@
           "kind": "connector",
           "connector_id": "con_002",
           "pin_number": 9
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_092",
+          "pin_number": 4
         }
       ],
       "measurements": [
@@ -4421,9 +4026,10 @@
     },
     {
       "id": "path_115",
-      "name": "BPS2 5V — CCM Footwell to FOC-C2",
+      "name": "BPS2 5V",
       "tags": [
-        "system:sensors"
+        "system:sensors",
+        "signal:5V"
       ],
       "properties": {
         "source_file": "FOC_H2"
@@ -4438,6 +4044,11 @@
           "kind": "connector",
           "connector_id": "con_002",
           "pin_number": 10
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_082",
+          "pin_number": 4
         }
       ],
       "measurements": [
@@ -4458,9 +4069,10 @@
     },
     {
       "id": "path_116",
-      "name": "BPS2 — CCM Footwell to FOC-C2",
+      "name": "BPS2",
       "tags": [
-        "system:sensors"
+        "system:sensors",
+        "signal:BSE"
       ],
       "properties": {
         "source_file": "FOC_H2"
@@ -4475,6 +4087,11 @@
           "kind": "connector",
           "connector_id": "con_002",
           "pin_number": 11
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_082",
+          "pin_number": 6
         }
       ],
       "measurements": [
@@ -4495,9 +4112,10 @@
     },
     {
       "id": "path_117",
-      "name": "BPS2 GND — CCM Footwell to FOC-C2",
+      "name": "BPS2 GND",
       "tags": [
-        "system:sensors"
+        "system:sensors",
+        "signal:GND"
       ],
       "properties": {
         "source_file": "FOC_H2"
@@ -4512,6 +4130,11 @@
           "kind": "connector",
           "connector_id": "con_002",
           "pin_number": 12
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_082",
+          "pin_number": 5
         }
       ],
       "measurements": [
@@ -4531,286 +4154,11 @@
       ]
     },
     {
-      "id": "path_118",
-      "name": "BPS1 GND — FOC-C2 to BPS-FEM",
-      "tags": [
-        "system:sensors"
-      ],
-      "properties": {
-        "source_file": "EXT_H2"
-      },
-      "nodes": [
-        {
-          "kind": "connector",
-          "connector_id": "con_002",
-          "pin_number": 1
-        },
-        {
-          "kind": "connector",
-          "connector_id": "con_082",
-          "pin_number": 2
-        }
-      ],
-      "measurements": []
-    },
-    {
-      "id": "path_119",
-      "name": "BPS1 — FOC-C2 to BPS-FEM",
-      "tags": [
-        "system:sensors"
-      ],
-      "properties": {
-        "source_file": "EXT_H2"
-      },
-      "nodes": [
-        {
-          "kind": "connector",
-          "connector_id": "con_002",
-          "pin_number": 2
-        },
-        {
-          "kind": "connector",
-          "connector_id": "con_082",
-          "pin_number": 1
-        }
-      ],
-      "measurements": []
-    },
-    {
-      "id": "path_120",
-      "name": "BPS1 5V — FOC-C2 to BPS-FEM",
-      "tags": [
-        "system:sensors"
-      ],
-      "properties": {
-        "source_file": "EXT_H2"
-      },
-      "nodes": [
-        {
-          "kind": "connector",
-          "connector_id": "con_002",
-          "pin_number": 3
-        },
-        {
-          "kind": "connector",
-          "connector_id": "con_082",
-          "pin_number": 3
-        }
-      ],
-      "measurements": []
-    },
-    {
-      "id": "path_121",
-      "name": "BPS2 5V — FOC-C2 to BPS-FEM",
-      "tags": [
-        "system:sensors"
-      ],
-      "properties": {
-        "source_file": "EXT_H2"
-      },
-      "nodes": [
-        {
-          "kind": "connector",
-          "connector_id": "con_002",
-          "pin_number": 10
-        },
-        {
-          "kind": "connector",
-          "connector_id": "con_082",
-          "pin_number": 4
-        }
-      ],
-      "measurements": []
-    },
-    {
-      "id": "path_122",
-      "name": "BPS2 — FOC-C2 to BPS-FEM",
-      "tags": [
-        "system:sensors"
-      ],
-      "properties": {
-        "source_file": "EXT_H2"
-      },
-      "nodes": [
-        {
-          "kind": "connector",
-          "connector_id": "con_002",
-          "pin_number": 11
-        },
-        {
-          "kind": "connector",
-          "connector_id": "con_082",
-          "pin_number": 6
-        }
-      ],
-      "measurements": []
-    },
-    {
-      "id": "path_123",
-      "name": "BPS2 GND — FOC-C2 to BPS-FEM",
-      "tags": [
-        "system:sensors"
-      ],
-      "properties": {
-        "source_file": "EXT_H2"
-      },
-      "nodes": [
-        {
-          "kind": "connector",
-          "connector_id": "con_002",
-          "pin_number": 12
-        },
-        {
-          "kind": "connector",
-          "connector_id": "con_082",
-          "pin_number": 5
-        }
-      ],
-      "measurements": []
-    },
-    {
-      "id": "path_124",
-      "name": "APPS1 3V3 — FOC-C2 to THRS1-FEM",
-      "tags": [
-        "system:sensors"
-      ],
-      "properties": {
-        "source_file": "EXT_H2"
-      },
-      "nodes": [
-        {
-          "kind": "connector",
-          "connector_id": "con_002",
-          "pin_number": 4
-        },
-        {
-          "kind": "connector",
-          "connector_id": "con_084",
-          "pin_number": 1
-        }
-      ],
-      "measurements": []
-    },
-    {
-      "id": "path_125",
-      "name": "APPS1 GND — FOC-C2 to THRS1-FEM",
-      "tags": [
-        "system:sensors"
-      ],
-      "properties": {
-        "source_file": "EXT_H2"
-      },
-      "nodes": [
-        {
-          "kind": "connector",
-          "connector_id": "con_002",
-          "pin_number": 6
-        },
-        {
-          "kind": "connector",
-          "connector_id": "con_084",
-          "pin_number": 2
-        }
-      ],
-      "measurements": []
-    },
-    {
-      "id": "path_126",
-      "name": "APPS1 — FOC-C2 to THRS1-FEM",
-      "tags": [
-        "system:sensors"
-      ],
-      "properties": {
-        "source_file": "EXT_H2"
-      },
-      "nodes": [
-        {
-          "kind": "connector",
-          "connector_id": "con_002",
-          "pin_number": 5
-        },
-        {
-          "kind": "connector",
-          "connector_id": "con_084",
-          "pin_number": 3
-        }
-      ],
-      "measurements": []
-    },
-    {
-      "id": "path_127",
-      "name": "APPS2 3V3 — FOC-C2 to THRS2-FEM",
-      "tags": [
-        "system:sensors"
-      ],
-      "properties": {
-        "source_file": "EXT_H2"
-      },
-      "nodes": [
-        {
-          "kind": "connector",
-          "connector_id": "con_002",
-          "pin_number": 9
-        },
-        {
-          "kind": "connector",
-          "connector_id": "con_086",
-          "pin_number": 1
-        }
-      ],
-      "measurements": []
-    },
-    {
-      "id": "path_128",
-      "name": "APPS2 GND — FOC-C2 to THRS2-FEM",
-      "tags": [
-        "system:sensors"
-      ],
-      "properties": {
-        "source_file": "EXT_H2"
-      },
-      "nodes": [
-        {
-          "kind": "connector",
-          "connector_id": "con_002",
-          "pin_number": 7
-        },
-        {
-          "kind": "connector",
-          "connector_id": "con_086",
-          "pin_number": 2
-        }
-      ],
-      "measurements": []
-    },
-    {
-      "id": "path_129",
-      "name": "APPS2 — FOC-C2 to THRS2-FEM",
-      "tags": [
-        "system:sensors"
-      ],
-      "properties": {
-        "source_file": "EXT_H2"
-      },
-      "nodes": [
-        {
-          "kind": "connector",
-          "connector_id": "con_002",
-          "pin_number": 8
-        },
-        {
-          "kind": "connector",
-          "connector_id": "con_086",
-          "pin_number": 3
-        }
-      ],
-      "measurements": []
-    },
-    {
       "id": "path_130",
       "name": "BPS1 5V — BPS-MALE to BPS1 sensor",
       "tags": [
-        "system:sensors"
+        "system:sensors",
+        "signal:5V"
       ],
       "properties": {
         "source_file": "EXT_H2"
@@ -4833,7 +4181,8 @@
       "id": "path_131",
       "name": "BPS1 GND — BPS-MALE to BPS1 sensor",
       "tags": [
-        "system:sensors"
+        "system:sensors",
+        "signal:GND"
       ],
       "properties": {
         "source_file": "EXT_H2"
@@ -4856,7 +4205,8 @@
       "id": "path_132",
       "name": "BPS1 — BPS-MALE to BPS1 sensor",
       "tags": [
-        "system:sensors"
+        "system:sensors",
+        "signal:BSE"
       ],
       "properties": {
         "source_file": "EXT_H2"
@@ -4879,7 +4229,8 @@
       "id": "path_133",
       "name": "BPS2 5V — BPS-MALE to BPS2 sensor",
       "tags": [
-        "system:sensors"
+        "system:sensors",
+        "signal:5V"
       ],
       "properties": {
         "source_file": "EXT_H2"
@@ -4902,7 +4253,8 @@
       "id": "path_134",
       "name": "BPS2 GND — BPS-MALE to BPS2 sensor",
       "tags": [
-        "system:sensors"
+        "system:sensors",
+        "signal:GND"
       ],
       "properties": {
         "source_file": "EXT_H2"
@@ -4925,7 +4277,8 @@
       "id": "path_135",
       "name": "BPS2 — BPS-MALE to BPS2 sensor",
       "tags": [
-        "system:sensors"
+        "system:sensors",
+        "signal:BSE"
       ],
       "properties": {
         "source_file": "EXT_H2"
@@ -4948,7 +4301,8 @@
       "id": "path_136",
       "name": "APPS1 3V3 — THRS1-MALE to APPS",
       "tags": [
-        "system:sensors"
+        "system:sensors",
+        "signal:RASPI"
       ],
       "properties": {
         "source_file": "EXT_H2"
@@ -4956,7 +4310,7 @@
       "nodes": [
         {
           "kind": "connector",
-          "connector_id": "con_085",
+          "connector_id": "con_093",
           "pin_number": 1
         },
         {
@@ -4971,7 +4325,8 @@
       "id": "path_137",
       "name": "APPS1 GND — THRS1-MALE to APPS",
       "tags": [
-        "system:sensors"
+        "system:sensors",
+        "signal:GND"
       ],
       "properties": {
         "source_file": "EXT_H2"
@@ -4979,7 +4334,7 @@
       "nodes": [
         {
           "kind": "connector",
-          "connector_id": "con_085",
+          "connector_id": "con_093",
           "pin_number": 2
         },
         {
@@ -4994,7 +4349,8 @@
       "id": "path_138",
       "name": "APPS1 — THRS1-MALE to APPS",
       "tags": [
-        "system:sensors"
+        "system:sensors",
+        "signal:APPS"
       ],
       "properties": {
         "source_file": "EXT_H2"
@@ -5002,7 +4358,7 @@
       "nodes": [
         {
           "kind": "connector",
-          "connector_id": "con_085",
+          "connector_id": "con_093",
           "pin_number": 3
         },
         {
@@ -5017,7 +4373,8 @@
       "id": "path_139",
       "name": "APPS2 3V3 — THRS2-MALE to APPS",
       "tags": [
-        "system:sensors"
+        "system:sensors",
+        "signal:RASPI"
       ],
       "properties": {
         "source_file": "EXT_H2"
@@ -5025,8 +4382,8 @@
       "nodes": [
         {
           "kind": "connector",
-          "connector_id": "con_087",
-          "pin_number": 1
+          "connector_id": "con_093",
+          "pin_number": 4
         },
         {
           "kind": "connector",
@@ -5040,7 +4397,8 @@
       "id": "path_140",
       "name": "APPS2 GND — THRS2-MALE to APPS",
       "tags": [
-        "system:sensors"
+        "system:sensors",
+        "signal:GND"
       ],
       "properties": {
         "source_file": "EXT_H2"
@@ -5048,8 +4406,8 @@
       "nodes": [
         {
           "kind": "connector",
-          "connector_id": "con_087",
-          "pin_number": 2
+          "connector_id": "con_093",
+          "pin_number": 5
         },
         {
           "kind": "connector",
@@ -5063,7 +4421,8 @@
       "id": "path_141",
       "name": "APPS2 — THRS2-MALE to APPS",
       "tags": [
-        "system:sensors"
+        "system:sensors",
+        "signal:APPS"
       ],
       "properties": {
         "source_file": "EXT_H2"
@@ -5071,8 +4430,8 @@
       "nodes": [
         {
           "kind": "connector",
-          "connector_id": "con_087",
-          "pin_number": 3
+          "connector_id": "con_093",
+          "pin_number": 6
         },
         {
           "kind": "connector",
@@ -5086,7 +4445,8 @@
       "id": "path_142",
       "name": "WS1 5V — FOC-C6 to WS FL",
       "tags": [
-        "system:sensors"
+        "system:sensors",
+        "signal:5V"
       ],
       "properties": {
         "source_file": "EXT_H6"
@@ -5109,7 +4469,8 @@
       "id": "path_143",
       "name": "WS2 5V — FOC-C6 to WS FR",
       "tags": [
-        "system:sensors"
+        "system:sensors",
+        "signal:5V"
       ],
       "properties": {
         "source_file": "EXT_H6"
@@ -5132,7 +4493,8 @@
       "id": "path_144",
       "name": "WS1 GND — FOC-C6",
       "tags": [
-        "system:sensors"
+        "system:sensors",
+        "signal:GND"
       ],
       "properties": {
         "source_file": "EXT_H6"
@@ -5155,7 +4517,8 @@
       "id": "path_145",
       "name": "WS2 GND — FOC-C6",
       "tags": [
-        "system:sensors"
+        "system:sensors",
+        "signal:GND"
       ],
       "properties": {
         "source_file": "EXT_H6"
@@ -5178,7 +4541,8 @@
       "id": "path_146",
       "name": "WS3 GND — FOC-C6",
       "tags": [
-        "system:sensors"
+        "system:sensors",
+        "signal:GND"
       ],
       "properties": {
         "source_file": "EXT_H6"
@@ -5201,7 +4565,8 @@
       "id": "path_147",
       "name": "WS4 GND — FOC-C6",
       "tags": [
-        "system:sensors"
+        "system:sensors",
+        "signal:GND"
       ],
       "properties": {
         "source_file": "EXT_H6"
@@ -5224,7 +4589,8 @@
       "id": "path_148",
       "name": "WS3 5V — FOC-C6 to WS RL",
       "tags": [
-        "system:sensors"
+        "system:sensors",
+        "signal:5V"
       ],
       "properties": {
         "source_file": "EXT_H6"
@@ -5247,7 +4613,8 @@
       "id": "path_149",
       "name": "WS4 5V — FOC-C6 to WS RR",
       "tags": [
-        "system:sensors"
+        "system:sensors",
+        "signal:5V"
       ],
       "properties": {
         "source_file": "EXT_H6"
@@ -5270,10 +4637,12 @@
       "id": "path_150",
       "name": "WS1 — FOC-C6 to WS FL",
       "tags": [
-        "system:sensors"
+        "system:sensors",
+        "signal:WHEEL_SPEED"
       ],
       "properties": {
-        "source_file": "EXT_H6"
+        "source_file": "EXT_H6",
+        "wire_color": "white/brown"
       },
       "nodes": [
         {
@@ -5293,10 +4662,12 @@
       "id": "path_151",
       "name": "WS2 — FOC-C6 to WS FR",
       "tags": [
-        "system:sensors"
+        "system:sensors",
+        "signal:WHEEL_SPEED"
       ],
       "properties": {
-        "source_file": "EXT_H6"
+        "source_file": "EXT_H6",
+        "wire_color": "white/brown"
       },
       "nodes": [
         {
@@ -5316,10 +4687,12 @@
       "id": "path_152",
       "name": "WS3 — FOC-C6 to WS RL",
       "tags": [
-        "system:sensors"
+        "system:sensors",
+        "signal:WHEEL_SPEED"
       ],
       "properties": {
-        "source_file": "EXT_H6"
+        "source_file": "EXT_H6",
+        "wire_color": "white/brown"
       },
       "nodes": [
         {
@@ -5339,10 +4712,12 @@
       "id": "path_153",
       "name": "WS4 — FOC-C6 to WS RR",
       "tags": [
-        "system:sensors"
+        "system:sensors",
+        "signal:WHEEL_SPEED"
       ],
       "properties": {
-        "source_file": "EXT_H6"
+        "source_file": "EXT_H6",
+        "wire_color": "white/brown"
       },
       "nodes": [
         {
@@ -5361,7 +4736,9 @@
     {
       "id": "path_154",
       "name": "RTDB 5V — Safety Board J25 to EXT-DASH-C1",
-      "tags": [],
+      "tags": [
+        "signal:5V"
+      ],
       "properties": {
         "source_file": "FOC_H9"
       },
@@ -5382,7 +4759,9 @@
     {
       "id": "path_155",
       "name": "RTDB — Safety Board J25 to EXT-DASH-C1",
-      "tags": [],
+      "tags": [
+        "signal:RTDB"
+      ],
       "properties": {
         "source_file": "FOC_H9"
       },
@@ -5403,7 +4782,9 @@
     {
       "id": "path_156",
       "name": "3V3 RTD Button — Safety Board to EXT-DASH-C1",
-      "tags": [],
+      "tags": [
+        "signal:RASPI"
+      ],
       "properties": {
         "source_file": "FOC_H9",
         "notes": "PLACEHOLDER pin assignment on EXT-DASH-C1"
@@ -5444,7 +4825,9 @@
     {
       "id": "path_158",
       "name": "LED GND — Safety Board J11 to HI Board ROC J1",
-      "tags": [],
+      "tags": [
+        "signal:GND"
+      ],
       "properties": {
         "source_file": "FOC_H9"
       },
@@ -5466,7 +4849,8 @@
       "id": "path_159",
       "name": "BSPD LED+ — Safety Board J11 to HI Board ROC J1",
       "tags": [
-        "system:safety"
+        "system:safety",
+        "signal:FAULT_LED"
       ],
       "properties": {
         "source_file": "FOC_H9"
@@ -5489,7 +4873,8 @@
       "id": "path_160",
       "name": "BMS LED+ — Safety Board J11 to HI Board ROC J1",
       "tags": [
-        "system:safety"
+        "system:safety",
+        "signal:FAULT_LED"
       ],
       "properties": {
         "source_file": "FOC_H9"
@@ -5512,7 +4897,8 @@
       "id": "path_161",
       "name": "IMD LED+ — Safety Board J11 to HI Board ROC J1",
       "tags": [
-        "system:safety"
+        "system:safety",
+        "signal:FAULT_LED"
       ],
       "properties": {
         "source_file": "FOC_H9"
@@ -5535,7 +4921,8 @@
       "id": "path_162",
       "name": "Raspi 5V — F10 EXP 5V to RPi",
       "tags": [
-        "system:power"
+        "system:power",
+        "signal:5V"
       ],
       "properties": {
         "source_file": "FOC_H9"
@@ -5558,7 +4945,8 @@
       "id": "path_163",
       "name": "Raspi GND — F10 EXP 5V to RPi",
       "tags": [
-        "system:power"
+        "system:power",
+        "signal:GND"
       ],
       "properties": {
         "source_file": "FOC_H9"
@@ -5581,7 +4969,8 @@
       "id": "path_164",
       "name": "RPi to CAN Transceiver USB",
       "tags": [
-        "system:can"
+        "system:can",
+        "signal:RASPI"
       ],
       "properties": {
         "source_file": "FOC_H9"
@@ -5603,7 +4992,9 @@
     {
       "id": "path_165",
       "name": "RPi to Cell Box USB",
-      "tags": [],
+      "tags": [
+        "signal:RASPI"
+      ],
       "properties": {
         "source_file": "FOC_H9"
       },
@@ -5624,7 +5015,9 @@
     {
       "id": "path_166",
       "name": "Screen RST — RPi to Screen",
-      "tags": [],
+      "tags": [
+        "signal:RASPI"
+      ],
       "properties": {
         "source_file": "FOC_H9"
       },
@@ -5645,7 +5038,9 @@
     {
       "id": "path_167",
       "name": "Screen DIN — RPi to Screen",
-      "tags": [],
+      "tags": [
+        "signal:RASPI"
+      ],
       "properties": {
         "source_file": "FOC_H9"
       },
@@ -5666,7 +5061,9 @@
     {
       "id": "path_168",
       "name": "Screen DC — RPi to Screen",
-      "tags": [],
+      "tags": [
+        "signal:RASPI"
+      ],
       "properties": {
         "source_file": "FOC_H9"
       },
@@ -5687,7 +5084,9 @@
     {
       "id": "path_169",
       "name": "Screen CLK — RPi to Screen",
-      "tags": [],
+      "tags": [
+        "signal:RASPI"
+      ],
       "properties": {
         "source_file": "FOC_H9"
       },
@@ -5708,7 +5107,9 @@
     {
       "id": "path_170",
       "name": "Screen CS — RPi to Screen",
-      "tags": [],
+      "tags": [
+        "signal:RASPI"
+      ],
       "properties": {
         "source_file": "FOC_H9"
       },

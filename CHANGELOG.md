@@ -4,6 +4,18 @@ Changes to harness data, logged by the AI agent.
 
 ---
 
+## 2026-04-14 — Gabe
+- Moved enc_030 "RTD" and enc_033 "Estop Cockpit" inside FOC box (parent set to enc_001).
+- Added Safety Board connector con_094 "RTD SDC" (2-pin, enc_004) for direct RTD switch connection.
+- Added path_171: Safety Board E-stop header (con_015) ↔ Cockpit Estop connector (con_076) — direct internal SDC loop.
+- Added path_172: Safety Board RTD SDC header (con_094) ↔ RTD-C1 connector (con_073) — direct internal SDC loop.
+- Updated path_072 (external SDC chain): removed con_073 and con_076 nodes (now internal). Chain is now Safety Board SDC Out → FOC-C8 bulkhead → BOTS → Inertia Switch → Estop Left → Estop Right.
+
+## 2026-04-13 — Gabe
+- Merged THRS1-FEM (con_084, 3-pin) and THRS2-FEM (con_086, 3-pin) on FOC bulkhead (enc_001) into single 6-pin connector con_092 "APPS-FEM" (deutsch_dt_6p_female). Pins 1–3 = THRS1, pins 4–6 = THRS2.
+- Merged THRS1-MALE (con_085, 3-pin) and THRS2-MALE (con_087, 3-pin) on APPS device (enc_036) into single 6-pin connector con_093 "APPS-MALE" (deutsch_dt_6p_male). Pins 1–3 = THRS1, pins 4–6 = THRS2.
+- Updated all 12 affected path nodes (path_109–path_114, path_136–path_141) to reference new connector IDs and remapped pin numbers.
+
 ## 2026-04-11 — Gabe
 - Added wire_103: FOC-C1 pin 1 (12V) → TSSI con_009 pin 1 (12V) — tagged "example"
 - Added wire_104: FOC-C1 pin 4 (BMS LED+) → Dash LEDs con_012 pin 2 (BSPD Fault LED) — tagged "example"

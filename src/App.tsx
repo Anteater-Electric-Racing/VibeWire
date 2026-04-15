@@ -11,6 +11,7 @@ import type {
   MergePointLayouts,
   NodeLayout,
   PortLayouts,
+  RotationLayouts,
   SizeLayouts,
   TextBoxLayouts,
   WaypointLayouts,
@@ -29,6 +30,7 @@ interface LayoutFile {
   waypoints?: WaypointLayouts;
   junctions?: JunctionLayouts;
   mergePoints?: MergePointLayouts;
+  rotations?: RotationLayouts;
 }
 
 export default function App() {
@@ -44,6 +46,7 @@ export default function App() {
   const loadWaypointLayouts = useHarnessStore((s) => s.loadWaypointLayouts);
   const loadJunctionLayouts = useHarnessStore((s) => s.loadJunctionLayouts);
   const loadMergePointLayouts = useHarnessStore((s) => s.loadMergePointLayouts);
+  const loadRotationLayouts = useHarnessStore((s) => s.loadRotationLayouts);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -75,6 +78,7 @@ export default function App() {
         loadWaypointLayouts(lf.waypoints ?? {});
         loadJunctionLayouts(lf.junctions ?? {});
         loadMergePointLayouts(lf.mergePoints ?? {});
+        loadRotationLayouts(lf.rotations ?? {});
         initAutoSave();
         setLoading(false);
       })
@@ -82,7 +86,7 @@ export default function App() {
         setError(err.message);
         setLoading(false);
       });
-  }, [loadHarness, loadConnectorLibrary, loadLayouts, loadPortLayouts, loadSizeLayouts, loadFreePortLayouts, loadBackgroundLayouts, loadConnectorTypeSizes, loadTextBoxLayouts, loadWaypointLayouts, loadJunctionLayouts, loadMergePointLayouts]);
+  }, [loadHarness, loadConnectorLibrary, loadLayouts, loadPortLayouts, loadSizeLayouts, loadFreePortLayouts, loadBackgroundLayouts, loadConnectorTypeSizes, loadTextBoxLayouts, loadWaypointLayouts, loadJunctionLayouts, loadMergePointLayouts, loadRotationLayouts]);
 
   if (loading) {
     return (

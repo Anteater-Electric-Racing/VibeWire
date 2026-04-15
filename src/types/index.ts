@@ -204,6 +204,10 @@ export interface JunctionLayouts {
   [id: string]: JunctionLayout;
 }
 
+export interface RotationLayouts {
+  [connectorId: string]: number;
+}
+
 export interface ConnectorOccupancy {
   pinNumber: number;
   pathId: string;

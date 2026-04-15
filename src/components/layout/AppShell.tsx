@@ -23,6 +23,8 @@ export function AppShell() {
   const setDrillDown = useHarnessStore((s) => s.setDrillDown);
   const undo = useHarnessStore((s) => s.undo);
   const redo = useHarnessStore((s) => s.redo);
+  const rotateConnector = useHarnessStore((s) => s.rotateConnector);
+  const pushUndoSnapshot = useHarnessStore((s) => s.pushUndoSnapshot);
   const showInspector = !!(selectedItem || (selectedBundle && selectedBundle.length > 0) || selectedTextBoxId);
 
   // Left sidebar state
@@ -98,6 +100,14 @@ export function AppShell() {
         return;
       }
 
+      // Rotate selected connector: R (no modifier)
+      if (e.key === 'r' && !mod && selectedItem?.type === 'connector') {
+        e.preventDefault();
+        pushUndoSnapshot();
+        rotateConnector(selectedItem.id);
+        return;
+      }
+
       if (e.key !== 'Escape') return;
       if (showInspector) {
         selectItem(null);
@@ -108,7 +118,7 @@ export function AppShell() {
     }
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [showInspector, drillDownEnclosure, selectItem, selectTextBox, setDrillDown, undo, redo]);
+  }, [showInspector, drillDownEnclosure, selectItem, selectTextBox, setDrillDown, undo, redo, selectedItem, rotateConnector, pushUndoSnapshot]);
 
   return (
     <div className="h-screen w-screen flex flex-col bg-zinc-950 text-zinc-100 overflow-hidden">

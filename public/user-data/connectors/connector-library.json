@@ -6,9 +6,7 @@
       "pin_count": 12,
       "crimp_spec": "DT-0430-20141",
       "wire_gauge": "20-16 AWG",
-      "notes": "IP67, push-to-seat, 12-pin female DT series",
-      "image": "deutsch-12p-m.png",
-      "side_image": "deutsch-12p-m.png"
+      "notes": "IP67, push-to-seat, 12-pin female DT series"
     },
     {
       "id": "deutsch_dt_12p_male",
@@ -21,34 +19,184 @@
       "side_image": "deutsch-12p-side.png"
     },
     {
+      "id": "deutsch_dt_12p_flanged_female",
+      "name": "Deutsch DT 12-pin Flanged Female",
+      "pin_count": 12,
+      "crimp_spec": "DT-0430-20141",
+      "wire_gauge": "20-16 AWG",
+      "notes": "IP67, push-to-seat, 12-pin flanged female DT series"
+    },
+    {
+      "id": "deutsch_dt_6p_female",
+      "name": "Deutsch DT 6-pin Female",
+      "pin_count": 6,
+      "crimp_spec": "DT-0430-20141",
+      "wire_gauge": "20-16 AWG",
+      "notes": "IP67, push-to-seat, 6-pin female DT series"
+    },
+    {
+      "id": "deutsch_dt_6p_male",
+      "name": "Deutsch DT 6-pin Male",
+      "pin_count": 6,
+      "crimp_spec": "DT-0460-20141",
+      "wire_gauge": "20-16 AWG",
+      "notes": "IP67, push-to-seat, 6-pin male DT series",
+      "image": "deutsch-12p-m.png",
+      "side_image": "deutsch-12p-side.png"
+    },
+    {
+      "id": "deutsch_dt_6p_flanged_male",
+      "name": "Deutsch DT 6-pin Flanged Male",
+      "pin_count": 6,
+      "crimp_spec": "DT-0460-20141",
+      "wire_gauge": "20-16 AWG",
+      "notes": "IP67, push-to-seat, 6-pin flanged male DT series"
+    },
+    {
       "id": "deutsch_dt_4p_female",
       "name": "Deutsch DT 4-pin Female",
       "pin_count": 4,
       "crimp_spec": "DT-0430-20141",
       "wire_gauge": "20-16 AWG",
       "notes": "IP67, push-to-seat, 4-pin female DT series",
-      "image": "generic-placeholder.png",
-      "side_image": ""
+      "image": "deutsch-12p-fem.png",
+      "side_image": "deutsch-12p-side.png"
+    },
+    {
+      "id": "deutsch_dt_4p_male",
+      "name": "Deutsch DT 4-pin Male",
+      "pin_count": 4,
+      "crimp_spec": "DT-0460-20141",
+      "wire_gauge": "20-16 AWG",
+      "notes": "IP67, push-to-seat, 4-pin male DT series",
+      "image": "deutsch-12p-m.png",
+      "side_image": "deutsch-12p-side.png"
+    },
+    {
+      "id": "deutsch_dt_3p_female",
+      "name": "Deutsch DT 3-pin Female",
+      "pin_count": 3,
+      "crimp_spec": "DT-0430-20141",
+      "wire_gauge": "20-16 AWG",
+      "notes": "IP67, push-to-seat, 3-pin female DT series"
+    },
+    {
+      "id": "deutsch_dt_3p_male",
+      "name": "Deutsch DT 3-pin Male",
+      "pin_count": 3,
+      "crimp_spec": "DT-0460-20141",
+      "wire_gauge": "20-16 AWG",
+      "notes": "IP67, push-to-seat, 3-pin male DT series",
+      "image": "deutsch-12p-m.png",
+      "side_image": "deutsch-12p-side.png"
+    },
+    {
+      "id": "deutsch_dt_3p_flanged_male",
+      "name": "Deutsch DT 3-pin Flanged Male",
+      "pin_count": 3,
+      "crimp_spec": "DT-0460-20141",
+      "wire_gauge": "20-16 AWG",
+      "notes": "IP67, push-to-seat, 3-pin flanged male DT series"
+    },
+    {
+      "id": "deutsch_dt_2p_female",
+      "name": "Deutsch DT 2-pin Female",
+      "pin_count": 2,
+      "crimp_spec": "DT-0430-20141",
+      "wire_gauge": "20-16 AWG",
+      "notes": "IP67, push-to-seat, 2-pin female DT series"
+    },
+    {
+      "id": "deutsch_dt_2p_male",
+      "name": "Deutsch DT 2-pin Male",
+      "pin_count": 2,
+      "crimp_spec": "DT-0460-20141",
+      "wire_gauge": "20-16 AWG",
+      "notes": "IP67, push-to-seat, 2-pin male DT series"
+    },
+    {
+      "id": "molex_minifit_jr_2p",
+      "name": "Molex Mini-Fit Jr. 2-pin",
+      "pin_count": 2,
+      "crimp_spec": "39-00-0039",
+      "wire_gauge": "18-24 AWG",
+      "notes": "Dual-row, 4.2mm pitch, 2-circuit"
+    },
+    {
+      "id": "molex_minifit_jr_4p",
+      "name": "Molex Mini-Fit Jr. 4-pin",
+      "pin_count": 4,
+      "crimp_spec": "39-00-0039",
+      "wire_gauge": "18-24 AWG",
+      "notes": "Dual-row, 4.2mm pitch, 4-circuit"
     },
     {
       "id": "molex_minifit_4p",
-      "name": "Molex Mini-Fit Jr. 4-pin",
+      "name": "Molex Mini-Fit Jr. 4-pin (alt)",
       "pin_count": 4,
       "crimp_spec": "39-00-0039",
       "wire_gauge": "18-24 AWG",
       "notes": "Dual-row, 4.2mm pitch, 4-circuit",
       "image": "generic-placeholder.png",
-      "side_image": "deutsch-12p-m.png"
+      "side_image": "generic-placeholder.png"
     },
     {
-      "id": "molex_minifit_6p",
+      "id": "molex_minifit_jr_6p",
       "name": "Molex Mini-Fit Jr. 6-pin",
       "pin_count": 6,
       "crimp_spec": "39-00-0039",
       "wire_gauge": "18-24 AWG",
       "notes": "Dual-row, 4.2mm pitch, 6-circuit",
       "image": "generic-placeholder.png",
-      "side_image": ""
+      "side_image": "generic-placeholder.png"
+    },
+    {
+      "id": "molex_minifit_6p",
+      "name": "Molex Mini-Fit Jr. 6-pin (alt)",
+      "pin_count": 6,
+      "crimp_spec": "39-00-0039",
+      "wire_gauge": "18-24 AWG",
+      "notes": "Dual-row, 4.2mm pitch, 6-circuit",
+      "image": "generic-placeholder.png",
+      "side_image": "generic-placeholder.png"
+    },
+    {
+      "id": "molex_minifit_jr_12p",
+      "name": "Molex Mini-Fit Jr. 12-pin",
+      "pin_count": 12,
+      "crimp_spec": "39-00-0039",
+      "wire_gauge": "18-24 AWG",
+      "notes": "Dual-row, 4.2mm pitch, 12-circuit"
+    },
+    {
+      "id": "molex_minifit_jr_20p",
+      "name": "Molex Mini-Fit Jr. 20-pin",
+      "pin_count": 20,
+      "crimp_spec": "39-00-0039",
+      "wire_gauge": "18-24 AWG",
+      "notes": "Dual-row, 4.2mm pitch, 20-circuit",
+      "image": "generic-placeholder.png",
+      "side_image": "generic-placeholder.png"
+    },
+    {
+      "id": "molex_14p",
+      "name": "Molex 14-pin",
+      "pin_count": 14,
+      "crimp_spec": "",
+      "wire_gauge": "18-24 AWG",
+      "notes": "14-circuit Molex connector",
+      "image": "generic-placeholder.png",
+      "side_image": "generic-placeholder.png"
+    },
+    {
+      "id": "delphi_metripack_6p",
+      "name": "Delphi Metripack 6-pin",
+      "pin_count": 6,
+      "crimp_spec": "",
+      "wire_gauge": "0.5-2.5mm²",
+      "notes": "Weather-resistant Metripack 6-circuit",
+      "image": "generic-placeholder.png",
+      "side_image": "generic-placeholder.png"
     },
     {
       "id": "te_superseal_4p",
@@ -57,8 +205,96 @@
       "crimp_spec": "1-967640-4",
       "wire_gauge": "0.5-1.5mm²",
       "notes": "IP67, single-row, automotive grade",
-      "image": "deutsch-12p-side.png",
-      "side_image": ""
+      "image": "generic-placeholder.png",
+      "side_image": "generic-placeholder.png"
+    },
+    {
+      "id": "te_ampseal_23p",
+      "name": "TE AMP Seal 23-pin",
+      "pin_count": 23,
+      "crimp_spec": "",
+      "wire_gauge": "0.35-0.75mm²",
+      "notes": "IP67, 23-circuit AmpSeal series",
+      "image": "generic-placeholder.png",
+      "side_image": "generic-placeholder.png"
+    },
+    {
+      "id": "souriau_circular_14p",
+      "name": "Souriau Circular 14-pin",
+      "pin_count": 14,
+      "crimp_spec": "",
+      "wire_gauge": "20-16 AWG",
+      "notes": "Circular military-style 14-circuit connector",
+      "image": "generic-placeholder.png",
+      "side_image": "generic-placeholder.png"
+    },
+    {
+      "id": "rls_rm44si",
+      "name": "RLS RM44 Encoder",
+      "pin_count": 12,
+      "crimp_spec": "",
+      "wire_gauge": "26-22 AWG",
+      "notes": "RLS RM44SI magnetic encoder connector",
+      "image": "generic-placeholder.png",
+      "side_image": "generic-placeholder.png"
+    },
+    {
+      "id": "p51_pressure_sensor",
+      "name": "P51 Pressure Sensor",
+      "pin_count": 3,
+      "crimp_spec": "",
+      "wire_gauge": "22-26 AWG",
+      "notes": "P51 series pressure sensor (5V, signal, GND)",
+      "image": "generic-placeholder.png",
+      "side_image": "generic-placeholder.png"
+    },
+    {
+      "id": "generic_2p",
+      "name": "Generic 2-pin",
+      "pin_count": 2,
+      "crimp_spec": "",
+      "wire_gauge": "",
+      "notes": "Generic 2-pin connector"
+    },
+    {
+      "id": "generic_3p",
+      "name": "Generic 3-pin",
+      "pin_count": 3,
+      "crimp_spec": "",
+      "wire_gauge": "",
+      "notes": "Generic 3-pin connector"
+    },
+    {
+      "id": "generic_multipin",
+      "name": "Generic Multi-pin",
+      "pin_count": 0,
+      "crimp_spec": "",
+      "wire_gauge": "",
+      "notes": "Generic multi-pin connector — pin count varies"
+    },
+    {
+      "id": "ring_terminal",
+      "name": "Ring Terminal",
+      "pin_count": 1,
+      "crimp_spec": "",
+      "wire_gauge": "10-18 AWG",
+      "notes": "Crimp ring terminal for bolted connections"
+    },
+    {
+      "id": "usb_a",
+      "name": "USB Type-A",
+      "pin_count": 4,
+      "crimp_spec": "",
+      "wire_gauge": "28-24 AWG",
+      "notes": "USB Type-A host connector"
+    },
+    {
+      "id": "usb_micro_b",
+      "name": "USB Micro-B",
+      "pin_count": 5,
+      "crimp_spec": "",
+      "wire_gauge": "28-24 AWG",
+      "notes": "USB Micro-B device connector"
     }
   ]
 }

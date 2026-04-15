@@ -36,6 +36,7 @@ export const ConnectorNode = memo(function ConnectorNode({
   const updateNodeSize = useHarnessStore((s) => s.updateNodeSize);
   const updateConnectorProperty = useHarnessStore((s) => s.updateConnectorProperty);
   const pushUndoSnapshot = useHarnessStore((s) => s.pushUndoSnapshot);
+  const rotation = useHarnessStore((s) => s.rotationLayouts[data.connectorId] ?? 0);
   const isExpanded = expandedNodes.has(data.connectorId);
 
   const ct = data.connectorTypeId
@@ -62,6 +63,8 @@ export const ConnectorNode = memo(function ConnectorNode({
           ? getWireBackground(data.wireAppearance, 0.15)
           : '#1e1e2e',
         borderColor,
+        transform: rotation ? `rotate(${rotation}deg)` : undefined,
+        transformOrigin: 'center center',
       }}
     >
       <NodeResizer

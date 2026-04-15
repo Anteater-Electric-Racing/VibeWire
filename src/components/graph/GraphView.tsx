@@ -4,6 +4,7 @@ import {
   Background,
   Controls,
   Panel,
+  SelectionMode,
   useNodesState,
   useEdgesState,
   useReactFlow,
@@ -121,7 +122,9 @@ export function GraphView() {
 
   const prevDragging = useRef(useHarnessStore.getState().draggingEdgeInfo);
   const draggingNodes = useRef(new Set<string>());
+  const didPushSnapshotForDrag = useRef(false);
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [lassoMode, setLassoMode] = useState(false);
 
   const breadcrumbs = useMemo(() => {
     if (!harness || !spaceId) return [];
@@ -501,16 +504,24 @@ export function GraphView() {
   const onNodesChange: OnNodesChange = useCallback(
     (changes: NodeChange[]) => {
       onNodesChangeBase(changes);
-      for (const change of changes) {
-        if (change.type !== 'position') continue;
 
-        if (change.dragging && !draggingNodes.current.has(change.id)) {
+      const positionChanges = changes.filter((c) => c.type === 'position');
+      const anyStarting = positionChanges.some(
+        (c) => c.type === 'position' && c.dragging && !draggingNodes.current.has(c.id),
+      );
+      if (anyStarting && !didPushSnapshotForDrag.current) {
+        didPushSnapshotForDrag.current = true;
+        pushUndoSnapshot();
+      }
+
+      for (const change of positionChanges) {
+        if (change.dragging) {
           draggingNodes.current.add(change.id);
-          pushUndoSnapshot();
         }
 
         if (change.position && !change.dragging) {
           draggingNodes.current.delete(change.id);
+          if (draggingNodes.current.size === 0) didPushSnapshotForDrag.current = false;
           if (change.id === BG_NODE_ID) {
             updateBackground(bgKey, { x: change.position.x, y: change.position.y });
           } else if (change.id.startsWith(TB_NODE_PREFIX)) {
@@ -596,6 +607,9 @@ export function GraphView() {
         maxZoom={3}
         proOptions={{ hideAttribution: true }}
         defaultEdgeOptions={{ animated: false }}
+        selectionOnDrag={lassoMode}
+        panOnDrag={lassoMode ? false : true}
+        selectionMode={SelectionMode.Partial}
       >
         <ViewportResetter viewportKey={bgKey} />
         <Background
@@ -630,31 +644,49 @@ export function GraphView() {
 
         <Panel position="top-right">
           <div className="flex flex-col gap-1 items-end">
-            <div className="relative">
+            <div className="flex gap-1">
               <button
-                className="flex items-center gap-1.5 px-2 py-1 text-[11px] bg-zinc-800/90 border border-zinc-600 text-zinc-300 hover:text-zinc-100 hover:bg-zinc-700 rounded shadow transition-colors"
-                onClick={() => setPickerOpen((p) => !p)}
-                title="Set background image"
+                className={`flex items-center gap-1.5 px-2 py-1 text-[11px] border rounded shadow transition-colors ${
+                  lassoMode
+                    ? 'bg-amber-500/20 border-amber-500 text-amber-300 hover:bg-amber-500/30'
+                    : 'bg-zinc-800/90 border-zinc-600 text-zinc-300 hover:text-zinc-100 hover:bg-zinc-700'
+                }`}
+                onClick={() => setLassoMode((m) => !m)}
+                title={lassoMode ? 'Exit lasso mode (back to pan)' : 'Lasso select (drag to select multiple)'}
               >
-                <span>🖼</span>
-                <span>Background</span>
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M6 1 C2 1 1 3 1 5 C1 8 3 10 6 10 C9 10 11 8 11 6 C11 4 10 2 8 2" />
+                  <line x1="8" y1="2" x2="10" y2="4" />
+                  <line x1="10" y1="4" x2="10" y2="7" strokeDasharray="1.5 1.5" />
+                </svg>
+                <span>Lasso</span>
               </button>
-              {pickerOpen && (
-                <ImagePickerPanel
-                  onPick={(filename) => {
-                    const bg = backgroundLayouts[bgKey];
-                    updateBackground(bgKey, {
-                      image: filename,
-                      x: bg?.x ?? -400,
-                      y: bg?.y ?? -300,
-                      w: bg?.w ?? 900,
-                      h: bg?.h ?? 600,
-                      locked: false,
-                    });
-                  }}
-                  onClose={() => setPickerOpen(false)}
-                />
-              )}
+              <div className="relative">
+                <button
+                  className="flex items-center gap-1.5 px-2 py-1 text-[11px] bg-zinc-800/90 border border-zinc-600 text-zinc-300 hover:text-zinc-100 hover:bg-zinc-700 rounded shadow transition-colors"
+                  onClick={() => setPickerOpen((p) => !p)}
+                  title="Set background image"
+                >
+                  <span>🖼</span>
+                  <span>Background</span>
+                </button>
+                {pickerOpen && (
+                  <ImagePickerPanel
+                    onPick={(filename) => {
+                      const bg = backgroundLayouts[bgKey];
+                      updateBackground(bgKey, {
+                        image: filename,
+                        x: bg?.x ?? -400,
+                        y: bg?.y ?? -300,
+                        w: bg?.w ?? 900,
+                        h: bg?.h ?? 600,
+                        locked: false,
+                      });
+                    }}
+                    onClose={() => setPickerOpen(false)}
+                  />
+                )}
+              </div>
             </div>
             <AddTextBoxButton />
           </div>
