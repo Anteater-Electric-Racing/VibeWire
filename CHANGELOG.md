@@ -39,3 +39,9 @@ Changes to harness data, logged by the AI agent.
 - Added 12 wires connecting 4 wheel speed sensor boxes to the 12-pin Shock/Wheel Bulkhead on FOC (con_033): 5V on bulkhead pins 1,2,7,8 — GND on pins 3,4,5,6 — signals on pins 9,10,11,12 (wire_079–wire_090)
 
 ---
+
+## [2026-04-15] - itGabe
+- Split BPS1 and BPS2 connections to FOC-C2 bulkhead.
+- Removed redundant BPS-FEM (con_082) and BPS-MALE (con_083).
+- Removed redundant APPS-MALE (con_093).
+- Connected APPS sensor (con_079) directly to footwell bulkhead (con_092).

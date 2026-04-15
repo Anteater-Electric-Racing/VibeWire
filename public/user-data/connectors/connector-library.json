@@ -40,9 +40,7 @@
       "pin_count": 6,
       "crimp_spec": "DT-0460-20141",
       "wire_gauge": "20-16 AWG",
-      "notes": "IP67, push-to-seat, 6-pin male DT series",
-      "image": "deutsch-12p-m.png",
-      "side_image": "deutsch-12p-side.png"
+      "notes": "IP67, push-to-seat, 6-pin male DT series"
     },
     {
       "id": "deutsch_dt_6p_flanged_male",
@@ -244,9 +242,7 @@
       "pin_count": 3,
       "crimp_spec": "",
       "wire_gauge": "22-26 AWG",
-      "notes": "P51 series pressure sensor (5V, signal, GND)",
-      "image": "generic-placeholder.png",
-      "side_image": "generic-placeholder.png"
+      "notes": "P51 series pressure sensor (5V, signal, GND)"
     },
     {
       "id": "generic_2p",
