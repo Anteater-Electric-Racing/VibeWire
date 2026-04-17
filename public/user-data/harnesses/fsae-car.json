@@ -1447,14 +1447,15 @@
         {
           "kind": "connector",
           "connector_id": "con_046",
-          "pin": "1"
+          "pin_number": 1
         },
         {
           "kind": "connector",
           "connector_id": "con_058",
-          "pin": "2"
+          "pin_number": 2
         }
-      ]
+      ],
+      "measurements": []
     },
     {
       "id": "path_011",
@@ -1469,14 +1470,15 @@
         {
           "kind": "connector",
           "connector_id": "con_061",
-          "pin": "1"
+          "pin_number": 1
         },
         {
           "kind": "connector",
           "connector_id": "con_011",
-          "pin": "1"
+          "pin_number": 1
         }
-      ]
+      ],
+      "measurements": []
     },
     {
       "id": "path_012",
@@ -1491,14 +1493,15 @@
         {
           "kind": "connector",
           "connector_id": "con_062",
-          "pin": "1"
+          "pin_number": 1
         },
         {
           "kind": "connector",
           "connector_id": "con_011",
-          "pin": "2"
+          "pin_number": 2
         }
-      ]
+      ],
+      "measurements": []
     },
     {
       "id": "path_013",
@@ -1513,14 +1516,15 @@
         {
           "kind": "connector",
           "connector_id": "con_009",
-          "pin": "11"
+          "pin_number": 11
         },
         {
           "kind": "connector",
           "connector_id": "con_012",
-          "pin": "11"
+          "pin_number": 11
         }
-      ]
+      ],
+      "measurements": []
     },
     {
       "id": "path_014",
@@ -1535,14 +1539,15 @@
         {
           "kind": "connector",
           "connector_id": "con_009",
-          "pin": "12"
+          "pin_number": 12
         },
         {
           "kind": "connector",
           "connector_id": "con_012",
-          "pin": "12"
+          "pin_number": 12
         }
-      ]
+      ],
+      "measurements": []
     },
     {
       "id": "path_015",
@@ -1557,14 +1562,15 @@
         {
           "kind": "connector",
           "connector_id": "con_009",
-          "pin": "9"
+          "pin_number": 9
         },
         {
           "kind": "connector",
           "connector_id": "con_012",
-          "pin": "9"
+          "pin_number": 9
         }
-      ]
+      ],
+      "measurements": []
     },
     {
       "id": "path_016",
@@ -1579,14 +1585,15 @@
         {
           "kind": "connector",
           "connector_id": "con_009",
-          "pin": "7"
+          "pin_number": 7
         },
         {
           "kind": "connector",
           "connector_id": "con_012",
-          "pin": "7"
+          "pin_number": 7
         }
-      ]
+      ],
+      "measurements": []
     },
     {
       "id": "path_017",
@@ -1601,14 +1608,15 @@
         {
           "kind": "connector",
           "connector_id": "con_009",
-          "pin": "8"
+          "pin_number": 8
         },
         {
           "kind": "connector",
           "connector_id": "con_012",
-          "pin": "8"
+          "pin_number": 8
         }
-      ]
+      ],
+      "measurements": []
     },
     {
       "id": "path_018",
@@ -1623,14 +1631,15 @@
         {
           "kind": "connector",
           "connector_id": "con_009",
-          "pin": "1"
+          "pin_number": 1
         },
         {
           "kind": "connector",
           "connector_id": "con_012",
-          "pin": "1"
+          "pin_number": 1
         }
-      ]
+      ],
+      "measurements": []
     },
     {
       "id": "path_019",
@@ -1645,14 +1654,15 @@
         {
           "kind": "connector",
           "connector_id": "con_009",
-          "pin": "2"
+          "pin_number": 2
         },
         {
           "kind": "connector",
           "connector_id": "con_012",
-          "pin": "2"
+          "pin_number": 2
         }
-      ]
+      ],
+      "measurements": []
     },
     {
       "id": "path_020",
@@ -1667,14 +1677,15 @@
         {
           "kind": "connector",
           "connector_id": "con_009",
-          "pin": "3"
+          "pin_number": 3
         },
         {
           "kind": "connector",
           "connector_id": "con_012",
-          "pin": "3"
+          "pin_number": 3
         }
-      ]
+      ],
+      "measurements": []
     },
     {
       "id": "path_021",
@@ -1689,14 +1700,15 @@
         {
           "kind": "connector",
           "connector_id": "con_009",
-          "pin": "4"
+          "pin_number": 4
         },
         {
           "kind": "connector",
           "connector_id": "con_012",
-          "pin": "4"
+          "pin_number": 4
         }
-      ]
+      ],
+      "measurements": []
     },
     {
       "id": "path_100",
@@ -1711,14 +1723,15 @@
         {
           "kind": "connector",
           "connector_id": "con_001",
-          "pin": "1"
+          "pin_number": 1
         },
         {
           "kind": "connector",
           "connector_id": "con_009",
-          "pin": "1"
+          "pin_number": 1
         }
-      ]
+      ],
+      "measurements": []
     },
     {
       "id": "path_101",
@@ -1733,14 +1746,15 @@
         {
           "kind": "connector",
           "connector_id": "con_001",
-          "pin": "2"
+          "pin_number": 2
         },
         {
           "kind": "connector",
           "connector_id": "con_009",
-          "pin": "2"
+          "pin_number": 2
         }
-      ]
+      ],
+      "measurements": []
     },
     {
       "id": "path_102",
@@ -1755,14 +1769,15 @@
         {
           "kind": "connector",
           "connector_id": "con_001",
-          "pin": "3"
+          "pin_number": 3
         },
         {
           "kind": "connector",
           "connector_id": "con_009",
-          "pin": "3"
+          "pin_number": 3
         }
-      ]
+      ],
+      "measurements": []
     },
     {
       "id": "path_103",
@@ -1777,14 +1792,15 @@
         {
           "kind": "connector",
           "connector_id": "con_001",
-          "pin": "4"
+          "pin_number": 4
         },
         {
           "kind": "connector",
           "connector_id": "con_009",
-          "pin": "4"
+          "pin_number": 4
         }
-      ]
+      ],
+      "measurements": []
     },
     {
       "id": "path_104",
@@ -1799,14 +1815,15 @@
         {
           "kind": "connector",
           "connector_id": "con_001",
-          "pin": "7"
+          "pin_number": 7
         },
         {
           "kind": "connector",
           "connector_id": "con_009",
-          "pin": "7"
+          "pin_number": 7
         }
-      ]
+      ],
+      "measurements": []
     },
     {
       "id": "path_105",
@@ -1821,14 +1838,15 @@
         {
           "kind": "connector",
           "connector_id": "con_001",
-          "pin": "8"
+          "pin_number": 8
         },
         {
           "kind": "connector",
           "connector_id": "con_009",
-          "pin": "8"
+          "pin_number": 8
         }
-      ]
+      ],
+      "measurements": []
     },
     {
       "id": "path_106",
@@ -1843,14 +1861,15 @@
         {
           "kind": "connector",
           "connector_id": "con_002",
-          "pin": "1"
+          "pin_number": 1
         },
         {
           "kind": "connector",
           "connector_id": "con_077",
-          "pin": "1"
+          "pin_number": 1
         }
-      ]
+      ],
+      "measurements": []
     },
     {
       "id": "path_107",
@@ -1865,14 +1884,15 @@
         {
           "kind": "connector",
           "connector_id": "con_002",
-          "pin": "2"
+          "pin_number": 2
         },
         {
           "kind": "connector",
           "connector_id": "con_077",
-          "pin": "2"
+          "pin_number": 2
         }
-      ]
+      ],
+      "measurements": []
     },
     {
       "id": "path_108",
@@ -1887,14 +1907,15 @@
         {
           "kind": "connector",
           "connector_id": "con_002",
-          "pin": "3"
+          "pin_number": 3
         },
         {
           "kind": "connector",
           "connector_id": "con_077",
-          "pin": "3"
+          "pin_number": 3
         }
-      ]
+      ],
+      "measurements": []
     },
     {
       "id": "path_109",
@@ -1909,14 +1930,15 @@
         {
           "kind": "connector",
           "connector_id": "con_002",
-          "pin": "4"
+          "pin_number": 4
         },
         {
           "kind": "connector",
           "connector_id": "con_092",
-          "pin": "1"
+          "pin_number": 1
         }
-      ]
+      ],
+      "measurements": []
     },
     {
       "id": "path_110",
@@ -1931,14 +1953,15 @@
         {
           "kind": "connector",
           "connector_id": "con_002",
-          "pin": "5"
+          "pin_number": 5
         },
         {
           "kind": "connector",
           "connector_id": "con_092",
-          "pin": "2"
+          "pin_number": 2
         }
-      ]
+      ],
+      "measurements": []
     },
     {
       "id": "path_111",
@@ -1953,14 +1976,15 @@
         {
           "kind": "connector",
           "connector_id": "con_002",
-          "pin": "6"
+          "pin_number": 6
         },
         {
           "kind": "connector",
           "connector_id": "con_092",
-          "pin": "3"
+          "pin_number": 3
         }
-      ]
+      ],
+      "measurements": []
     },
     {
       "id": "path_112",
@@ -1975,14 +1999,15 @@
         {
           "kind": "connector",
           "connector_id": "con_002",
-          "pin": "7"
+          "pin_number": 7
         },
         {
           "kind": "connector",
           "connector_id": "con_092",
-          "pin": "4"
+          "pin_number": 4
         }
-      ]
+      ],
+      "measurements": []
     },
     {
       "id": "path_113",
@@ -1997,14 +2022,15 @@
         {
           "kind": "connector",
           "connector_id": "con_002",
-          "pin": "8"
+          "pin_number": 8
         },
         {
           "kind": "connector",
           "connector_id": "con_092",
-          "pin": "5"
+          "pin_number": 5
         }
-      ]
+      ],
+      "measurements": []
     },
     {
       "id": "path_114",
@@ -2019,14 +2045,15 @@
         {
           "kind": "connector",
           "connector_id": "con_002",
-          "pin": "9"
+          "pin_number": 9
         },
         {
           "kind": "connector",
           "connector_id": "con_092",
-          "pin": "6"
+          "pin_number": 6
         }
-      ]
+      ],
+      "measurements": []
     },
     {
       "id": "path_115",
@@ -2041,14 +2068,15 @@
         {
           "kind": "connector",
           "connector_id": "con_002",
-          "pin": "10"
+          "pin_number": 10
         },
         {
           "kind": "connector",
           "connector_id": "con_078",
-          "pin": "1"
+          "pin_number": 1
         }
-      ]
+      ],
+      "measurements": []
     },
     {
       "id": "path_116",
@@ -2063,14 +2091,15 @@
         {
           "kind": "connector",
           "connector_id": "con_002",
-          "pin": "11"
+          "pin_number": 11
         },
         {
           "kind": "connector",
           "connector_id": "con_078",
-          "pin": "2"
+          "pin_number": 2
         }
-      ]
+      ],
+      "measurements": []
     },
     {
       "id": "path_117",
@@ -2085,14 +2114,15 @@
         {
           "kind": "connector",
           "connector_id": "con_002",
-          "pin": "12"
+          "pin_number": 12
         },
         {
           "kind": "connector",
           "connector_id": "con_078",
-          "pin": "3"
+          "pin_number": 3
         }
-      ]
+      ],
+      "measurements": []
     },
     {
       "id": "path_118",
@@ -2107,14 +2137,15 @@
         {
           "kind": "connector",
           "connector_id": "con_001",
-          "pin": "9"
+          "pin_number": 9
         },
         {
           "kind": "connector",
           "connector_id": "con_009",
-          "pin": "9"
+          "pin_number": 9
         }
-      ]
+      ],
+      "measurements": []
     },
     {
       "id": "path_119",
@@ -2129,14 +2160,15 @@
         {
           "kind": "connector",
           "connector_id": "con_001",
-          "pin": "11"
+          "pin_number": 11
         },
         {
           "kind": "connector",
           "connector_id": "con_009",
-          "pin": "11"
+          "pin_number": 11
         }
-      ]
+      ],
+      "measurements": []
     },
     {
       "id": "path_120",
@@ -2151,14 +2183,15 @@
         {
           "kind": "connector",
           "connector_id": "con_001",
-          "pin": "12"
+          "pin_number": 12
         },
         {
           "kind": "connector",
           "connector_id": "con_009",
-          "pin": "12"
+          "pin_number": 12
         }
-      ]
+      ],
+      "measurements": []
     },
     {
       "id": "path_136",
@@ -2171,14 +2204,15 @@
         {
           "kind": "connector",
           "connector_id": "con_092",
-          "pin": "1"
+          "pin_number": 1
         },
         {
           "kind": "connector",
           "connector_id": "con_079",
-          "pin": "1"
+          "pin_number": 1
         }
-      ]
+      ],
+      "measurements": []
     },
     {
       "id": "path_137",
@@ -2191,14 +2225,15 @@
         {
           "kind": "connector",
           "connector_id": "con_092",
-          "pin": "2"
+          "pin_number": 2
         },
         {
           "kind": "connector",
           "connector_id": "con_079",
-          "pin": "2"
+          "pin_number": 2
         }
-      ]
+      ],
+      "measurements": []
     },
     {
       "id": "path_138",
@@ -2211,14 +2246,15 @@
         {
           "kind": "connector",
           "connector_id": "con_092",
-          "pin": "3"
+          "pin_number": 3
         },
         {
           "kind": "connector",
           "connector_id": "con_079",
-          "pin": "3"
+          "pin_number": 3
         }
-      ]
+      ],
+      "measurements": []
     },
     {
       "id": "path_139",
@@ -2231,14 +2267,15 @@
         {
           "kind": "connector",
           "connector_id": "con_092",
-          "pin": "4"
+          "pin_number": 4
         },
         {
           "kind": "connector",
           "connector_id": "con_079",
-          "pin": "4"
+          "pin_number": 4
         }
-      ]
+      ],
+      "measurements": []
     },
     {
       "id": "path_140",
@@ -2251,14 +2288,15 @@
         {
           "kind": "connector",
           "connector_id": "con_092",
-          "pin": "5"
+          "pin_number": 5
         },
         {
           "kind": "connector",
           "connector_id": "con_079",
-          "pin": "5"
+          "pin_number": 5
         }
-      ]
+      ],
+      "measurements": []
     },
     {
       "id": "path_141",
@@ -2271,14 +2309,15 @@
         {
           "kind": "connector",
           "connector_id": "con_092",
-          "pin": "6"
+          "pin_number": 6
         },
         {
           "kind": "connector",
           "connector_id": "con_079",
-          "pin": "6"
+          "pin_number": 6
         }
-      ]
+      ],
+      "measurements": []
     }
   ],
   "signals": [
