@@ -28,6 +28,7 @@ export const EnclosureNode = memo(function EnclosureNode({
   const selectItem = useHarnessStore((s) => s.selectItem);
   const setDrillDown = useHarnessStore((s) => s.setDrillDown);
   const pushUndoSnapshot = useHarnessStore((s) => s.pushUndoSnapshot);
+  const rotation = useHarnessStore((s) => s.rotationLayouts[data.enclosureId] ?? 0);
   const nodeRef = useRef<HTMLDivElement>(null);
   const [hovered, setHovered] = useState(false);
 
@@ -53,7 +54,11 @@ export const EnclosureNode = memo(function EnclosureNode({
       className={`w-full h-full relative rounded-lg border-2 ${
         selected ? 'border-amber-400 ring-1 ring-amber-400/40' : borderColor
       } ${data.matchesFilter ? 'opacity-100' : 'opacity-25'} transition-opacity cursor-pointer group`}
-      style={{ background: bgColor }}
+      style={{
+        background: bgColor,
+        transform: rotation ? `rotate(${rotation}deg)` : undefined,
+        transformOrigin: 'center center',
+      }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       onClick={(e) => { e.stopPropagation(); selectItem({ type: 'enclosure', id: data.enclosureId }); }}

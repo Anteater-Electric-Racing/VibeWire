@@ -81,6 +81,7 @@ interface HarnessStore {
   loadMergePointLayouts: (layouts: MergePointLayouts) => void;
   loadRotationLayouts: (rotations: RotationLayouts) => void;
   rotateConnector: (connectorId: string) => void;
+  rotateEnclosure: (enclosureId: string) => void;
 
   updateBackground: (contextKey: string, patch: Partial<BackgroundLayout>) => void;
   removeBackground: (contextKey: string) => void;
@@ -302,6 +303,12 @@ export const useHarnessStore = create<HarnessStore>((set, get) => ({
       const current = state.rotationLayouts[connectorId] ?? 0;
       const next = (current + 90) % 360;
       return { rotationLayouts: { ...state.rotationLayouts, [connectorId]: next }, isDirty: true };
+    }),
+  rotateEnclosure: (enclosureId) =>
+    set((state) => {
+      const current = state.rotationLayouts[enclosureId] ?? 0;
+      const next = (current + 90) % 360;
+      return { rotationLayouts: { ...state.rotationLayouts, [enclosureId]: next }, isDirty: true };
     }),
 
   updateBackground: (contextKey, patch) =>

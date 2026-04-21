@@ -202,7 +202,7 @@
     {
       "id": "enc_019",
       "name": "Inverter",
-      "parent": "enc_003",
+      "parent": null,
       "container": false,
       "tags": [
         "system:hv"
@@ -288,7 +288,7 @@
       "container": false,
       "tags": [],
       "properties": {
-        "description": "Tractive System Status Indicator / Light Tree (TSL unified)"
+        "description": "Tractive System Status Indicator — connected to Safety Board inside FOC"
       }
     },
     {
@@ -404,6 +404,217 @@
       "properties": {
         "description": "Accelerator Pedal Position Sensor (includes throttle sensors)"
       }
+    },
+    {
+      "id": "enc_037",
+      "name": "RTM",
+      "parent": "enc_003",
+      "container": false,
+      "tags": [
+        "system:hv",
+        "system:safety"
+      ],
+      "properties": {
+        "description": "Ready-To-Move board inside HVB (accumulator). Senses HV, outputs RTM_SIG to PCC."
+      }
+    },
+    {
+      "id": "enc_038",
+      "name": "PCC",
+      "parent": "enc_003",
+      "container": false,
+      "tags": [
+        "system:hv",
+        "system:can"
+      ],
+      "properties": {
+        "description": "Precharge Control Circuit — main accumulator controller. Inside HVB."
+      }
+    },
+    {
+      "id": "enc_039",
+      "name": "Charging Box",
+      "parent": null,
+      "container": true,
+      "tags": [
+        "system:charging"
+      ],
+      "properties": {
+        "description": "Physical enclosure containing all charging hardware"
+      }
+    },
+    {
+      "id": "enc_040",
+      "name": "Charge Board",
+      "parent": "enc_039",
+      "container": false,
+      "tags": [
+        "system:charging"
+      ],
+      "properties": {
+        "description": "Charger PCB inside Charging Box. Supports both Valeo and Orion chargers. Molex Minifit Jr connectors."
+      }
+    },
+    {
+      "id": "enc_041",
+      "name": "AC-to-DC",
+      "parent": "enc_039",
+      "container": false,
+      "tags": [
+        "system:charging"
+      ],
+      "properties": {
+        "description": "AC-to-DC power converter inside Charging Box. 3 ports: (1) Live+Neutral, (2) Chassis GND, (3) DC Output terminal block."
+      }
+    },
+    {
+      "id": "enc_042",
+      "name": "DC-to-DC",
+      "parent": "enc_039",
+      "container": false,
+      "tags": [
+        "system:charging"
+      ],
+      "properties": {
+        "description": "DC-to-DC converter inside Charging Box. Provides charge-enable 12V power."
+      }
+    },
+    {
+      "id": "enc_043",
+      "name": "Orion BMS",
+      "parent": "enc_039",
+      "container": false,
+      "tags": [
+        "system:charging",
+        "system:can"
+      ],
+      "properties": {
+        "description": "Orion BMS inside Charging Box. 3-pin CAN connector (outward-facing). Discharge enable = 12V GLV+ from PCC."
+      }
+    },
+    {
+      "id": "enc_044",
+      "name": "Charger Box E-Stop",
+      "parent": "enc_039",
+      "container": false,
+      "tags": [
+        "system:safety",
+        "system:sdc"
+      ],
+      "properties": {
+        "description": "E-stop button inside Charging Box. 2 green cables in safety daisy chain."
+      }
+    },
+    {
+      "id": "enc_045",
+      "name": "Cooling Pump",
+      "parent": null,
+      "container": false,
+      "tags": [
+        "system:cooling"
+      ],
+      "properties": {
+        "description": "Cooling pump powered from AC-to-DC terminal block (12V + GND)."
+      }
+    },
+    {
+      "id": "enc_046",
+      "name": "Cooling Fan",
+      "parent": null,
+      "container": false,
+      "tags": [
+        "system:cooling"
+      ],
+      "properties": {
+        "description": "Cooling fan powered from AC-to-DC terminal block (12V + GND)."
+      }
+    },
+    {
+      "id": "enc_047",
+      "name": "J1772 Port",
+      "parent": null,
+      "container": false,
+      "tags": [
+        "system:charging"
+      ],
+      "properties": {
+        "description": "J1772 charging port connector. CP and CC signals. Connected to Charge Board J7."
+      }
+    },
+    {
+      "id": "enc_048",
+      "name": "HV Battery",
+      "parent": "enc_003",
+      "container": false,
+      "tags": [
+        "system:hv"
+      ],
+      "properties": {
+        "description": "High voltage traction battery. HV+ → AIR+, HV- → AIR-."
+      }
+    },
+    {
+      "id": "enc_049",
+      "name": "AIR+",
+      "parent": "enc_003",
+      "container": false,
+      "tags": [
+        "system:hv",
+        "system:safety"
+      ],
+      "properties": {
+        "description": "Positive Accumulator Isolation Relay. 4-pin coil connector to PCC (both AIRs share PCC J1). HV terminals: B+ (battery side) and TS+ (tractive system side)."
+      }
+    },
+    {
+      "id": "enc_050",
+      "name": "AIR-",
+      "parent": "enc_003",
+      "container": false,
+      "tags": [
+        "system:hv",
+        "system:safety"
+      ],
+      "properties": {
+        "description": "Negative Accumulator Isolation Relay. Same layout as AIR+. HV terminals: B- (battery side) and TS- (tractive system side)."
+      }
+    },
+    {
+      "id": "enc_051",
+      "name": "HV Fuse",
+      "parent": null,
+      "container": false,
+      "tags": [
+        "system:hv"
+      ],
+      "properties": {
+        "description": "High voltage fuse. Position in tractive system path TBD — currently floating device."
+      }
+    },
+    {
+      "id": "enc_052",
+      "name": "HV Connector",
+      "parent": null,
+      "container": false,
+      "tags": [
+        "system:hv"
+      ],
+      "properties": {
+        "description": "Main high voltage bulkhead connector. Carries TS+, TS-, interlock. Part number TBD (Gabe to provide). Matches PCC J2 (12-pin 874271202)."
+      }
+    },
+    {
+      "id": "enc_053",
+      "name": "Energy Meter",
+      "parent": "enc_003",
+      "container": false,
+      "tags": [
+        "system:hv",
+        "system:can"
+      ],
+      "properties": {
+        "description": "Commercial energy meter inside HVB. 3 HV connections: Inline 1, Inline 2, Sense Lead (destination TBD). 4-pin CAN connector to PCC J9."
+      }
     }
   ],
   "connectors": [
@@ -416,7 +627,7 @@
         "zone:bulkhead"
       ],
       "properties": {
-        "description": "FOC bulkhead 12p \u2014 ROC link. Internal: DT04-12PA-L012, External: DT06-12SA"
+        "description": "FOC bulkhead 12p — ROC link. Internal: DT04-12PA-L012, External: DT06-12SA"
       }
     },
     {
@@ -428,7 +639,7 @@
         "zone:bulkhead"
       ],
       "properties": {
-        "description": "FOC bulkhead 12p \u2014 footwell sensors (BPS + APPS). Internal: DT04-12PA-L012, External: DT06-12SA"
+        "description": "FOC bulkhead 12p — footwell sensors (BPS + APPS). Internal: DT04-12PA-L012, External: DT06-12SA"
       }
     },
     {
@@ -440,7 +651,7 @@
         "zone:bulkhead"
       ],
       "properties": {
-        "description": "FOC bulkhead 6p \u2014 TSSI and Brake Light. Internal: DT04-6P-L012, External: DT06-6S"
+        "description": "FOC bulkhead 6p — TSSI and Brake Light. Internal: DT04-6P-L012, External: DT06-6S"
       }
     },
     {
@@ -452,7 +663,7 @@
         "zone:bulkhead"
       ],
       "properties": {
-        "description": "FOC bulkhead 12p \u2014 wheel/shock sensors. External: DT06-12SA"
+        "description": "FOC bulkhead 12p — wheel/shock sensors. External: DT06-12SA"
       }
     },
     {
@@ -464,7 +675,7 @@
         "zone:bulkhead"
       ],
       "properties": {
-        "description": "FOC bulkhead 3p \u2014 current sensor chain to HVB"
+        "description": "FOC bulkhead 3p — current sensor chain to HVB"
       }
     },
     {
@@ -477,7 +688,7 @@
         "system:sdc"
       ],
       "properties": {
-        "description": "FOC bulkhead 2p \u2014 SDC out to BOTS"
+        "description": "FOC bulkhead 2p — SDC out to BOTS"
       }
     },
     {
@@ -490,7 +701,7 @@
         "system:hv"
       ],
       "properties": {
-        "description": "FOC bulkhead 6p \u2014 HVB link. BMS/IMD fault signals to HVB Safety Board header"
+        "description": "FOC bulkhead 6p — HVB link. BMS/IMD fault signals to HVB Safety Board header"
       }
     },
     {
@@ -514,7 +725,7 @@
         "zone:bulkhead"
       ],
       "properties": {
-        "description": "ROC bulkhead 12p \u2014 FOC link. Internal: DT04-12PA-L012, External: DT06-12SA"
+        "description": "ROC bulkhead 12p — FOC link. Internal: DT04-12PA-L012, External: DT06-12SA"
       }
     },
     {
@@ -526,7 +737,7 @@
         "zone:bulkhead"
       ],
       "properties": {
-        "description": "ROC bulkhead 6p \u2014 Estop/LV batt/ACCU. Internal: DT04-6P, External: DT06-6S"
+        "description": "ROC bulkhead 6p — Estop/LV batt/ACCU. Internal: DT04-6P, External: DT06-6S"
       }
     },
     {
@@ -539,7 +750,7 @@
         "system:lv"
       ],
       "properties": {
-        "description": "ROC bulkhead 2p \u2014 LV battery connector"
+        "description": "ROC bulkhead 2p — LV battery connector"
       }
     },
     {
@@ -552,7 +763,7 @@
         "system:hv"
       ],
       "properties": {
-        "description": "HVB bulkhead 12p \u2014 main signal interface (formerly ACCU-C1)"
+        "description": "HVB bulkhead 12p — main signal interface (formerly ACCU-C1)"
       }
     },
     {
@@ -564,7 +775,7 @@
         "zone:bulkhead"
       ],
       "properties": {
-        "description": "HVB bulkhead 3p \u2014 current sensor"
+        "description": "HVB bulkhead 3p — current sensor"
       }
     },
     {
@@ -970,7 +1181,7 @@
       "connector_type": "usb_a",
       "tags": [],
       "properties": {
-        "description": "Raspberry Pi USB A port 1 \u2014 to CAN Transceiver"
+        "description": "Raspberry Pi USB A port 1 — to CAN Transceiver"
       }
     },
     {
@@ -980,7 +1191,7 @@
       "connector_type": "usb_a",
       "tags": [],
       "properties": {
-        "description": "Raspberry Pi USB A port 2 \u2014 to Cell Box"
+        "description": "Raspberry Pi USB A port 2 — to Cell Box"
       }
     },
     {
@@ -1004,7 +1215,7 @@
         "system:can"
       ],
       "properties": {
-        "description": "PLACEHOLDER \u2014 unconnected CAN port on transceiver"
+        "description": "PLACEHOLDER — unconnected CAN port on transceiver"
       }
     },
     {
@@ -1327,7 +1538,7 @@
         "system:sdc"
       ],
       "properties": {
-        "description": "ROC bulkhead 6p \u2014 SDC chain interface (formerly BBC-C1)"
+        "description": "ROC bulkhead 6p — SDC chain interface (formerly BBC-C1)"
       }
     },
     {
@@ -1337,7 +1548,7 @@
       "connector_type": "deutsch_dt_4p_male",
       "tags": [],
       "properties": {
-        "description": "Tractive System Light connector 1 \u2014 from HVB/FOC"
+        "description": "Tractive System Light connector 1 — from HVB/FOC"
       }
     },
     {
@@ -1394,7 +1605,467 @@
       "connector_type": "molex_minifit_jr_4p",
       "tags": [],
       "properties": {
-        "description": "HI Board ROC \u2014 LED signals. Pin 1=LED GND, Pin 2=BSPD LED+, Pin 3=BMS LED+, Pin 4=IMD LED+"
+        "description": "HI Board ROC — LED signals. Pin 1=LED GND, Pin 2=BSPD LED+, Pin 3=BMS LED+, Pin 4=IMD LED+"
+      }
+    },
+    {
+      "id": "con_095",
+      "name": "PCC J1 AIR Ctrl",
+      "parent": "enc_038",
+      "connector_type": "molex_minifit_jr_4p",
+      "tags": [
+        "system:hv",
+        "system:safety"
+      ],
+      "properties": {
+        "description": "AIR coil control. Controls both AIR+ and AIR-. Signals: Shutdown_in, IR+_GND, IR-_GND, Shutdown_in."
+      }
+    },
+    {
+      "id": "con_096",
+      "name": "PCC J2 HV Bus",
+      "parent": "enc_038",
+      "connector_type": "generic_12p",
+      "tags": [
+        "system:hv"
+      ],
+      "properties": {
+        "description": "Main HV bulkhead connector on PCC (874271202, 12-pin). Pins: IL, FusedTS+1-4, TSMP+, IL, FusedTS-1-3, TSMP-."
+      }
+    },
+    {
+      "id": "con_097",
+      "name": "PCC J3 BMS",
+      "parent": "enc_038",
+      "connector_type": "generic_6p",
+      "tags": [
+        "system:can",
+        "system:safety"
+      ],
+      "properties": {
+        "description": "6-pin connector to BMS. Nets: CANL, GLV-, RTM_SIG, CANH, GLV+, IMD_Fault."
+      }
+    },
+    {
+      "id": "con_098",
+      "name": "PCC J5 Batt Bulkhead",
+      "parent": "enc_038",
+      "connector_type": "generic_6p",
+      "tags": [
+        "system:hv",
+        "system:can"
+      ],
+      "properties": {
+        "description": "6-pin connector to battery bulkhead. Same nets as J3: CANL, GLV-, RTM_SIG, CANH, GLV+, IMD_Fault."
+      }
+    },
+    {
+      "id": "con_099",
+      "name": "PCC J6 Therm Exp",
+      "parent": "enc_038",
+      "connector_type": "molex_minifit_jr_4p",
+      "tags": [
+        "system:can"
+      ],
+      "properties": {
+        "description": "Thermistor expansion CAN connector. CANH, GLV+, CANL, GLV-."
+      }
+    },
+    {
+      "id": "con_100",
+      "name": "PCC J7 RTM",
+      "parent": "enc_038",
+      "connector_type": "molex_minifit_jr_4p",
+      "tags": [
+        "system:safety",
+        "system:hv"
+      ],
+      "properties": {
+        "description": "RTM board connection. Pins: NC, GLV+, RTM_SIG, GLV-."
+      }
+    },
+    {
+      "id": "con_101",
+      "name": "PCC J8 BMS CAN",
+      "parent": "enc_038",
+      "connector_type": "molex_minifit_jr_4p",
+      "tags": [
+        "system:can"
+      ],
+      "properties": {
+        "description": "BMS CAN connection. CANH, GLV+, CANL, GLV-."
+      }
+    },
+    {
+      "id": "con_102",
+      "name": "PCC J9 Energy Meter",
+      "parent": "enc_038",
+      "connector_type": "molex_minifit_jr_4p",
+      "tags": [
+        "system:can",
+        "system:hv"
+      ],
+      "properties": {
+        "description": "Energy meter CAN connection. CANH, GLV+, CANL, GLV-."
+      }
+    },
+    {
+      "id": "con_103",
+      "name": "PCC J12 Inverter",
+      "parent": "enc_038",
+      "connector_type": "molex_minifit_jr_4p",
+      "tags": [
+        "system:can",
+        "system:drivetrain"
+      ],
+      "properties": {
+        "description": "Inverter CAN connection. CANH, GLV+, CANL, GLV-."
+      }
+    },
+    {
+      "id": "con_104",
+      "name": "RTM J5 HV Sense",
+      "parent": "enc_037",
+      "connector_type": "molex_minifit_jr_2p",
+      "tags": [
+        "system:hv"
+      ],
+      "properties": {
+        "description": "HV sensing input. HighVoltage+, HighVoltage-."
+      }
+    },
+    {
+      "id": "con_105",
+      "name": "RTM J7 Power",
+      "parent": "enc_037",
+      "connector_type": "molex_minifit_jr_2p",
+      "tags": [
+        "system:power"
+      ],
+      "properties": {
+        "description": "Isolated 12V power. 12V_ISO, GND_ISO."
+      }
+    },
+    {
+      "id": "con_106",
+      "name": "RTM J2 Power",
+      "parent": "enc_037",
+      "connector_type": "molex_minifit_jr_2p",
+      "tags": [
+        "system:power"
+      ],
+      "properties": {
+        "description": "Isolated 12V power. 12V_ISO, Net-(J2-Pin_2)."
+      }
+    },
+    {
+      "id": "con_107",
+      "name": "CB J1 Face Conn",
+      "parent": "enc_040",
+      "connector_type": "deutsch_dt15_12p",
+      "tags": [
+        "system:charging"
+      ],
+      "properties": {
+        "description": "12-pin Deutsch DT15 face connector on Charging Box (DT15-12PA). Car-facing passthrough."
+      }
+    },
+    {
+      "id": "con_108",
+      "name": "CB J2 E-Stop",
+      "parent": "enc_040",
+      "connector_type": "molex_minifit_jr_2p",
+      "tags": [
+        "system:safety",
+        "system:sdc"
+      ],
+      "properties": {
+        "description": "E-stop connection."
+      }
+    },
+    {
+      "id": "con_109",
+      "name": "CB J3 HVIL",
+      "parent": "enc_040",
+      "connector_type": "molex_minifit_jr_2p",
+      "tags": [
+        "system:hv",
+        "system:safety"
+      ],
+      "properties": {
+        "description": "High Voltage Interlock Loop."
+      }
+    },
+    {
+      "id": "con_110",
+      "name": "CB J4 Lead Acid",
+      "parent": "enc_040",
+      "connector_type": "generic_2p",
+      "tags": [
+        "system:charging",
+        "system:lv"
+      ],
+      "properties": {
+        "description": "Lead acid battery input (always-on 12V source)."
+      }
+    },
+    {
+      "id": "con_111",
+      "name": "CB J5 Battery Tender",
+      "parent": "enc_040",
+      "connector_type": "generic_2p",
+      "tags": [
+        "system:charging"
+      ],
+      "properties": {
+        "description": "Battery tender port."
+      }
+    },
+    {
+      "id": "con_112",
+      "name": "CB J7 J1772",
+      "parent": "enc_040",
+      "connector_type": "generic_4p",
+      "tags": [
+        "system:charging"
+      ],
+      "properties": {
+        "description": "J1772 output — CP and CC signals. Goes to J1772 port connector."
+      }
+    },
+    {
+      "id": "con_113",
+      "name": "CB J8 Car Side",
+      "parent": "enc_040",
+      "connector_type": "molex_minifit_jr_4p",
+      "tags": [
+        "system:charging",
+        "system:can"
+      ],
+      "properties": {
+        "description": "Molex Minifit Jr car-side umbilical (874271042). Carries CAN, SDC signals, Core_12v to vehicle."
+      }
+    },
+    {
+      "id": "con_114",
+      "name": "CB 12V Placeholder",
+      "parent": "enc_040",
+      "connector_type": "terminal_block_2p",
+      "tags": [
+        "system:charging",
+        "system:lv"
+      ],
+      "properties": {
+        "description": "Placeholder: 12V passthrough from AC-to-DC to car. Red/black wire."
+      }
+    },
+    {
+      "id": "con_115",
+      "name": "AC-DC Port1 AC In",
+      "parent": "enc_041",
+      "connector_type": "terminal_block_2p",
+      "tags": [
+        "system:charging"
+      ],
+      "properties": {
+        "description": "AC input. Live and Neutral."
+      }
+    },
+    {
+      "id": "con_116",
+      "name": "AC-DC Port2 Chassis GND",
+      "parent": "enc_041",
+      "connector_type": "terminal_block_2p",
+      "tags": [
+        "system:charging"
+      ],
+      "properties": {
+        "description": "Chassis ground connection."
+      }
+    },
+    {
+      "id": "con_117",
+      "name": "AC-DC Port3 DC Out",
+      "parent": "enc_041",
+      "connector_type": "terminal_block_2p",
+      "tags": [
+        "system:charging",
+        "system:lv"
+      ],
+      "properties": {
+        "description": "DC output terminal block. 12V positive and negative."
+      }
+    },
+    {
+      "id": "con_118",
+      "name": "Orion BMS CAN",
+      "parent": "enc_043",
+      "connector_type": "generic_3p",
+      "tags": [
+        "system:can",
+        "system:charging"
+      ],
+      "properties": {
+        "description": "3-pin CAN connector (outward-facing). CANH, CANL, GND. 12V discharge enable = GLV+ from PCC."
+      }
+    },
+    {
+      "id": "con_119",
+      "name": "EM HV Inline1",
+      "parent": "enc_053",
+      "connector_type": "generic_2p",
+      "tags": [
+        "system:hv"
+      ],
+      "properties": {
+        "description": "HV connection Inline 1."
+      }
+    },
+    {
+      "id": "con_120",
+      "name": "EM HV Inline2",
+      "parent": "enc_053",
+      "connector_type": "generic_2p",
+      "tags": [
+        "system:hv"
+      ],
+      "properties": {
+        "description": "HV connection Inline 2."
+      }
+    },
+    {
+      "id": "con_121",
+      "name": "EM Sense Lead",
+      "parent": "enc_053",
+      "connector_type": "generic_2p",
+      "tags": [
+        "system:hv"
+      ],
+      "properties": {
+        "description": "HV sense lead. Destination TBD — leave unconnected for now."
+      }
+    },
+    {
+      "id": "con_122",
+      "name": "EM CAN",
+      "parent": "enc_053",
+      "connector_type": "molex_minifit_jr_4p",
+      "tags": [
+        "system:can",
+        "system:hv"
+      ],
+      "properties": {
+        "description": "Energy meter CAN + power to PCC J9. CANH, GLV+, CANL, GLV-."
+      }
+    },
+    {
+      "id": "con_123",
+      "name": "AIR+ HV B+",
+      "parent": "enc_049",
+      "connector_type": "generic_2p",
+      "tags": [
+        "system:hv"
+      ],
+      "properties": {
+        "description": "AIR+ battery-side HV terminal (B+)."
+      }
+    },
+    {
+      "id": "con_124",
+      "name": "AIR+ HV TS+",
+      "parent": "enc_049",
+      "connector_type": "generic_2p",
+      "tags": [
+        "system:hv"
+      ],
+      "properties": {
+        "description": "AIR+ tractive-system-side HV terminal (TS+)."
+      }
+    },
+    {
+      "id": "con_125",
+      "name": "AIR- HV B-",
+      "parent": "enc_050",
+      "connector_type": "generic_2p",
+      "tags": [
+        "system:hv"
+      ],
+      "properties": {
+        "description": "AIR- battery-side HV terminal (B-)."
+      }
+    },
+    {
+      "id": "con_126",
+      "name": "AIR- HV TS-",
+      "parent": "enc_050",
+      "connector_type": "generic_2p",
+      "tags": [
+        "system:hv"
+      ],
+      "properties": {
+        "description": "AIR- tractive-system-side HV terminal (TS-)."
+      }
+    },
+    {
+      "id": "con_127",
+      "name": "SB AMP Out",
+      "parent": "enc_004",
+      "connector_type": "molex_minifit_jr_2p",
+      "tags": [
+        "system:audio"
+      ],
+      "properties": {
+        "description": "Safety Board amplifier output. Speaker+ and Speaker- (J19 is a 4-pin header but modeled as 2-pin for signal purposes)."
+      }
+    },
+    {
+      "id": "con_128",
+      "name": "Pump 12V In",
+      "parent": "enc_045",
+      "connector_type": "generic_2p",
+      "tags": [
+        "system:cooling",
+        "system:lv"
+      ],
+      "properties": {
+        "description": "Cooling pump 12V power input from AC-to-DC terminal block."
+      }
+    },
+    {
+      "id": "con_129",
+      "name": "Fan 12V In",
+      "parent": "enc_046",
+      "connector_type": "generic_2p",
+      "tags": [
+        "system:cooling",
+        "system:lv"
+      ],
+      "properties": {
+        "description": "Cooling fan 12V power input from AC-to-DC terminal block."
+      }
+    },
+    {
+      "id": "con_130",
+      "name": "HVBatt HV+",
+      "parent": "enc_048",
+      "connector_type": "generic_2p",
+      "tags": [
+        "system:hv"
+      ],
+      "properties": {
+        "description": "HV battery positive terminal. Connects to AIR+ B+ side."
+      }
+    },
+    {
+      "id": "con_131",
+      "name": "HVBatt HV-",
+      "parent": "enc_048",
+      "connector_type": "generic_2p",
+      "tags": [
+        "system:hv"
+      ],
+      "properties": {
+        "description": "HV battery negative terminal. Connects to AIR- B- side."
       }
     }
   ],
@@ -1446,13 +2117,11 @@
       "nodes": [
         {
           "kind": "connector",
-          "connector_id": "con_046",
-          "pin_number": 1
+          "connector_id": "con_046"
         },
         {
           "kind": "connector",
-          "connector_id": "con_058",
-          "pin_number": 2
+          "connector_id": "con_058"
         }
       ],
       "measurements": []
@@ -1469,13 +2138,11 @@
       "nodes": [
         {
           "kind": "connector",
-          "connector_id": "con_061",
-          "pin_number": 1
+          "connector_id": "con_061"
         },
         {
           "kind": "connector",
-          "connector_id": "con_011",
-          "pin_number": 1
+          "connector_id": "con_011"
         }
       ],
       "measurements": []
@@ -1492,13 +2159,11 @@
       "nodes": [
         {
           "kind": "connector",
-          "connector_id": "con_062",
-          "pin_number": 1
+          "connector_id": "con_062"
         },
         {
           "kind": "connector",
-          "connector_id": "con_011",
-          "pin_number": 2
+          "connector_id": "con_011"
         }
       ],
       "measurements": []
@@ -1515,13 +2180,15 @@
       "nodes": [
         {
           "kind": "connector",
-          "connector_id": "con_009",
-          "pin_number": 11
+          "connector_id": "con_001"
         },
         {
           "kind": "connector",
-          "connector_id": "con_012",
-          "pin_number": 11
+          "connector_id": "con_009"
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_012"
         }
       ],
       "measurements": []
@@ -1538,13 +2205,15 @@
       "nodes": [
         {
           "kind": "connector",
-          "connector_id": "con_009",
-          "pin_number": 12
+          "connector_id": "con_001"
         },
         {
           "kind": "connector",
-          "connector_id": "con_012",
-          "pin_number": 12
+          "connector_id": "con_009"
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_012"
         }
       ],
       "measurements": []
@@ -1561,13 +2230,15 @@
       "nodes": [
         {
           "kind": "connector",
-          "connector_id": "con_009",
-          "pin_number": 9
+          "connector_id": "con_001"
         },
         {
           "kind": "connector",
-          "connector_id": "con_012",
-          "pin_number": 9
+          "connector_id": "con_009"
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_012"
         }
       ],
       "measurements": []
@@ -1584,13 +2255,15 @@
       "nodes": [
         {
           "kind": "connector",
-          "connector_id": "con_009",
-          "pin_number": 7
+          "connector_id": "con_001"
         },
         {
           "kind": "connector",
-          "connector_id": "con_012",
-          "pin_number": 7
+          "connector_id": "con_009"
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_012"
         }
       ],
       "measurements": []
@@ -1607,13 +2280,15 @@
       "nodes": [
         {
           "kind": "connector",
-          "connector_id": "con_009",
-          "pin_number": 8
+          "connector_id": "con_001"
         },
         {
           "kind": "connector",
-          "connector_id": "con_012",
-          "pin_number": 8
+          "connector_id": "con_009"
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_012"
         }
       ],
       "measurements": []
@@ -1630,13 +2305,15 @@
       "nodes": [
         {
           "kind": "connector",
-          "connector_id": "con_009",
-          "pin_number": 1
+          "connector_id": "con_001"
         },
         {
           "kind": "connector",
-          "connector_id": "con_012",
-          "pin_number": 1
+          "connector_id": "con_009"
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_012"
         }
       ],
       "measurements": []
@@ -1653,13 +2330,15 @@
       "nodes": [
         {
           "kind": "connector",
-          "connector_id": "con_009",
-          "pin_number": 2
+          "connector_id": "con_001"
         },
         {
           "kind": "connector",
-          "connector_id": "con_012",
-          "pin_number": 2
+          "connector_id": "con_009"
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_012"
         }
       ],
       "measurements": []
@@ -1676,13 +2355,15 @@
       "nodes": [
         {
           "kind": "connector",
-          "connector_id": "con_009",
-          "pin_number": 3
+          "connector_id": "con_001"
         },
         {
           "kind": "connector",
-          "connector_id": "con_012",
-          "pin_number": 3
+          "connector_id": "con_009"
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_012"
         }
       ],
       "measurements": []
@@ -1699,151 +2380,15 @@
       "nodes": [
         {
           "kind": "connector",
-          "connector_id": "con_009",
-          "pin_number": 4
+          "connector_id": "con_001"
         },
         {
           "kind": "connector",
-          "connector_id": "con_012",
-          "pin_number": 4
-        }
-      ],
-      "measurements": []
-    },
-    {
-      "id": "path_100",
-      "name": "FOC-ROC Link H1-1",
-      "tags": [
-        "signal:PWR_12V"
-      ],
-      "properties": {
-        "source_file": "MAIN_H1"
-      },
-      "nodes": [
-        {
-          "kind": "connector",
-          "connector_id": "con_001",
-          "pin_number": 1
+          "connector_id": "con_009"
         },
         {
           "kind": "connector",
-          "connector_id": "con_009",
-          "pin_number": 1
-        }
-      ],
-      "measurements": []
-    },
-    {
-      "id": "path_101",
-      "name": "FOC-ROC Link H1-2",
-      "tags": [
-        "signal:GND"
-      ],
-      "properties": {
-        "source_file": "MAIN_H1"
-      },
-      "nodes": [
-        {
-          "kind": "connector",
-          "connector_id": "con_001",
-          "pin_number": 2
-        },
-        {
-          "kind": "connector",
-          "connector_id": "con_009",
-          "pin_number": 2
-        }
-      ],
-      "measurements": []
-    },
-    {
-      "id": "path_102",
-      "name": "FOC-ROC Link H1-3",
-      "tags": [
-        "signal:IMD_RESET_NEG"
-      ],
-      "properties": {
-        "source_file": "MAIN_H1"
-      },
-      "nodes": [
-        {
-          "kind": "connector",
-          "connector_id": "con_001",
-          "pin_number": 3
-        },
-        {
-          "kind": "connector",
-          "connector_id": "con_009",
-          "pin_number": 3
-        }
-      ],
-      "measurements": []
-    },
-    {
-      "id": "path_103",
-      "name": "FOC-ROC Link H1-4",
-      "tags": [
-        "signal:BMS_RESET"
-      ],
-      "properties": {
-        "source_file": "MAIN_H1"
-      },
-      "nodes": [
-        {
-          "kind": "connector",
-          "connector_id": "con_001",
-          "pin_number": 4
-        },
-        {
-          "kind": "connector",
-          "connector_id": "con_009",
-          "pin_number": 4
-        }
-      ],
-      "measurements": []
-    },
-    {
-      "id": "path_104",
-      "name": "FOC-ROC Link H1-7",
-      "tags": [
-        "signal:IMD_FAULT"
-      ],
-      "properties": {
-        "source_file": "MAIN_H1"
-      },
-      "nodes": [
-        {
-          "kind": "connector",
-          "connector_id": "con_001",
-          "pin_number": 7
-        },
-        {
-          "kind": "connector",
-          "connector_id": "con_009",
-          "pin_number": 7
-        }
-      ],
-      "measurements": []
-    },
-    {
-      "id": "path_105",
-      "name": "FOC-ROC Link H1-8",
-      "tags": [
-        "signal:BMS_FAULT"
-      ],
-      "properties": {
-        "source_file": "MAIN_H1"
-      },
-      "nodes": [
-        {
-          "kind": "connector",
-          "connector_id": "con_001",
-          "pin_number": 8
-        },
-        {
-          "kind": "connector",
-          "connector_id": "con_009",
-          "pin_number": 8
+          "connector_id": "con_012"
         }
       ],
       "measurements": []
@@ -1860,13 +2405,11 @@
       "nodes": [
         {
           "kind": "connector",
-          "connector_id": "con_002",
-          "pin_number": 1
+          "connector_id": "con_002"
         },
         {
           "kind": "connector",
-          "connector_id": "con_077",
-          "pin_number": 1
+          "connector_id": "con_077"
         }
       ],
       "measurements": []
@@ -1883,13 +2426,11 @@
       "nodes": [
         {
           "kind": "connector",
-          "connector_id": "con_002",
-          "pin_number": 2
+          "connector_id": "con_002"
         },
         {
           "kind": "connector",
-          "connector_id": "con_077",
-          "pin_number": 2
+          "connector_id": "con_077"
         }
       ],
       "measurements": []
@@ -1906,151 +2447,11 @@
       "nodes": [
         {
           "kind": "connector",
-          "connector_id": "con_002",
-          "pin_number": 3
+          "connector_id": "con_002"
         },
         {
           "kind": "connector",
-          "connector_id": "con_077",
-          "pin_number": 3
-        }
-      ],
-      "measurements": []
-    },
-    {
-      "id": "path_109",
-      "name": "THRS1 3V3",
-      "tags": [
-        "signal:PWR_3V3"
-      ],
-      "properties": {
-        "source_file": "MAIN_H1"
-      },
-      "nodes": [
-        {
-          "kind": "connector",
-          "connector_id": "con_002",
-          "pin_number": 4
-        },
-        {
-          "kind": "connector",
-          "connector_id": "con_092",
-          "pin_number": 1
-        }
-      ],
-      "measurements": []
-    },
-    {
-      "id": "path_110",
-      "name": "THRS1 GND",
-      "tags": [
-        "signal:GND"
-      ],
-      "properties": {
-        "source_file": "MAIN_H1"
-      },
-      "nodes": [
-        {
-          "kind": "connector",
-          "connector_id": "con_002",
-          "pin_number": 5
-        },
-        {
-          "kind": "connector",
-          "connector_id": "con_092",
-          "pin_number": 2
-        }
-      ],
-      "measurements": []
-    },
-    {
-      "id": "path_111",
-      "name": "THRS1 Signal",
-      "tags": [
-        "signal:APPS1"
-      ],
-      "properties": {
-        "source_file": "MAIN_H1"
-      },
-      "nodes": [
-        {
-          "kind": "connector",
-          "connector_id": "con_002",
-          "pin_number": 6
-        },
-        {
-          "kind": "connector",
-          "connector_id": "con_092",
-          "pin_number": 3
-        }
-      ],
-      "measurements": []
-    },
-    {
-      "id": "path_112",
-      "name": "THRS2 3V3",
-      "tags": [
-        "signal:PWR_3V3"
-      ],
-      "properties": {
-        "source_file": "MAIN_H1"
-      },
-      "nodes": [
-        {
-          "kind": "connector",
-          "connector_id": "con_002",
-          "pin_number": 7
-        },
-        {
-          "kind": "connector",
-          "connector_id": "con_092",
-          "pin_number": 4
-        }
-      ],
-      "measurements": []
-    },
-    {
-      "id": "path_113",
-      "name": "THRS2 GND",
-      "tags": [
-        "signal:GND"
-      ],
-      "properties": {
-        "source_file": "MAIN_H1"
-      },
-      "nodes": [
-        {
-          "kind": "connector",
-          "connector_id": "con_002",
-          "pin_number": 8
-        },
-        {
-          "kind": "connector",
-          "connector_id": "con_092",
-          "pin_number": 5
-        }
-      ],
-      "measurements": []
-    },
-    {
-      "id": "path_114",
-      "name": "THRS2 Signal",
-      "tags": [
-        "signal:APPS2"
-      ],
-      "properties": {
-        "source_file": "MAIN_H1"
-      },
-      "nodes": [
-        {
-          "kind": "connector",
-          "connector_id": "con_002",
-          "pin_number": 9
-        },
-        {
-          "kind": "connector",
-          "connector_id": "con_092",
-          "pin_number": 6
+          "connector_id": "con_077"
         }
       ],
       "measurements": []
@@ -2067,13 +2468,11 @@
       "nodes": [
         {
           "kind": "connector",
-          "connector_id": "con_002",
-          "pin_number": 10
+          "connector_id": "con_002"
         },
         {
           "kind": "connector",
-          "connector_id": "con_078",
-          "pin_number": 1
+          "connector_id": "con_078"
         }
       ],
       "measurements": []
@@ -2090,13 +2489,11 @@
       "nodes": [
         {
           "kind": "connector",
-          "connector_id": "con_002",
-          "pin_number": 11
+          "connector_id": "con_002"
         },
         {
           "kind": "connector",
-          "connector_id": "con_078",
-          "pin_number": 2
+          "connector_id": "con_078"
         }
       ],
       "measurements": []
@@ -2113,82 +2510,11 @@
       "nodes": [
         {
           "kind": "connector",
-          "connector_id": "con_002",
-          "pin_number": 12
+          "connector_id": "con_002"
         },
         {
           "kind": "connector",
-          "connector_id": "con_078",
-          "pin_number": 3
-        }
-      ],
-      "measurements": []
-    },
-    {
-      "id": "path_118",
-      "name": "FOC-ROC Link H1-9",
-      "tags": [
-        "signal:SDC"
-      ],
-      "properties": {
-        "source_file": "MAIN_H1"
-      },
-      "nodes": [
-        {
-          "kind": "connector",
-          "connector_id": "con_001",
-          "pin_number": 9
-        },
-        {
-          "kind": "connector",
-          "connector_id": "con_009",
-          "pin_number": 9
-        }
-      ],
-      "measurements": []
-    },
-    {
-      "id": "path_119",
-      "name": "FOC-ROC Link H1-11",
-      "tags": [
-        "signal:CAN_ACC_H"
-      ],
-      "properties": {
-        "source_file": "MAIN_H1"
-      },
-      "nodes": [
-        {
-          "kind": "connector",
-          "connector_id": "con_001",
-          "pin_number": 11
-        },
-        {
-          "kind": "connector",
-          "connector_id": "con_009",
-          "pin_number": 11
-        }
-      ],
-      "measurements": []
-    },
-    {
-      "id": "path_120",
-      "name": "FOC-ROC Link H1-12",
-      "tags": [
-        "signal:CAN_ACC_L"
-      ],
-      "properties": {
-        "source_file": "MAIN_H1"
-      },
-      "nodes": [
-        {
-          "kind": "connector",
-          "connector_id": "con_001",
-          "pin_number": 12
-        },
-        {
-          "kind": "connector",
-          "connector_id": "con_009",
-          "pin_number": 12
+          "connector_id": "con_078"
         }
       ],
       "measurements": []
@@ -2203,13 +2529,15 @@
       "nodes": [
         {
           "kind": "connector",
-          "connector_id": "con_092",
-          "pin_number": 1
+          "connector_id": "con_002"
         },
         {
           "kind": "connector",
-          "connector_id": "con_079",
-          "pin_number": 1
+          "connector_id": "con_092"
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_079"
         }
       ],
       "measurements": []
@@ -2224,13 +2552,15 @@
       "nodes": [
         {
           "kind": "connector",
-          "connector_id": "con_092",
-          "pin_number": 2
+          "connector_id": "con_002"
         },
         {
           "kind": "connector",
-          "connector_id": "con_079",
-          "pin_number": 2
+          "connector_id": "con_092"
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_079"
         }
       ],
       "measurements": []
@@ -2245,13 +2575,15 @@
       "nodes": [
         {
           "kind": "connector",
-          "connector_id": "con_092",
-          "pin_number": 3
+          "connector_id": "con_002"
         },
         {
           "kind": "connector",
-          "connector_id": "con_079",
-          "pin_number": 3
+          "connector_id": "con_092"
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_079"
         }
       ],
       "measurements": []
@@ -2266,13 +2598,15 @@
       "nodes": [
         {
           "kind": "connector",
-          "connector_id": "con_092",
-          "pin_number": 4
+          "connector_id": "con_002"
         },
         {
           "kind": "connector",
-          "connector_id": "con_079",
-          "pin_number": 4
+          "connector_id": "con_092"
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_079"
         }
       ],
       "measurements": []
@@ -2287,13 +2621,15 @@
       "nodes": [
         {
           "kind": "connector",
-          "connector_id": "con_092",
-          "pin_number": 5
+          "connector_id": "con_002"
         },
         {
           "kind": "connector",
-          "connector_id": "con_079",
-          "pin_number": 5
+          "connector_id": "con_092"
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_079"
         }
       ],
       "measurements": []
@@ -2308,13 +2644,15 @@
       "nodes": [
         {
           "kind": "connector",
-          "connector_id": "con_092",
-          "pin_number": 6
+          "connector_id": "con_002"
         },
         {
           "kind": "connector",
-          "connector_id": "con_079",
-          "pin_number": 6
+          "connector_id": "con_092"
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_079"
         }
       ],
       "measurements": []

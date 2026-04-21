@@ -17,6 +17,7 @@ export default defineConfig({
   ],
   publicDir: 'public',
   server: {
+    allowedHosts: true,
     fs: {
       allow: ['.'],
     },

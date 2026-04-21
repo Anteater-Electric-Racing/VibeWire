@@ -4,6 +4,13 @@ Changes to harness data, logged by the AI agent.
 
 ---
 
+## 2026-04-17 — Mac (automated repair)
+- Fixed path direction tech debt for junction connectors con_009 (ROC-C1) and con_092 (APPS-FEM).
+- Reversed nodes arrays on 15 paths so both paths at each junction now terminate AT the junction rather than one starting from it:
+  - path_013–path_021 (9 paths): now con_012 → con_009 (was con_009 → con_012)
+  - path_136–path_141 (6 paths): now con_079 → con_092 (was con_092 → con_079)
+- No measurements were present on any affected path; nodes-only reversal applied.
+
 ## 2026-04-14 — Gabe
 - Moved enc_030 "RTD" and enc_033 "Estop Cockpit" inside FOC box (parent set to enc_001).
 - Added Safety Board connector con_094 "RTD SDC" (2-pin, enc_004) for direct RTD switch connection.
@@ -45,3 +52,48 @@ Changes to harness data, logged by the AI agent.
 - Removed redundant BPS-FEM (con_082) and BPS-MALE (con_083).
 - Removed redundant APPS-MALE (con_093).
 - Connected APPS sensor (con_079) directly to footwell bulkhead (con_092).
+
+---
+
+## [2026-04-17] — HV System Structural Expansion
+
+### Enclosure Corrections
+- **enc_019 Inverter**: Re-parented from `enc_003` (HVB) to `null` — inverter is physically outside the accumulator
+- **enc_026 TSSI**: Updated `properties.description` to "Tractive System Status Indicator — connected to Safety Board inside FOC"
+
+### New Enclosures Added (17 total → 53 total)
+| ID | Name | Parent | Type |
+|----|------|--------|------|
+| enc_037 | RTM | enc_003 (HVB) | device |
+| enc_038 | PCC | enc_003 (HVB) | device |
+| enc_039 | Charging Box | null | container |
+| enc_040 | Charge Board | enc_039 | device |
+| enc_041 | AC-to-DC | enc_039 | device |
+| enc_042 | DC-to-DC | enc_039 | device |
+| enc_043 | Orion BMS | enc_039 | device |
+| enc_044 | Charger Box E-Stop | enc_039 | device |
+| enc_045 | Cooling Pump | null | device |
+| enc_046 | Cooling Fan | null | device |
+| enc_047 | J1772 Port | null | device |
+| enc_048 | HV Battery | enc_003 (HVB) | device |
+| enc_049 | AIR+ | enc_003 (HVB) | device |
+| enc_050 | AIR- | enc_003 (HVB) | device |
+| enc_051 | HV Fuse | null | device |
+| enc_052 | HV Connector | null | device |
+| enc_053 | Energy Meter | enc_003 (HVB) | device |
+
+### New Connectors Added (37 total → 124 total)
+- **con_095–con_103** (9): PCC connectors — AIR ctrl, HV bus, BMS, batt bulkhead, therm exp, RTM, BMS CAN, energy meter, inverter CAN
+- **con_104–con_106** (3): RTM board connectors — HV sense, J7 power, J2 power
+- **con_107–con_114** (8): Charge Board connectors — face conn (DT15), E-stop, HVIL, lead acid, battery tender, J1772, car-side umbilical, 12V placeholder
+- **con_115–con_117** (3): AC-to-DC connectors — AC in, chassis GND, DC out
+- **con_118** (1): Orion BMS CAN connector
+- **con_119–con_122** (4): Energy Meter connectors — HV inline 1/2, sense lead, CAN
+- **con_123–con_126** (4): AIR+/AIR- HV terminals — B+, TS+, B-, TS-
+- **con_127** (1): Safety Board AMP output (SB AMP Out)
+- **con_128–con_129** (2): Cooling pump and fan 12V inputs
+- **con_130–con_131** (2): HV Battery HV+/HV- terminals
+
+### Notes
+- Task spec assumed 94 base connectors; actual base was 87 (con_082–087, con_093 were absent/skipped in original data). All 37 new connectors added correctly, yielding 124 total.
+- All parent references validated — no broken links.
