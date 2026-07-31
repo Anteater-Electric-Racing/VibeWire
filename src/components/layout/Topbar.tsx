@@ -1,11 +1,127 @@
 import { useHarnessStore } from '../../store';
 
+function formatHarnessName(name: string) {
+  return name
+    .replace(/[-_]/g, ' ')
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+function slugify(name: string) {
+  return name
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '');
+}
+
 export function Topbar() {
   const setSettingsOpen = useHarnessStore((s) => s.setSettingsOpen);
+  const harness = useHarnessStore((s) => s.harness);
   const undo = useHarnessStore((s) => s.undo);
   const redo = useHarnessStore((s) => s.redo);
   const undoStack = useHarnessStore((s) => s.undoStack);
   const redoStack = useHarnessStore((s) => s.redoStack);
+  const activeHarnessName = useHarnessStore((s) => s.activeHarnessName);
+  const availableHarnesses = useHarnessStore((s) => s.availableHarnesses);
+  const setActiveHarnessName = useHarnessStore((s) => s.setActiveHarnessName);
+  const setAvailableHarnesses = useHarnessStore((s) => s.setAvailableHarnesses);
+  const renameSystem = useHarnessStore((s) => s.renameSystem);
+  const appView = useHarnessStore((s) => s.appView);
+  const openConnectorLibrary = useHarnessStore((s) => s.openConnectorLibrary);
+  const openManufacturing = useHarnessStore((s) => s.openManufacturing);
+  const closeConnectorLibrary = useHarnessStore((s) => s.closeConnectorLibrary);
+  const editingSurface = useHarnessStore((s) => s.editingSurface);
+  const setEditingSurface = useHarnessStore((s) => s.setEditingSurface);
+  const subsystems = useHarnessStore((s) => s.subsystems);
+  const activeSubsystemId = useHarnessStore((s) => s.activeSubsystemId);
+  const setActiveSubsystem = useHarnessStore((s) => s.setActiveSubsystem);
+  const upsertSubsystem = useHarnessStore((s) => s.upsertSubsystem);
+  const renameSubsystem = useHarnessStore((s) => s.renameSubsystem);
+
+  async function handleNewHarness() {
+    const input = prompt('New harness name (e.g. "Tractive System" or "lvs-harness"):');
+    if (!input) return;
+    const slug = slugify(input);
+    if (!slug) return;
+    if (availableHarnesses.includes(slug)) {
+      setActiveHarnessName(slug);
+      return;
+    }
+
+    const template = {
+      schema_version: '0.1.0',
+      name: input.trim(),
+      enclosures: [],
+      connectors: [],
+      mergePoints: [],
+      paths: [],
+      signals: [],
+    };
+
+    const res = await fetch(`/api/harness?harness=${encodeURIComponent(slug)}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(template, null, 2),
+    });
+
+    if (res.ok) {
+      const harnesses = await fetch('/api/harnesses')
+        .then((r) => r.json() as Promise<string[]>)
+        .catch(() => [...availableHarnesses, slug]);
+      setAvailableHarnesses(harnesses);
+      setActiveHarnessName(slug);
+    }
+  }
+
+  function handleRenameSystem() {
+    const currentName = harness?.name ?? formatHarnessName(activeHarnessName);
+    const input = prompt(
+      `Rename system display name.\n\nIts stable storage key will remain "${activeHarnessName}".`,
+      currentName,
+    );
+    if (input !== null && input.trim()) renameSystem(input);
+  }
+
+  async function handleNewSubsystem() {
+    const input = prompt('Subsystem name (e.g. "Cooling" or "CAN"):');
+    if (!input) return;
+    const id = slugify(input);
+    if (!id) return;
+    const document = {
+      schema_version: '1.0.0' as const,
+      id,
+      name: input.trim(),
+      tags: [`system:${id}`],
+      enclosures: {},
+      devices: {},
+      connectors: {},
+    };
+    const response = await fetch(`/api/subsystems/${encodeURIComponent(id)}?harness=${encodeURIComponent(activeHarnessName)}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(document),
+    });
+    if (response.ok) {
+      upsertSubsystem(await response.json());
+      setEditingSurface('subsystem');
+    }
+  }
+
+  function handleRenameSubsystem() {
+    if (!activeSubsystemId) return;
+    const subsystem = subsystems[activeSubsystemId];
+    if (!subsystem) return;
+    const input = prompt(
+      `Rename subsystem display name.\n\nIts stable ID will remain "${subsystem.id}".`,
+      subsystem.name,
+    );
+    if (input !== null && input.trim()) renameSubsystem(subsystem.id, input);
+  }
+
+  function showCanvasSurface(surface: 'hierarchy' | 'subsystem') {
+    closeConnectorLibrary();
+    setEditingSurface(surface);
+  }
 
   return (
     <header className="h-10 bg-zinc-900 border-b border-zinc-700 flex items-center px-3 gap-3 shrink-0">
@@ -22,6 +138,114 @@ export function Topbar() {
         <span className="text-sm font-semibold text-zinc-100 tracking-wide">
           VibeWire
         </span>
+      </div>
+
+      <div
+        className="flex items-center rounded border border-zinc-700 overflow-hidden"
+        role="group"
+        aria-label="Canvas view"
+      >
+        {(['hierarchy', 'subsystem'] as const).map((surface) => (
+          <button
+            key={surface}
+            type="button"
+            onClick={() => showCanvasSurface(surface)}
+            aria-pressed={appView === 'canvas' && editingSurface === surface}
+            className={`px-2 py-0.5 text-xs capitalize transition-colors ${
+              appView === 'canvas' && editingSurface === surface
+                ? 'bg-zinc-700 text-zinc-100'
+                : 'bg-zinc-800 text-zinc-400 hover:text-zinc-200'
+            }`}
+          >
+            {surface}
+          </button>
+        ))}
+        <button
+          type="button"
+          onClick={() => openConnectorLibrary()}
+          aria-pressed={appView === 'connectorLibrary'}
+          className={`px-2 py-0.5 text-xs transition-colors ${
+            appView === 'connectorLibrary'
+              ? 'bg-zinc-700 text-zinc-100'
+              : 'bg-zinc-800 text-zinc-400 hover:text-zinc-200'
+          }`}
+        >
+          Connectors
+        </button>
+        <button
+          type="button"
+          onClick={() => openManufacturing()}
+          aria-pressed={appView === 'manufacturing'}
+          className={`px-2 py-0.5 text-xs transition-colors ${
+            appView === 'manufacturing'
+              ? 'bg-zinc-700 text-zinc-100'
+              : 'bg-zinc-800 text-zinc-400 hover:text-zinc-200'
+          }`}
+        >
+          Manufacturing
+        </button>
+      </div>
+
+      {appView === 'canvas' && editingSurface === 'subsystem' && (
+        <div className="flex items-center gap-1">
+          <select
+            value={activeSubsystemId ?? ''}
+            onChange={(event) => setActiveSubsystem(event.target.value || null)}
+            className="text-xs bg-zinc-800 border border-zinc-700 text-zinc-100 rounded px-2 py-0.5 max-w-[140px]"
+            title="Switch subsystem"
+          >
+            <option value="">Select subsystem</option>
+            {Object.values(subsystems).map((subsystem) => (
+              <option key={subsystem.id} value={subsystem.id}>{subsystem.name}</option>
+            ))}
+          </select>
+          <button onClick={handleNewSubsystem} className="text-zinc-500 hover:text-amber-400" title="New subsystem">＋</button>
+          <button
+            onClick={handleRenameSubsystem}
+            disabled={!activeSubsystemId}
+            className="text-zinc-500 hover:text-amber-400 disabled:opacity-30"
+            title="Rename selected subsystem (stable ID is preserved)"
+          >
+            ✎
+          </button>
+        </div>
+      )}
+
+      {/* Harness switcher */}
+      <div className="flex items-center gap-1">
+        <svg className="w-3.5 h-3.5 text-zinc-500 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
+        </svg>
+        <select
+          value={activeHarnessName}
+          onChange={(e) => setActiveHarnessName(e.target.value)}
+          className="text-xs bg-zinc-800 border border-zinc-700 text-zinc-100 rounded px-2 py-0.5 focus:outline-none focus:border-amber-500 cursor-pointer max-w-[160px]"
+          title="Switch harness"
+        >
+          {availableHarnesses.length === 0
+            ? <option value={activeHarnessName}>{harness?.name ?? formatHarnessName(activeHarnessName)}</option>
+            : availableHarnesses.map((name) => (
+              <option key={name} value={name}>
+                {name === activeHarnessName && harness?.name ? harness.name : formatHarnessName(name)}
+              </option>
+            ))}
+        </select>
+        <button
+          onClick={handleRenameSystem}
+          className="p-0.5 text-zinc-500 hover:text-amber-400 transition-colors"
+          title={`Rename system display name (storage key stays "${activeHarnessName}")`}
+        >
+          ✎
+        </button>
+        <button
+          onClick={handleNewHarness}
+          className="p-0.5 text-zinc-500 hover:text-amber-400 transition-colors"
+          title="New harness"
+        >
+          <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+            <path d="M12 5v14M5 12h14" />
+          </svg>
+        </button>
       </div>
 
       <div className="flex-1" />

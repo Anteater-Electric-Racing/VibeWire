@@ -670,13 +670,9 @@
     }
   },
   "connectorTypeSizes": {
-    "deutsch_dt_12p_male": {
+    "deutsch_dt": {
       "w": 36,
       "h": 18
-    },
-    "deutsch_dt_12p_female": {
-      "w": 38,
-      "h": 40
     }
   },
   "textBoxes": {},

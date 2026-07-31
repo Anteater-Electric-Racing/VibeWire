@@ -1,10 +1,11 @@
 /**
- * Seed data is loaded at runtime from /user-data/harnesses/fsae-car.json via fetch().
- * This module exists as a placeholder for any future inline seed data needs.
+ * Harness data is loaded at runtime via the API (/api/harness?harness=<name>).
+ * Multiple harness files are supported — each .json file in public/user-data/harnesses/
+ * becomes a selectable harness in the top-bar switcher.
  *
  * The canonical data files:
- *   - user-data/harnesses/fsae-car.json            — harness data (enclosures, PCBs, connectors, wires, signals)
- *   - user-data/connectors/connector-library.json  — connector type definitions
- *   - user-data/layouts.json                       — persisted node positions (auto-generated)
+ *   - user-data/harnesses/<name>.json              — harness data (one file per harness)
+ *   - user-data/connectors/connector-library.json  — connector type definitions (shared)
+ *   - user-data/layouts.<name>.json                — per-harness node positions (auto-generated)
  */
 export {};

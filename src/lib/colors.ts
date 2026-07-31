@@ -80,6 +80,7 @@ const PHYSICAL_WIRE_ALIASES: Record<string, string> = {
   wht: 'white',
   yel: 'yellow',
   pur: 'purple',
+  violet: 'purple',
   org: 'orange',
   brn: 'brown',
   grye: 'grey',
@@ -160,31 +161,102 @@ function createAppearance(
   };
 }
 
-function parsePhysicalWireAppearance(rawColor: string): WireAppearance | null {
-  const tokens = rawColor
-    .split('/')
-    .map((token) => token.trim())
-    .filter(Boolean);
-  if (tokens.length === 0) return null;
+function parseColorTokens(tokens: string[], rawColor: string): WireAppearance | null {
+  const cleaned = tokens.map((token) => token.trim()).filter(Boolean);
+  if (cleaned.length === 0) return null;
 
-  const resolved = tokens
+  const resolved = cleaned
     .map((token) => resolvePhysicalWireColor(token))
     .filter((color): color is string => !!color);
 
-  if (resolved.length !== tokens.length || resolved.length === 0) return null;
+  if (resolved.length !== cleaned.length || resolved.length === 0) return null;
 
   if (resolved.length === 1) {
     return createAppearance('solid', resolved, rawColor, `wire:${normalizeWireToken(rawColor)}`);
   }
 
-  return createAppearance('striped', resolved, rawColor, `wire:${tokens.map(normalizeWireToken).join('/')}`);
+  return createAppearance(
+    'striped',
+    resolved,
+    rawColor,
+    `wire:${cleaned.map(normalizeWireToken).join('/')}`,
+  );
+}
+
+function parsePhysicalWireAppearance(rawColor: string): WireAppearance | null {
+  const raw = rawColor.trim();
+  if (!raw) return null;
+
+  // Explicit slash stripes: white/brown
+  if (raw.includes('/')) {
+    return parseColorTokens(raw.split('/'), raw);
+  }
+
+  // Solid first so multi-word / hyphenated names like "light blue" / "light-blue"
+  // are not misread as stripes.
+  const solid = resolvePhysicalWireColor(raw);
+  if (solid) {
+    return createAppearance('solid', [solid], raw, `wire:${normalizeWireToken(raw)}`);
+  }
+
+  // Harness convention: White-Blue, Black-Orange, …
+  if (raw.includes('-')) {
+    return parseColorTokens(raw.split('-'), raw);
+  }
+
+  return null;
+}
+
+/** Canonical wire_color tokens for UI selection (lowercase preset names). */
+export function getWireColorTokens(rawColor: string): string[] {
+  const raw = rawColor.trim();
+  if (!raw) return [];
+
+  const appearance = parsePhysicalWireAppearance(raw);
+  if (!appearance) return [];
+
+  const parts =
+    raw.includes('/')
+      ? raw.split('/')
+      : appearance.kind === 'striped'
+        ? raw.split('-')
+        : [raw];
+
+  return parts
+    .map((token) => {
+      const normalized = normalizeWireToken(token);
+      const aliased = PHYSICAL_WIRE_ALIASES[normalized] ?? normalized;
+      return PHYSICAL_WIRE_COLORS[aliased] ? aliased : null;
+    })
+    .filter((token): token is string => !!token);
 }
 
 export const WIRE_COLOR_PROPERTY_KEYS = ['wire_color', 'color'] as const;
 
+/** Named solid colors available for path `wire_color` / signal `preferred_wire_color`. */
+export const WIRE_COLOR_PRESETS = [
+  'black',
+  'red',
+  'blue',
+  'light blue',
+  'white',
+  'yellow',
+  'green',
+  'purple',
+  'grey',
+  'brown',
+  'orange',
+  'pink',
+] as const;
+
+export function getWireColorPresetHex(name: string): string | null {
+  return resolvePhysicalWireColor(name);
+}
+
 export function getWireAppearance(input: {
   properties?: Record<string, string>;
   tags: string[];
+  signal_id?: string;
 }): WireAppearance {
   const rawWireColor = (
     input.properties?.wire_color ?? input.properties?.color
@@ -194,12 +266,25 @@ export function getWireAppearance(input: {
     if (parsed) return parsed;
   }
 
-  const signalName = getSignalFromTags(input.tags);
+  const signalName = input.signal_id?.replace(/^sig_/, '') ?? getSignalFromTags(input.tags);
   if (signalName) {
     return createAppearance('solid', [getSignalColor(signalName)], signalName, `signal:${signalName}`);
   }
 
   return createAppearance('solid', ['#666'], rawWireColor || 'Unknown', 'unknown');
+}
+
+export function getPreferredWireColorDeviation(
+  path: { properties?: Record<string, string> },
+  signal: { properties: Record<string, string> } | undefined,
+): { preferred: string; actual: string } | null {
+  const preferred = signal?.properties.preferred_wire_color?.trim();
+  const actual = (path.properties?.wire_color ?? path.properties?.color)?.trim();
+  if (!preferred || !actual) return null;
+  const preferredKey = getWireColorTokens(preferred).join('/') || normalizeWireToken(preferred);
+  const actualKey = getWireColorTokens(actual).join('/') || normalizeWireToken(actual);
+  if (preferredKey === actualKey) return null;
+  return { preferred, actual };
 }
 
 export function getWireBackground(

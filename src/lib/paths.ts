@@ -142,3 +142,86 @@ export function midpointOnSegment(
 export function dist(a: Point, b: Point): number {
   return Math.hypot(a.x - b.x, a.y - b.y);
 }
+
+export type Rect = {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+};
+
+/**
+ * Point on the axis-aligned rectangle boundary in the direction from an interior
+ * (or on-boundary) anchor toward `toward`. Used so wires leave a connector on
+ * the side facing the next bend / peer endpoint.
+ */
+export function pointOnRectBoundaryToward(
+  rect: Rect,
+  anchor: Point,
+  toward: Point,
+): Point {
+  const left = rect.x;
+  const right = rect.x + rect.width;
+  const top = rect.y;
+  const bottom = rect.y + rect.height;
+
+  const from = {
+    x: Math.min(right, Math.max(left, anchor.x)),
+    y: Math.min(bottom, Math.max(top, anchor.y)),
+  };
+
+  const dx = toward.x - from.x;
+  const dy = toward.y - from.y;
+
+  if (Math.abs(dx) < 1e-9 && Math.abs(dy) < 1e-9) {
+    // Degenerate: exit the nearer horizontal side of the clamped anchor.
+    const toLeft = from.x - left;
+    const toRight = right - from.x;
+    return { x: toLeft <= toRight ? left : right, y: from.y };
+  }
+
+  let bestT = Infinity;
+  let best: Point | null = null;
+
+  const consider = (t: number, x: number, y: number) => {
+    if (t <= 1e-9 || t >= bestT) return;
+    // Allow a tiny epsilon so floating-point hits at corners count.
+    if (x < left - 0.01 || x > right + 0.01 || y < top - 0.01 || y > bottom + 0.01) return;
+    bestT = t;
+    best = {
+      x: Math.min(right, Math.max(left, x)),
+      y: Math.min(bottom, Math.max(top, y)),
+    };
+  };
+
+  if (Math.abs(dx) > 1e-9) {
+    consider((left - from.x) / dx, left, from.y + ((left - from.x) / dx) * dy);
+    consider((right - from.x) / dx, right, from.y + ((right - from.x) / dx) * dy);
+  }
+  if (Math.abs(dy) > 1e-9) {
+    consider((top - from.y) / dy, from.x + ((top - from.y) / dy) * dx, top);
+    consider((bottom - from.y) / dy, from.x + ((bottom - from.y) / dy) * dx, bottom);
+  }
+
+  if (best) return best;
+
+  // Fallback: nearest of the four side projections of `toward`.
+  const clampX = Math.min(right, Math.max(left, toward.x));
+  const clampY = Math.min(bottom, Math.max(top, toward.y));
+  const candidates: Point[] = [
+    { x: left, y: clampY },
+    { x: right, y: clampY },
+    { x: clampX, y: top },
+    { x: clampX, y: bottom },
+  ];
+  let nearest = candidates[0];
+  let nearestDist = dist(toward, nearest);
+  for (let i = 1; i < candidates.length; i++) {
+    const d = dist(toward, candidates[i]);
+    if (d < nearestDist) {
+      nearest = candidates[i];
+      nearestDist = d;
+    }
+  }
+  return nearest;
+}

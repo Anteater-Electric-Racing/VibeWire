@@ -16,6 +16,8 @@ type EnclosureNodeData = {
   isContainer: boolean;
   image?: string;
   childEnclosureCount: number;
+  subsystemFrame?: boolean;
+  subsystemDevice?: boolean;
 };
 
 type EnclosureNodeType = Node<EnclosureNodeData, 'enclosure'>;
@@ -25,20 +27,23 @@ export const EnclosureNode = memo(function EnclosureNode({
   selected,
 }: NodeProps<EnclosureNodeType>) {
   const updateNodeSize = useHarnessStore((s) => s.updateNodeSize);
+  const updateNodePosition = useHarnessStore((s) => s.updateNodePosition);
   const selectItem = useHarnessStore((s) => s.selectItem);
   const setDrillDown = useHarnessStore((s) => s.setDrillDown);
   const pushUndoSnapshot = useHarnessStore((s) => s.pushUndoSnapshot);
   const rotation = useHarnessStore((s) => s.rotationLayouts[data.enclosureId] ?? 0);
+  const subsystem = useHarnessStore((s) => s.activeSubsystemId ? s.subsystems[s.activeSubsystemId] : undefined);
+  const resizeSubsystemEntityLayout = useHarnessStore((s) => s.resizeSubsystemEntityLayout);
   const nodeRef = useRef<HTMLDivElement>(null);
   const [hovered, setHovered] = useState(false);
 
   const handleDoubleClick = useCallback(
     (e: React.MouseEvent) => {
-      if (!data.isContainer) return;
+      if (!data.isContainer || data.subsystemFrame) return;
       e.stopPropagation();
       setDrillDown(data.enclosureId);
     },
-    [setDrillDown, data.enclosureId, data.isContainer],
+    [setDrillDown, data.enclosureId, data.isContainer, data.subsystemFrame],
   );
 
   const tagPills = data.tags
@@ -56,8 +61,6 @@ export const EnclosureNode = memo(function EnclosureNode({
       } ${data.matchesFilter ? 'opacity-100' : 'opacity-25'} transition-opacity cursor-pointer group`}
       style={{
         background: bgColor,
-        transform: rotation ? `rotate(${rotation}deg)` : undefined,
-        transformOrigin: 'center center',
       }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
@@ -72,17 +75,47 @@ export const EnclosureNode = memo(function EnclosureNode({
         handleClassName="!w-2 !h-2 !bg-amber-400 !border-amber-600"
         onResizeStart={() => pushUndoSnapshot()}
         onResizeEnd={(_, params) => {
-          updateNodeSize(data.enclosureId, params.width, params.height);
+          if (data.subsystemFrame) {
+            const previous = subsystem?.enclosures[data.enclosureId];
+            resizeSubsystemEntityLayout('enclosures', data.enclosureId, {
+              ...previous,
+              x: params.x,
+              y: params.y,
+              w: params.width,
+              h: params.height,
+            });
+          } else if (data.subsystemDevice) {
+            const previous = subsystem?.devices[data.enclosureId];
+            resizeSubsystemEntityLayout('devices', data.enclosureId, {
+              ...previous,
+              x: params.x,
+              y: params.y,
+              w: params.width,
+              h: params.height,
+            });
+          } else {
+            updateNodeSize(data.enclosureId, params.width, params.height);
+            updateNodePosition(data.enclosureId, params.x, params.y);
+          }
         }}
       />
 
       {data.image && (
-        <div className="absolute inset-0 overflow-hidden rounded-lg pointer-events-none">
+        <div
+          className="absolute inset-0 overflow-hidden rounded-lg pointer-events-none"
+          style={{ containerType: 'size' }}
+        >
           <img
             src={`/user-data/images/${data.image}`}
             alt=""
             draggable={false}
-            className="w-full h-full object-contain select-none"
+            className="absolute left-1/2 top-1/2 max-w-none object-contain select-none"
+            style={{
+              width: rotation % 180 === 0 ? '100cqw' : '100cqh',
+              height: rotation % 180 === 0 ? '100cqh' : '100cqw',
+              transform: `translate(-50%, -50%) rotate(${rotation}deg)`,
+              transformOrigin: 'center center',
+            }}
           />
         </div>
       )}
@@ -112,7 +145,7 @@ export const EnclosureNode = memo(function EnclosureNode({
           )}
           <div>{data.pathCount} path{data.pathCount !== 1 ? 's' : ''}</div>
         </div>
-        {hovered && data.isContainer && (
+        {hovered && data.isContainer && !data.subsystemFrame && (
           <div className="text-[9px] text-zinc-600 mt-1 italic transition-opacity">
             Double-click to open
           </div>

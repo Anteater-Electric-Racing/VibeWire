@@ -1,8 +1,6 @@
 # VibeWire
 
-VibeWire is a wiring harness design and visualization tool for FSAE race car teams. It renders an interactive connectivity graph of your car's electrical harness with tag-based filtering, hierarchy browsing, and a component inspector.
-
-There's no traditional UI for editing the harness — you tell an AI agent what to change and it edits the JSON for you. That's the whole workflow.
+VibeWire is a wiring harness design and visualization tool for FSAE race car teams. It renders an interactive connectivity graph with tag-based filtering, hierarchy browsing, subsystem canvases, and a component inspector. The UI supports layout editing and cross-sheet wire creation; broader entity authoring can still be performed through the AI agent or JSON/API.
 
 ---
 
@@ -86,6 +84,8 @@ git commit -m "Update harness data"
 git push
 ```
 
+> Layout files are named `layouts.<harness-name>.json` (e.g. `layouts.fsae-car.json`) and live alongside other user-data files. They are included in the `git add public/user-data/` command above.
+
 If you don't know git, ask the Cursor agent to do it for you.
 
 ## Project Structure
@@ -95,19 +95,83 @@ VibeWire/
 ├── public/
 │   ├── user-data/
 │   │   ├── harnesses/
-│   │   │   └── fsae-car.json        ← THE harness data file (main thing you edit)
+│   │   │   ├── fsae-car/            ← default harness (main FSAE car wiring)
+│   │   │   └── .../                 ← additional harnesses (one per sub-system or variant; flat `<name>.json` also supported)
 │   │   ├── connectors/
 │   │   │   ├── connector-library.json
 │   │   │   └── *.png                ← connector photos and pin guides
 │   │   ├── images/
 │   │   │   └── *.png                ← enclosure, background, and other user-picked images
-│   │   └── layouts.json             ← graph layout and annotations
+│   │   ├── subsystems/<harness>/     ← topology-free subsystem canvas files
+│   │   └── layouts.<name>.json      ← per-harness graph layout and annotations
 │   ├── favicon.svg
 │   └── icons.svg
 ├── src/                             ← React source code (you probably don't need to touch this)
 ├── CHANGELOG.md                     ← running log of who changed what and when
 └── .vibewire-user                   ← YOUR local identity file (not synced to git)
 ```
+
+### Multiple Harness Files
+
+Each entry in `public/user-data/harnesses/` is a separate harness. You can have as many as you want — one per car sub-system, one per year, one per variant, etc.
+
+```
+harnesses/
+├── fsae-car/             ← full car, sheeted (one file per enclosure "sheet" — see below)
+├── fsae-2026/            ← full car, sheeted
+├── tractive-system.json  ← HV battery and motor (flat file)
+└── lvs.json              ← low-voltage system (flat file)
+```
+
+Switch between them using the **harness selector** in the top bar. Each harness has its own layout file (`layouts.<name>.json`) so node positions are saved independently.
+
+To create a new harness: click the **+** button next to the harness selector, or ask the AI agent: *"Create a new harness called Tractive System"*.
+
+### Two Harness Storage Formats
+
+A harness can be stored either way — the app treats them identically once loaded:
+
+- **Flat file** (`<name>.json`): everything in one JSON document. Simplest, and still the default for new harnesses.
+- **Sheeted directory** (`<name>/`): one JSON file per enclosure "sheet" (`root.json` for car-level devices, `sheets/<enc_id>.json` per top-level box, `signals.json` shared across all of them). `fsae-2026` uses this format. A box's external bulkhead connector doesn't have to be hand-authored on both sides of the boundary — it's *derived* automatically from whichever wires the parent sheet routes into that box. See `server/sheets.ts` and the "Hierarchical Per-Sheet Harness Storage" section of `Architecture.md` for the full mechanism.
+
+You don't need to think about which format a harness uses day-to-day — `GET /api/harness?harness=<name>` always returns one assembled document either way, and edits made through the app or the API save back to whichever format that harness already uses.
+
+### Editing Subsystems
+
+1. Select **Subsystem** in the top bar, then choose one or create it with **+**.
+2. Select an existing device/enclosure or connector in the hierarchy tree.
+3. Click the row's **+** action (or **Add selected** on the canvas). Connector rows create the
+   owning enclosure frame and device shell, but expose only the selected connector.
+4. Resize or move enclosure frames and devices as needed.
+5. Drag between two unoccupied cavity handles to create a path. Select an existing Signal or create
+   one in the routing menu.
+
+A placed device renders all of its connectors without creating duplicate device instances.
+Crossing a sheet boundary automatically creates a one-cavity unresolved bulkhead placeholder on
+that enclosure frame. Replace or merge placeholders into real hardware in a later editing pass.
+Starting from an occupied cavity and creating brand-new devices/connectors in this canvas are not
+supported by this MVP.
+
+Connectors expand into a complete cavity table. Drag the handle on a cavity row to physically
+renumber cavities; all path and measurement references are rewritten.
+Double-click or right-click a signal ID to edit its name, tags, and electrical properties.
+
+Connector families keep hardware selection compact. Choose Deutsch DT, Deutsch DTM, or dual-row
+Molex Mini-Fit Jr., then use the cavity controls to move through real supported housing sizes.
+For example, adding capacity after a four-cavity DT selects the six-cavity housing rather than
+creating a nonexistent five-cavity DT. Keying appears only for family sizes that declare keyed
+variants. Pin-guide and side-view images belong to the selected family cavity size.
+
+Delete actions in the hierarchy show the full cascade impact before removing the entity,
+descendants, and affected paths. Delete/Backspace or **Remove from subsystem** on a subsystem
+canvas removes only that visual instance; it does not delete canonical harness data.
+
+Placing an entity adds `system:<subsystem-id>` metadata automatically. The Filters panel includes
+subsystem display labels backed by stable subsystem IDs and signal ID slugs from the Signal catalog.
+
+Subsystem JSON contains references and geometry only. Harness topology remains in the normal
+harness sheet files. Paths use stable `signal_id` references; legacy `signal:*` tags remain
+readable during migration.
 
 ## Tech Stack
 
@@ -145,14 +209,46 @@ These are the files you will read and edit:
 
 | File | What it is |
 |------|-----------|
-| `public/user-data/harnesses/fsae-car.json` | **The harness data.** Enclosures, connectors, merge points, paths, and signals. This is the primary file you edit. |
-| `public/user-data/connectors/connector-library.json` | Connector type definitions — pin counts, crimp specs, wire gauge, photos. Path connector nodes must stay within these capacities. |
-| `public/user-data/layouts.json` | Visual layout positions for the graph, including context-aware merge-point placement. You usually don't need to edit this directly. |
+| `public/user-data/harnesses/<name>.json` **or** `public/user-data/harnesses/<name>/` | **Harness data.** Each entry is a separate harness, and can be either a single flat JSON file *or* a directory of per-enclosure "sheet" files (`fsae-2026` uses the sheeted form — see below). Either way it logically contains enclosures, connectors, merge points, paths, and signals. |
+| `public/user-data/connectors/connector-library.json` | Connector type definitions — pin counts, crimp specs, wire gauge, photos. Shared across all harnesses. Path connector nodes must stay within these capacities. |
+| `public/user-data/layouts.<name>.json` | Per-harness visual layout positions for the graph. One file per harness, named to match the harness (e.g. `layouts.fsae-car.json`). You usually don't need to edit these directly. |
 | `CHANGELOG.md` | Running log of changes. You MUST append to this after every edit. |
+
+### Working with Multiple Harnesses
+
+- **List available harnesses:** `GET /api/harnesses` returns all harness names (both flat and sheeted).
+- **Load a specific harness:** `GET /api/harness?harness=<name>` (e.g. `?harness=tractive-system`) — always returns one assembled JSON document, regardless of which storage format that harness uses on disk.
+- **Save changes:** `PUT /api/harness?harness=<name>` with the full assembled JSON body, or the narrower per-entity endpoints (`POST/PUT/PATCH/DELETE /api/enclosures`, `/api/connectors`, etc.).
+- **Create a new harness:** `PUT /api/harness?harness=<name>` with a valid harness JSON body (use the template in Step 3). New harnesses are always created flat.
+- **Default harness name** when no `?harness=` param is provided: `fsae-car`.
+
+When the user asks you to work on a specific harness (e.g. "Edit the tractive system harness"), use the appropriate name. If the harness does not exist yet, create it with a minimal template and tell the user.
+
+### Safe renaming
+
+- The harness query value/directory name is its stable storage key. Rename the user-facing system through the optional top-level `name` field; do not rename its files.
+- Every enclosure, device (`container: false` enclosure), connector, merge point, path, signal, subsystem, and connector type has a stable `id` plus a mutable display `name`.
+- Relationships must use IDs: `parent`, `connector_type`, `connector_id`, `merge_point_id`, `signal_id`, subsystem membership keys, layout keys, and `system:<subsystem-id>` tags. Never rewrite these just because a display name changed.
+- The UI exposes display-name editing in the inspector and hierarchy, with system/subsystem rename controls in the top bar. Duplicate display names are allowed.
+- Before the UI switches systems, it flushes pending edits to the current stable storage key and cancels the switch if saving fails.
+- `/api/path-by-name` accepts a connector display name only when it matches exactly one connector. Automation should always send connector IDs.
+
+**Important — always go through the API, never edit harness files on disk directly.** For a
+sheeted harness like `fsae-2026`, there is no single JSON file to open: the data is split across
+`fsae-2026/root.json`, `fsae-2026/sheets/*.json`, and `fsae-2026/signals.json`, and some connectors
+only exist as a computed side effect of another sheet's wiring (see `derived` below). The API
+always reads/writes the correct files for you. If you're unsure which format a harness uses, it
+doesn't matter — `GET`/`PUT /api/harness?harness=<name>` behaves identically either way.
+
+**A connector or merge point with `"derived": true` gets its stable identity from a bulkhead
+port declared on a parent sheet.** Its display name, tags, and properties can still be edited in
+the assembled document: the sheet splitter writes those changes back to the source port and
+verifies an in-memory round trip before replacing any files. Do not change its ID or parent as
+part of a rename.
 
 ## Step 3: Understand the Schema
 
-The harness JSON (`public/user-data/harnesses/fsae-car.json`) contains these entity types:
+The harness data (e.g. `public/user-data/harnesses/fsae-car/`, accessed via `GET /api/harness?harness=fsae-car` — see "Working with Multiple Harnesses" above) may have a top-level `name` display label and contains these entity types:
 
 ### Entities
 
@@ -168,12 +264,16 @@ The harness JSON (`public/user-data/harnesses/fsae-car.json`) contains these ent
 
 - **Path**: Ordered connection route through connector and merge-point nodes.
   Fields: `id`, `name`, `tags[]`, `properties{}`, `nodes[]`, `measurements[]`
-  - `nodes[]` is an ordered list. Connector nodes store `kind: "connector"`, `connector_id`, and `pin_number`. Merge-point nodes store `kind: "merge"` and `merge_point_id`.
-  - `measurements[]` uses semantic `from` and `to` endpoint refs that match nodes already present in the path. Every node between those endpoints is part of the measured span.
+  - `nodes[]` is an ordered list. Connector nodes require `kind: "connector"`, `connector_id`, and a positive integer `pin_number`. Merge-point nodes store `kind: "merge"` and `merge_point_id`.
+  - `pin_number` drives per-pin occupancy, connector-capacity validation, and the inspector's "you are here" pin highlight. Missing or invalid cavity numbers are validation errors.
+  - Merge-point nodes are supported but are not required. The active `fsae-car` harness defines merge points as entities but does not yet route any path through them. Add `{ "kind": "merge", "merge_point_id": "mp_###" }` when you want to model a splice.
+  - `measurements[]` uses semantic `from` and `to` endpoint refs that match nodes already present in the path. Every node between those endpoints is part of the measured span. This array is optional and empty today.
 
 - **Signal**: A named electrical signal.
   Fields: `id`, `name`, `tags[]`, `properties{}`
-  - Signal membership is usually expressed on paths via tags like `signal:CAN_H`.
+  - There is no direct foreign-key from a path to a signal. Signal membership is expressed on paths via a `signal:<SLUG>` tag.
+  - Convention in this repo: the SLUG is the part of the signal `id` after the `sig_` prefix — not the human-readable `name`. For example, signal `{"id": "sig_PWR_24V", "name": "24V Power"}` is referenced on paths as `signal:PWR_24V`, not `signal:24V Power`. Rendering and filtering look up this slug directly.
+  - The TypeScript API validator and `scripts/validate_harness.py` both resolve `signal_id` and legacy tags against stable signal IDs, so changing a signal display name does not change connectivity or validation.
 
 ### ID Convention
 
@@ -199,6 +299,7 @@ When creating new entities, scan the existing file for the highest existing ID n
 8. Merge-point existence belongs in the harness JSON; merge-point position belongs in `public/user-data/layouts.json`.
 9. Do not reorder or reformat the JSON beyond the lines you are changing. Use the Cursor diff tools to make surgical edits.
 10. If you are unsure about a connector type or path topology, ask the user rather than guessing.
+11. Never hand-edit files under a sheeted harness directory (e.g. `public/user-data/harnesses/fsae-2026/`) directly — always go through the API (see "Working with Multiple Harnesses" above), since the API's `PUT`/`POST` writers know how to split an edit back across the right sheet files and will refuse the write (rather than corrupt the data) if something doesn't add up.
 
 ### Harness JSON Template
 
@@ -267,13 +368,15 @@ Minimal example showing all current entity types and how they connect:
   "signals": [
     {
       "id": "sig_CAN_H",
-      "name": "CAN_H",
+      "name": "CAN H",
       "tags": [],
       "properties": {}
     }
   ]
 }
 ```
+
+The `signal:CAN_H` tag on `path_001` matches the signal whose id is `sig_CAN_H` (slug `CAN_H`). The signal's `name` can be anything human-readable; the tag binding is via the id slug.
 
 ## Step 4: Log Every Change
 

@@ -8,14 +8,17 @@ import {
   useNodesState,
   useEdgesState,
   useReactFlow,
+  useUpdateNodeInternals,
   type Node,
   type Edge,
   type OnNodesChange,
   type NodeChange,
+  type Connection,
   BackgroundVariant,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { useHarnessStore } from '../../store';
+import type { ConnectorType } from '../../types';
 import { EnclosureNode } from './EnclosureNode';
 import { ConnectorNode } from './ConnectorNode';
 import { MergePointNode } from './MergePointNode';
@@ -26,13 +29,16 @@ import { ImagePickerPanel } from './ImagePickerPanel';
 import { itemMatchesFilters } from '../../lib/tags';
 import {
   countPathsTouchingConnectors,
-  deriveBundles,
   getConnectorOccupancy,
+  getConnectorPinGuideImage,
+  getConnectorSideImage,
   getChildEnclosures,
   getEnclosureMergePoints,
   getEnclosurePorts,
   getEnclosureConnectors,
+  getEntityRevealContext,
   getPathById,
+  getPathSignalId,
   getPortWireAppearance,
   getSpaceFreeConnectors,
   getSpaceFreeMergePoints,
@@ -40,13 +46,25 @@ import {
 } from '../../lib/harness';
 import { nearestOnPolyline, type Point } from '../../lib/paths';
 import { getWireAppearance } from '../../lib/colors';
+import {
+  EXPANDED_CONNECTOR_Z_INDEX,
+  getConnectorTablePinCount,
+  resolveConnectorRenderedSize,
+} from '../../lib/connectorSize';
+import {
+  buildSubsystemGraphModel,
+  deriveGraphWireGroups,
+  projectNodeToEnclosureWall,
+  SUBSYSTEM_CONNECTOR_PREFIX,
+  SUBSYSTEM_DEVICE_PREFIX,
+  SUBSYSTEM_FRAME_PREFIX,
+} from './graphModel';
 
 const BG_NODE_ID = '__bg_image__';
 const TB_NODE_PREFIX = '__tb_';
 const FREE_CON_PREFIX = '__freecon_';
 const ENC_CON_PREFIX = '__enccon_';
 const FREE_MERGE_PREFIX = '__freemerge_';
-const ENC_MERGE_PREFIX = '__encmerge_';
 
 const nodeTypes = {
   enclosure: EnclosureNode,
@@ -88,10 +106,111 @@ function ViewportResetter({ viewportKey }: { viewportKey: string }) {
   return null;
 }
 
+function NodeGeometryUpdater({ nodes }: { nodes: Node[] }) {
+  const updateNodeInternals = useUpdateNodeInternals();
+  const previousGeometry = useRef<string | null>(null);
+
+  useEffect(() => {
+    const geometry = nodes.map((node) => {
+      const style = node.style as { width?: number | string; height?: number | string } | undefined;
+      return `${node.id}:${String(style?.width)}:${String(style?.height)}`;
+    }).join('|');
+    if (geometry === previousGeometry.current) return;
+    previousGeometry.current = geometry;
+
+    const frame = requestAnimationFrame(() => {
+      for (const node of nodes) updateNodeInternals(node.id);
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [nodes, updateNodeInternals]);
+
+  return null;
+}
+
+function EntityRevealController({ nodes, edges }: { nodes: Node[]; edges: Edge[] }) {
+  const { fitView } = useReactFlow();
+  const revealRequest = useHarnessStore((s) => s.revealRequest);
+  const editingSurface = useHarnessStore((s) => s.editingSurface);
+  const drillDownEnclosure = useHarnessStore((s) => s.drillDownEnclosure);
+  const harness = useHarnessStore((s) => s.harness);
+  const processedRequest = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (!revealRequest || processedRequest.current === revealRequest.requestId || !harness) return;
+
+    const item = revealRequest.item;
+    let targetNodes: Node[] = [];
+
+    if (item.type === 'enclosure') {
+      targetNodes = nodes.filter((node) => node.data?.enclosureId === item.id);
+    } else if (item.type === 'connector') {
+      targetNodes = nodes.filter((node) => node.data?.connectorId === item.id);
+    } else if (item.type === 'mergePoint') {
+      targetNodes = nodes.filter((node) => node.data?.mergePointId === item.id);
+    } else {
+      const pathIds = item.type === 'path'
+        ? new Set([item.id])
+        : new Set(
+            harness.paths
+              .filter((path) => getPathSignalId(path) === item.id)
+              .map((path) => path.id),
+          );
+      const nodeIds = new Set<string>();
+      for (const edge of edges) {
+        const edgePathIds = (edge.data?.pathIds as string[] | undefined) ?? [];
+        if (!edgePathIds.some((pathId) => pathIds.has(pathId))) continue;
+        nodeIds.add(edge.source);
+        nodeIds.add(edge.target);
+      }
+      targetNodes = nodes.filter((node) => nodeIds.has(node.id));
+    }
+
+    if (targetNodes.length === 0 && editingSurface === 'subsystem') {
+      useHarnessStore.setState({
+        editingSurface: 'hierarchy',
+        drillDownEnclosure: getEntityRevealContext(harness, item, drillDownEnclosure),
+      });
+      return;
+    }
+
+    if (targetNodes.length === 0) return;
+
+    let focusFrame: number | null = null;
+    const layoutFrame = requestAnimationFrame(() => {
+      focusFrame = requestAnimationFrame(() => {
+        void fitView({
+          nodes: targetNodes,
+          padding: 0.4,
+          duration: 350,
+          maxZoom: 1.5,
+        });
+        processedRequest.current = revealRequest.requestId;
+      });
+    });
+    return () => {
+      cancelAnimationFrame(layoutFrame);
+      if (focusFrame !== null) cancelAnimationFrame(focusFrame);
+    };
+  }, [
+    drillDownEnclosure,
+    edges,
+    editingSurface,
+    fitView,
+    harness,
+    nodes,
+    revealRequest,
+  ]);
+
+  return null;
+}
+
 export function GraphView() {
   const harness = useHarnessStore((s) => s.harness);
+  const activeHarnessName = useHarnessStore((s) => s.activeHarnessName);
   const nodeLayouts = useHarnessStore((s) => s.nodeLayouts);
   const sizeLayouts = useHarnessStore((s) => s.sizeLayouts);
+  const expandedSizeOverrides = useHarnessStore((s) => s.expandedSizeOverrides);
+  const connectorLibrary = useHarnessStore((s) => s.connectorLibrary);
   const freePortLayouts = useHarnessStore((s) => s.freePortLayouts);
   const portLayouts = useHarnessStore((s) => s.portLayouts);
   const updateNodePosition = useHarnessStore((s) => s.updateNodePosition);
@@ -116,15 +235,36 @@ export function GraphView() {
   const pushUndoSnapshot = useHarnessStore((s) => s.pushUndoSnapshot);
   const mergePointLayouts = useHarnessStore((s) => s.mergePointLayouts);
   const updateMergePointLayout = useHarnessStore((s) => s.updateMergePointLayout);
+  const expandedNodes = useHarnessStore((s) => s.expandedNodes);
+  const editingSurface = useHarnessStore((s) => s.editingSurface);
+  const activeSubsystemId = useHarnessStore((s) => s.activeSubsystemId);
+  const subsystems = useHarnessStore((s) => s.subsystems);
+  const updateSubsystemEntityLayout = useHarnessStore((s) => s.updateSubsystemEntityLayout);
+  const addEntityToActiveSubsystem = useHarnessStore((s) => s.addEntityToActiveSubsystem);
+  const setMutationError = useHarnessStore((s) => s.setMutationError);
+  const mutationError = useHarnessStore((s) => s.mutationError);
+  const removeEntityFromActiveSubsystem = useHarnessStore((s) => s.removeEntityFromActiveSubsystem);
 
   const spaceId = drillDownEnclosure ?? null;
   const bgKey = spaceId ?? 'graph';
+  const viewportKey = editingSurface === 'subsystem'
+    ? `${activeHarnessName}:subsystem:${activeSubsystemId ?? 'none'}`
+    : `${activeHarnessName}:hierarchy:${bgKey}`;
 
   const prevDragging = useRef(useHarnessStore.getState().draggingEdgeInfo);
   const draggingNodes = useRef(new Set<string>());
   const didPushSnapshotForDrag = useRef(false);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [lassoMode, setLassoMode] = useState(false);
+  const [pendingRoute, setPendingRoute] = useState<{
+    from: { connector_id: string; pin_number: number };
+    to: { connector_id: string; pin_number: number };
+  } | null>(null);
+  const [selectedSignalId, setSelectedSignalId] = useState('');
+  const [creatingSignal, setCreatingSignal] = useState(false);
+  const [newSignalName, setNewSignalName] = useState('');
+  const [newSignalTags, setNewSignalTags] = useState('');
+  const [newSignalColor, setNewSignalColor] = useState('');
 
   const breadcrumbs = useMemo(() => {
     if (!harness || !spaceId) return [];
@@ -136,11 +276,11 @@ export function GraphView() {
       crumbs.unshift({ id: enc.id, name: enc.name });
       cur = enc.parent;
     }
-    crumbs.unshift({ id: null, name: 'Car' });
+    crumbs.unshift({ id: null, name: harness.name ?? 'System' });
     return crumbs;
   }, [harness, spaceId]);
 
-  const { graphNodes, graphEdges } = useMemo(() => {
+  const hierarchyGraph = useMemo(() => {
     if (!harness) return { graphNodes: [] as Node[], graphEdges: [] as Edge[] };
 
     const childEnclosures = getChildEnclosures(harness, spaceId);
@@ -149,7 +289,8 @@ export function GraphView() {
     const freeConIds = new Set(freeConnectors.map((c) => c.id));
     const freeMergeIds = new Set(freeMergePoints.map((mergePoint) => mergePoint.id));
     const enclosureConIds = new Set<string>();
-    const enclosureMergeIds = new Set<string>();
+    const conToEncId = new Map<string, string>();   // connectorId → enclosureId for ENC_CON nodes
+    const mergeToEncId = new Map<string, string>(); // mergePointId → enclosureId (no node rendered)
     const mergeLayoutsForContext = mergePointLayouts[bgKey] ?? {};
 
     const gNodes: Node[] = [];
@@ -187,63 +328,64 @@ export function GraphView() {
         },
       });
 
-      // Each connector belonging to this enclosure is a child node that floats
-      // freely inside the enclosure's rectangle.
+      // Device connectors float inside their device. Bulkheads on physical
+      // enclosure containers stay centered on the enclosure wall.
       directConnectors.forEach((con, conIdx) => {
         enclosureConIds.add(con.id);
+        conToEncId.set(con.id, enc.id);
         const savedPos = portLayouts[con.id];
         const defaultConX = 12 + (conIdx % 3) * 90;
         const defaultConY = 48 + Math.floor(conIdx / 3) * 52;
         const conPos = savedPos ?? { x: defaultConX, y: defaultConY };
-        const conSize = sizeLayouts[con.id] ?? { w: 100, h: 32 };
+        const savedConSize = sizeLayouts[con.id] ?? { w: 100, h: 32 };
+        const occupiedPins = getConnectorOccupancy(harness, con.id);
+        const conType = connectorLibrary?.connector_types.find((t) => t.id === con.connector_type);
+        const isExpanded = expandedNodes.has(con.id);
+        const conSize = resolveConnectorRenderedSize(
+          savedConSize,
+          isExpanded,
+          getConnectorTablePinCount(con, conType, occupiedPins.map((pin) => pin.pinNumber)),
+          expandedSizeOverrides[con.id],
+        );
+        const wallMounted = enc.container;
 
         gNodes.push({
           id: `${ENC_CON_PREFIX}${con.id}`,
           type: 'connector',
           parentId: enc.id,
-          extent: 'parent' as const,
+          ...(wallMounted ? {} : { extent: 'parent' as const }),
           deletable: false,
-          position: { x: conPos.x, y: conPos.y },
+          position: wallMounted
+            ? projectNodeToEnclosureWall(conPos, conSize, size)
+            : { x: conPos.x, y: conPos.y },
           style: { width: conSize.w, height: conSize.h },
+          zIndex: isExpanded ? EXPANDED_CONNECTOR_Z_INDEX : 0,
           selected: selectedItem?.type === 'connector' && selectedItem.id === con.id,
           data: {
             label: con.name,
             parentName: '',
             connectorId: con.id,
-            occupiedPins: getConnectorOccupancy(harness, con.id).map((entry) => ({
+            occupiedPins: occupiedPins.map((entry) => ({
               pinNumber: entry.pinNumber,
               pathId: entry.pathId,
+              pathName: entry.pathName,
               signalName: entry.signalName,
             })),
-            pinCount: getConnectorOccupancy(harness, con.id).length,
+            pinCount: occupiedPins.length,
             matchesFilter: itemMatchesFilters(con.tags, activeFilters),
             wireAppearance: getPortWireAppearance(harness, con),
             connectorTypeId: con.connector_type,
-            instanceImage: (con.properties?.image as string) || '',
+            instanceImage: (con.properties?.image as string)
+              || getConnectorSideImage(con, conType)
+              || getConnectorPinGuideImage(con, conType)
+              || '',
+            wallMounted,
           },
         } as Node);
       });
 
-      directMergePoints.forEach((mergePoint, mergeIndex) => {
-        enclosureMergeIds.add(mergePoint.id);
-        const savedPos = mergeLayoutsForContext[mergePoint.id];
-        const pos = savedPos ?? { x: 24 + (mergeIndex % 3) * 70, y: 96 + Math.floor(mergeIndex / 3) * 52 };
-        const size = sizeLayouts[mergePoint.id] ?? { w: 52, h: 28 };
-        gNodes.push({
-          id: `${ENC_MERGE_PREFIX}${mergePoint.id}`,
-          type: 'mergePoint',
-          parentId: enc.id,
-          extent: 'parent' as const,
-          deletable: false,
-          position: pos,
-          style: { width: size.w, height: size.h },
-          selected: selectedItem?.type === 'mergePoint' && selectedItem.id === mergePoint.id,
-          data: {
-            mergePointId: mergePoint.id,
-            label: mergePoint.name,
-            matchesFilter: itemMatchesFilters(mergePoint.tags, activeFilters),
-          },
-        } as Node);
+      directMergePoints.forEach((mergePoint) => {
+        mergeToEncId.set(mergePoint.id, enc.id);
       });
     }
 
@@ -252,7 +394,16 @@ export function GraphView() {
       const nodeId = `${FREE_CON_PREFIX}${con.id}`;
       const freePos = freePortLayouts[con.id];
       const pos = freePos ?? { x: 100, y: 400 + gNodes.length * 60 };
-      const conSize = sizeLayouts[con.id] ?? { w: 140, h: 32 };
+      const savedConSize = sizeLayouts[con.id] ?? { w: 140, h: 32 };
+      const occupiedPins = getConnectorOccupancy(harness, con.id);
+      const conType = connectorLibrary?.connector_types.find((t) => t.id === con.connector_type);
+      const isExpanded = expandedNodes.has(con.id);
+      const conSize = resolveConnectorRenderedSize(
+        savedConSize,
+        isExpanded,
+        getConnectorTablePinCount(con, conType, occupiedPins.map((pin) => pin.pinNumber)),
+        expandedSizeOverrides[con.id],
+      );
 
       gNodes.push({
         id: nodeId,
@@ -260,21 +411,26 @@ export function GraphView() {
         deletable: false,
         position: { x: pos.x, y: pos.y },
         style: { width: conSize.w, height: conSize.h },
+        zIndex: isExpanded ? EXPANDED_CONNECTOR_Z_INDEX : 0,
         selected: selectedItem?.type === 'connector' && selectedItem.id === con.id,
         data: {
           label: con.name,
           parentName: '',
           connectorId: con.id,
-          occupiedPins: getConnectorOccupancy(harness, con.id).map((entry) => ({
+          occupiedPins: occupiedPins.map((entry) => ({
             pinNumber: entry.pinNumber,
             pathId: entry.pathId,
+            pathName: entry.pathName,
             signalName: entry.signalName,
           })),
-          pinCount: getConnectorOccupancy(harness, con.id).length,
+          pinCount: occupiedPins.length,
           matchesFilter: itemMatchesFilters(con.tags, activeFilters),
           wireAppearance: getPortWireAppearance(harness, con),
           connectorTypeId: con.connector_type,
-          instanceImage: (con.properties?.image as string) || '',
+          instanceImage: (con.properties?.image as string)
+            || getConnectorSideImage(con, conType)
+            || getConnectorPinGuideImage(con, conType)
+            || '',
         },
       } as Node);
     }
@@ -289,6 +445,7 @@ export function GraphView() {
         deletable: false,
         position: { x: pos.x, y: pos.y },
         style: { width: size.w, height: size.h },
+        zIndex: 5,
         selected: selectedItem?.type === 'mergePoint' && selectedItem.id === mergePoint.id,
         data: {
           mergePointId: mergePoint.id,
@@ -361,19 +518,31 @@ export function GraphView() {
       if (refKey.startsWith('merge:')) {
         const [, mergePointId] = refKey.split(':');
         if (freeMergeIds.has(mergePointId)) return `${FREE_MERGE_PREFIX}${mergePointId}`;
-        if (enclosureMergeIds.has(mergePointId)) return `${ENC_MERGE_PREFIX}${mergePointId}`;
+        const encId = mergeToEncId.get(mergePointId);
+        if (encId !== undefined) return encId;
         return null;
       }
       return null;
     };
 
     const visibleSegments = getVisibleSegments(harness, spaceId);
-    const bundles = deriveBundles(visibleSegments);
+    const bundles = deriveGraphWireGroups(visibleSegments, expandedNodes);
 
     const gEdges: Edge[] = bundles.flatMap((bundle) => {
       const sourceNodeId = getVisibleNodeId(bundle.sourceRefKey);
       const targetNodeId = getVisibleNodeId(bundle.targetRefKey);
-      if (!sourceNodeId || !targetNodeId || sourceNodeId === targetNodeId) return [];
+      if (!sourceNodeId || !targetNodeId) return [];
+
+      // Drop edges that are internal to a child enclosure: an ENC_CON connecting
+      // to the enclosure node itself (which is where its splice endpoint was mapped).
+      const srcEncForCon = sourceNodeId.startsWith(ENC_CON_PREFIX)
+        ? conToEncId.get(sourceNodeId.slice(ENC_CON_PREFIX.length))
+        : null;
+      const tgtEncForCon = targetNodeId.startsWith(ENC_CON_PREFIX)
+        ? conToEncId.get(targetNodeId.slice(ENC_CON_PREFIX.length))
+        : null;
+      if (srcEncForCon && srcEncForCon === targetNodeId) return [];
+      if (tgtEncForCon && tgtEncForCon === sourceNodeId) return [];
 
       const pathAppearances = bundle.pathIds.map((pathId) => {
         const path = getPathById(harness, pathId);
@@ -382,7 +551,10 @@ export function GraphView() {
       let matchesFilter = false;
       for (const pathId of bundle.pathIds) {
         const path = getPathById(harness, pathId);
-        if (path && itemMatchesFilters(path.tags, activeFilters)) matchesFilter = true;
+        const effectiveTags = path?.signal_id
+          ? [...path.tags, `signal:${path.signal_id.replace(/^sig_/, '')}`]
+          : path?.tags ?? [];
+        if (path && itemMatchesFilters(effectiveTags, activeFilters)) matchesFilter = true;
       }
       const firstAppearance = pathAppearances[0];
       const bundleColor =
@@ -391,9 +563,22 @@ export function GraphView() {
           : '#666';
 
       const isSelected =
-        selectedBundle &&
-        bundle.pathIds.every((id) => selectedBundle.includes(id)) &&
-        selectedBundle.every((id) => bundle.pathIds.includes(id));
+        (
+          selectedBundle &&
+          bundle.pathIds.every((id) => selectedBundle.includes(id)) &&
+          selectedBundle.every((id) => bundle.pathIds.includes(id))
+        ) ||
+        (
+          selectedItem?.type === 'path' &&
+          bundle.pathIds.includes(selectedItem.id)
+        ) ||
+        (
+          selectedItem?.type === 'signal' &&
+          bundle.pathIds.some((pathId) => {
+            const path = getPathById(harness, pathId);
+            return path ? getPathSignalId(path) === selectedItem.id : false;
+          })
+        );
 
       const rawWps = waypointLayouts[bundle.id] ?? [];
       const resolvedWaypoints: Point[] = rawWps.map((wp) => {
@@ -417,6 +602,8 @@ export function GraphView() {
         id: bundle.id,
         source: sourceNodeId,
         target: targetNodeId,
+        sourceHandle: bundle.sourceHandle,
+        targetHandle: bundle.targetHandle,
         type: 'bundle',
         selected: !!isSelected,
         data: {
@@ -438,7 +625,35 @@ export function GraphView() {
     harness, nodeLayouts, sizeLayouts, freePortLayouts, portLayouts, selectedItem,
     selectedBundle, activeFilters, backgroundLayouts, bgKey,
     textBoxLayouts, waypointLayouts, junctionLayouts, spaceId, mergePointLayouts,
+    expandedNodes, expandedSizeOverrides, connectorLibrary,
   ]);
+
+  const connectorTypesById = useMemo(() => {
+    const map = new Map<string, ConnectorType>();
+    for (const type of connectorLibrary?.connector_types ?? []) {
+      map.set(type.id, type);
+    }
+    return map;
+  }, [connectorLibrary]);
+
+  const subsystem = activeSubsystemId ? subsystems[activeSubsystemId] : undefined;
+  const subsystemGraph = useMemo(
+    () => harness && subsystem
+      ? buildSubsystemGraphModel(
+        harness,
+        subsystem,
+        activeFilters,
+        expandedNodes,
+        selectedItem,
+        expandedSizeOverrides,
+        connectorTypesById,
+      )
+      : { graphNodes: [] as Node[], graphEdges: [] as Edge[] },
+    [harness, subsystem, activeFilters, expandedNodes, selectedItem, expandedSizeOverrides, connectorTypesById],
+  );
+  const { graphNodes, graphEdges } = editingSurface === 'subsystem'
+    ? subsystemGraph
+    : hierarchyGraph;
 
   const [nodes, setNodes, onNodesChangeBase] = useNodesState(graphNodes);
   const [edges, setEdges] = useEdgesState(graphEdges);
@@ -503,9 +718,34 @@ export function GraphView() {
 
   const onNodesChange: OnNodesChange = useCallback(
     (changes: NodeChange[]) => {
-      onNodesChangeBase(changes);
+      const constrainedChanges = changes.map((change) => {
+        if (change.type !== 'position' || !change.position) return change;
+        const node = nodes.find((candidate) => candidate.id === change.id);
+        if (!node?.parentId || !node.data.wallMounted) return change;
+        const parent = nodes.find((candidate) => candidate.id === node.parentId);
+        const nodeStyle = node.style as { width?: number; height?: number } | undefined;
+        const parentStyle = parent?.style as { width?: number; height?: number } | undefined;
+        if (
+          typeof nodeStyle?.width !== 'number' ||
+          typeof nodeStyle.height !== 'number' ||
+          typeof parentStyle?.width !== 'number' ||
+          typeof parentStyle.height !== 'number'
+        ) {
+          return change;
+        }
+        return {
+          ...change,
+          position: projectNodeToEnclosureWall(
+            change.position,
+            { w: nodeStyle.width, h: nodeStyle.height },
+            { w: parentStyle.width, h: parentStyle.height },
+          ),
+        };
+      });
 
-      const positionChanges = changes.filter((c) => c.type === 'position');
+      onNodesChangeBase(constrainedChanges);
+
+      const positionChanges = constrainedChanges.filter((c) => c.type === 'position');
       const anyStarting = positionChanges.some(
         (c) => c.type === 'position' && c.dragging && !draggingNodes.current.has(c.id),
       );
@@ -519,7 +759,10 @@ export function GraphView() {
           draggingNodes.current.add(change.id);
         }
 
-        if (change.position && !change.dragging) {
+        // Only persist after a real node-drag end. NodeResizer emits position
+        // changes with `dragging` undefined; treating those as drag-end was
+        // rewriting subsystem layouts mid-resize and snapping sizes back.
+        if (change.position && change.dragging === false) {
           draggingNodes.current.delete(change.id);
           if (draggingNodes.current.size === 0) didPushSnapshotForDrag.current = false;
           if (change.id === BG_NODE_ID) {
@@ -536,9 +779,18 @@ export function GraphView() {
           } else if (change.id.startsWith(FREE_MERGE_PREFIX)) {
             const mergePointId = change.id.slice(FREE_MERGE_PREFIX.length);
             updateMergePointLayout(bgKey, mergePointId, change.position.x, change.position.y);
-          } else if (change.id.startsWith(ENC_MERGE_PREFIX)) {
-            const mergePointId = change.id.slice(ENC_MERGE_PREFIX.length);
-            updateMergePointLayout(bgKey, mergePointId, change.position.x, change.position.y);
+          } else if (change.id.startsWith(SUBSYSTEM_FRAME_PREFIX)) {
+            const enclosureId = change.id.slice(SUBSYSTEM_FRAME_PREFIX.length);
+            const previous = subsystem?.enclosures[enclosureId];
+            updateSubsystemEntityLayout('enclosures', enclosureId, { ...previous, x: change.position.x, y: change.position.y });
+          } else if (change.id.startsWith(SUBSYSTEM_DEVICE_PREFIX)) {
+            const deviceId = change.id.slice(SUBSYSTEM_DEVICE_PREFIX.length);
+            const previous = subsystem?.devices[deviceId];
+            updateSubsystemEntityLayout('devices', deviceId, { ...previous, x: change.position.x, y: change.position.y });
+          } else if (change.id.startsWith(SUBSYSTEM_CONNECTOR_PREFIX)) {
+            const connectorId = change.id.slice(SUBSYSTEM_CONNECTOR_PREFIX.length);
+            const previous = subsystem?.connectors[connectorId];
+            updateSubsystemEntityLayout('connectors', connectorId, { ...previous, x: change.position.x, y: change.position.y });
           } else {
             updateNodePosition(change.id, change.position.x, change.position.y);
           }
@@ -546,7 +798,8 @@ export function GraphView() {
       }
     },
     [onNodesChangeBase, updateNodePosition, updateBackground, updateTextBox,
-     updateFreePortLayout, updatePortLayout, updateMergePointLayout, bgKey, pushUndoSnapshot],
+     updateFreePortLayout, updatePortLayout, updateMergePointLayout, updateSubsystemEntityLayout,
+     subsystem, bgKey, pushUndoSnapshot, nodes],
   );
 
   const onPaneClick = useCallback(() => {
@@ -581,15 +834,111 @@ export function GraphView() {
         selectItem({ type: 'mergePoint', id: mergePointId });
         return;
       }
-      if (node.id.startsWith(ENC_MERGE_PREFIX)) {
-        const mergePointId = node.id.slice(ENC_MERGE_PREFIX.length);
-        selectItem({ type: 'mergePoint', id: mergePointId });
+      if (node.id.startsWith(SUBSYSTEM_CONNECTOR_PREFIX)) {
+        selectItem({ type: 'connector', id: node.id.slice(SUBSYSTEM_CONNECTOR_PREFIX.length) });
+        return;
+      }
+      if (node.id.startsWith(SUBSYSTEM_DEVICE_PREFIX)) {
+        selectItem({ type: 'enclosure', id: node.id.slice(SUBSYSTEM_DEVICE_PREFIX.length) });
+        return;
+      }
+      if (node.id.startsWith(SUBSYSTEM_FRAME_PREFIX)) {
+        selectItem({ type: 'enclosure', id: node.id.slice(SUBSYSTEM_FRAME_PREFIX.length) });
         return;
       }
       selectItem({ type: 'enclosure', id: node.id });
     },
     [selectItem, selectTextBox],
   );
+
+  const submitRoute = useCallback(async (
+    from: { connector_id: string; pin_number: number },
+    to: { connector_id: string; pin_number: number },
+    signalId: string,
+  ) => {
+    if (!signalId) return;
+    const response = await fetch(`/api/paths/route?harness=${encodeURIComponent(useHarnessStore.getState().activeHarnessName)}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        from,
+        to,
+        signal_id: signalId,
+        subsystem_id: activeSubsystemId,
+        request_id: crypto.randomUUID(),
+      }),
+    });
+    const result = await response.json();
+    if (!response.ok) {
+      setMutationError(result.error ?? 'Wire routing failed');
+      return;
+    }
+    useHarnessStore.getState().loadHarness(result.harness);
+    if (editingSurface === 'subsystem') {
+      for (const connectorId of result.generated_connectors ?? []) {
+        useHarnessStore.getState().addEntityToActiveSubsystem('connector', connectorId);
+      }
+    }
+    setMutationError(null);
+    setPendingRoute(null);
+  }, [activeSubsystemId, editingSurface, setMutationError]);
+
+  const onConnect = useCallback((connection: Connection) => {
+    if (!harness) return;
+    const parse = (nodeId: string | null, handleId: string | null) => {
+      if (!nodeId || !handleId?.startsWith('pin:')) return null;
+      const connectorId = nodeId.startsWith(SUBSYSTEM_CONNECTOR_PREFIX)
+        ? nodeId.slice(SUBSYSTEM_CONNECTOR_PREFIX.length)
+        : nodeId.startsWith(FREE_CON_PREFIX)
+          ? nodeId.slice(FREE_CON_PREFIX.length)
+          : nodeId.startsWith(ENC_CON_PREFIX)
+            ? nodeId.slice(ENC_CON_PREFIX.length)
+            : null;
+      if (!connectorId) return null;
+      return {
+        connector_id: connectorId,
+        pin_number: Number(handleId.slice(4)),
+      };
+    };
+    const from = parse(connection.source, connection.sourceHandle);
+    const to = parse(connection.target, connection.targetHandle);
+    if (!from || !to) {
+      setMutationError('Choose a cavity handle at both ends.');
+      return;
+    }
+    setPendingRoute({ from, to });
+    setSelectedSignalId(harness.signals[0]?.id ?? '');
+    setCreatingSignal(harness.signals.length === 0);
+  }, [harness, setMutationError]);
+
+  const createSignalAndRoute = useCallback(async () => {
+    if (!pendingRoute || !newSignalName.trim()) return;
+    const slug = newSignalName.trim().toUpperCase().replace(/[^A-Z0-9]+/g, '_').replace(/^_|_$/g, '');
+    if (!slug) {
+      setMutationError('Signal name must contain at least one letter or number.');
+      return;
+    }
+    const signalId = `sig_${slug}`;
+    const response = await fetch(`/api/signals?harness=${encodeURIComponent(useHarnessStore.getState().activeHarnessName)}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        id: signalId,
+        name: newSignalName.trim(),
+        tags: newSignalTags.split(',').map((tag) => tag.trim()).filter(Boolean),
+        properties: newSignalColor.trim() ? { preferred_wire_color: newSignalColor.trim() } : {},
+      }),
+    });
+    if (!response.ok) {
+      const result = await response.json();
+      setMutationError(result.error ?? 'Signal creation failed');
+      return;
+    }
+    await submitRoute(pendingRoute.from, pendingRoute.to, signalId);
+    setNewSignalName('');
+    setNewSignalTags('');
+    setNewSignalColor('');
+  }, [pendingRoute, newSignalName, newSignalTags, newSignalColor, submitRoute, setMutationError]);
 
   return (
     <div className="w-full h-full bg-zinc-950">
@@ -599,6 +948,8 @@ export function GraphView() {
         onNodesChange={onNodesChange}
         onNodeClick={onNodeClick}
         onPaneClick={onPaneClick}
+        onConnect={onConnect}
+        nodesDraggable
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
         fitView
@@ -611,7 +962,9 @@ export function GraphView() {
         panOnDrag={lassoMode ? false : true}
         selectionMode={SelectionMode.Partial}
       >
-        <ViewportResetter viewportKey={bgKey} />
+        <ViewportResetter viewportKey={viewportKey} />
+        <NodeGeometryUpdater nodes={nodes} />
+        <EntityRevealController nodes={nodes} edges={edges} />
         <Background
           variant={BackgroundVariant.Dots}
           gap={20}
@@ -689,6 +1042,28 @@ export function GraphView() {
               </div>
             </div>
             <AddTextBoxButton />
+            {editingSurface === 'subsystem' && selectedItem && (
+              <div className="flex gap-1">
+                {(selectedItem.type === 'enclosure' || selectedItem.type === 'connector') && (
+                  <button
+                    className="px-2 py-1 text-[11px] bg-zinc-800 border border-zinc-600 text-zinc-300 rounded"
+                    onClick={() => addEntityToActiveSubsystem(selectedItem.type as 'enclosure' | 'connector', selectedItem.id)}
+                  >
+                    Add selected
+                  </button>
+                )}
+                <button
+                  className="px-2 py-1 text-[11px] bg-zinc-800 border border-zinc-600 text-zinc-300 rounded"
+                  onClick={() => {
+                    if (selectedItem.type === 'enclosure' || selectedItem.type === 'connector') {
+                      removeEntityFromActiveSubsystem(selectedItem.type, selectedItem.id);
+                    }
+                  }}
+                >
+                  Remove from subsystem
+                </button>
+              </div>
+            )}
           </div>
         </Panel>
 
@@ -698,6 +1073,58 @@ export function GraphView() {
               <span className="text-[10px] text-zinc-400">
                 Click edge to add bend points · Drag bend point near another edge to create a junction · Double-click junction to unlink
               </span>
+            </div>
+          </Panel>
+        )}
+        {mutationError && (
+          <Panel position="bottom-center">
+            <button
+              onClick={() => setMutationError(null)}
+              className="max-w-xl px-3 py-2 text-xs text-left text-red-200 bg-red-950/95 border border-red-700 rounded shadow-lg"
+              title="Dismiss"
+            >
+              {mutationError}
+            </button>
+          </Panel>
+        )}
+        {pendingRoute && (
+          <Panel position="top-center">
+            <div className="w-72 rounded border border-zinc-600 bg-zinc-900/95 p-3 shadow-xl text-xs">
+              <div className="font-semibold text-zinc-100 mb-2">Choose signal</div>
+              {!creatingSignal ? (
+                <>
+                  <select
+                    value={selectedSignalId}
+                    onChange={(event) => setSelectedSignalId(event.target.value)}
+                    className="w-full bg-zinc-800 border border-zinc-700 rounded px-2 py-1 text-zinc-100"
+                  >
+                    {harness?.signals.map((signal) => (
+                      <option key={signal.id} value={signal.id}>{signal.name} · {signal.id}</option>
+                    ))}
+                  </select>
+                  <button className="mt-2 text-amber-400 hover:text-amber-300" onClick={() => setCreatingSignal(true)}>
+                    + Create new signal
+                  </button>
+                </>
+              ) : (
+                <div className="space-y-2">
+                  <input value={newSignalName} onChange={(event) => setNewSignalName(event.target.value)} placeholder="Signal name" className="w-full bg-zinc-800 border border-zinc-700 rounded px-2 py-1" />
+                  <input value={newSignalTags} onChange={(event) => setNewSignalTags(event.target.value)} placeholder="Tags, comma separated" className="w-full bg-zinc-800 border border-zinc-700 rounded px-2 py-1" />
+                  <input value={newSignalColor} onChange={(event) => setNewSignalColor(event.target.value)} placeholder="Preferred wire color" className="w-full bg-zinc-800 border border-zinc-700 rounded px-2 py-1" />
+                </div>
+              )}
+              <div className="mt-3 flex justify-end gap-2">
+                <button className="text-zinc-400" onClick={() => setPendingRoute(null)}>Cancel</button>
+                <button
+                  className="rounded bg-amber-600 px-2 py-1 text-white disabled:opacity-40"
+                  disabled={creatingSignal ? !newSignalName.trim() : !selectedSignalId}
+                  onClick={() => creatingSignal
+                    ? void createSignalAndRoute()
+                    : void submitRoute(pendingRoute.from, pendingRoute.to, selectedSignalId)}
+                >
+                  Route wire
+                </button>
+              </div>
             </div>
           </Panel>
         )}

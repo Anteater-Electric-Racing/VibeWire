@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useHarnessStore, initAutoSave } from './store';
 import { AppShell } from './components/layout/AppShell';
 import type {
@@ -8,11 +8,13 @@ import type {
   FreePortLayouts,
   HarnessData,
   JunctionLayouts,
+  ManufacturingDocument,
   MergePointLayouts,
   NodeLayout,
   PortLayouts,
   RotationLayouts,
   SizeLayouts,
+  SubsystemDocument,
   TextBoxLayouts,
   WaypointLayouts,
 } from './types';
@@ -47,26 +49,66 @@ export default function App() {
   const loadJunctionLayouts = useHarnessStore((s) => s.loadJunctionLayouts);
   const loadMergePointLayouts = useHarnessStore((s) => s.loadMergePointLayouts);
   const loadRotationLayouts = useHarnessStore((s) => s.loadRotationLayouts);
+  const loadSubsystems = useHarnessStore((s) => s.loadSubsystems);
+  const loadManufacturing = useHarnessStore((s) => s.loadManufacturing);
+  const resetForHarnessSwitch = useHarnessStore((s) => s.resetForHarnessSwitch);
+  const setAvailableHarnesses = useHarnessStore((s) => s.setAvailableHarnesses);
+  const activeHarnessName = useHarnessStore((s) => s.activeHarnessName);
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const autoSaveStarted = useRef(false);
 
+  // Load connector library once — it is shared across all harnesses
   useEffect(() => {
-    Promise.all([
-      fetch(`${USER_DATA_BASE}/harnesses/fsae-car.json`).then((r) => {
-        if (!r.ok) throw new Error(`Failed to load harness: ${r.status}`);
-        return r.json() as Promise<HarnessData>;
-      }),
-      fetch(`${USER_DATA_BASE}/connectors/connector-library.json`).then((r) => {
+    fetch(`${USER_DATA_BASE}/connectors/connector-library.json`)
+      .then((r) => {
         if (!r.ok) throw new Error(`Failed to load connector library: ${r.status}`);
         return r.json() as Promise<ConnectorLibrary>;
+      })
+      .then(loadConnectorLibrary)
+      .catch(() => {
+        // Non-fatal: app still works without the library (connector types just won't resolve)
+      });
+  }, [loadConnectorLibrary]);
+
+  // Fetch harness list once on mount
+  useEffect(() => {
+    fetch('/api/harnesses')
+      .then((r) => r.json() as Promise<string[]>)
+      .then(setAvailableHarnesses)
+      .catch(() => setAvailableHarnesses(['fsae-car']));
+  }, [setAvailableHarnesses]);
+
+  // Load harness + its layouts whenever the active harness changes
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+
+    const nameParam = `?harness=${encodeURIComponent(activeHarnessName)}`;
+
+    Promise.all([
+      fetch(`/api/harness${nameParam}`).then((r) => {
+        if (!r.ok) throw new Error(`Failed to load harness '${activeHarnessName}': ${r.status}`);
+        return r.json() as Promise<HarnessData>;
       }),
-      fetch(`${USER_DATA_BASE}/layouts.json?v=${Date.now()}`)
+      fetch(`/api/layouts${nameParam}&v=${Date.now()}`)
         .then((r) => (r.ok ? (r.json() as Promise<LayoutFile>) : {}))
         .catch(() => ({}) as LayoutFile),
+      fetch(`/api/subsystems${nameParam}&v=${Date.now()}`)
+        .then((r) => (r.ok ? (r.json() as Promise<SubsystemDocument[]>) : []))
+        .catch(() => [] as SubsystemDocument[]),
+      fetch(`/api/manufacturing${nameParam}&v=${Date.now()}`)
+        .then((r) => (r.ok
+          ? (r.json() as Promise<ManufacturingDocument>)
+          : { schema_version: '1.1.0' as const, bundles: {} }))
+        .catch(() => ({ schema_version: '1.1.0' as const, bundles: {} })),
     ])
-      .then(([harness, library, layouts]) => {
+      .then(([harness, layouts, subsystems, manufacturing]) => {
+        if (cancelled) return;
+        resetForHarnessSwitch();
         loadHarness(harness);
-        loadConnectorLibrary(library);
         const lf = layouts as LayoutFile;
         loadLayouts(lf.nodes ?? {});
         loadPortLayouts(lf.ports ?? {});
@@ -79,14 +121,42 @@ export default function App() {
         loadJunctionLayouts(lf.junctions ?? {});
         loadMergePointLayouts(lf.mergePoints ?? {});
         loadRotationLayouts(lf.rotations ?? {});
-        initAutoSave();
+        loadSubsystems(subsystems);
+        loadManufacturing(manufacturing);
+        if (!autoSaveStarted.current) {
+          autoSaveStarted.current = true;
+          initAutoSave();
+        }
         setLoading(false);
       })
       .catch((err: Error) => {
-        setError(err.message);
-        setLoading(false);
+        if (!cancelled) {
+          setError(err.message);
+          setLoading(false);
+        }
       });
-  }, [loadHarness, loadConnectorLibrary, loadLayouts, loadPortLayouts, loadSizeLayouts, loadFreePortLayouts, loadBackgroundLayouts, loadConnectorTypeSizes, loadTextBoxLayouts, loadWaypointLayouts, loadJunctionLayouts, loadMergePointLayouts, loadRotationLayouts]);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    activeHarnessName,
+    resetForHarnessSwitch,
+    loadHarness,
+    loadLayouts,
+    loadPortLayouts,
+    loadSizeLayouts,
+    loadFreePortLayouts,
+    loadBackgroundLayouts,
+    loadConnectorTypeSizes,
+    loadTextBoxLayouts,
+    loadWaypointLayouts,
+    loadJunctionLayouts,
+    loadMergePointLayouts,
+    loadRotationLayouts,
+    loadSubsystems,
+    loadManufacturing,
+  ]);
 
   if (loading) {
     return (

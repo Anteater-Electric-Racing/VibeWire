@@ -8,6 +8,11 @@
     "api": "tsx server/index.ts",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
+    "test:renaming": "tsx scripts/test-renaming.ts",
+    "test:routing": "tsx scripts/test-subsystem-routing.ts",
+    "test:connectors": "tsx scripts/test-connector-families.ts",
+    "test:manufacturing": "tsx scripts/test-manufacturing.ts",
+    "migrate:connector-families": "tsx scripts/migrate-connector-families.ts",
     "preview": "vite preview"
   },
   "dependencies": {

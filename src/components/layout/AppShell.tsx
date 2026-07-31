@@ -3,15 +3,15 @@ import { Topbar } from './Topbar';
 import { SettingsModal } from './SettingsModal';
 import { GraphView } from '../graph/GraphView';
 import { TreeView } from '../tree/TreeView';
-import { TagFilterPanel } from '../filters/TagFilterPanel';
 import { InspectorPanel } from '../inspector/InspectorPanel';
+import { ConnectorLibraryPage } from '../connectors/ConnectorLibraryPage';
+import { ManufacturingPage } from '../manufacturing/ManufacturingPage';
 import { useHarnessStore } from '../../store';
 
 const LEFT_WIDTH_MIN = 160;
 const LEFT_WIDTH_MAX = 520;
 const LEFT_WIDTH_DEFAULT = 224;
 const PANEL_HEADER_H = 28; // px — height of each panel's header strip
-const INNER_SPLIT_MIN = PANEL_HEADER_H + 40; // minimum content height when expanded
 
 export function AppShell() {
   const selectedItem = useHarnessStore((s) => s.selectedItem);
@@ -26,16 +26,17 @@ export function AppShell() {
   const rotateConnector = useHarnessStore((s) => s.rotateConnector);
   const rotateEnclosure = useHarnessStore((s) => s.rotateEnclosure);
   const pushUndoSnapshot = useHarnessStore((s) => s.pushUndoSnapshot);
+  const getDeleteImpact = useHarnessStore((s) => s.getDeleteImpact);
+  const deleteEntityCascade = useHarnessStore((s) => s.deleteEntityCascade);
+  const editingSurface = useHarnessStore((s) => s.editingSurface);
+  const removeEntityFromActiveSubsystem = useHarnessStore((s) => s.removeEntityFromActiveSubsystem);
+  const appView = useHarnessStore((s) => s.appView);
   const showInspector = !!(selectedItem || (selectedBundle && selectedBundle.length > 0) || selectedTextBoxId);
 
   // Left sidebar state
   const [leftWidth, setLeftWidth] = useState(LEFT_WIDTH_DEFAULT);
   const [leftCollapsed, setLeftCollapsed] = useState(false);
-  // Independent panel collapse states
   const [treeCollapsed, setTreeCollapsed] = useState(false);
-  const [filtersCollapsed, setFiltersCollapsed] = useState(false);
-  // Inner vertical split: treeHeight in px (null = flex default)
-  const [treeHeight, setTreeHeight] = useState<number | null>(null);
   const leftSidebarRef = useRef<HTMLElement>(null);
 
   // Horizontal resize (left sidebar width)
@@ -59,33 +60,41 @@ export function AppShell() {
     window.addEventListener('mouseup', onUp);
   }, [leftWidth]);
 
-  // Vertical inner split (TreeView / TagFilterPanel) — only active when both expanded
-  const startVResize = useCallback((e: React.MouseEvent) => {
-    e.preventDefault();
-    const sidebar = leftSidebarRef.current;
-    if (!sidebar) return;
-    const sidebarH = sidebar.getBoundingClientRect().height;
-    const startY = e.clientY;
-    const startTree = treeHeight ?? sidebarH * 0.6;
-    const onMove = (mv: MouseEvent) => {
-      const newTree = Math.max(INNER_SPLIT_MIN, Math.min(sidebarH - INNER_SPLIT_MIN, startTree + mv.clientY - startY));
-      setTreeHeight(newTree);
-    };
-    const onUp = () => {
-      window.removeEventListener('mousemove', onMove);
-      window.removeEventListener('mouseup', onUp);
-      document.body.style.cursor = '';
-      document.body.style.userSelect = '';
-    };
-    document.body.style.cursor = 'row-resize';
-    document.body.style.userSelect = 'none';
-    window.addEventListener('mousemove', onMove);
-    window.addEventListener('mouseup', onUp);
-  }, [treeHeight]);
-
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
       const mod = e.metaKey || e.ctrlKey;
+      const target = e.target as HTMLElement | null;
+      const isTyping = target?.tagName === 'INPUT' || target?.tagName === 'TEXTAREA' || target?.isContentEditable;
+
+      if (!isTyping && (e.key === 'Delete' || e.key === 'Backspace') && selectedItem) {
+        if (editingSurface === 'subsystem') {
+          if (selectedItem.type === 'enclosure' || selectedItem.type === 'connector') {
+            e.preventDefault();
+            removeEntityFromActiveSubsystem(selectedItem.type, selectedItem.id);
+          }
+          return;
+        }
+        if (selectedItem.type === 'mergePoint') {
+          const impact = getDeleteImpact(selectedItem.type, selectedItem.id);
+          const orphanNote = impact.pathIds.length > 0
+            ? `\n\n${impact.pathIds.length} unpairable stub path(s) will be removed.`
+            : '';
+          if (window.confirm(
+            `Delete splice ${selectedItem.id}?\n\nPaths through it will reconnect as if the splice was never there.${orphanNote}`,
+          )) {
+            e.preventDefault();
+            deleteEntityCascade(selectedItem.type, selectedItem.id);
+          }
+          return;
+        }
+        const impact = getDeleteImpact(selectedItem.type, selectedItem.id);
+        const summary = `${impact.enclosureIds.length} enclosures/devices, ${impact.connectorIds.length} connectors, ${impact.mergePointIds.length} merge points, and ${impact.pathIds.length} paths`;
+        if (window.confirm(`Permanently delete ${selectedItem.id}?\n\nCascade impact: ${summary}.`)) {
+          e.preventDefault();
+          deleteEntityCascade(selectedItem.type, selectedItem.id);
+        }
+        return;
+      }
 
       // Undo: Cmd/Ctrl+Z (without Shift)
       if (mod && e.key === 'z' && !e.shiftKey) {
@@ -125,34 +134,30 @@ export function AppShell() {
     }
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [showInspector, drillDownEnclosure, selectItem, selectTextBox, setDrillDown, undo, redo, selectedItem, rotateConnector, rotateEnclosure, pushUndoSnapshot]);
+  }, [showInspector, drillDownEnclosure, selectItem, selectTextBox, setDrillDown, undo, redo, selectedItem, rotateConnector, rotateEnclosure, pushUndoSnapshot, editingSurface, getDeleteImpact, deleteEntityCascade, removeEntityFromActiveSubsystem]);
 
   return (
     <div className="h-screen w-screen flex flex-col bg-zinc-950 text-zinc-100 overflow-hidden">
       <Topbar />
-      <div className="flex flex-1 min-h-0">
+      {appView === 'connectorLibrary' ? (
+        <div className="flex-1 min-h-0">
+          <ConnectorLibraryPage />
+        </div>
+      ) : appView === 'manufacturing' ? (
+        <div className="flex-1 min-h-0">
+          <ManufacturingPage />
+        </div>
+      ) : (
+        <div className="flex flex-1 min-h-0">
 
-        {/* Left sidebar: tree + filters */}
+        {/* Left sidebar: hierarchy */}
         {!leftCollapsed && (
           <aside
             ref={leftSidebarRef}
             className="shrink-0 border-r border-zinc-800 bg-zinc-900 flex flex-col overflow-hidden relative"
             style={{ width: leftWidth }}
           >
-            {/* ── Tree panel ───────────────────────────────────── */}
-            <div
-              className="flex flex-col overflow-hidden"
-              style={
-                treeCollapsed
-                  ? { flexShrink: 0 }
-                  : filtersCollapsed
-                  ? { flex: '1 1 0', minHeight: INNER_SPLIT_MIN }
-                  : treeHeight !== null
-                  ? { height: treeHeight, flexShrink: 0 }
-                  : { flex: '1 1 0', minHeight: INNER_SPLIT_MIN }
-              }
-            >
-              {/* Panel header — click to collapse/expand */}
+            <div className="flex flex-col overflow-hidden flex-1 min-h-0">
               <button
                 onClick={() => setTreeCollapsed((v) => !v)}
                 className="flex items-center gap-1.5 px-2 shrink-0 w-full text-left group hover:bg-zinc-800/60 transition-colors border-b border-zinc-800"
@@ -170,60 +175,9 @@ export function AppShell() {
                 </span>
               </button>
 
-              {/* Panel content */}
               {!treeCollapsed && (
-                <div className="flex-1 overflow-y-auto">
+                <div className="flex-1 min-h-0 overflow-hidden">
                   <TreeView />
-                </div>
-              )}
-            </div>
-
-            {/* ── Vertical resize handle (only when both expanded) ── */}
-            {!treeCollapsed && !filtersCollapsed && (
-              <div
-                onMouseDown={startVResize}
-                className="h-1 shrink-0 bg-zinc-800/80 hover:bg-amber-600/60 cursor-row-resize transition-colors relative"
-                title="Drag to resize panels"
-              >
-                <div className="absolute inset-x-0 -top-1.5 -bottom-1.5" />
-              </div>
-            )}
-
-            {/* ── Filters panel ─────────────────────────────────── */}
-            <div
-              className="flex flex-col overflow-hidden"
-              style={
-                filtersCollapsed
-                  ? { flexShrink: 0 }
-                  : treeCollapsed
-                  ? { flex: '1 1 0', minHeight: INNER_SPLIT_MIN }
-                  : treeHeight !== null
-                  ? { flex: '1 1 0', minHeight: INNER_SPLIT_MIN }
-                  : { flex: '0 1 40%', minHeight: INNER_SPLIT_MIN }
-              }
-            >
-              {/* Panel header — click to collapse/expand */}
-              <button
-                onClick={() => setFiltersCollapsed((v) => !v)}
-                className="flex items-center gap-1.5 px-2 shrink-0 w-full text-left group hover:bg-zinc-800/60 transition-colors border-t border-b border-zinc-800"
-                style={{ height: PANEL_HEADER_H }}
-                title={filtersCollapsed ? 'Expand filters' : 'Collapse filters'}
-              >
-                <svg
-                  width="9" height="9" viewBox="0 0 9 9" fill="none"
-                  className={`text-zinc-500 group-hover:text-zinc-300 transition-transform duration-150 ${filtersCollapsed ? '-rotate-90' : ''}`}
-                >
-                  <path d="M1.5 3L4.5 6L7.5 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
-                <span className="text-[10px] font-semibold text-zinc-500 group-hover:text-zinc-300 uppercase tracking-wider transition-colors">
-                  Filters
-                </span>
-              </button>
-
-              {/* Panel content */}
-              {!filtersCollapsed && (
-                <div className="flex-1 overflow-y-auto">
-                  <TagFilterPanel />
                 </div>
               )}
             </div>
@@ -274,7 +228,8 @@ export function AppShell() {
             <InspectorPanel />
           </aside>
         )}
-      </div>
+        </div>
+      )}
 
       <SettingsModal />
     </div>

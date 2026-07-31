@@ -2,16 +2,86 @@ import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import {
   type Edge,
   type EdgeProps,
+  useInternalNode,
   useReactFlow,
 } from '@xyflow/react';
 import { useHarnessStore } from '../../store';
-import { linePath, nearestOnPolyline, type Point } from '../../lib/paths';
+import {
+  linePath,
+  nearestOnPolyline,
+  pointOnRectBoundaryToward,
+  type Point,
+  type Rect,
+} from '../../lib/paths';
 import {
   getWireAppearance,
   getWireStrokeLayers,
   type WireAppearance,
 } from '../../lib/colors';
 import type { WaypointItem } from '../../types';
+
+const BOUNDARY_EXIT_NODE_TYPES = new Set(['connector', 'mergePoint']);
+const CONNECTOR_BORDER_WIDTH = 1;
+
+type BoundaryGeometry = Rect & {
+  strictHorizontalHandles: boolean;
+};
+
+function nodeFlowRect(node: {
+  measured: { width?: number; height?: number };
+  internals: { positionAbsolute: { x: number; y: number } };
+  type?: string;
+  width?: number;
+  height?: number;
+  style?: unknown;
+} | undefined): BoundaryGeometry | null {
+  if (!node) return null;
+  const style = node.style as { width?: number | string; height?: number | string } | undefined;
+  const width =
+    node.measured.width
+    ?? (typeof node.width === 'number' ? node.width : undefined)
+    ?? (typeof style?.width === 'number' ? style.width : undefined);
+  const height =
+    node.measured.height
+    ?? (typeof node.height === 'number' ? node.height : undefined)
+    ?? (typeof style?.height === 'number' ? style.height : undefined);
+  if (width == null || height == null || width <= 0 || height <= 0) return null;
+  return {
+    x: node.internals.positionAbsolute.x,
+    y: node.internals.positionAbsolute.y,
+    width,
+    height,
+    strictHorizontalHandles: node.type === 'connector',
+  };
+}
+
+function boundaryExitPoint(
+  rect: BoundaryGeometry | null,
+  toward: Point,
+  fallback: Point,
+): Point {
+  if (!rect) return fallback;
+  if (!rect.strictHorizontalHandles) {
+    const anchor = { x: rect.x + rect.width / 2, y: fallback.y };
+    return pointOnRectBoundaryToward(rect, anchor, toward);
+  }
+
+  const rectRight = rect.x + rect.width;
+  const y = Math.min(rect.y + rect.height, Math.max(rect.y, fallback.y));
+  const left = { x: rect.x + CONNECTOR_BORDER_WIDTH, y };
+  const right = { x: rectRight - CONNECTOR_BORDER_WIDTH, y };
+  const distanceSquared = (point: Point) =>
+    (toward.x - point.x) ** 2 + (toward.y - point.y) ** 2;
+  const leftDistance = distanceSquared(left);
+  const rightDistance = distanceSquared(right);
+
+  if (Math.abs(leftDistance - rightDistance) < 0.001) {
+    return Math.abs(fallback.x - left.x) <= Math.abs(fallback.x - right.x)
+      ? left
+      : right;
+  }
+  return leftDistance < rightDistance ? left : right;
+}
 
 type BundleEdgeData = {
   pathIds: string[];
@@ -133,9 +203,11 @@ function offsetPolyline(points: Point[], offset: number): string {
 }
 
 export function BundleEdge(props: EdgeProps<BundleEdgeType>) {
-  const { id, sourceX, sourceY, targetX, targetY, data, selected } = props;
+  const { id, source: sourceId, target: targetId, sourceX, sourceY, targetX, targetY, data, selected } = props;
 
   const { screenToFlowPosition } = useReactFlow();
+  const sourceNode = useInternalNode(sourceId);
+  const targetNode = useInternalNode(targetId);
   const setSelectedBundle = useHarnessStore((s) => s.setSelectedBundle);
   const setEdgeWaypoints = useHarnessStore((s) => s.setEdgeWaypoints);
   const moveJunction = useHarnessStore((s) => s.moveJunction);
@@ -170,8 +242,37 @@ export function BundleEdge(props: EdgeProps<BundleEdgeType>) {
     i === dragIdx && dragPos ? dragPos : wp,
   );
 
-  const source = useMemo<Point>(() => ({ x: sourceX, y: sourceY }), [sourceX, sourceY]);
-  const target = useMemo<Point>(() => ({ x: targetX, y: targetY }), [targetX, targetY]);
+  const sourceRect = useMemo(
+    () => (sourceNode && BOUNDARY_EXIT_NODE_TYPES.has(sourceNode.type ?? '')
+      ? nodeFlowRect(sourceNode)
+      : null),
+    [sourceNode],
+  );
+  const targetRect = useMemo(
+    () => (targetNode && BOUNDARY_EXIT_NODE_TYPES.has(targetNode.type ?? '')
+      ? nodeFlowRect(targetNode)
+      : null),
+    [targetNode],
+  );
+
+  const { source, target } = useMemo(() => {
+    const fallbackSource = { x: sourceX, y: sourceY };
+    const fallbackTarget = { x: targetX, y: targetY };
+    const sourceToward = waypoints[0]
+      ?? (targetRect
+        ? { x: targetRect.x + targetRect.width / 2, y: targetRect.y + targetRect.height / 2 }
+        : fallbackTarget);
+    const targetToward = waypoints.length > 0
+      ? waypoints[waypoints.length - 1]
+      : (sourceRect
+        ? { x: sourceRect.x + sourceRect.width / 2, y: sourceRect.y + sourceRect.height / 2 }
+        : fallbackSource);
+    return {
+      source: boundaryExitPoint(sourceRect, sourceToward, fallbackSource),
+      target: boundaryExitPoint(targetRect, targetToward, fallbackTarget),
+    };
+  }, [sourceRect, targetRect, sourceX, sourceY, targetX, targetY, waypoints]);
+
   const allPoints = [source, ...waypoints, target];
   const edgePath = linePath(allPoints);
 

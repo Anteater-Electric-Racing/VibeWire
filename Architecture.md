@@ -90,13 +90,18 @@ The app is best understood as:
 - `public/user-data/`
   - All user-editable project data in one place.
 - `public/user-data/harnesses/`
-  - Harness JSON documents. The app currently hardcodes `fsae-car.json` on startup.
+  - Harness documents. Two on-disk formats coexist (see "Hierarchical Per-Sheet Harness Storage" below):
+    - Sheeted: `<name>/root.json` + `<name>/sheets/<enc_id>.json` + `<name>/signals.json`. Every harness currently in this repo (`fsae-car/`, `1fsae-car/`, `fsae-2026/`) uses this format.
+    - Legacy flat: `<name>.json`. Still fully supported (nothing currently uses it, but `PUT /api/harness?harness=<new-name>` still creates new harnesses this way).
+  - The app itself only ever sees the assembled flat `HarnessData` shape regardless of which storage format is used — sheet assembly/splitting happens entirely in `server/sheets.ts` and `server/api.ts`.
 - `public/user-data/connectors/`
   - Connector type catalog plus connector guide/side-view image assets.
 - `public/user-data/images/`
   - Background images, enclosure images, and other non-connector user-picked image assets.
-- `public/user-data/layouts.json`
-  - Persisted graph geometry and graph-only annotations.
+- `public/user-data/layouts.<name>.json`
+  - Persisted graph geometry and graph-only annotations. One file per harness (e.g. `layouts.fsae-car.json`). A legacy `layouts.json` is still read as a fallback for `fsae-car` only.
+- `public/user-data/manufacturing.<name>.json`
+  - Per-harness manufacturing workflow progress and build notes. Cut lists and BOM rows are derived at runtime from canonical harness and connector-library data rather than duplicated here.
 - `server/`
   - File-backed API and optional standalone API server.
 
@@ -112,10 +117,12 @@ The app is best understood as:
 App boot is simple but important:
 
 1. `src/main.tsx` mounts `App`.
-2. `src/App.tsx` fetches three resources in parallel:
-   - `/user-data/harnesses/fsae-car.json`
-   - `/user-data/connectors/connector-library.json`
-   - `/user-data/layouts.json`
+2. `src/App.tsx` resolves the active harness name (persisted in `localStorage` under `vw-active-harness`, default `fsae-car`) and fetches, in parallel:
+   - `/user-data/connectors/connector-library.json` (shared across all harnesses, loaded once)
+   - `/api/harnesses` → the list of available harness files, used to populate the top-bar selector
+   - `/api/harness?harness=<active>` → the harness document
+   - `/api/layouts?harness=<active>` → the matching per-harness layout file (`layouts.<name>.json`, with a legacy fall-through to `layouts.json` for `fsae-car` only)
+   - `/api/manufacturing?harness=<active>` → the matching manufacturing progress document, or an empty document when none has been saved yet
 3. The results are loaded into the global Zustand store through:
    - `loadHarness`
    - `loadConnectorLibrary`
@@ -128,12 +135,13 @@ App boot is simple but important:
    - `loadTextBoxLayouts`
    - `loadWaypointLayouts`
    - `loadJunctionLayouts`
+   - `loadManufacturing`
 4. `initAutoSave()` is called after data loads.
 5. The app renders `AppShell`.
 
 Implications:
 
-- The app does not currently select a harness dynamically at startup.
+- The app supports dynamic harness switching at runtime via `Topbar`'s harness selector (`setActiveHarnessName`) and re-runs the harness-load effect when `activeHarnessName` changes. The default/starting harness is the one in `localStorage`, falling back to `fsae-car`.
 - All user-editable runtime files now live under `public/user-data/`.
 - Layout data is independent from harness connectivity data and is safe to evolve separately.
 
@@ -147,12 +155,21 @@ The most important architectural rule in this repo:
 
 ### Files and what they mean
 
-- `public/user-data/harnesses/fsae-car.json`
-  - Canonical harness model: enclosures, connectors, merge points, paths, and signals.
+- `public/user-data/harnesses/fsae-car/`, `public/user-data/harnesses/1fsae-car/`, `public/user-data/harnesses/fsae-2026/`
+  - Canonical harness model: enclosures, connectors, merge points, paths, and signals. All current
+    harnesses use the sheeted format (see "Hierarchical Per-Sheet Harness Storage" below).
+    `HarnessData.name` is an optional mutable system display name; the directory/file name remains
+    the stable storage key used by API queries, layouts, subsystem directories, and local storage.
+    `server/api.ts#readHarness` transparently assembles a sheeted harness into the same flat shape
+    the app has always used, so nothing above that line needs to know sheets exist. The legacy flat
+    `<name>.json` format still works (see below) and is what `PUT /api/harness?harness=<new-name>`
+    creates for a brand-new harness -- it just isn't used by any harness in this repo today.
 - `public/user-data/connectors/connector-library.json`
   - Canonical connector type definitions and associated media names.
-- `public/user-data/layouts.json`
-  - Node positions, sizes, free connector positions, background image placements, connector type sizing overrides, text boxes, bundle waypoints, junctions, and context-aware merge-point positions.
+- `public/user-data/layouts.<name>.json`
+  - Node positions, sizes, free connector positions, background image placements, connector type sizing overrides, text boxes, bundle waypoints, junctions, context-aware merge-point positions, and rotation overrides. One file per harness.
+- `public/user-data/manufacturing.<name>.json`
+  - Manufacturing stage completion and notes keyed by stable bundle identity. This is operational state, not electrical topology or graph layout.
 
 ### Persistence behavior
 
@@ -163,11 +180,20 @@ The app auto-saves with a debounce in `src/store/index.ts`.
   - `POST /api/save-harness`
   - `POST /api/save-layouts`
   - `POST /api/save-library`
+  - `POST /api/save-manufacturing`
 
-The store batches pending save types and silently skips persistence errors. That means:
+The store batches pending save types. Failed saves leave the state dirty and set a visible
+`mutationError`; successful requests only mark state clean when the saved object references have
+not changed during the request. Harness switching flushes pending saves against the current stable
+storage key first and is cancelled if that flush fails. That means:
 
-- The UI may appear to work even if the API is unavailable.
-- In static-only hosting, edits can fail to persist without obvious user feedback.
+- In static-only hosting, edits remain in memory but show an autosave failure because there is no
+  persistence API.
+- For a sheeted harness, `POST /api/save-harness` can also fail if the sheet-split round-trip
+  check in `server/sheets.ts#writeSheetedHarness` fails (see "Hierarchical Per-Sheet Harness
+  Storage"). The API returns a descriptive error and leaves the on-disk sheet files untouched.
+- Flat harness saves use an atomic temporary-file replacement. Sheeted saves prepare and verify
+  the complete split before replacing their files.
 
 ### Production caveat
 
@@ -195,10 +221,12 @@ The canonical frontend types live in `src/types/index.ts`.
 
 ### Core entities
 
+- `HarnessData`
+  - optional mutable system display `name`; its storage key is managed separately
 - `Enclosure`
   - `id`, `name`, `parent`, `container`, `tags`, `properties`
 - `Connector`
-  - `id`, `name`, `parent`, `connector_type`, `tags`, `properties`
+  - `id`, `name`, `parent`, `connector_type`, optional `pin_count`, optional `keying`, `tags`, `properties`
 - `MergePoint`
   - `id`, `name`, `parent`, `tags`, `properties`
 - `Path`
@@ -208,29 +236,98 @@ The canonical frontend types live in `src/types/index.ts`.
 
 ### Important invariants
 
+- IDs and storage keys are immutable identity; `name` fields are mutable display labels and need
+  not be unique. Renaming must not rewrite parents, path nodes, measurements, signal references,
+  connector types, subsystem membership keys, layout keys, or `system:<subsystem-id>` tags.
 - Paths are ordered linear node lists, not `from`/`to` pairs.
-- Connector path nodes carry `connector_id` and `pin_number`; connectors do not own nested `pins[]`.
-- Merge points are semantic harness entities; their positions live in layout state keyed by graph context.
-- Path measurements reference semantic `from` and `to` endpoint refs that must resolve uniquely within the same path. Overlapping measurements are allowed.
+- Connector path nodes carry `connector_id`. The TypeScript type and API validator also declare `pin_number: number`, but the active `fsae-car` harness omits `pin_number` on virtually all connector nodes today. Per-pin features (occupancy map, pin-vs-capacity validation, inspector "you are here" highlight) only activate for nodes that include it. Connectors do not own nested `pins[]` — pin usage is purely a path-node concern. Fixed connector types default to their type-level `pin_count`; `generic_multipin` accepts an arbitrary instance `pin_count`. Connector families always persist the selected physical housing capacity in `Connector.pin_count`, and cavity controls move through the family's declared sizes instead of creating impossible intermediate housings.
+- Merge points are semantic harness entities; their positions live in layout state keyed by graph context. In the `fsae-car` harness they are defined but not yet referenced by any path.
+- Path measurements reference semantic `from` and `to` endpoint refs that must resolve uniquely within the same path. Overlapping measurements are allowed. No measurements are populated in the `fsae-car` harness yet.
 - Connectors reference a connector type by `connector_type`.
 - Enclosure hierarchy is expressed through `parent`.
 - Tags are first-class metadata on every entity type.
 - `container: false` remains the compatibility path for legacy PCB-like surfaces.
+- `Connector` and `MergePoint` carry optional `derived`/`derived_from_port` fields. These are only
+  ever set for harnesses stored in the sheeted format (see "Hierarchical Per-Sheet Harness
+  Storage" below) and mean the entity is synthesized at load time from a `BulkheadPort`, not
+  hand-authored. Their display names, tags, and properties still round-trip to the source port.
+  They are always absent for flat-file harnesses.
+
+### Signal binding convention
+
+`Path.signal_id` is the stable signal catalog reference. Legacy `signal:<slug>` tags remain readable and `scripts/migrate-signal-ids.ts` adds stable references without deleting those tags. Signal identity does not imply that all paths carrying it form one connected electrical net; topology still determines connectivity.
+
+Signal properties may provide design guidance such as preferred wire color, voltage/current expectations, shielding, or twisting. Actual wire color and gauge remain path properties. Validation warns when an actual wire color differs from `Signal.properties.preferred_wire_color`.
 
 ### Connector library model
 
-`ConnectorLibrary` contains `connector_types`, each with:
+`ConnectorLibrary` is versioned independently (`schema_version: "1.1.0"`) and contains
+`connector_types`, each with:
 
 - `id`
 - `name`
 - `pin_count`
 - `crimp_spec`
+- optional `male_crimp_part_number`
+- optional `female_crimp_part_number`
 - `wire_gauge`
 - `notes`
 - optional `image`
 - optional `side_image`
+- optional `cavity_variants`
 
-These type-level images are reused in the graph and inspector and are served directly from `public/user-data/connectors/`.
+Entries without `cavity_variants` are fixed connector types. Family entries set `pin_count` to `0`
+and declare one `cavity_variants` record per physical housing. A variant contains:
+
+- `pin_count`
+- optional `housing_part_number`
+- optional `keyings`
+- optional `image`
+- optional `side_image`
+
+The current family catalog includes Deutsch DT, Deutsch DTM, and dual-row Molex Mini-Fit Jr.
+Family connector instances store the family id in `connector_type`, the selected housing capacity
+in `pin_count`, and an optional valid `keying`. Housing part numbers vary by cavity variant;
+male and female crimp part numbers live once at family/type level because contacts are shared
+across every housing size. Images resolve from the selected cavity variant,
+then fall back to type-level media. Connector media is served from `public/user-data/images/`.
+
+### Manufacturing model
+
+`src/lib/manufacturing.ts` derives manufacturing output from assembled `HarnessData` plus the
+shared connector library. A cut is one adjacent path segment, so a path crossing a splice or
+intermediate connector produces multiple physical cuts. `bundle:<name>` tags are the preferred
+grouping key; untagged cuts fall back to the graph's stable endpoint-pair bundle key.
+
+Each cut carries its wire ID, signal, color, explicit wire gauge, segment measurement, and both
+resolved endpoints. When an explicit path gauge is absent, the connector family's wire range is
+shown as an inferred crimp-compatibility range rather than asserted as an exact conductor gauge.
+When a path has no explicit wire color, `Signal.properties.preferred_wire_color` supplies the
+manufacturing color and the UI marks it as a signal default.
+
+Male/female crimp selection never guesses from connector names. Gender is assigned to a
+`(bundle, connector)` endpoint in `ManufacturingDocument`, which applies to every wire at that
+bundle end. Other bundles sharing the same connector are treated as its mating side and
+automatically receive the opposite gender. Unresolved genders remain manufacturing issues.
+
+The BOM is also derived: wire is grouped by part number or gauge/color, housings by family,
+cavity count and part number, and crimps by family/contact gender/part number. Missing cut lengths
+remain visible and are not silently included in wire totals. CSV export is generated client-side
+from the same rows displayed in the app.
+
+Manufacturing cut lengths are editable numeric millimeter values backed by the same
+`Path.measurements` segment records used by the path inspector, so edits auto-save with the
+harness and immediately update cut-list and BOM totals.
+
+`ManufacturingDocument` persists six ordered bundle workflow flags (`ordered`, `cut`, `crimped`,
+`populated`, `qc`, `installed`), bundle-end gender assignments, and notes. Checking a later stage
+completes all prior stages; clearing a stage clears it and all later stages.
+
+Navigation is bidirectional. A manufacturing bundle can open the hierarchy canvas at a sheet that
+contains one of its paths and select the best-overlapping visible graph bundle. The graph bundle
+inspector derives its best matching logical manufacturing bundle and can open the Manufacturing
+page with that bundle preselected. `manufacturingTargetBundleId` is transient store state used only
+for this handoff.
 
 ### Layout model
 
@@ -248,6 +345,166 @@ Layout state is intentionally separate from harness data. Today it includes:
 - `mergePoints`
 
 This means graph interaction features can often be added without changing harness schema.
+
+## Hierarchical Per-Sheet Harness Storage
+
+`fsae-2026` is stored as a directory of "sheets" instead of one flat JSON file. This is a
+*persistence-layer* feature only — the runtime `HarnessData` shape in `src/types/index.ts` did
+not change, and neither did the store, graph, tree, or inspector (beyond a small `derived` badge).
+All of the logic lives in `server/sheets.ts`, which is extensively commented; read it before
+touching this area.
+
+### Why this exists
+
+The harness previously had to be authored as one giant flat JSON blob with no persistence-level
+concept of "this connector belongs to this box." Sheets let each enclosure's wiring live in its
+own file, and let a box's external bulkhead connector be *derived* from the wires that reach into
+it from the parent sheet, instead of being hand-authored identically on both sides of the
+boundary.
+
+### On-disk shape
+
+```
+public/user-data/harnesses/<name>/
+  root.json              -- root sheet; may carry the mutable system display name
+  signals.json           -- flat Signal[] array, shared across every sheet
+  sheets/<enc_id>.json   -- one sheet per enclosure that has been split out
+```
+
+An enclosure "has its own sheet" purely by the presence of `sheets/<enc_id>.json` on disk. Any
+enclosure without that file is simply inlined in whichever ancestor sheet owns it. This makes the
+split fully recursive and depth-unlimited: today only the four top-level containers (`enc_001`
+FOC, `enc_002` ROC, `enc_003` HVB, `enc_004` Charging Box) have their own sheet file, but a device
+inside one of them (e.g. Safety Board) could be promoted to its own sheet later just by adding a
+new `sheets/enc_010.json` file — no schema change required.
+
+Each sheet file (`HarnessSheet` in `server/sheets.ts`) has its own `enclosures`, `connectors`,
+`mergePoints`, and `paths`, plus a `ports: BulkheadPort[]` array. A `BulkheadPort` declares "a
+wire from this sheet terminates inside a specific *direct* child sheet" — it carries the
+connector's (or merge point's) real identity (`connector_id`/`merge_point_id`, `name`,
+`connector_type`, `tags`, `properties`, and its true nested `entity_parent`, which may be a device
+enclosure *inside* the target sheet, not the sheet's own top enclosure id). Paths on the
+*declaring* (parent/outer) sheet terminate at a `{ kind: 'port', port_id, pin_number? }` node
+instead of an ordinary `connector`/`merge` node.
+
+### Assembly (read path)
+
+`assembleHarnessFromDisk` (used by `readHarness` in `server/api.ts` whenever
+`isSheetedHarness()` is true) recursively walks sheets starting from `root.json`. For every
+`BulkheadPort` it encounters, it synthesizes a `Connector` or `MergePoint` marked `derived: true`
+(with `derived_from_port` set to the port id) inside the target child sheet's scope, and rewrites
+the declaring sheet's `port` node into an ordinary node referencing that synthesized entity. By
+the time this reaches the frontend, the result is one ordinary flat `HarnessData` — identical in
+shape to the legacy format, and nothing downstream of `readHarness()` needs to know sheets exist.
+
+A single path can produce *more than one* sheet fragment sharing the same path id -- this happens
+whenever both sides of a boundary have local content of their own (e.g. a path with a materialized
+2-node run on one side and a continuation into another sheet on the other), and also for chains
+that pass straight through 2+ boundaries in one path (e.g. `fsae-car`'s `FOC-C1 -> ROC-C1 ->
+HVB-C1` paths, three sheet-owned nodes in a single path entity). `stitchPathFragments` re-joins all
+fragments sharing an id back into one logical `Path`, matching them up by their shared boundary
+node (present in both fragments -- once as a real node, once as a resolved port) and deduplicating
+that overlap. It throws if fragments for one id don't chain into a single sequence, which would
+indicate a genuine splitting bug rather than something to silently paper over.
+
+### Splitting (write path)
+
+`writeSheetedHarness` (used by `writeHarness` in `server/api.ts`) does the inverse: given an
+edited `HarnessData`, it recomputes ownership for every entity (nearest ancestor enclosure that
+currently has a sheet file, or root), and for every path that crosses a sheet boundary, cuts it
+into per-sheet fragments joined by `port` nodes. A connector/merge point automatically becomes
+`derived` (and stops being written as a plain entity) the moment *any* path references it across a
+sheet boundary — nothing needs to be manually "promoted" to a port. This is computed fresh from
+path usage on every save, so editing the name, tags, or properties of a derived connector in the
+inspector still round-trips correctly (it rewrites the `BulkheadPort`, not a plain `Connector`).
+
+Before writing anything to disk, `writeSheetedHarness` re-assembles its own split output in memory
+and compares it against the original `HarnessData` (`verifyRoundTrip`). If they don't match, it
+throws instead of writing — the harness files are only ever updated by the full, freshly-computed
+split, never patched incrementally.
+
+### General multi-boundary splitting
+
+Paths with three or more scope runs are split into deterministic two-node fragments, each hosted
+by the nearest common sheet of that adjacent pair. Assembly stitches those fragments through their
+shared endpoint identity. This supports nested and sibling routes with materialized local runs,
+provided a path contains a connector placeholder at every intervening sheet boundary. A direct
+jump over an unrepresented nested boundary is rejected instead of being guessed.
+
+Sheet files are fully prepared and round-trip verified before their temporary files replace the
+current files. This prevents validation or serialization failures from partially updating a
+harness; as with any sequence of filesystem renames, process or disk failure during the rename
+window is not a database-grade transaction.
+
+### Migration tooling
+
+- `scripts/migrate-harness-to-sheets.ts` — one-off conversion of an existing flat harness into the
+  sheeted layout. Refuses to write anything if the round trip fails.
+- `scripts/print-assembled-harness.ts` — prints the assembled `HarnessData` for a sheeted harness
+  as JSON; used by `scripts/validate_harness.py` so the Python validator doesn't need to
+  reimplement sheet assembly.
+- `scripts/migrate-signal-ids.ts` — adds `Path.signal_id` from valid legacy signal tags and relies
+  on the sheet round-trip check before writing.
+
+## Subsystem Editing And Routing
+
+Subsystems are flat editing projections over the canonical assembled harness. Their files live at
+`public/user-data/subsystems/<harness>/<subsystem-id>.json` and contain only name/tags, membership
+through positioned entity ids, frame/device/connector geometry, and optional viewport state.
+They never own paths, connectors, devices, or signal records.
+
+Subsystem IDs and `system:<id>` tags remain stable when a subsystem display name changes.
+
+The top-bar canvas-view control switches between hierarchy and subsystem surfaces; structural
+editing is always available. A subsystem renders one resizable frame per represented physical
+enclosure and groups its physical child devices with that frame. Subsystem layouts are intentionally
+freeform for devices, which may be placed beyond the visual frame. Bulkheads remain projected onto
+the nearest enclosure boundary, but the projection starts from their saved drag position so they can
+move between all four sides without reverting to the left wall. Resizing a frame or device from its
+top or left edge updates direct child offsets atomically so their screen positions do not jump when
+the persisted graph model is rebuilt.
+Connector visibility is controlled per device without duplicating the device. Direct connector
+references are used for bulkheads or connectors whose device is absent. Root-level devices and
+connectors render directly without an artificial enclosure frame. Hierarchy rows expose direct
+add controls. Adding a connector creates its owning enclosure frame and one shared device shell,
+but marks that device `selected` in `device_connector_mode` so only explicitly added connectors
+are exposed. Adding the device itself changes the mode to `all`.
+
+Subsystem edges are always derived from canonical harness topology; subsystem files never persist
+their own connection copies. `deriveSubsystemSegments` contracts connectors and merge points that
+are not represented in the active subsystem, preserving connections between their visible
+neighbors. Branches through a hidden topology component use a deterministic visible connector as
+the projection hub, and projected edges retain every contributing canonical path ID.
+
+Dragging between two unoccupied cavity handles calls `POST /api/paths/route`. `server/routing.ts`
+computes endpoint sheet scopes, their LCA, and the ordered child-sheet boundaries crossed. The
+route transaction creates one persisted `auto_bulkhead_1p` connector tagged `generated`,
+`unresolved`, and `bulkhead` at each boundary, then creates one logical Path through those
+placeholders. Request-derived ids make retries idempotent. Occupied cavities are rejected;
+connector capacity overruns are warnings.
+
+Expanded connector nodes show a complete cavity table. Dragging a cavity row performs an explicit
+physical renumber: every path node and measurement reference to that connector is rewritten through
+the same permutation. This is structural editing, not a visual row-order field.
+
+Delete controls in the hierarchy show a cascade-impact confirmation. Deleting an enclosure there
+removes descendants, connectors, merge points, affected paths, subsystem references, and any stale
+sheet file; deleting another entity similarly removes referencing paths. Delete/Backspace and the
+remove control on a subsystem canvas remove only that view instance. A connector belonging to a
+represented device is added to `hidden_connectors` so it can be hidden without deleting either the
+connector or device.
+Removing a device instance also removes every connector instance associated with that device from
+the subsystem document while preserving all canonical harness entities and paths.
+
+The route signal picker selects an existing Signal or creates one before routing. Signal IDs in
+connector tables and the path inspector open the editable Signal inspector on double-click or
+right-click. Adding an entity to a subsystem adds `system:<subsystem-id>` to that entity (and to a
+placed device's connectors). Filters derive Signal values from the Signal catalog and System
+values from subsystem documents in addition to ordinary tags.
+
+Subsystem documents have their own debounced autosave. Interactive routing bypasses harness
+autosave and returns the freshly assembled saved harness so split or round-trip failures can be
+shown in the UI.
 
 ## Backward Compatibility And Schema Drift
 
@@ -289,6 +546,7 @@ If you change domain types:
 
 - Loaded harness data
 - Loaded connector library
+- Loaded per-harness manufacturing progress
 - Selection state
 - Drill-down state
 - Graph layout state
@@ -313,11 +571,15 @@ This makes it easy to coordinate graph behavior, but it also means:
 
 The current UI mainly mutates harness data through:
 
+- display-name edits for systems, subsystems, enclosures/devices, connectors, merge points, paths,
+  signals, and connector types
 - tag edits
 - enclosure property edits
 - connector property edits
 - connector type image edits
 - connector type side image edits
+- atomic path creation through the subsystem routing endpoint
+- generated one-cavity bulkhead placeholders at crossed sheet boundaries
 
 There is not yet a full in-app entity editor for creating or deleting core harness objects like enclosures, connectors, merge points, or paths.
 
@@ -335,9 +597,11 @@ Undo/redo only snapshots layout-oriented state:
 - waypoints
 - junctions
 
-It does not provide full history for all harness mutations.
-
-If a future feature changes actual harness data structurally and expects undo/redo, the current architecture will not provide that automatically.
+It does not provide general history for harness mutations. The store also has a bounded
+`StructuralSnapshot` stack containing harness plus subsystem documents, reserved for future
+connector merge/split operations; it is intentionally not wired into the ordinary layout
+Undo/Redo buttons. Route creation is protected by server-side preflight and all-or-nothing
+application rather than by user-facing undo.
 
 ## UI Shell Architecture
 
@@ -350,6 +614,9 @@ If a future feature changes actual harness data structurally and expects undo/re
   - `GraphView`
 - Right sidebar
   - `InspectorPanel` when something is selected
+
+The connector library and manufacturing workspace are full-page views inside the same shell.
+Manufacturing provides bundle cut-list and BOM subviews; the canvas sidebars are not mounted there.
 
 The top bar contains:
 
@@ -428,6 +695,10 @@ Multiple visible path segments between the same rendered endpoints are combined 
 
 Bundle edges support waypoint editing and shared junctions exactly as before, but those controls now operate on derived path bundles rather than first-class wire entities. Junction and waypoint layout still live outside the harness schema.
 
+### Wire exit side
+
+`BundleEdge` does not draw from React Flow's fixed Left/Right handle coordinates for connectors and merge points. It projects each endpoint onto the node AABB in the direction of the next polyline point (first waypoint, or the peer node's center when there are none), using `pointOnRectBoundaryToward` in `src/lib/paths.ts`. The vertical anchor keeps the cavity-row Y from the React Flow handle so expanded pin wires still leave at the correct row while choosing left/right/top/bottom by geometry. Handles remain for cavity drag-wiring; they are not the visual wire origin.
+
 ## Graph Node Responsibilities
 
 ### `EnclosureNode`
@@ -486,7 +757,12 @@ It supports:
 - text box inspection
 - background inspection
 
+Core entity inspectors expose an editable name beside a read-only stable ID. Editing-mode hierarchy
+rows also offer a rename shortcut; system and subsystem names are edited from the top bar.
+
 Connector occupancy, bundle membership, and signal context are all derived from paths at render time rather than stored as dedicated pin or wire entities.
+
+The inspector can add connectors under devices and bulkheads under container enclosures. New entities are owned solely by setting `Connector.parent` to that enclosure/device id; sheet file placement and `BulkheadPort` derivation remain save-time concerns in `writeSheetedHarness`, not client-side inventorship.
 
 ## Tags And Filtering
 
@@ -532,8 +808,7 @@ Important conventions:
 - Color and appearance are inferred from path tags and properties via `src/lib/colors.ts`.
 - Signal association is usually represented through tags like `signal:<name>`.
 - Bundle membership can be communicated with `bundle:<name>` tags.
-- Status uses `status:<value>` tags.
-- The inspector also supports a `by:<name>` tag for status attribution.
+- Manufacturing progress is tracked in the manufacturing document, not on path tags.
 
 This means a lot of graph behavior depends on tag conventions plus path topology rather than a richer formal schema.
 
@@ -564,12 +839,17 @@ The local API is defined in `server/api.ts`. It is a file-backed HTTP API, not a
 - read and write harness files
 - read and write layouts
 - read and write connector library data
+- read and write per-harness manufacturing progress
 - expose CRUD and search helpers for future automation
 - provide lightweight validation and relationship queries
 
 ### Important architectural distinction
 
 The API is more capable than the current UI. It already supports validation, search, connectivity tracing, harness file management, and path-oriented helper routes such as connector-to-path and signal net queries.
+
+Entity routes resolve and preserve identity by ID. The legacy `/api/path-by-name` helper prefers an
+exact connector ID and accepts a display name only when it matches exactly one connector, preventing
+duplicate mutable names from silently selecting the wrong endpoint.
 
 ### Legacy save endpoints
 
@@ -578,6 +858,7 @@ The UI still uses:
 - `POST /api/save-harness`
 - `POST /api/save-layouts`
 - `POST /api/save-library`
+- `POST /api/save-manufacturing`
 
 Do not remove or rename them unless the frontend save flow is updated too.
 
@@ -637,6 +918,14 @@ When you need to make changes, start here:
 - `vite.config.ts`
 - this file
 
+### Change the sheeted harness format or its assemble/split logic
+
+- `server/sheets.ts` (the entire mechanism lives here)
+- `server/api.ts` (`readHarness`/`writeHarness`/`GET /api/harnesses`)
+- `scripts/migrate-harness-to-sheets.ts`, `scripts/print-assembled-harness.ts`
+- `scripts/validate_harness.py`
+- this file
+
 ## Known Architectural Decisions
 
 These are deliberate or at least currently relied upon:
@@ -646,21 +935,18 @@ These are deliberate or at least currently relied upon:
 - The app boot path is file-based, not backend-query-based.
 - The graph is enclosure-centric, connector-centric, and merge-point-aware rather than path-node-centric.
 - Multiple visible path segments between the same rendered endpoints are rendered as a single bundle edge.
-- Connector occupancy is derived from paths, not stored as pin entities.
+- Connector occupancy is derived from paths, not stored as pin entities. `Connector.pin_count` is a fixed-type override, an arbitrary generic capacity, or the selected physical housing size for a family.
 - The store is intentionally central and global.
 - User-editable JSON and image assets are consolidated under `public/user-data/`, split into `harnesses/`, `connectors/`, and `images/`.
 - Auto-save is debounced and silent on failure.
+- Harness storage format (flat file vs. sheeted directory) is chosen per-harness and is invisible above `server/api.ts#readHarness`/`writeHarness` — the rest of the app only ever deals with the assembled `HarnessData` shape.
+- Sheet boundaries are opt-in and presence-based (a `sheets/<enc_id>.json` file existing *is* the declaration that an enclosure has its own sheet), not tracked in a separate manifest.
 
 ## Known Mismatches, Risks, And Footguns
 
 ### README drift
 
 `README.md` is intended to describe the current path model. Keep it aligned with `src/types/index.ts`, `src/lib/harness.ts`, and `server/api.ts` whenever the schema changes.
-
-### Hardcoded harness selection
-
-`src/App.tsx` always loads `fsae-car.json` even though the API can manage multiple harness files.
-If multi-harness support is added, startup and save flows will need architectural updates.
 
 ### Type duplication between frontend and API
 
@@ -679,15 +965,15 @@ Further feature growth may justify splitting it into:
 
 Do not do that casually, but be aware that complexity is accumulating there.
 
-### Silent save failures
+### Save failure presentation
 
-`performAutoSave()` catches and ignores errors.
-That is user-friendly during disconnected development, but risky if users assume persistence succeeded.
+`performAutoSave()` reports failures through the shared graph `mutationError` banner. This is
+visible while the graph is mounted, but it is not yet a durable save-status indicator or retry log.
 
 ### Graph-only features live outside harness schema
 
-Text boxes, backgrounds, waypoints, junctions, and type size overrides live in layouts.
-If a future feature should travel with harness semantics rather than view state, do not automatically put it in `public/user-data/layouts.json`.
+Text boxes, backgrounds, waypoints, junctions, rotations, and type size overrides live in layouts.
+If a future feature should travel with harness semantics rather than view state, do not automatically put it in `public/user-data/layouts.<name>.json`.
 
 ### Legacy or unused code may exist
 
@@ -719,10 +1005,12 @@ These are natural next architectural evolutions, not current guarantees:
 
 - Dynamic harness selection at startup.
 - Shared types between frontend and API to avoid duplication.
-- Better persistence feedback in the UI.
+- A dedicated persistent save-status indicator and retry history.
 - Explicit tests around graph bundling, waypoint persistence, and junction semantics.
 - Clearer separation between harness-semantic edits and view/layout edits.
 - A smaller or modularized Zustand store.
+- Splitting a device (e.g. Safety Board) out of `fsae-2026/sheets/enc_001.json` into its own sheet file, to exercise a real 3-level-deep sheet hierarchy.
+- Add connector merge/extract tooling backed by the reserved structural snapshot stack.
 
 ## Fast Reorientation Checklist
 
@@ -735,6 +1023,7 @@ If you return to this repo after time away, re-read these files first:
 - `src/components/graph/GraphView.tsx`
 - `src/components/graph/BundleEdge.tsx`
 - `server/api.ts`
+- `server/sheets.ts`
 - `vite.config.ts`
 
 ## Final Reminder To Future Models

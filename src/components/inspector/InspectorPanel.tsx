@@ -1,12 +1,14 @@
-import { useState, useMemo, useRef, useEffect, useCallback } from 'react';
+import { useState, useMemo, useRef, useEffect, useLayoutEffect, useCallback, type MouseEvent } from 'react';
 import { ImagePickerPanel } from '../graph/ImagePickerPanel';
 import { useHarnessStore } from '../../store';
 import type {
   Connector,
   ConnectorType,
   Enclosure,
+  EntityType,
   MergePoint,
   Path,
+  PathNode,
   Signal,
   TextBoxFontFamily,
   TextBoxFontWeight,
@@ -17,15 +19,34 @@ import {
   getWireAppearance,
   getWireBackground,
   getWireBorderColor,
+  getPreferredWireColorDeviation,
+  getWireColorPresetHex,
+  getWireColorTokens,
+  WIRE_COLOR_PRESETS,
   type WireAppearance,
 } from '../../lib/colors';
 import {
   countPathsTouchingConnectors,
+  getConnectorPairSegments,
   getConnectorOccupancy,
+  getConnectorPinGuideImage,
+  getConnectorSideImage,
+  getConnectorSupportedKeyings,
+  getConnectorSupportedPinCounts,
+  getConnectorTypeCavityFloor,
+  getEffectivePinCount,
+  getNextConnectorPinCount,
+  getPreviousConnectorPinCount,
   getEnclosureConnectors,
+  isConnectorFamily,
   getPathNodeLabel,
+  getPathNodeRefKey,
+  getPathSegmentMeasurement,
+  getPathSignalId,
   getPathSignalName,
 } from '../../lib/harness';
+import { deriveManufacturingBundles } from '../../lib/manufacturing';
+import { normalizeDisplayName } from '../../lib/rename';
 
 function TagPill({
   tag,
@@ -141,6 +162,111 @@ function PropertyRow({ label, value }: { label: string; value: string }) {
   );
 }
 
+function EntityLink({
+  item,
+  children,
+  className = 'text-amber-400 hover:text-amber-300 underline underline-offset-2',
+  title,
+}: {
+  item: { type: EntityType; id: string };
+  children: React.ReactNode;
+  className?: string;
+  title?: string;
+}) {
+  const revealItem = useHarnessStore((s) => s.revealItem);
+  return (
+    <button
+      type="button"
+      onClick={() => revealItem(item)}
+      className={className}
+      title={title ?? `Reveal ${item.type}`}
+    >
+      {children}
+    </button>
+  );
+}
+
+function PathNodeLink({
+  node,
+  children,
+  className,
+}: {
+  node: PathNode;
+  children: React.ReactNode;
+  className?: string;
+}) {
+  const item = node.kind === 'connector'
+    ? { type: 'connector' as const, id: node.connector_id }
+    : { type: 'mergePoint' as const, id: node.merge_point_id };
+  return (
+    <EntityLink item={item} className={className} title="Reveal referenced entity">
+      {children}
+    </EntityLink>
+  );
+}
+
+function NameEditor({
+  name,
+  type,
+  id,
+  label = 'Name',
+}: {
+  name: string;
+  type: EntityType;
+  id: string;
+  label?: string;
+}) {
+  const renameEntity = useHarnessStore((s) => s.renameEntity);
+  const [draft, setDraft] = useState(name);
+  const [error, setError] = useState<string | null>(null);
+  const cancelBlur = useRef(false);
+
+  const commit = (value: string) => {
+    try {
+      const normalized = normalizeDisplayName(value);
+      renameEntity(type, id, normalized);
+      setDraft(normalized);
+      setError(null);
+    } catch (reason) {
+      setDraft(name);
+      setError(reason instanceof Error ? reason.message : 'Invalid name.');
+    }
+  };
+
+  return (
+    <div className="py-1">
+      <label className="flex items-center gap-2">
+        <span className="text-[10px] text-zinc-500 w-20 shrink-0 text-right">{label}</span>
+        <input
+          value={draft}
+          onChange={(event) => setDraft(event.target.value)}
+          onBlur={(event) => {
+            if (cancelBlur.current) {
+              cancelBlur.current = false;
+              return;
+            }
+            commit(event.target.value);
+          }}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter') {
+              event.preventDefault();
+              event.currentTarget.blur();
+            } else if (event.key === 'Escape') {
+              event.preventDefault();
+              cancelBlur.current = true;
+              setDraft(name);
+              event.currentTarget.blur();
+            }
+          }}
+          aria-label={`Rename ${label.toLowerCase()}`}
+          className="min-w-0 flex-1 bg-zinc-800 border border-zinc-700 rounded px-2 py-1 text-[11px] text-zinc-100 focus:border-amber-500 focus:outline-none"
+        />
+      </label>
+      {error && <div className="pl-[5.5rem] pt-0.5 text-[9px] text-red-400">{error}</div>}
+    </div>
+  );
+}
+
 function WireColorSwatch({
   appearance,
   className = 'w-2 h-2 rounded-full',
@@ -172,8 +298,162 @@ function WireColorSwatch({
   );
 }
 
+function WireColorEditor({
+  label,
+  value,
+  onChange,
+  hint,
+  clearLabel,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  hint?: string;
+  clearLabel?: string;
+}) {
+  const [text, setText] = useState(value);
+  // First color of an in-progress Shift/Ctrl stripe pick.
+  const [stripeBase, setStripeBase] = useState<string | null>(null);
+  useEffect(() => {
+    setText(value);
+    setStripeBase(null);
+  }, [value]);
+
+  const appearance = getWireAppearance({
+    properties: value ? { wire_color: value } : {},
+    tags: [],
+  });
+  const selectedTokens = getWireColorTokens(value);
+  const hasColor = Boolean(value.trim());
+
+  const commit = (next: string) => {
+    const trimmed = next.trim();
+    setText(trimmed);
+    setStripeBase(null);
+    onChange(trimmed);
+  };
+
+  const onPresetClick = (preset: string, event: MouseEvent) => {
+    const stripePick = event.shiftKey || event.ctrlKey || event.metaKey;
+    if (!stripePick) {
+      commit(preset);
+      return;
+    }
+
+    // Already mid-pick: second Shift+click completes base/stripe
+    if (stripeBase) {
+      if (stripeBase === preset) {
+        commit(preset);
+        return;
+      }
+      commit(`${stripeBase}/${preset}`);
+      return;
+    }
+
+    // Shortcut: current solid (or stripe base) + Shift+click → stripe
+    if (selectedTokens.length >= 1 && selectedTokens[0] !== preset) {
+      commit(`${selectedTokens[0]}/${preset}`);
+      return;
+    }
+
+    // Start a two-step pick (no usable base yet)
+    setStripeBase(preset);
+    setText(preset);
+  };
+
+  return (
+    <div className="py-1">
+      <div className="flex items-center gap-2 mb-1.5">
+        <span className="text-[10px] text-zinc-500 w-20 shrink-0 text-right">{label}</span>
+        <WireColorSwatch
+          appearance={
+            stripeBase
+              ? getWireAppearance({ properties: { wire_color: stripeBase }, tags: [] })
+              : value
+                ? appearance
+                : null
+          }
+          className="w-3 h-3 rounded-sm"
+        />
+        <input
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          onBlur={() => commit(text)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') commit(text);
+            if (e.key === 'Escape') setStripeBase(null);
+          }}
+          placeholder="e.g. red or white/brown"
+          className="min-w-0 flex-1 bg-zinc-800 border border-zinc-700 rounded px-2 py-1 text-[11px] text-zinc-300 placeholder-zinc-600 focus:border-amber-600 focus:outline-none"
+        />
+      </div>
+      <div className="flex gap-1 flex-wrap pl-[5.5rem]">
+        {WIRE_COLOR_PRESETS.map((preset) => {
+          const hex = getWireColorPresetHex(preset) ?? '#666';
+          const selected = selectedTokens.includes(preset);
+          const pendingBase = stripeBase === preset;
+          return (
+            <button
+              key={preset}
+              type="button"
+              title={
+                stripeBase
+                  ? stripeBase === preset
+                    ? `${preset} (base — Shift+click another for stripe)`
+                    : `Stripe ${stripeBase}/${preset}`
+                  : `${preset} — Shift+click two colors for a stripe`
+              }
+              onClick={(event) => onPresetClick(preset, event)}
+              className="w-4 h-4 rounded border transition-all hover:scale-110"
+              style={{
+                backgroundColor: hex,
+                borderColor: pendingBase
+                  ? '#38bdf8'
+                  : selected
+                    ? '#f59e0b'
+                    : 'rgba(255,255,255,0.12)',
+                boxShadow: pendingBase ? '0 0 0 1px #38bdf8' : undefined,
+              }}
+            />
+          );
+        })}
+      </div>
+      <div className="pl-[5.5rem] pt-1 text-[9px] text-zinc-600">
+        {stripeBase
+          ? `Stripe base: ${stripeBase} — Shift+click a second color`
+          : 'Shift/Ctrl+click two colors for a stripe'}
+      </div>
+      {clearLabel && (
+        <div className="pl-[5.5rem] pt-1.5">
+          <button
+            type="button"
+            disabled={!hasColor && !stripeBase}
+            onClick={() => commit('')}
+            className="text-[10px] text-zinc-400 hover:text-amber-400 disabled:text-zinc-700 disabled:cursor-default"
+          >
+            {clearLabel}
+          </button>
+        </div>
+      )}
+      {hint && (
+        <div className="pl-[5.5rem] pt-1 text-[9px] text-zinc-600">{hint}</div>
+      )}
+    </div>
+  );
+}
+
+function DerivedFromPortNote({ portId }: { portId?: string }) {
+  return (
+    <div className="mb-2 text-[10px] leading-snug px-2 py-1.5 rounded border border-sky-800/50 bg-sky-900/20 text-sky-300">
+      <span className="font-medium text-sky-200">Derived</span> — this entity isn't authored
+      directly. It's synthesized from a bulkhead port{portId ? ` ('${portId}')` : ''} declared on
+      the parent sheet, based on which wires actually reach into this enclosure. Its stable ID is
+      managed by that port, while name, tags, and properties edited here safely round-trip back to it.
+    </div>
+  );
+}
+
 function ParentLink({ parentId }: { parentId: string }) {
-  const selectItem = useHarnessStore((s) => s.selectItem);
   const harness = useHarnessStore((s) => s.harness);
 
   if (!harness) return null;
@@ -182,119 +462,21 @@ function ParentLink({ parentId }: { parentId: string }) {
   const name = enc?.name ?? parentId;
 
   return (
-    <button
-      onClick={() => selectItem({ type: 'enclosure', id: parentId })}
+    <EntityLink
+      item={{ type: 'enclosure', id: parentId }}
       className="text-[11px] text-amber-400 hover:text-amber-300 underline underline-offset-2"
     >
       {name}
-    </button>
+    </EntityLink>
   );
 }
 
-const STATUS_OPTIONS = [
-  { value: '', label: '— none' },
-  { value: 'cut', label: 'Cut' },
-  { value: 'crimped', label: 'Crimped' },
-  { value: 'qcd', label: "QC'd" },
-] as const;
-
-const STATUS_COLORS: Record<string, string> = {
-  cut: 'bg-yellow-900/50 text-yellow-300 border-yellow-700',
-  crimped: 'bg-teal-900/50 text-teal-300 border-teal-700',
-  qcd: 'bg-green-900/50 text-green-300 border-green-700',
-};
-
-function PathStatusEditor({ pathId, tags }: { pathId: string; tags: string[] }) {
-  const addTag = useHarnessStore((s) => s.addTag);
-  const removeTag = useHarnessStore((s) => s.removeTag);
-  const [nameInput, setNameInput] = useState('');
-
-  const currentStatusTag = tags.find((t) => t.startsWith('status:'));
-  const currentStatus = currentStatusTag?.slice(7) ?? '';
-  const currentByTag = tags.find((t) => t.startsWith('by:'));
-  const currentBy = currentByTag?.slice(3) ?? '';
-
-  const handleStatusChange = (newVal: string) => {
-    if (currentStatusTag) removeTag('path', pathId, currentStatusTag);
-    if (newVal) addTag('path', pathId, `status:${newVal}`);
-  };
-
-  const handleNameCommit = () => {
-    const name = nameInput.trim();
-    if (!name) return;
-    if (currentByTag) removeTag('path', pathId, currentByTag);
-    addTag('path', pathId, `by:${name}`);
-    setNameInput('');
-  };
-
-  const handleRemoveName = () => {
-    if (currentByTag) removeTag('path', pathId, currentByTag);
-  };
-
-  const colorClass = currentStatus ? (STATUS_COLORS[currentStatus] ?? 'bg-zinc-700/50 text-zinc-300 border-zinc-600') : '';
-
-  return (
-    <div className="mt-2 pt-2 border-t border-zinc-700/50">
-      <div className="text-[10px] text-zinc-500 font-medium mb-2">Status</div>
-      <div className="flex gap-2 items-center mb-2">
-        <select
-          value={currentStatus}
-          onChange={(e) => handleStatusChange(e.target.value)}
-          className={`flex-1 text-[11px] px-2 py-1 rounded border bg-zinc-900 focus:outline-none focus:border-amber-600 cursor-pointer ${
-            currentStatus ? colorClass : 'text-zinc-400 border-zinc-700'
-          }`}
-        >
-          {STATUS_OPTIONS.map((opt) => (
-            <option key={opt.value} value={opt.value} className="bg-zinc-900 text-zinc-200">
-              {opt.label}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      {currentStatus && (
-        <div className="flex gap-2 items-center">
-          {currentBy ? (
-            <div className="flex items-center gap-1.5 flex-1 min-w-0">
-              <span className="text-[10px] text-zinc-500 shrink-0">by</span>
-              <span className="text-[11px] text-zinc-300 truncate">{currentBy}</span>
-              <button
-                onClick={handleRemoveName}
-                className="text-zinc-600 hover:text-red-400 text-[11px] ml-auto shrink-0"
-              >
-                ×
-              </button>
-            </div>
-          ) : (
-            <div className="flex gap-1.5 flex-1">
-              <input
-                value={nameInput}
-                onChange={(e) => setNameInput(e.target.value)}
-                onKeyDown={(e) => { if (e.key === 'Enter') handleNameCommit(); }}
-                placeholder="Who did this?"
-                className="flex-1 text-[11px] px-2 py-1 bg-zinc-800 border border-zinc-700 rounded text-zinc-300 placeholder-zinc-600 focus:border-amber-600 focus:outline-none"
-              />
-              <button
-                onClick={handleNameCommit}
-                disabled={!nameInput.trim()}
-                className="text-[11px] px-2 py-1 rounded bg-zinc-700 text-zinc-300 hover:bg-zinc-600 disabled:opacity-40 disabled:cursor-not-allowed"
-              >
-                ✓
-              </button>
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function SignalInfo({ signalName, appearance }: { signalName: string; appearance?: WireAppearance | null }) {
+function SignalInfo({ signalId, appearance }: { signalId: string; appearance?: WireAppearance | null }) {
   const harness = useHarnessStore((s) => s.harness);
   if (!harness) return null;
 
   const signal = harness.signals.find(
-    (s: Signal) => s.name === signalName,
+    (s: Signal) => s.id === signalId,
   );
   if (!signal) return null;
 
@@ -308,7 +490,13 @@ function SignalInfo({ signalName, appearance }: { signalName: string; appearance
       <div className="flex items-center gap-1.5 mb-1.5">
         <WireColorSwatch appearance={appearance ?? null} className="w-2 h-2 rounded-full" />
         <span className="text-[10px] text-zinc-400 font-medium">
-          Signal: {signal.name}
+          Signal:{' '}
+          <EntityLink
+            item={{ type: 'signal', id: signal.id }}
+            className="text-amber-400 hover:text-amber-300 underline underline-offset-2"
+          >
+            {signal.name}
+          </EntityLink>
         </span>
       </div>
       {typeTags.length > 0 && (
@@ -348,7 +536,6 @@ function ConnectorOccupancyTable({
 }) {
   const harness = useHarnessStore((s) => s.harness);
   const connectorLibrary = useHarnessStore((s) => s.connectorLibrary);
-  const selectItem = useHarnessStore((s) => s.selectItem);
   const [expandedPaths, setExpandedPaths] = useState<Set<string>>(new Set());
 
   if (!harness) return null;
@@ -356,8 +543,9 @@ function ConnectorOccupancyTable({
   const ct = connectorLibrary?.connector_types.find(
     (t: ConnectorType) => t.id === connector.connector_type,
   );
-  const pinCount = ct?.pin_count ?? Math.max(0, ...getConnectorOccupancy(harness, connector.id).map((entry) => entry.pinNumber));
   const occupancy = getConnectorOccupancy(harness, connector.id);
+  const maxUsedPin = Math.max(0, ...occupancy.map((entry) => entry.pinNumber));
+  const pinCount = Math.max(getEffectivePinCount(connector, ct), maxUsedPin);
   const rows = Array.from({ length: pinCount }, (_, index) => {
     const pinNumber = index + 1;
     const items = occupancy.filter((entry) => entry.pinNumber === pinNumber);
@@ -417,32 +605,33 @@ function ConnectorOccupancyTable({
                           <div className="flex items-center gap-1 px-1.5 py-0.5">
                             <button
                               onClick={() => togglePath(expandKey)}
-                              className="flex items-center gap-1 flex-1 min-w-0 text-left group"
+                              className="text-zinc-600 hover:text-zinc-400 text-[8px] shrink-0 transition-colors"
                               title={isExpanded ? 'Collapse route' : 'Expand route'}
                             >
-                              <span className="text-zinc-600 group-hover:text-zinc-400 text-[8px] shrink-0 transition-colors">
-                                {isExpanded ? '▼' : '▶'}
-                              </span>
+                              {isExpanded ? '▼' : '▶'}
+                            </button>
+                            <EntityLink
+                              item={{ type: 'path', id: item.pathId }}
+                              className="flex items-center gap-1 flex-1 min-w-0 text-left group"
+                              title="Reveal path"
+                            >
                               <WireColorSwatch
                                 appearance={appearance ?? null}
                                 className="w-1.5 h-1.5 rounded-full shrink-0"
                               />
-                              <span className="text-[10px] text-zinc-300 truncate group-hover:text-zinc-100 transition-colors">
+                              <span className="text-[10px] text-zinc-300 truncate group-hover:text-amber-300 transition-colors">
                                 {item.pathName}
                               </span>
-                              {item.signalName && (
-                                <span className="text-[9px] text-zinc-500 ml-auto shrink-0 pl-1">
-                                  {item.signalName}
-                                </span>
-                              )}
-                            </button>
-                            <button
-                              onClick={() => selectItem({ type: 'path', id: item.pathId })}
-                              className="text-zinc-600 hover:text-amber-400 text-[10px] shrink-0 transition-colors px-0.5"
-                              title="Go to path"
-                            >
-                              ↗
-                            </button>
+                            </EntityLink>
+                            {item.signalName && path && getPathSignalId(path) && (
+                              <EntityLink
+                                item={{ type: 'signal', id: getPathSignalId(path)! }}
+                                className="text-[9px] text-zinc-500 hover:text-amber-300 shrink-0 pl-1"
+                                title="Reveal signal"
+                              >
+                                {item.signalName}
+                              </EntityLink>
+                            )}
                           </div>
 
                           {/* Expanded route */}
@@ -460,7 +649,7 @@ function ConnectorOccupancyTable({
                                     node.pin_number === row.pinNumber;
                                   const isLast = nodeIndex === path.nodes.length - 1;
                                   return (
-                                    <div key={`${label}-${nodeIndex}`} className="flex items-start gap-1.5">
+                                    <div key={`${getPathNodeRefKey(node)}-${nodeIndex}`} className="flex items-start gap-1.5">
                                       <div className="flex flex-col items-center shrink-0 w-3">
                                         <span
                                           className={`font-mono text-[8px] leading-none mt-0.5 ${
@@ -473,18 +662,19 @@ function ConnectorOccupancyTable({
                                           <span className="text-zinc-700 text-[8px] leading-none mt-px">│</span>
                                         )}
                                       </div>
-                                      <span
+                                      <PathNodeLink
+                                        node={node}
                                         className={`text-[10px] leading-tight ${
                                           isCurrent
                                             ? 'text-amber-400 font-medium'
-                                            : 'text-zinc-400'
+                                            : 'text-zinc-400 hover:text-amber-300 underline underline-offset-2'
                                         }`}
                                       >
                                         {label}
                                         {isCurrent && (
                                           <span className="text-[8px] text-amber-600 ml-1">← here</span>
                                         )}
-                                      </span>
+                                      </PathNodeLink>
                                     </div>
                                   );
                                 })}
@@ -507,7 +697,9 @@ function ConnectorOccupancyTable({
 
 function BundleInspector({ pathIds }: { pathIds: string[] }) {
   const harness = useHarnessStore((s) => s.harness);
-  const selectItem = useHarnessStore((s) => s.selectItem);
+  const connectorLibrary = useHarnessStore((s) => s.connectorLibrary);
+  const manufacturing = useHarnessStore((s) => s.manufacturing);
+  const openManufacturing = useHarnessStore((s) => s.openManufacturing);
 
   if (!harness) return null;
 
@@ -517,11 +709,32 @@ function BundleInspector({ pathIds }: { pathIds: string[] }) {
 
   if (paths.length === 0) return null;
 
-  const signalAppearances = new Map<string, WireAppearance>();
+  const selectedPathIds = new Set(pathIds);
+  const manufacturingBundle = deriveManufacturingBundles(
+    harness,
+    connectorLibrary,
+    manufacturing,
+  )
+    .map((bundle) => ({
+      bundle,
+      overlap: new Set(
+        bundle.wires
+          .map((wire) => wire.pathId)
+          .filter((pathId) => selectedPathIds.has(pathId)),
+      ).size,
+    }))
+    .filter((entry) => entry.overlap > 0)
+    .sort((a, b) => b.overlap - a.overlap)[0]?.bundle;
+
+  const signalAppearances = new Map<string, { name: string; appearance: WireAppearance }>();
   for (const path of paths) {
-    const sig = getPathSignalName(path);
-    if (sig && !signalAppearances.has(sig)) {
-      signalAppearances.set(sig, getWireAppearance(path));
+    const signalId = getPathSignalId(path);
+    const signalName = getPathSignalName(path, harness);
+    if (signalId && signalName && !signalAppearances.has(signalId)) {
+      signalAppearances.set(signalId, {
+        name: signalName,
+        appearance: getWireAppearance(path),
+      });
     }
   }
 
@@ -536,16 +749,28 @@ function BundleInspector({ pathIds }: { pathIds: string[] }) {
         </span>
       </div>
 
+      {manufacturingBundle && (
+        <button
+          type="button"
+          onClick={() => openManufacturing(manufacturingBundle.id)}
+          className="w-full mb-2 px-2.5 py-1.5 rounded border border-amber-800/70 bg-amber-950/30 text-[10px] text-amber-300 hover:bg-amber-950/60 hover:border-amber-600 transition-colors"
+        >
+          Open “{manufacturingBundle.name}” in Manufacturing →
+        </button>
+      )}
+
       {signalAppearances.size > 0 && (
         <div className="flex flex-wrap gap-1 mb-2">
-          {[...signalAppearances.entries()].map(([sig, appearance]) => (
-            <span
-              key={sig}
+          {[...signalAppearances.entries()].map(([signalId, { name, appearance }]) => (
+            <EntityLink
+              key={signalId}
+              item={{ type: 'signal', id: signalId }}
               className="flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded bg-zinc-700/60"
+              title="Reveal signal"
             >
               <WireColorSwatch appearance={appearance} className="w-1.5 h-1.5 rounded-full" />
-              <span className="text-zinc-300">{sig}</span>
-            </span>
+              <span className="text-zinc-300 hover:text-amber-300">{name}</span>
+            </EntityLink>
           ))}
         </div>
       )}
@@ -553,6 +778,7 @@ function BundleInspector({ pathIds }: { pathIds: string[] }) {
       <div className="space-y-1.5">
         {paths.map((path) => {
           const sig = getPathSignalName(path);
+          const signalId = getPathSignalId(path);
           const appearance = getWireAppearance(path);
           const start = path.nodes[0] ? getPathNodeLabel(harness, path.nodes[0]) : 'Unknown';
           const end = path.nodes[path.nodes.length - 1]
@@ -560,26 +786,52 @@ function BundleInspector({ pathIds }: { pathIds: string[] }) {
             : 'Unknown';
 
           return (
-            <button
+            <div
               key={path.id}
-              onClick={() =>
-                selectItem({ type: 'path', id: path.id })
-              }
               className="w-full text-left p-1.5 rounded bg-zinc-800/50 hover:bg-zinc-800 border border-zinc-700/30 transition-colors"
             >
               <div className="flex items-center gap-1.5">
                 <WireColorSwatch appearance={appearance} className="w-2 h-2 rounded-full" />
-                <span className="text-[10px] text-zinc-300 font-medium">
-                  {sig ?? path.name}
-                </span>
+                <EntityLink
+                  item={{ type: 'path', id: path.id }}
+                  className="text-[10px] text-zinc-300 hover:text-amber-300 font-medium underline underline-offset-2"
+                  title="Reveal path"
+                >
+                  {path.name}
+                </EntityLink>
+                {sig && signalId && (
+                  <EntityLink
+                    item={{ type: 'signal', id: signalId }}
+                    className="text-[9px] text-zinc-500 hover:text-amber-300"
+                    title="Reveal signal"
+                  >
+                    {sig}
+                  </EntityLink>
+                )}
                 <span className="text-[9px] text-zinc-500 ml-auto">
                   {appearance.label}
                 </span>
               </div>
               <div className="text-[9px] text-zinc-500 mt-0.5">
-                {start} → {end}
+                {path.nodes[0] ? (
+                  <PathNodeLink
+                    node={path.nodes[0]}
+                    className="hover:text-amber-300 underline underline-offset-2"
+                  >
+                    {start}
+                  </PathNodeLink>
+                ) : start}
+                {' → '}
+                {path.nodes[path.nodes.length - 1] ? (
+                  <PathNodeLink
+                    node={path.nodes[path.nodes.length - 1]}
+                    className="hover:text-amber-300 underline underline-offset-2"
+                  >
+                    {end}
+                  </PathNodeLink>
+                ) : end}
               </div>
-            </button>
+            </div>
           );
         })}
       </div>
@@ -590,7 +842,7 @@ function BundleInspector({ pathIds }: { pathIds: string[] }) {
 function EnclosureInspector({ enc }: { enc: Enclosure }) {
   const harness = useHarnessStore((s) => s.harness);
   const updateEnclosureProperty = useHarnessStore((s) => s.updateEnclosureProperty);
-  const selectItem = useHarnessStore((s) => s.selectItem);
+  const addConnector = useHarnessStore((s) => s.addConnector);
   const [imgPickerOpen, setImgPickerOpen] = useState(false);
   const closeImgPicker = useCallback(() => setImgPickerOpen(false), []);
 
@@ -601,15 +853,20 @@ function EnclosureInspector({ enc }: { enc: Enclosure }) {
   const directMergePoints = harness.mergePoints.filter((mergePoint) => mergePoint.parent === enc.id);
   const encImage = enc.properties?.image as string | undefined;
   const pathCount = countPathsTouchingConnectors(harness, allConnectors.map((connector) => connector.id));
+  const isDevice = !enc.container;
 
   return (
     <>
       <div className="flex items-center gap-2 mb-1">
-        <span className="text-sm font-bold text-zinc-100">{enc.name}</span>
+        <span className="text-sm font-bold text-zinc-100">
+          {enc.container ? 'Enclosure' : 'Device'}
+        </span>
         <span className={`text-[9px] px-1.5 py-0.5 rounded ${enc.container ? 'bg-zinc-700 text-zinc-300' : 'bg-teal-900/60 text-teal-300'}`}>
-          {enc.container ? 'Container' : 'Surface'}
+          {enc.container ? 'Container' : 'Device'}
         </span>
       </div>
+      <NameEditor key={`${enc.id}:${enc.name}`} name={enc.name} type="enclosure" id={enc.id} />
+      <PropertyRow label="Stable ID" value={enc.id} />
       {enc.parent && <div className="mb-1"><ParentLink parentId={enc.parent} /></div>}
 
       <div className="mb-2">
@@ -662,14 +919,14 @@ function EnclosureInspector({ enc }: { enc: Enclosure }) {
             {childEnclosures.map((child) => {
               const childCons = harness.connectors.filter((c) => c.parent === child.id);
               return (
-                <button
+                <EntityLink
                   key={child.id}
-                  onClick={() => selectItem({ type: 'enclosure', id: child.id })}
+                  item={{ type: 'enclosure', id: child.id }}
                   className="w-full text-left flex items-center justify-between py-0.5 px-1.5 rounded hover:bg-zinc-800 transition-colors"
                 >
                   <span className="text-[11px] text-amber-400 hover:text-amber-300">{child.name}</span>
                   <span className="text-zinc-500 text-[10px]">{childCons.length} connector{childCons.length !== 1 ? 's' : ''}</span>
-                </button>
+                </EntityLink>
               );
             })}
           </div>
@@ -677,20 +934,24 @@ function EnclosureInspector({ enc }: { enc: Enclosure }) {
       )}
 
       <div className="mt-2 pt-2 border-t border-zinc-700/50">
-        <div className="text-[10px] text-zinc-500 font-medium mb-1">Connectors</div>
+        <div className="text-[10px] text-zinc-500 font-medium mb-1">
+          {isDevice ? 'Connectors' : 'Bulkheads'}
+        </div>
         {directConnectors.length === 0 ? (
-          <div className="text-[10px] text-zinc-600 italic">No connectors</div>
+          <div className="text-[10px] text-zinc-600 italic">
+            {isDevice ? 'No connectors' : 'No bulkheads'}
+          </div>
         ) : (
           <div className="space-y-0.5">
             {directConnectors.map((c) => (
-              <button
+              <EntityLink
                 key={c.id}
-                onClick={() => selectItem({ type: 'connector', id: c.id })}
+                item={{ type: 'connector', id: c.id }}
                 className="w-full text-left flex items-center justify-between py-0.5 px-1.5 rounded hover:bg-zinc-800 transition-colors"
               >
                 <span className="text-[11px] text-amber-400 hover:text-amber-300">{c.name}</span>
                 <span className="text-zinc-500 text-[10px]">{getConnectorOccupancy(harness, c.id).length} used</span>
-              </button>
+              </EntityLink>
             ))}
           </div>
         )}
@@ -701,18 +962,30 @@ function EnclosureInspector({ enc }: { enc: Enclosure }) {
           <div className="text-[10px] text-zinc-500 font-medium mb-1">Merge Points</div>
           <div className="space-y-0.5">
             {directMergePoints.map((mergePoint) => (
-              <button
+              <EntityLink
                 key={mergePoint.id}
-                onClick={() => selectItem({ type: 'mergePoint', id: mergePoint.id })}
+                item={{ type: 'mergePoint', id: mergePoint.id }}
                 className="w-full text-left flex items-center justify-between py-0.5 px-1.5 rounded hover:bg-zinc-800 transition-colors"
               >
                 <span className="text-[11px] text-cyan-300">{mergePoint.name}</span>
                 <span className="text-zinc-500 text-[10px]">{mergePoint.id}</span>
-              </button>
+              </EntityLink>
             ))}
           </div>
         </div>
       )}
+
+      <div className="mt-3 pt-2 border-t border-zinc-700/50">
+        <button
+          type="button"
+          onClick={() => addConnector(enc.id)}
+          title={isDevice ? 'Add connector' : 'Add bulkhead'}
+          aria-label={isDevice ? 'Add connector' : 'Add bulkhead'}
+          className="w-full flex items-center justify-center py-1.5 rounded border border-dashed border-zinc-700 text-zinc-400 hover:text-amber-400 hover:border-amber-700/60 hover:bg-amber-950/20 transition-colors text-sm leading-none"
+        >
+          +
+        </button>
+      </div>
     </>
   );
 }
@@ -722,6 +995,11 @@ function ConnectorInspector({ con }: { con: Connector }) {
   const connectorLibrary = useHarnessStore((s) => s.connectorLibrary);
   const updateConnectorTypeImage = useHarnessStore((s) => s.updateConnectorTypeImage);
   const updateConnectorTypeSideImage = useHarnessStore((s) => s.updateConnectorTypeSideImage);
+  const setConnectorType = useHarnessStore((s) => s.setConnectorType);
+  const openConnectorLibrary = useHarnessStore((s) => s.openConnectorLibrary);
+  const setConnectorKeying = useHarnessStore((s) => s.setConnectorKeying);
+  const addConnectorCavity = useHarnessStore((s) => s.addConnectorCavity);
+  const removeConnectorCavity = useHarnessStore((s) => s.removeConnectorCavity);
   const updateConnectorProperty = useHarnessStore((s) => s.updateConnectorProperty);
   const [pinPickerOpen, setPinPickerOpen] = useState(false);
   const [sidePickerOpen, setSidePickerOpen] = useState(false);
@@ -729,22 +1007,146 @@ function ConnectorInspector({ con }: { con: Connector }) {
   const closePinPicker = useCallback(() => setPinPickerOpen(false), []);
   const closeSidePicker = useCallback(() => setSidePickerOpen(false), []);
   const closeInstanceImgPicker = useCallback(() => setInstanceImgPickerOpen(false), []);
+  const cavityControlsRef = useRef<HTMLDivElement>(null);
+  const prevCavityStateRef = useRef<{ connectorId: string; pinCount: number } | null>(null);
+
+  const ct = connectorLibrary?.connector_types.find((t) => t.id === con.connector_type);
+  const effectivePinCount = getEffectivePinCount(con, ct);
+
+  useLayoutEffect(() => {
+    const prev = prevCavityStateRef.current;
+    if (
+      prev
+      && prev.connectorId === con.id
+      && effectivePinCount > prev.pinCount
+    ) {
+      cavityControlsRef.current?.scrollIntoView({ block: 'end', behavior: 'auto' });
+    }
+    prevCavityStateRef.current = { connectorId: con.id, pinCount: effectivePinCount };
+  }, [con.id, effectivePinCount]);
 
   if (!harness) return null;
-  const ct = connectorLibrary?.connector_types.find((t) => t.id === con.connector_type);
+  const typeOptions = [...(connectorLibrary?.connector_types ?? [])].sort((a, b) =>
+    a.name.localeCompare(b.name),
+  );
+  const maxUsedPin = Math.max(0, ...getConnectorOccupancy(harness, con.id).map((entry) => entry.pinNumber));
+  const familyType = isConnectorFamily(ct);
+  const supportedPinCounts = getConnectorSupportedPinCounts(ct);
+  const previousPinCount = getPreviousConnectorPinCount(ct, effectivePinCount, maxUsedPin);
+  const nextPinCount = getNextConnectorPinCount(ct, effectivePinCount);
+  const canRemoveCavity = previousPinCount < effectivePinCount;
+  const canAddCavity = nextPinCount > effectivePinCount;
+  const typeFloor = getConnectorTypeCavityFloor(ct);
+  const exceedsType = ct != null
+    && !familyType
+    && effectivePinCount > Math.max(ct.pin_count, typeFloor)
+    && ct.pin_count > 0;
+  const keyingOptions = getConnectorSupportedKeyings(con, ct);
+  const pinGuideImage = getConnectorPinGuideImage(con, ct);
+  const sideImage = getConnectorSideImage(con, ct);
 
   return (
     <>
       <div className="flex items-center gap-2 mb-1">
-        <span className="text-sm font-bold text-zinc-100">{con.name}</span>
+        <span className="text-sm font-bold text-zinc-100">Connector</span>
         <span className="text-[9px] px-1.5 py-0.5 rounded bg-zinc-700 text-zinc-300">
-          Connector
+          Instance
         </span>
+        {con.derived && (
+          <span className="text-[9px] px-1.5 py-0.5 rounded bg-sky-900/50 text-sky-300 border border-sky-800/50">
+            Derived
+          </span>
+        )}
       </div>
+      <NameEditor key={`${con.id}:${con.name}`} name={con.name} type="connector" id={con.id} />
+      <PropertyRow label="Stable ID" value={con.id} />
 
       {con.parent && (
         <div className="mb-2">
           <ParentLink parentId={con.parent} />
+        </div>
+      )}
+
+      {con.derived && <DerivedFromPortNote portId={con.derived_from_port} />}
+
+      <div className="mb-2 pb-2 border-b border-zinc-700/50">
+        <label className="flex items-center gap-2 py-0.5">
+          <span className="text-[10px] text-zinc-500 w-20 shrink-0 text-right">Type</span>
+          <select
+            value={con.connector_type}
+            onChange={(event) => {
+              if (event.target.value === '__manage_connector_library__') {
+                openConnectorLibrary(con.connector_type);
+                return;
+              }
+              setConnectorType(con.id, event.target.value);
+            }}
+            className="min-w-0 flex-1 bg-zinc-800 border border-zinc-700 rounded px-1.5 py-0.5 text-[11px] text-zinc-300 focus:border-amber-500 focus:outline-none"
+          >
+            {!typeOptions.some((option) => option.id === con.connector_type) && (
+              <option value={con.connector_type}>
+                {con.connector_type || '— unknown type —'}
+              </option>
+            )}
+            {typeOptions.map((option) => (
+              <option key={option.id} value={option.id}>
+                {option.name}
+                {isConnectorFamily(option)
+                  ? ` (${getConnectorTypeCavityFloor(option)}–${getConnectorSupportedPinCounts(option).at(-1)}p family)`
+                  : option.pin_count > 0
+                    ? ` (${option.pin_count}p)`
+                    : ''}
+              </option>
+            ))}
+            <option disabled>──────────</option>
+            <option value="__manage_connector_library__">Manage connector library…</option>
+          </select>
+        </label>
+        <div className="pl-[5.5rem] text-[9px] text-zinc-600">
+          {con.connector_type}
+          {' · '}
+          {effectivePinCount} {effectivePinCount === 1 ? 'cavity' : 'cavities'}
+          {familyType ? ' (family housing)' : con.pin_count != null ? ' (instance)' : ' (type)'}
+        </div>
+        {familyType && supportedPinCounts.length > 0 && (
+          <div className="pl-[5.5rem] text-[9px] text-zinc-600">
+            Available: {supportedPinCounts.join(', ')} cavities
+          </div>
+        )}
+        {ct && (ct.crimp_spec || ct.wire_gauge) && (
+          <div className="pl-[5.5rem] flex gap-x-3 text-[10px] text-zinc-500">
+            {ct.crimp_spec && <span>{ct.crimp_spec}</span>}
+            {ct.wire_gauge && <span>{ct.wire_gauge}</span>}
+          </div>
+        )}
+      </div>
+
+      {familyType && keyingOptions.length > 0 && (
+        <div className="mb-2 pb-2 border-b border-zinc-700/50">
+          <label className="flex items-center gap-2 py-0.5">
+            <span className="text-[10px] text-zinc-500 w-20 shrink-0 text-right">Keying</span>
+            <select
+              value={con.keying ?? ''}
+              onChange={(event) => setConnectorKeying(con.id, event.target.value || undefined)}
+              className="min-w-0 flex-1 bg-zinc-800 border border-zinc-700 rounded px-1.5 py-0.5 text-[11px] text-zinc-300 focus:border-amber-500 focus:outline-none"
+            >
+              <option value="">Standard / unspecified</option>
+              {keyingOptions.map((keying) => (
+                <option key={keying} value={keying}>{keying}</option>
+              ))}
+            </select>
+          </label>
+        </div>
+      )}
+
+      {exceedsType && (
+        <div className="mb-2 rounded border border-amber-700/60 bg-amber-950/40 px-2 py-1 text-[10px] text-amber-300">
+          Instance has {effectivePinCount} cavities; type defines {ct.pin_count}. Extra cavities are an instance override.
+        </div>
+      )}
+      {maxUsedPin > effectivePinCount && (
+        <div className="mb-2 rounded border border-amber-700/60 bg-amber-950/40 px-2 py-1 text-[10px] text-amber-300">
+          Uses cavity {maxUsedPin}, beyond the {effectivePinCount}-cavity instance capacity. Allowed, but unresolved.
         </div>
       )}
 
@@ -796,9 +1198,9 @@ function ConnectorInspector({ con }: { con: Connector }) {
           {/* Pin reading guide image */}
           <div className="mb-2">
             <div className="text-[9px] text-zinc-500 font-medium mb-1 uppercase tracking-wider">Pin guide</div>
-            {ct.image ? (
+            {pinGuideImage ? (
               <div className="rounded overflow-hidden border border-zinc-700/60 bg-zinc-800">
-                <img src={`/user-data/connectors/${ct.image}`} alt={ct.name} className="w-full object-contain" style={{ maxHeight: 120 }} />
+                <img src={`/user-data/images/${pinGuideImage}`} alt={ct.name} className="w-full object-contain" style={{ maxHeight: 120 }} />
               </div>
             ) : (
               <div className="rounded border border-dashed border-zinc-700 bg-zinc-800/40 flex items-center justify-center text-[10px] text-zinc-600 italic" style={{ height: 40 }}>
@@ -807,14 +1209,14 @@ function ConnectorInspector({ con }: { con: Connector }) {
             )}
             <div className="mt-1 relative">
               <button onClick={() => setPinPickerOpen((p) => !p)} className="w-full text-[10px] text-zinc-400 hover:text-zinc-200 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded py-0.5 transition-colors">
-                {ct.image ? '⇄ Change' : '+ Set pin guide'}
+                {pinGuideImage ? '⇄ Change' : '+ Set pin guide'}
               </button>
-              {ct.image && (
-                <button onClick={() => updateConnectorTypeImage(ct.id, '')} className="absolute right-0 top-0 bottom-0 px-2 text-zinc-500 hover:text-red-400 text-[10px]" title="Remove">✕</button>
+              {pinGuideImage && (
+                <button onClick={() => updateConnectorTypeImage(ct.id, '', familyType ? effectivePinCount : undefined)} className="absolute right-0 top-0 bottom-0 px-2 text-zinc-500 hover:text-red-400 text-[10px]" title="Remove">✕</button>
               )}
               {pinPickerOpen && (
                 <div className="absolute left-0 right-0 z-50" style={{ top: '100%' }}>
-                  <ImagePickerPanel onPick={(f) => { updateConnectorTypeImage(ct.id, f); setPinPickerOpen(false); }} onClose={closePinPicker} listEndpoint="/api/list-connector-assets" baseUrl="/user-data/connectors/" emptyStatePath="public/user-data/connectors/" />
+                  <ImagePickerPanel onPick={(f) => { updateConnectorTypeImage(ct.id, f, familyType ? effectivePinCount : undefined); setPinPickerOpen(false); }} onClose={closePinPicker} />
                 </div>
               )}
             </div>
@@ -823,9 +1225,9 @@ function ConnectorInspector({ con }: { con: Connector }) {
           {/* Side view image — shown on connector tabs in both views */}
           <div className="mb-2">
             <div className="text-[9px] text-zinc-500 font-medium mb-1 uppercase tracking-wider">Side view (on boxes)</div>
-            {ct.side_image ? (
+            {sideImage ? (
               <div className="rounded overflow-hidden border border-zinc-700/60 bg-zinc-800">
-                <img src={`/user-data/connectors/${ct.side_image}`} alt="" className="w-full object-contain" style={{ maxHeight: 80 }} />
+                <img src={`/user-data/images/${sideImage}`} alt="" className="w-full object-contain" style={{ maxHeight: 80 }} />
               </div>
             ) : (
               <div className="rounded border border-dashed border-zinc-700 bg-zinc-800/40 flex items-center justify-center text-[10px] text-zinc-600 italic" style={{ height: 36 }}>
@@ -834,24 +1236,16 @@ function ConnectorInspector({ con }: { con: Connector }) {
             )}
             <div className="mt-1 relative">
               <button onClick={() => setSidePickerOpen((p) => !p)} className="w-full text-[10px] text-zinc-400 hover:text-zinc-200 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded py-0.5 transition-colors">
-                {ct.side_image ? '⇄ Change' : '+ Set side view'}
+                {sideImage ? '⇄ Change' : '+ Set side view'}
               </button>
-              {ct.side_image && (
-                <button onClick={() => updateConnectorTypeSideImage(ct.id, '')} className="absolute right-0 top-0 bottom-0 px-2 text-zinc-500 hover:text-red-400 text-[10px]" title="Remove">✕</button>
+              {sideImage && (
+                <button onClick={() => updateConnectorTypeSideImage(ct.id, '', familyType ? effectivePinCount : undefined)} className="absolute right-0 top-0 bottom-0 px-2 text-zinc-500 hover:text-red-400 text-[10px]" title="Remove">✕</button>
               )}
               {sidePickerOpen && (
                 <div className="absolute left-0 right-0 z-50" style={{ top: '100%' }}>
-                  <ImagePickerPanel onPick={(f) => { updateConnectorTypeSideImage(ct.id, f); setSidePickerOpen(false); }} onClose={closeSidePicker} listEndpoint="/api/list-connector-assets" baseUrl="/user-data/connectors/" emptyStatePath="public/user-data/connectors/" />
+                  <ImagePickerPanel onPick={(f) => { updateConnectorTypeSideImage(ct.id, f, familyType ? effectivePinCount : undefined); setSidePickerOpen(false); }} onClose={closeSidePicker} />
                 </div>
               )}
-            </div>
-          </div>
-
-          <div className="text-[10px] text-zinc-400 mb-2 space-y-0.5 pb-2 border-b border-zinc-700/50">
-            <div className="font-medium text-zinc-300">{ct.name}</div>
-            <div className="flex gap-x-3 text-zinc-500">
-              <span>{ct.crimp_spec}</span>
-              <span>{ct.wire_gauge}</span>
             </div>
           </div>
         </>
@@ -862,6 +1256,37 @@ function ConnectorInspector({ con }: { con: Connector }) {
       </div>
 
       <ConnectorOccupancyTable connector={con} />
+
+      <div ref={cavityControlsRef} className="mt-3 pt-2 border-t border-zinc-700/50 flex gap-1.5">
+        <button
+          type="button"
+          onClick={() => removeConnectorCavity(con.id)}
+          disabled={!canRemoveCavity}
+          title={
+            canRemoveCavity
+              ? 'Remove last cavity'
+              : maxUsedPin >= effectivePinCount && effectivePinCount > typeFloor
+                ? 'Highest cavity is occupied'
+                : familyType
+                  ? 'No smaller family housing can fit the occupied cavities'
+                  : 'Cannot go below connector type cavity count'
+          }
+          aria-label="Remove cavity"
+          className="flex-1 flex items-center justify-center py-1.5 rounded border border-dashed border-zinc-700 text-zinc-400 hover:text-amber-400 hover:border-amber-700/60 hover:bg-amber-950/20 transition-colors text-sm leading-none disabled:opacity-30 disabled:hover:text-zinc-400 disabled:hover:border-zinc-700 disabled:hover:bg-transparent disabled:cursor-not-allowed"
+        >
+          −
+        </button>
+        <button
+          type="button"
+          onClick={() => addConnectorCavity(con.id)}
+          disabled={!canAddCavity}
+          title={canAddCavity ? 'Select next cavity count' : 'Largest family housing selected'}
+          aria-label="Add cavity"
+          className="flex-1 flex items-center justify-center py-1.5 rounded border border-dashed border-zinc-700 text-zinc-400 hover:text-amber-400 hover:border-amber-700/60 hover:bg-amber-950/20 transition-colors text-sm leading-none disabled:opacity-30 disabled:hover:text-zinc-400 disabled:hover:border-zinc-700 disabled:hover:bg-transparent disabled:cursor-not-allowed"
+        >
+          +
+        </button>
+      </div>
     </>
   );
 }
@@ -870,14 +1295,27 @@ function MergePointInspector({ mergePoint }: { mergePoint: MergePoint }) {
   return (
     <>
       <div className="flex items-center gap-2 mb-2">
-        <span className="text-sm font-bold text-zinc-100">{mergePoint.name}</span>
+        <span className="text-sm font-bold text-zinc-100">Merge Point</span>
         <span className="text-[9px] px-1.5 py-0.5 rounded bg-cyan-900/50 text-cyan-300">
-          Merge Point
+          Junction
         </span>
+        {mergePoint.derived && (
+          <span className="text-[9px] px-1.5 py-0.5 rounded bg-sky-900/50 text-sky-300 border border-sky-800/50">
+            Derived
+          </span>
+        )}
       </div>
 
-      <PropertyRow label="ID" value={mergePoint.id} />
-      {mergePoint.parent && <PropertyRow label="Parent" value={mergePoint.parent} />}
+      <NameEditor key={`${mergePoint.id}:${mergePoint.name}`} name={mergePoint.name} type="mergePoint" id={mergePoint.id} />
+      {mergePoint.derived && <DerivedFromPortNote portId={mergePoint.derived_from_port} />}
+
+      <PropertyRow label="Stable ID" value={mergePoint.id} />
+      {mergePoint.parent && (
+        <div className="flex items-start gap-2 py-0.5">
+          <span className="text-[10px] text-zinc-500 w-20 shrink-0 text-right">Parent</span>
+          <ParentLink parentId={mergePoint.parent} />
+        </div>
+      )}
       {Object.entries(mergePoint.properties).map(([key, value]) => (
         <PropertyRow key={key} label={key} value={value} />
       ))}
@@ -889,12 +1327,270 @@ function MergePointInspector({ mergePoint }: { mergePoint: MergePoint }) {
   );
 }
 
+function SignalInspector({ signal }: { signal: Signal }) {
+  const updateSignalProperty = useHarnessStore((s) => s.updateSignalProperty);
+  const [newKey, setNewKey] = useState('');
+  const [newValue, setNewValue] = useState('');
+  const preferredColor = signal.properties.preferred_wire_color ?? '';
+  return (
+    <>
+      <div className="text-sm font-bold text-zinc-100 mb-2">Signal</div>
+      <NameEditor key={`${signal.id}:${signal.name}`} name={signal.name} type="signal" id={signal.id} />
+      <PropertyRow label="Stable ID" value={signal.id} />
+      <div className="mt-2 pt-2 border-t border-zinc-700/50">
+        <WireColorEditor
+          label="Preferred"
+          value={preferredColor}
+          onChange={(value) => updateSignalProperty(signal.id, 'preferred_wire_color', value)}
+          clearLabel="Remove preferred color"
+          hint="Design guidance for paths using this signal. Stripes: white/brown"
+        />
+      </div>
+      <div className="mt-2 text-[10px] text-zinc-500 font-medium">Properties</div>
+      {Object.entries(signal.properties)
+        .filter(([key]) => key !== 'preferred_wire_color')
+        .map(([key, value]) => (
+        <label key={key} className="flex items-center gap-2 py-1">
+          <span className="text-[10px] text-zinc-500 w-24 text-right truncate" title={key}>{key}</span>
+          <input
+            defaultValue={value}
+            onBlur={(event) => updateSignalProperty(signal.id, key, event.target.value)}
+            className="min-w-0 flex-1 bg-zinc-800 border border-zinc-700 rounded px-2 py-1 text-[11px]"
+          />
+        </label>
+      ))}
+      <div className="flex gap-1 mt-1">
+        <input value={newKey} onChange={(event) => setNewKey(event.target.value)} placeholder="property" className="min-w-0 w-1/2 bg-zinc-800 border border-zinc-700 rounded px-1 py-1 text-[10px]" />
+        <input value={newValue} onChange={(event) => setNewValue(event.target.value)} placeholder="value" className="min-w-0 w-1/2 bg-zinc-800 border border-zinc-700 rounded px-1 py-1 text-[10px]" />
+        <button
+          className="text-amber-400"
+          onClick={() => {
+            if (!newKey.trim()) return;
+            updateSignalProperty(signal.id, newKey.trim(), newValue);
+            setNewKey('');
+            setNewValue('');
+          }}
+        >
+          +
+        </button>
+      </div>
+      <div className="mt-3 pt-2 border-t border-zinc-700/50">
+        <TagEditor entityType="signal" entityId={signal.id} tags={signal.tags} />
+      </div>
+    </>
+  );
+}
+
+function StretchLengthEditor({
+  pathId,
+  segmentIndex,
+  fromLabel,
+  toLabel,
+  lengthMm,
+  note,
+}: {
+  pathId: string;
+  segmentIndex: number;
+  fromLabel: string;
+  toLabel: string;
+  lengthMm?: number;
+  note?: string;
+}) {
+  const harness = useHarnessStore((s) => s.harness);
+  const updatePathSegmentLength = useHarnessStore((s) => s.updatePathSegmentLength);
+  const updateConnectorPairSegmentLengths = useHarnessStore(
+    (s) => s.updateConnectorPairSegmentLengths,
+  );
+  const initialValue = lengthMm === undefined ? '' : String(lengthMm);
+  const [draft, setDraft] = useState(initialValue);
+  const cancelBlur = useRef(false);
+
+  useEffect(() => {
+    setDraft(initialValue);
+  }, [initialValue]);
+
+  const commit = (value: string) => {
+    const trimmed = value.trim();
+    if (!trimmed) {
+      setDraft('');
+      updatePathSegmentLength(pathId, segmentIndex, undefined);
+      return;
+    }
+    const parsed = Number(trimmed);
+    if (!Number.isFinite(parsed) || parsed < 0) {
+      setDraft(initialValue);
+      return;
+    }
+    setDraft(String(parsed));
+
+    if (parsed === lengthMm) return;
+    const currentPath = harness?.paths.find((path) => path.id === pathId);
+    const from = currentPath?.nodes[segmentIndex];
+    const to = currentPath?.nodes[segmentIndex + 1];
+    if (harness && currentPath && from?.kind === 'connector' && to?.kind === 'connector') {
+      const matches = getConnectorPairSegments(harness, from.connector_id, to.connector_id);
+      const matchingPathIds = new Set(matches.map((match) => match.path.id));
+      if (matchingPathIds.size > 1) {
+        const connectorA = harness.connectors.find(
+          (connector) => connector.id === from.connector_id,
+        );
+        const connectorB = harness.connectors.find(
+          (connector) => connector.id === to.connector_id,
+        );
+        const connectorAName = connectorA?.name ?? from.connector_id;
+        const connectorBName = connectorB?.name ?? to.connector_id;
+        const wireLines = matches.map((match) => {
+          const isCurrent =
+            match.path.id === pathId && match.segmentIndex === segmentIndex;
+          const route = `${getPathNodeLabel(harness, match.from)} → ${getPathNodeLabel(harness, match.to)}`;
+          return `• ${match.path.name} (${route})${isCurrent ? ' — edited wire' : ''}`;
+        });
+        const overridden = matches.filter((match) => {
+          if (match.path.id === pathId && match.segmentIndex === segmentIndex) return false;
+          const existingLength = getPathSegmentMeasurement(
+            match.path,
+            match.segmentIndex,
+          )?.length_mm;
+          return existingLength !== undefined && existingLength !== parsed;
+        });
+        const overrideMessage = overridden.length > 0
+          ? [
+              'This will override existing lengths on:',
+              ...overridden.map((match) => {
+                const existingLength = getPathSegmentMeasurement(
+                  match.path,
+                  match.segmentIndex,
+                )?.length_mm;
+                return `• ${match.path.name}: ${existingLength} mm`;
+              }),
+            ].join('\n')
+          : 'No existing lengths on the other wires will be overridden.';
+        const applyToAll = window.confirm([
+          `${matchingPathIds.size} wires run between ${connectorAName} and ${connectorBName}:`,
+          '',
+          ...wireLines,
+          '',
+          `Apply ${parsed} mm to all of these wires?`,
+          '',
+          overrideMessage,
+          '',
+          `OK: Change all wires\nCancel: Change only ${currentPath.name}`,
+        ].join('\n'));
+        if (applyToAll) {
+          updateConnectorPairSegmentLengths(pathId, segmentIndex, parsed);
+          return;
+        }
+      }
+    }
+    updatePathSegmentLength(pathId, segmentIndex, parsed);
+  };
+
+  return (
+    <div className="ml-3 pl-5 py-1 border-l border-zinc-700/60">
+      <div className="flex items-center gap-1.5">
+        <span className="text-[9px] text-zinc-600 uppercase tracking-wide">Stretch</span>
+        <input
+          type="number"
+          min={0}
+          step="any"
+          inputMode="decimal"
+          value={draft}
+          onChange={(event) => setDraft(event.target.value)}
+          onBlur={(event) => {
+            if (cancelBlur.current) {
+              cancelBlur.current = false;
+              return;
+            }
+            commit(event.currentTarget.value);
+          }}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter') {
+              event.preventDefault();
+              event.currentTarget.blur();
+            } else if (event.key === 'Escape') {
+              event.preventDefault();
+              cancelBlur.current = true;
+              setDraft(initialValue);
+              event.currentTarget.blur();
+            }
+          }}
+          placeholder="—"
+          aria-label={`Length from ${fromLabel} to ${toLabel} in millimeters`}
+          className="ml-auto w-20 bg-zinc-800 border border-zinc-700 rounded px-1.5 py-0.5 text-right font-mono text-[10px] text-zinc-200 placeholder-zinc-600 focus:border-amber-500 focus:outline-none"
+        />
+        <span className="w-5 text-[9px] text-zinc-500">mm</span>
+      </div>
+      {note && <div className="pt-0.5 pr-7 text-[9px] text-zinc-500">{note}</div>}
+    </div>
+  );
+}
+
+function PathCommentEditor({ pathId, comment }: { pathId: string; comment: string }) {
+  const updatePathProperty = useHarnessStore((s) => s.updatePathProperty);
+  const [draft, setDraft] = useState(comment);
+  const cancelBlur = useRef(false);
+
+  useEffect(() => {
+    setDraft(comment);
+  }, [comment]);
+
+  return (
+    <textarea
+      value={draft}
+      onChange={(event) => setDraft(event.target.value)}
+      onBlur={(event) => {
+        if (cancelBlur.current) {
+          cancelBlur.current = false;
+          return;
+        }
+        updatePathProperty(pathId, 'notes', event.currentTarget.value);
+      }}
+      onKeyDown={(event) => {
+        if (event.key === 'Escape') {
+          event.preventDefault();
+          cancelBlur.current = true;
+          setDraft(comment);
+          event.currentTarget.blur();
+        }
+      }}
+      rows={3}
+      placeholder="Add a comment…"
+      aria-label="Wire comment"
+      className="w-full resize-y bg-zinc-800 border border-zinc-700 rounded px-2 py-1.5 text-[11px] leading-relaxed text-zinc-200 placeholder-zinc-600 focus:border-amber-500 focus:outline-none"
+    />
+  );
+}
+
 function PathInspector({ path }: { path: Path }) {
   const harness = useHarnessStore((s) => s.harness);
+  const updatePathProperty = useHarnessStore((s) => s.updatePathProperty);
   if (!harness) return null;
 
-  const signalName = getPathSignalName(path);
+  const signalName = getPathSignalName(path, harness);
+  const signalId = getPathSignalId(path);
   const appearance = getWireAppearance(path);
+  const wireColor = (path.properties?.wire_color ?? path.properties?.color ?? '').trim();
+  const signal = path.signal_id
+    ? harness.signals.find((candidate) => candidate.id === path.signal_id)
+    : undefined;
+  const colorDeviation = getPreferredWireColorDeviation(path, signal);
+  const segmentMeasurements = path.nodes.slice(0, -1).map((from, index) => {
+    const to = path.nodes[index + 1];
+    const fromKey = getPathNodeRefKey(from);
+    const toKey = getPathNodeRefKey(to);
+    return path.measurements.find((measurement) => {
+      const measurementFromKey = getPathNodeRefKey(measurement.from);
+      const measurementToKey = getPathNodeRefKey(measurement.to);
+      return (
+        (measurementFromKey === fromKey && measurementToKey === toKey) ||
+        (measurementFromKey === toKey && measurementToKey === fromKey)
+      );
+    });
+  });
+  const segmentMeasurementSet = new Set(segmentMeasurements.filter(Boolean));
+  const spanningMeasurements = path.measurements.filter(
+    (measurement) => !segmentMeasurementSet.has(measurement),
+  );
 
   return (
     <>
@@ -905,43 +1601,98 @@ function PathInspector({ path }: { path: Path }) {
         </span>
       </div>
 
-      <PropertyRow label="Name" value={path.name} />
+      <NameEditor key={`${path.id}:${path.name}`} name={path.name} type="path" id={path.id} />
+      <PropertyRow label="Stable ID" value={path.id} />
       <PropertyRow label="Nodes" value={String(path.nodes.length)} />
       <PropertyRow label="Segments" value={String(Math.max(0, path.nodes.length - 1))} />
+      {signalId && (
+        <div className="flex items-center gap-2 py-0.5">
+          <span className="text-[10px] text-zinc-500 w-20 shrink-0 text-right">Signal ID</span>
+          <EntityLink
+            item={{ type: 'signal', id: signalId }}
+            className="text-[11px] text-amber-400 hover:text-amber-300"
+            title="Reveal signal"
+          >
+            {signalId}
+          </EntityLink>
+        </div>
+      )}
 
       <div className="mt-2 pt-2 border-t border-zinc-700/50">
-        <div className="flex items-center gap-2 py-0.5">
-          <span className="text-[10px] text-zinc-500 w-20 shrink-0 text-right">
-            Color
-          </span>
-          <div className="flex items-center gap-2">
-            <WireColorSwatch appearance={appearance} className="w-3 h-3 rounded-sm" />
-            <span className="text-[11px] text-zinc-300">{appearance.label}</span>
-          </div>
-        </div>
+        <WireColorEditor
+          label="Wire color"
+          value={wireColor}
+          onChange={(value) => updatePathProperty(path.id, 'wire_color', value)}
+          clearLabel="Remove color (signal default)"
+          hint={wireColor ? undefined : `Using signal default: ${appearance.label}. Stripes: white/brown`}
+        />
       </div>
 
-      {signalName && <SignalInfo signalName={signalName} appearance={appearance} />}
+      {signalName && signalId && <SignalInfo signalId={signalId} appearance={appearance} />}
+      {colorDeviation && (
+        <div className="mt-2 rounded border border-amber-700/60 bg-amber-950/40 px-2 py-1 text-[10px] text-amber-300">
+          Wire color {colorDeviation.actual} deviates from preferred {colorDeviation.preferred}.
+        </div>
+      )}
 
       <div className="mt-2 pt-2 border-t border-zinc-700/50">
         <div className="text-[10px] text-zinc-500 font-medium mb-1">Route</div>
-        <div className="space-y-1">
-          {path.nodes.map((node, index) => (
-            <div key={`${getPathNodeLabel(harness, node)}-${index}`} className="text-[11px] text-zinc-300 flex items-center gap-2">
-              <span className="text-zinc-500 font-mono text-[10px] w-6 shrink-0">{index + 1}</span>
-              <span>{getPathNodeLabel(harness, node)}</span>
-            </div>
-          ))}
+        <div>
+          {path.nodes.map((node, index) => {
+            const nodeLabel = getPathNodeLabel(harness, node);
+            const nextNode = path.nodes[index + 1];
+            const nextLabel = nextNode ? getPathNodeLabel(harness, nextNode) : '';
+            return (
+              <div key={`${getPathNodeRefKey(node)}-${index}`}>
+                <div className="text-[11px] text-zinc-300 flex items-center gap-2">
+                  <span className="text-zinc-500 font-mono text-[10px] w-6 shrink-0">{index + 1}</span>
+                  <PathNodeLink
+                    node={node}
+                    className="text-amber-400 hover:text-amber-300 underline underline-offset-2"
+                  >
+                    {nodeLabel}
+                  </PathNodeLink>
+                </div>
+                {nextNode && (
+                  <StretchLengthEditor
+                    pathId={path.id}
+                    segmentIndex={index}
+                    fromLabel={nodeLabel}
+                    toLabel={nextLabel}
+                    lengthMm={segmentMeasurements[index]?.length_mm}
+                    note={segmentMeasurements[index]?.note}
+                  />
+                )}
+              </div>
+            );
+          })}
         </div>
       </div>
 
-      {path.measurements.length > 0 && (
+      <div className="mt-2 pt-2 border-t border-zinc-700/50">
+        <div className="text-[10px] text-zinc-500 font-medium mb-1">Comment</div>
+        <PathCommentEditor pathId={path.id} comment={path.properties.notes ?? ''} />
+      </div>
+
+      {spanningMeasurements.length > 0 && (
         <div className="mt-2 pt-2 border-t border-zinc-700/50">
-          <div className="text-[10px] text-zinc-500 font-medium mb-1">Measurements</div>
+          <div className="text-[10px] text-zinc-500 font-medium mb-1">Other measurements</div>
           <div className="space-y-1">
-            {path.measurements.map((measurement, index) => (
-              <div key={`${getPathNodeLabel(harness, measurement.from)}-${getPathNodeLabel(harness, measurement.to)}-${index}`} className="text-[10px] text-zinc-300 rounded bg-zinc-800/60 px-2 py-1">
-                {getPathNodeLabel(harness, measurement.from)} → {getPathNodeLabel(harness, measurement.to)}
+            {spanningMeasurements.map((measurement, index) => (
+              <div key={`${getPathNodeRefKey(measurement.from)}-${getPathNodeRefKey(measurement.to)}-${index}`} className="text-[10px] text-zinc-300 rounded bg-zinc-800/60 px-2 py-1">
+                <PathNodeLink
+                  node={measurement.from}
+                  className="text-amber-400 hover:text-amber-300 underline underline-offset-2"
+                >
+                  {getPathNodeLabel(harness, measurement.from)}
+                </PathNodeLink>
+                {' → '}
+                <PathNodeLink
+                  node={measurement.to}
+                  className="text-amber-400 hover:text-amber-300 underline underline-offset-2"
+                >
+                  {getPathNodeLabel(harness, measurement.to)}
+                </PathNodeLink>
                 {measurement.length_mm !== undefined ? ` · ${measurement.length_mm} mm` : ''}
                 {measurement.note ? ` · ${measurement.note}` : ''}
               </div>
@@ -951,12 +1702,10 @@ function PathInspector({ path }: { path: Path }) {
       )}
 
       {Object.entries(path.properties)
-        .filter(([key]) => key !== 'wire_color' && key !== 'color')
+        .filter(([key]) => key !== 'wire_color' && key !== 'color' && key !== 'notes')
         .map(([key, value]) => (
           <PropertyRow key={key} label={key} value={value} />
         ))}
-
-      <PathStatusEditor pathId={path.id} tags={path.tags} />
 
       <div className="mt-2 pt-2 border-t border-zinc-700/50">
         <div className="text-[10px] text-zinc-500 font-medium mb-1">Tags</div>
@@ -1367,7 +2116,7 @@ export function InspectorPanel() {
         return <PathInspector path={entity as Path} />;
       }
       case 'signal': {
-        return <SignalInfo signalName={(entity as Signal).name} />;
+        return <SignalInspector signal={entity as Signal} />;
       }
       default:
         return null;

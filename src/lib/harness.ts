@@ -1,6 +1,7 @@
 import type {
   Connector,
   ConnectorOccupancy,
+  ConnectorPathNode,
   DerivedBundle,
   DerivedSegment,
   Enclosure,
@@ -8,8 +9,25 @@ import type {
   MergePoint,
   Path,
   PathNode,
+  SelectedItem,
 } from '../types';
 import { getWireAppearance, type WireAppearance } from './colors';
+export {
+  applyConnectorPinCount,
+  GENERIC_MULTIPIN_TYPE_ID,
+  getConnectorCavityVariant,
+  getConnectorPinGuideImage,
+  getConnectorSideImage,
+  getConnectorSupportedKeyings,
+  getConnectorSupportedPinCounts,
+  getConnectorTypeCavityFloor,
+  getEffectivePinCount,
+  getNextConnectorPinCount,
+  getPreviousConnectorPinCount,
+  isConnectorFamily,
+  normalizeConnectorKeying,
+  resolveConnectorFamilyPinCount,
+} from './connectorFamily';
 
 /**
  * Walk up the parent chain to find the nearest enclosure ancestor of a
@@ -93,8 +111,20 @@ export function getSpaceFreeMergePoints(
   return harness.mergePoints.filter((mergePoint) => mergePoint.parent === spaceId);
 }
 
-export function getPathSignalName(path: Pick<Path, 'tags'>): string | null {
-  return path.tags.find((tag) => tag.startsWith('signal:'))?.slice(7) ?? null;
+export function getPathSignalId(path: Pick<Path, 'signal_id' | 'tags'>): string | null {
+  if (path.signal_id) return path.signal_id;
+  const slug = path.tags.find((tag) => tag.startsWith('signal:'))?.slice(7);
+  return slug ? `sig_${slug}` : null;
+}
+
+export function getPathSignalName(
+  path: Pick<Path, 'signal_id' | 'tags'>,
+  harness?: Pick<HarnessData, 'signals'>,
+): string | null {
+  const signalId = getPathSignalId(path);
+  if (!signalId) return null;
+  return harness?.signals.find((signal) => signal.id === signalId)?.name
+    ?? signalId.replace(/^sig_/, '');
 }
 
 export function getPathNodeRefKey(node: PathNode): string {
@@ -114,6 +144,49 @@ export function getPathNodeLabel(
   }
   const mergePoint = harness.mergePoints.find((candidate) => candidate.id === node.merge_point_id);
   return mergePoint?.name ?? node.merge_point_id;
+}
+
+export function getPathSegmentMeasurement(path: Path, segmentIndex: number) {
+  const from = path.nodes[segmentIndex];
+  const to = path.nodes[segmentIndex + 1];
+  if (!from || !to) return undefined;
+  const fromKey = getPathNodeRefKey(from);
+  const toKey = getPathNodeRefKey(to);
+  return path.measurements.find((measurement) => {
+    const measurementFromKey = getPathNodeRefKey(measurement.from);
+    const measurementToKey = getPathNodeRefKey(measurement.to);
+    return (
+      (measurementFromKey === fromKey && measurementToKey === toKey) ||
+      (measurementFromKey === toKey && measurementToKey === fromKey)
+    );
+  });
+}
+
+export interface ConnectorPairSegment {
+  path: Path;
+  segmentIndex: number;
+  from: ConnectorPathNode;
+  to: ConnectorPathNode;
+}
+
+export function getConnectorPairSegments(
+  harness: HarnessData,
+  connectorIdA: string,
+  connectorIdB: string,
+): ConnectorPairSegment[] {
+  const matches: ConnectorPairSegment[] = [];
+  for (const path of harness.paths) {
+    for (let segmentIndex = 0; segmentIndex < path.nodes.length - 1; segmentIndex++) {
+      const from = path.nodes[segmentIndex];
+      const to = path.nodes[segmentIndex + 1];
+      if (from.kind !== 'connector' || to.kind !== 'connector') continue;
+      const matchesPair =
+        (from.connector_id === connectorIdA && to.connector_id === connectorIdB) ||
+        (from.connector_id === connectorIdB && to.connector_id === connectorIdA);
+      if (matchesPair) matches.push({ path, segmentIndex, from, to });
+    }
+  }
+  return matches;
 }
 
 export function deriveSegments(harness: HarnessData): DerivedSegment[] {
@@ -137,17 +210,26 @@ export function deriveSegments(harness: HarnessData): DerivedSegment[] {
   return segments;
 }
 
+/** Valid cavity index for occupancy math; missing/invalid pins count as cavity 1. */
+export function normalizeOccupiedPinNumber(pinNumber: unknown): number {
+  return Number.isInteger(pinNumber) && (pinNumber as number) > 0
+    ? (pinNumber as number)
+    : 1;
+}
+
 export function getConnectorOccupancy(
   harness: HarnessData,
   connectorId: string,
 ): ConnectorOccupancy[] {
   const occupancy: ConnectorOccupancy[] = [];
   for (const path of harness.paths) {
-    const signalName = getPathSignalName(path);
+    const signalName = getPathSignalName(path, harness);
     for (const node of path.nodes) {
       if (node.kind !== 'connector' || node.connector_id !== connectorId) continue;
       occupancy.push({
-        pinNumber: node.pin_number,
+        // Legacy ring-terminal / placeholder nodes may omit pin_number; treat as cavity 1
+        // so Math.max(...pinNumbers) never collapses to NaN.
+        pinNumber: normalizeOccupiedPinNumber(node.pin_number),
         pathId: path.id,
         pathName: path.name,
         signalName,
@@ -174,7 +256,7 @@ export function getPortWireAppearance(
   return allMatch ? first : null;
 }
 
-function getPathNodeBundleKey(node: PathNode): string {
+export function getPathNodeBundleKey(node: PathNode): string {
   if (node.kind === 'connector') {
     return `connector:${node.connector_id}`;
   }
@@ -288,6 +370,60 @@ export function getVisibleSegments(
   });
 }
 
+/**
+ * Resolve the hierarchy sheet that can render an entity reference. Keep the
+ * current sheet when it already contains the target; otherwise prefer the
+ * sheet where the target has a concrete node or edge.
+ */
+export function getEntityRevealContext(
+  harness: HarnessData,
+  item: SelectedItem,
+  currentSpaceId: string | null,
+): string | null {
+  if (item.type === 'enclosure') {
+    const enclosure = harness.enclosures.find((candidate) => candidate.id === item.id);
+    if (!enclosure) return currentSpaceId;
+    return enclosure.parent === currentSpaceId ? currentSpaceId : enclosure.parent;
+  }
+
+  if (item.type === 'connector') {
+    const connector = harness.connectors.find((candidate) => candidate.id === item.id);
+    if (!connector) return currentSpaceId;
+    const owner = connector.parent
+      ? harness.enclosures.find((candidate) => candidate.id === connector.parent)
+      : undefined;
+    const visibleFromOwner = connector.parent === currentSpaceId;
+    const visibleOnParentSheet = owner?.parent === currentSpaceId;
+    if (visibleFromOwner || visibleOnParentSheet) return currentSpaceId;
+    return owner ? owner.parent : connector.parent;
+  }
+
+  if (item.type === 'mergePoint') {
+    const mergePoint = harness.mergePoints.find((candidate) => candidate.id === item.id);
+    if (!mergePoint) return currentSpaceId;
+    return mergePoint.parent === currentSpaceId ? currentSpaceId : mergePoint.parent;
+  }
+
+  const matchingPathIds = item.type === 'path'
+    ? new Set([item.id])
+    : new Set(
+        harness.paths
+          .filter((path) => getPathSignalId(path) === item.id)
+          .map((path) => path.id),
+      );
+  if (matchingPathIds.size === 0) return currentSpaceId;
+
+  const sheetContainsTarget = (spaceId: string | null) =>
+    getVisibleSegments(harness, spaceId).some((segment) => matchingPathIds.has(segment.pathId));
+  if (sheetContainsTarget(currentSpaceId)) return currentSpaceId;
+
+  const contexts: Array<string | null> = [
+    null,
+    ...harness.enclosures.map((enclosure) => enclosure.id),
+  ];
+  return contexts.find(sheetContainsTarget) ?? currentSpaceId;
+}
+
 export function countPathsTouchingConnectors(
   harness: HarnessData,
   connectorIds: Iterable<string>,
@@ -307,4 +443,190 @@ export function getPathById(
   pathId: string,
 ): Path | undefined {
   return harness.paths.find((path) => path.id === pathId);
+}
+
+/**
+ * Pick the next unused `mp_NNN` id by scanning existing merge points for the
+ * highest numeric suffix.  Non-numeric or legacy ids are ignored.
+ */
+export function nextMergePointId(harness: HarnessData): string {
+  let max = 0;
+  for (const mp of harness.mergePoints) {
+    const match = /^mp_(\d+)$/.exec(mp.id);
+    if (!match) continue;
+    const num = Number(match[1]);
+    if (Number.isFinite(num) && num > max) max = num;
+  }
+  return `mp_${String(max + 1).padStart(3, '0')}`;
+}
+
+/**
+ * Inverse of `getBundleIdForSegment`.  Returns the two endpoint ref keys, or
+ * null when the id does not match the current bundle format.
+ */
+export function parseBundleId(
+  bundleId: string,
+): { sourceRefKey: string; targetRefKey: string } | null {
+  if (!bundleId.startsWith('bundle:')) return null;
+  const body = bundleId.slice('bundle:'.length);
+  const pipe = body.indexOf('|');
+  if (pipe < 0) return null;
+  const a = body.slice(0, pipe);
+  const b = body.slice(pipe + 1);
+  if (!a || !b) return null;
+  return { sourceRefKey: a, targetRefKey: b };
+}
+
+/**
+ * Find the segment (consecutive node pair) in `path` whose bundle id matches
+ * `bundleId`.  `reversed` indicates the path traverses the segment from the
+ * bundle's target key toward its source key.  Returns null when the path does
+ * not cross this bundle.
+ */
+export function findPathSegmentForBundle(
+  path: Path,
+  bundleId: string,
+): { index: number; reversed: boolean } | null {
+  const parsed = parseBundleId(bundleId);
+  if (!parsed) return null;
+  for (let index = 0; index < path.nodes.length - 1; index++) {
+    const from = path.nodes[index];
+    const to = path.nodes[index + 1];
+    const fromKey = getPathNodeBundleKey(from);
+    const toKey = getPathNodeBundleKey(to);
+    const sorted = fromKey < toKey ? { source: fromKey, target: toKey } : { source: toKey, target: fromKey };
+    if (sorted.source === parsed.sourceRefKey && sorted.target === parsed.targetRefKey) {
+      return { index, reversed: fromKey !== parsed.sourceRefKey };
+    }
+  }
+  return null;
+}
+
+/**
+ * Insert a merge-point node into a path's node list inside the segment that
+ * matches `bundleId`.  Because promoting a junction always splits its bundle
+ * into sub-bundles (so no two coupled merges ever coexist on the same
+ * segment), we always insert directly between the two endpoint nodes.
+ * Returns a new Path with updated `nodes[]`; the original is not mutated.
+ */
+export function splicePathWithMerge(
+  path: Path,
+  bundleId: string,
+  mergePointId: string,
+): Path {
+  const match = findPathSegmentForBundle(path, bundleId);
+  if (!match) return path;
+  const nextNodes = [...path.nodes];
+  nextNodes.splice(match.index + 1, 0, { kind: 'merge', merge_point_id: mergePointId });
+  return { ...path, nodes: nextNodes };
+}
+
+/**
+ * Remove every reference to `mergePointId` from a path's node list.  Returns a
+ * new Path even when nothing changed, to keep call sites simple.
+ */
+export function removeMergeFromPath(path: Path, mergePointId: string): Path {
+  const filtered = path.nodes.filter(
+    (node) => !(node.kind === 'merge' && node.merge_point_id === mergePointId),
+  );
+  if (filtered.length === path.nodes.length) return path;
+  const measurements = path.measurements.filter(
+    (measurement) =>
+      !(
+        (measurement.from.kind === 'merge' && measurement.from.merge_point_id === mergePointId) ||
+        (measurement.to.kind === 'merge' && measurement.to.merge_point_id === mergePointId)
+      ),
+  );
+  return { ...path, nodes: filtered, measurements };
+}
+
+/**
+ * Delete a splice and reconnect whatever was on either side, as if the splice
+ * never existed:
+ * - Through-paths (`A → splice → B`) become `A → B`.
+ * - Exactly two stub paths that only meet at the splice are stitched into one
+ *   continuous path.
+ * - Unpairable stubs (0 or 3+ one-sided remnants) are dropped.
+ * - Measurements that referenced the splice are removed.
+ */
+export function dissolveMergePoint(harness: HarnessData, mergePointId: string): HarnessData {
+  if (!harness.mergePoints.some((mergePoint) => mergePoint.id === mergePointId)) {
+    return harness;
+  }
+
+  type Stub = { path: Path; nodes: PathNode[]; mergeAtStart: boolean };
+  const stubs: Stub[] = [];
+  const nextPaths: Path[] = [];
+
+  for (const path of harness.paths) {
+    const mergeIndexes: number[] = [];
+    for (let index = 0; index < path.nodes.length; index += 1) {
+      const node = path.nodes[index];
+      if (node.kind === 'merge' && node.merge_point_id === mergePointId) {
+        mergeIndexes.push(index);
+      }
+    }
+    if (mergeIndexes.length === 0) {
+      nextPaths.push(path);
+      continue;
+    }
+
+    const stripped = removeMergeFromPath(path, mergePointId);
+    if (stripped.nodes.length >= 2) {
+      nextPaths.push(stripped);
+      continue;
+    }
+    if (stripped.nodes.length >= 1 && mergeIndexes.length === 1) {
+      stubs.push({
+        path: stripped,
+        nodes: stripped.nodes,
+        mergeAtStart: mergeIndexes[0] === 0,
+      });
+    }
+  }
+
+  if (stubs.length === 2) {
+    const [leftStub, rightStub] = stubs;
+    const left = leftStub.mergeAtStart ? [...leftStub.nodes].reverse() : [...leftStub.nodes];
+    const right = rightStub.mergeAtStart ? [...rightStub.nodes] : [...rightStub.nodes].reverse();
+    nextPaths.push({
+      ...leftStub.path,
+      signal_id: leftStub.path.signal_id ?? rightStub.path.signal_id,
+      tags: [...new Set([...leftStub.path.tags, ...rightStub.path.tags])],
+      nodes: [...left, ...right],
+      measurements: [...leftStub.path.measurements, ...rightStub.path.measurements],
+    });
+  }
+
+  return {
+    ...harness,
+    mergePoints: harness.mergePoints.filter((mergePoint) => mergePoint.id !== mergePointId),
+    paths: nextPaths,
+  };
+}
+
+export function renumberConnectorPins(
+  harness: HarnessData,
+  connectorId: string,
+  orderedOldPinNumbers: number[],
+): HarnessData {
+  const mapping = new Map(orderedOldPinNumbers.map((oldPin, index) => [oldPin, index + 1]));
+  if (mapping.size !== orderedOldPinNumbers.length) {
+    throw new Error('Cavity order must contain each physical cavity exactly once');
+  }
+  const next = structuredClone(harness);
+  const remap = (node: PathNode) => {
+    if (node.kind === 'connector' && node.connector_id === connectorId) {
+      const newPin = mapping.get(node.pin_number);
+      if (newPin !== undefined) node.pin_number = newPin;
+    }
+  };
+  for (const wirePath of next.paths) {
+    wirePath.nodes.forEach(remap);
+    wirePath.measurements.forEach((measurement) => {
+      remap(measurement.from);
+      remap(measurement.to);
+    });
+  }
+  return next;
 }
