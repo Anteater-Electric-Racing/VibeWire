@@ -27,7 +27,9 @@ import {
 } from '../../lib/colors';
 import {
   countPathsTouchingConnectors,
+  getBundleSegments,
   getConnectorPairSegments,
+  formatConnectorOccupancySummary,
   getConnectorOccupancy,
   getConnectorPinGuideImage,
   getConnectorSideImage,
@@ -44,6 +46,7 @@ import {
   getPathSegmentMeasurement,
   getPathSignalId,
   getPathSignalName,
+  parseBundleId,
 } from '../../lib/harness';
 import { deriveManufacturingBundles } from '../../lib/manufacturing';
 import { normalizeDisplayName } from '../../lib/rename';
@@ -162,6 +165,39 @@ function PropertyRow({ label, value }: { label: string; value: string }) {
   );
 }
 
+function ReadOnlyInspectorControls({ children }: { children: React.ReactNode }) {
+  const isEditor = useHarnessStore((state) => state.session.isEditor);
+
+  const blockReadOnlyControl = (event: React.SyntheticEvent) => {
+    if (isEditor) return;
+    if (event.type === 'keydown' && (event.nativeEvent as KeyboardEvent).key === 'Tab') return;
+    const target = event.target as HTMLElement;
+    if (target.closest('[data-readonly-allowed]')) return;
+    const control = target.closest('button, input, textarea, select, [contenteditable="true"]');
+    const labelControl = target.closest('label')?.querySelector(
+      'input, textarea, select, [contenteditable="true"]',
+    );
+    if (!control && !labelControl) return;
+    event.preventDefault();
+    event.stopPropagation();
+  };
+
+  return (
+    <div
+      key={isEditor ? 'editable' : 'read-only'}
+      aria-readonly={!isEditor}
+      onBeforeInputCapture={blockReadOnlyControl}
+      onChangeCapture={blockReadOnlyControl}
+      onClickCapture={blockReadOnlyControl}
+      onKeyDownCapture={blockReadOnlyControl}
+      onPointerDownCapture={blockReadOnlyControl}
+      className={isEditor ? undefined : '[&_input]:cursor-not-allowed [&_textarea]:cursor-not-allowed [&_select]:cursor-not-allowed'}
+    >
+      {children}
+    </div>
+  );
+}
+
 function EntityLink({
   item,
   children,
@@ -177,6 +213,7 @@ function EntityLink({
   return (
     <button
       type="button"
+      data-readonly-allowed
       onClick={() => revealItem(item)}
       className={className}
       title={title ?? `Reveal ${item.type}`}
@@ -217,6 +254,9 @@ function NameEditor({
   label?: string;
 }) {
   const renameEntity = useHarnessStore((s) => s.renameEntity);
+  const pushUndoSnapshot = useHarnessStore((s) => s.pushUndoSnapshot);
+  const commitUndoSnapshot = useHarnessStore((s) => s.commitUndoSnapshot);
+  const cancelUndoSnapshot = useHarnessStore((s) => s.cancelUndoSnapshot);
   const [draft, setDraft] = useState(name);
   const [error, setError] = useState<string | null>(null);
   const cancelBlur = useRef(false);
@@ -240,12 +280,15 @@ function NameEditor({
         <input
           value={draft}
           onChange={(event) => setDraft(event.target.value)}
+          onFocus={() => pushUndoSnapshot(`rename:${type}:${id}`)}
           onBlur={(event) => {
             if (cancelBlur.current) {
               cancelBlur.current = false;
+              cancelUndoSnapshot();
               return;
             }
             commit(event.target.value);
+            commitUndoSnapshot();
           }}
           onKeyDown={(event) => {
             if (event.key === 'Enter') {
@@ -604,6 +647,8 @@ function ConnectorOccupancyTable({
                           {/* Path header row */}
                           <div className="flex items-center gap-1 px-1.5 py-0.5">
                             <button
+                              type="button"
+                              data-readonly-allowed
                               onClick={() => togglePath(expandKey)}
                               className="text-zinc-600 hover:text-zinc-400 text-[8px] shrink-0 transition-colors"
                               title={isExpanded ? 'Collapse route' : 'Expand route'}
@@ -695,11 +740,166 @@ function ConnectorOccupancyTable({
   );
 }
 
-function BundleInspector({ pathIds }: { pathIds: string[] }) {
+function BundleLengthEditor({
+  bundleId,
+  pathIds,
+  segments,
+}: {
+  bundleId: string;
+  pathIds: string[];
+  segments: ReturnType<typeof getBundleSegments>;
+}) {
+  const updateBundleSegmentLengths = useHarnessStore((s) => s.updateBundleSegmentLengths);
+  const pushUndoSnapshot = useHarnessStore((s) => s.pushUndoSnapshot);
+  const commitUndoSnapshot = useHarnessStore((s) => s.commitUndoSnapshot);
+  const cancelUndoSnapshot = useHarnessStore((s) => s.cancelUndoSnapshot);
+  const lengths = segments.map(
+    (segment) => getPathSegmentMeasurement(segment.path, segment.segmentIndex)?.length_mm,
+  );
+  const uniqueLengths = [...new Set(lengths.filter((length): length is number => length !== undefined))];
+  const allSame = lengths.length > 0
+    && lengths.every((length) => length !== undefined)
+    && uniqueLengths.length === 1;
+  const initialValue = allSame ? String(uniqueLengths[0]) : '';
+  const [draft, setDraft] = useState(initialValue);
+  const cancelBlur = useRef(false);
+
+  useEffect(() => {
+    setDraft(initialValue);
+  }, [initialValue]);
+
+  const commit = (value: string) => {
+    const trimmed = value.trim();
+    if (!trimmed) {
+      const existing = segments.filter((segment) => {
+        const lengthMm = getPathSegmentMeasurement(segment.path, segment.segmentIndex)?.length_mm;
+        return lengthMm !== undefined;
+      });
+      if (existing.length > 0) {
+        const confirmed = window.confirm([
+          `Clear stretch length on ${existing.length} wire${existing.length === 1 ? '' : 's'} in this bundle?`,
+          '',
+          ...existing.map((segment) => {
+            const lengthMm = getPathSegmentMeasurement(segment.path, segment.segmentIndex)?.length_mm;
+            return `• ${segment.path.name}: ${lengthMm} mm`;
+          }),
+        ].join('\n'));
+        if (!confirmed) {
+          setDraft(initialValue);
+          return;
+        }
+      }
+      setDraft('');
+      updateBundleSegmentLengths(bundleId, pathIds, undefined);
+      return;
+    }
+
+    const parsed = Number(trimmed);
+    if (!Number.isFinite(parsed) || parsed < 0) {
+      setDraft(initialValue);
+      return;
+    }
+    setDraft(String(parsed));
+
+    const withLength = segments.filter((segment) => {
+      const lengthMm = getPathSegmentMeasurement(segment.path, segment.segmentIndex)?.length_mm;
+      return lengthMm !== undefined;
+    });
+    if (
+      withLength.length === segments.length
+      && withLength.every((segment) =>
+        getPathSegmentMeasurement(segment.path, segment.segmentIndex)?.length_mm === parsed)
+    ) {
+      return;
+    }
+
+    if (withLength.length > 0) {
+      const confirmed = window.confirm([
+        `${withLength.length} wire${withLength.length === 1 ? '' : 's'} in this bundle already have a length:`,
+        '',
+        ...withLength.map((segment) => {
+          const lengthMm = getPathSegmentMeasurement(segment.path, segment.segmentIndex)?.length_mm;
+          return `• ${segment.path.name}: ${lengthMm} mm`;
+        }),
+        '',
+        `Apply ${parsed} mm to all ${segments.length} wires in this bundle?`,
+        '',
+        'This only changes the stretch on this bundle hop (e.g. connector → splice), not other segments of the path.',
+      ].join('\n'));
+      if (!confirmed) {
+        setDraft(initialValue);
+        return;
+      }
+    }
+
+    updateBundleSegmentLengths(bundleId, pathIds, parsed);
+  };
+
+  if (segments.length === 0) return null;
+
+  const mixed = !allSame && lengths.some((length) => length !== undefined);
+
+  return (
+    <div className="mb-2 p-1.5 rounded border border-zinc-700/50 bg-zinc-800/40">
+      <div className="flex items-center gap-1.5">
+        <span className="text-[9px] text-zinc-500 uppercase tracking-wide">Stretch</span>
+        <span className="text-[9px] text-zinc-600">
+          {segments.length} wire{segments.length === 1 ? '' : 's'}
+        </span>
+        <input
+          type="number"
+          min={0}
+          step="any"
+          inputMode="decimal"
+          value={draft}
+          onChange={(event) => setDraft(event.target.value)}
+          onFocus={() => pushUndoSnapshot(`bundle:${bundleId}:length`)}
+          onBlur={(event) => {
+            if (cancelBlur.current) {
+              cancelBlur.current = false;
+              cancelUndoSnapshot();
+              return;
+            }
+            commit(event.currentTarget.value);
+            commitUndoSnapshot();
+          }}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter') {
+              event.preventDefault();
+              event.currentTarget.blur();
+            } else if (event.key === 'Escape') {
+              event.preventDefault();
+              cancelBlur.current = true;
+              setDraft(initialValue);
+              event.currentTarget.blur();
+            }
+          }}
+          placeholder={mixed ? 'mixed' : '—'}
+          aria-label={`Length for all ${segments.length} wires in this bundle, in millimeters`}
+          className="ml-auto w-20 bg-zinc-800 border border-zinc-700 rounded px-1.5 py-0.5 text-right font-mono text-[10px] text-zinc-200 placeholder-zinc-600 focus:border-amber-500 focus:outline-none"
+        />
+        <span className="w-5 text-[9px] text-zinc-500">mm</span>
+      </div>
+      <div className="mt-1 text-[9px] text-zinc-600">
+        Applies to this bundle hop only
+        {mixed ? ' · some wires already have lengths' : ''}
+      </div>
+    </div>
+  );
+}
+
+function BundleInspector({
+  bundleId,
+  pathIds,
+}: {
+  bundleId: string;
+  pathIds: string[];
+}) {
   const harness = useHarnessStore((s) => s.harness);
   const connectorLibrary = useHarnessStore((s) => s.connectorLibrary);
   const manufacturing = useHarnessStore((s) => s.manufacturing);
   const openManufacturing = useHarnessStore((s) => s.openManufacturing);
+  const deletePathBundle = useHarnessStore((s) => s.deletePathBundle);
 
   if (!harness) return null;
 
@@ -709,22 +909,40 @@ function BundleInspector({ pathIds }: { pathIds: string[] }) {
 
   if (paths.length === 0) return null;
 
+  const segments = bundleId ? getBundleSegments(harness, bundleId, pathIds) : [];
+  const segmentByPathId = new Map(segments.map((segment) => [segment.path.id, segment]));
+  const parsedBundle = bundleId ? parseBundleId(bundleId) : null;
+
   const selectedPathIds = new Set(pathIds);
+  const selectedSegmentKeys = new Set(
+    segments.map((segment) => `${segment.path.id}:${segment.segmentIndex}`),
+  );
   const manufacturingBundle = deriveManufacturingBundles(
     harness,
     connectorLibrary,
     manufacturing,
   )
-    .map((bundle) => ({
-      bundle,
-      overlap: new Set(
+    .map((bundle) => {
+      const pathOverlap = new Set(
         bundle.wires
           .map((wire) => wire.pathId)
           .filter((pathId) => selectedPathIds.has(pathId)),
-      ).size,
-    }))
-    .filter((entry) => entry.overlap > 0)
-    .sort((a, b) => b.overlap - a.overlap)[0]?.bundle;
+      ).size;
+      const segmentOverlap = new Set(
+        bundle.wires.flatMap((wire) => {
+          const lo = Math.min(wire.fromNodeIndex, wire.toNodeIndex);
+          const hi = Math.max(wire.fromNodeIndex, wire.toNodeIndex);
+          return Array.from({ length: hi - lo }, (_, offset) => `${wire.pathId}:${lo + offset}`)
+            .filter((key) => selectedSegmentKeys.has(key));
+        }),
+      ).size;
+      return { bundle, pathOverlap, segmentOverlap };
+    })
+    .filter((entry) => entry.pathOverlap > 0)
+    .sort((a, b) =>
+      b.segmentOverlap - a.segmentOverlap
+      || b.pathOverlap - a.pathOverlap
+    )[0]?.bundle;
 
   const signalAppearances = new Map<string, { name: string; appearance: WireAppearance }>();
   for (const path of paths) {
@@ -738,6 +956,11 @@ function BundleInspector({ pathIds }: { pathIds: string[] }) {
     }
   }
 
+  const firstSegment = segments[0];
+  const hopLabel = firstSegment
+    ? `${getPathNodeLabel(harness, firstSegment.from)} → ${getPathNodeLabel(harness, firstSegment.to)}`
+    : null;
+
   return (
     <>
       <div className="flex items-center gap-2 mb-2">
@@ -747,11 +970,39 @@ function BundleInspector({ pathIds }: { pathIds: string[] }) {
         <span className="text-[9px] px-1.5 py-0.5 rounded bg-zinc-700 text-zinc-400">
           {paths.length} paths
         </span>
+        <button
+          type="button"
+          className="ml-auto text-[10px] text-zinc-500 hover:text-red-400 transition-colors"
+          onClick={() => {
+            const label = paths.length === 1
+              ? `Delete path “${paths[0].name}”?`
+              : `Delete all ${paths.length} paths in this bundle?`;
+            if (window.confirm(`${label}\n\nThis removes the complete underlying path${paths.length === 1 ? '' : 's'}, including any other visible hops.`)) {
+              deletePathBundle(bundleId, paths.map((path) => path.id));
+            }
+          }}
+        >
+          Delete
+        </button>
       </div>
+
+      {hopLabel && (
+        <div className="mb-2 text-[10px] text-zinc-400">
+          {hopLabel}
+          {parsedBundle && (parsedBundle.sourceRefKey.startsWith('merge:') || parsedBundle.targetRefKey.startsWith('merge:'))
+            ? ' · ends at splice'
+            : ''}
+        </div>
+      )}
+
+      {bundleId && (
+        <BundleLengthEditor bundleId={bundleId} pathIds={pathIds} segments={segments} />
+      )}
 
       {manufacturingBundle && (
         <button
           type="button"
+          data-readonly-allowed
           onClick={() => openManufacturing(manufacturingBundle.id)}
           className="w-full mb-2 px-2.5 py-1.5 rounded border border-amber-800/70 bg-amber-950/30 text-[10px] text-amber-300 hover:bg-amber-950/60 hover:border-amber-600 transition-colors"
         >
@@ -780,10 +1031,11 @@ function BundleInspector({ pathIds }: { pathIds: string[] }) {
           const sig = getPathSignalName(path);
           const signalId = getPathSignalId(path);
           const appearance = getWireAppearance(path);
-          const start = path.nodes[0] ? getPathNodeLabel(harness, path.nodes[0]) : 'Unknown';
-          const end = path.nodes[path.nodes.length - 1]
-            ? getPathNodeLabel(harness, path.nodes[path.nodes.length - 1])
-            : 'Unknown';
+          const segment = segmentByPathId.get(path.id);
+          const hopIndex = segment?.segmentIndex;
+          const lengthMm = segment
+            ? getPathSegmentMeasurement(path, segment.segmentIndex)?.length_mm
+            : undefined;
 
           return (
             <div
@@ -809,27 +1061,61 @@ function BundleInspector({ pathIds }: { pathIds: string[] }) {
                   </EntityLink>
                 )}
                 <span className="text-[9px] text-zinc-500 ml-auto">
-                  {appearance.label}
+                  {lengthMm !== undefined ? `${lengthMm} mm` : appearance.label}
                 </span>
               </div>
-              <div className="text-[9px] text-zinc-500 mt-0.5">
-                {path.nodes[0] ? (
-                  <PathNodeLink
-                    node={path.nodes[0]}
-                    className="hover:text-amber-300 underline underline-offset-2"
-                  >
-                    {start}
-                  </PathNodeLink>
-                ) : start}
-                {' → '}
-                {path.nodes[path.nodes.length - 1] ? (
-                  <PathNodeLink
-                    node={path.nodes[path.nodes.length - 1]}
-                    className="hover:text-amber-300 underline underline-offset-2"
-                  >
-                    {end}
-                  </PathNodeLink>
-                ) : end}
+              <div className="mt-1 pt-1 border-t border-zinc-700/30">
+                <div className="text-[9px] text-zinc-500 mb-0.5">
+                  Route · {path.nodes.length} node{path.nodes.length !== 1 ? 's' : ''}
+                </div>
+                <div className="space-y-px">
+                  {path.nodes.map((node, nodeIndex) => {
+                    const label = getPathNodeLabel(harness, node);
+                    const isHopEndpoint =
+                      hopIndex !== undefined &&
+                      (nodeIndex === hopIndex || nodeIndex === hopIndex + 1);
+                    const isLast = nodeIndex === path.nodes.length - 1;
+                    const afterHop =
+                      hopIndex !== undefined && nodeIndex === hopIndex;
+                    return (
+                      <div key={`${getPathNodeRefKey(node)}-${nodeIndex}`}>
+                        <div className="flex items-start gap-1.5">
+                          <div className="flex flex-col items-center shrink-0 w-3">
+                            <span
+                              className={`font-mono text-[8px] leading-none mt-0.5 ${
+                                isHopEndpoint ? 'text-amber-500' : 'text-zinc-600'
+                              }`}
+                            >
+                              {nodeIndex + 1}
+                            </span>
+                            {!isLast && (
+                              <span
+                                className={`text-[8px] leading-none mt-px ${
+                                  afterHop ? 'text-amber-700' : 'text-zinc-700'
+                                }`}
+                              >
+                                │
+                              </span>
+                            )}
+                          </div>
+                          <PathNodeLink
+                            node={node}
+                            className={`text-[10px] leading-tight ${
+                              isHopEndpoint
+                                ? 'text-amber-400 font-medium'
+                                : 'text-zinc-400 hover:text-amber-300 underline underline-offset-2'
+                            }`}
+                          >
+                            {label}
+                            {afterHop && (
+                              <span className="text-[8px] text-amber-600 ml-1">← this stretch</span>
+                            )}
+                          </PathNodeLink>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             </div>
           );
@@ -841,6 +1127,7 @@ function BundleInspector({ pathIds }: { pathIds: string[] }) {
 
 function EnclosureInspector({ enc }: { enc: Enclosure }) {
   const harness = useHarnessStore((s) => s.harness);
+  const connectorLibrary = useHarnessStore((s) => s.connectorLibrary);
   const updateEnclosureProperty = useHarnessStore((s) => s.updateEnclosureProperty);
   const addConnector = useHarnessStore((s) => s.addConnector);
   const [imgPickerOpen, setImgPickerOpen] = useState(false);
@@ -943,16 +1230,26 @@ function EnclosureInspector({ enc }: { enc: Enclosure }) {
           </div>
         ) : (
           <div className="space-y-0.5">
-            {directConnectors.map((c) => (
-              <EntityLink
-                key={c.id}
-                item={{ type: 'connector', id: c.id }}
-                className="w-full text-left flex items-center justify-between py-0.5 px-1.5 rounded hover:bg-zinc-800 transition-colors"
-              >
-                <span className="text-[11px] text-amber-400 hover:text-amber-300">{c.name}</span>
-                <span className="text-zinc-500 text-[10px]">{getConnectorOccupancy(harness, c.id).length} used</span>
-              </EntityLink>
-            ))}
+            {directConnectors.map((c) => {
+              const connectorType = connectorLibrary?.connector_types.find(
+                (type) => type.id === c.connector_type,
+              );
+              const occupancySummary = formatConnectorOccupancySummary(
+                getConnectorOccupancy(harness, c.id).length,
+                c,
+                connectorType,
+              );
+              return (
+                <EntityLink
+                  key={c.id}
+                  item={{ type: 'connector', id: c.id }}
+                  className="w-full text-left flex items-center justify-between py-0.5 px-1.5 rounded hover:bg-zinc-800 transition-colors"
+                >
+                  <span className="text-[11px] text-amber-400 hover:text-amber-300">{c.name}</span>
+                  <span className="text-zinc-500 text-[10px]">{occupancySummary}</span>
+                </EntityLink>
+              );
+            })}
           </div>
         )}
       </div>
@@ -1401,6 +1698,9 @@ function StretchLengthEditor({
   const updateConnectorPairSegmentLengths = useHarnessStore(
     (s) => s.updateConnectorPairSegmentLengths,
   );
+  const pushUndoSnapshot = useHarnessStore((s) => s.pushUndoSnapshot);
+  const commitUndoSnapshot = useHarnessStore((s) => s.commitUndoSnapshot);
+  const cancelUndoSnapshot = useHarnessStore((s) => s.cancelUndoSnapshot);
   const initialValue = lengthMm === undefined ? '' : String(lengthMm);
   const [draft, setDraft] = useState(initialValue);
   const cancelBlur = useRef(false);
@@ -1496,12 +1796,15 @@ function StretchLengthEditor({
           inputMode="decimal"
           value={draft}
           onChange={(event) => setDraft(event.target.value)}
+          onFocus={() => pushUndoSnapshot(`path:${pathId}:segment:${segmentIndex}:length`)}
           onBlur={(event) => {
             if (cancelBlur.current) {
               cancelBlur.current = false;
+              cancelUndoSnapshot();
               return;
             }
             commit(event.currentTarget.value);
+            commitUndoSnapshot();
           }}
           onKeyDown={(event) => {
             if (event.key === 'Enter') {
@@ -1527,6 +1830,9 @@ function StretchLengthEditor({
 
 function PathCommentEditor({ pathId, comment }: { pathId: string; comment: string }) {
   const updatePathProperty = useHarnessStore((s) => s.updatePathProperty);
+  const pushUndoSnapshot = useHarnessStore((s) => s.pushUndoSnapshot);
+  const commitUndoSnapshot = useHarnessStore((s) => s.commitUndoSnapshot);
+  const cancelUndoSnapshot = useHarnessStore((s) => s.cancelUndoSnapshot);
   const [draft, setDraft] = useState(comment);
   const cancelBlur = useRef(false);
 
@@ -1538,12 +1844,15 @@ function PathCommentEditor({ pathId, comment }: { pathId: string; comment: strin
     <textarea
       value={draft}
       onChange={(event) => setDraft(event.target.value)}
+      onFocus={() => pushUndoSnapshot(`path:${pathId}:property:notes`)}
       onBlur={(event) => {
         if (cancelBlur.current) {
           cancelBlur.current = false;
+          cancelUndoSnapshot();
           return;
         }
         updatePathProperty(pathId, 'notes', event.currentTarget.value);
+        commitUndoSnapshot();
       }}
       onKeyDown={(event) => {
         if (event.key === 'Escape') {
@@ -1561,19 +1870,39 @@ function PathCommentEditor({ pathId, comment }: { pathId: string; comment: strin
   );
 }
 
+const CREATE_NEW_SIGNAL_VALUE = '__create_new_signal__';
+
 function PathInspector({ path }: { path: Path }) {
   const harness = useHarnessStore((s) => s.harness);
+  const addSignal = useHarnessStore((s) => s.addSignal);
+  const updatePathSignal = useHarnessStore((s) => s.updatePathSignal);
   const updatePathProperty = useHarnessStore((s) => s.updatePathProperty);
+  const openSignalLibrary = useHarnessStore((s) => s.openSignalLibrary);
   if (!harness) return null;
 
   const signalName = getPathSignalName(path, harness);
   const signalId = getPathSignalId(path);
   const appearance = getWireAppearance(path);
   const wireColor = (path.properties?.wire_color ?? path.properties?.color ?? '').trim();
-  const signal = path.signal_id
-    ? harness.signals.find((candidate) => candidate.id === path.signal_id)
+  const signal = signalId
+    ? harness.signals.find((candidate) => candidate.id === signalId)
     : undefined;
   const colorDeviation = getPreferredWireColorDeviation(path, signal);
+  const changeSignal = (nextSignalId: string) => {
+    if (nextSignalId === CREATE_NEW_SIGNAL_VALUE) {
+      const createdSignalId = addSignal({
+        name: 'new signal',
+        tags: [],
+        properties: { preferred_wire_color: 'grey' },
+      });
+      if (!createdSignalId) return;
+      updatePathSignal(path.id, createdSignalId);
+      updatePathProperty(path.id, 'wire_color', 'grey');
+      openSignalLibrary(createdSignalId);
+      return;
+    }
+    updatePathSignal(path.id, nextSignalId || null);
+  };
   const segmentMeasurements = path.nodes.slice(0, -1).map((from, index) => {
     const to = path.nodes[index + 1];
     const fromKey = getPathNodeRefKey(from);
@@ -1605,12 +1934,34 @@ function PathInspector({ path }: { path: Path }) {
       <PropertyRow label="Stable ID" value={path.id} />
       <PropertyRow label="Nodes" value={String(path.nodes.length)} />
       <PropertyRow label="Segments" value={String(Math.max(0, path.nodes.length - 1))} />
+      <label className="flex items-center gap-2 py-0.5">
+        <span className="text-[10px] text-zinc-500 w-20 shrink-0 text-right">Signal</span>
+        <select
+          value={signalId ?? ''}
+          onChange={(event) => changeSignal(event.target.value)}
+          className="min-w-0 flex-1 rounded border border-zinc-700 bg-zinc-800 px-2 py-1 text-[11px] text-zinc-200 outline-none focus:border-amber-500"
+        >
+          {!signalId && <option value="">Select signal…</option>}
+          {signalId && !signal && (
+            <option value={signalId}>{signalName ?? signalId} · missing</option>
+          )}
+          {[...harness.signals]
+            .sort((left, right) => left.name.localeCompare(right.name))
+            .map((candidate) => (
+              <option key={candidate.id} value={candidate.id}>
+                {candidate.name} · {candidate.id}
+              </option>
+            ))}
+          <option disabled>──────────</option>
+          <option value={CREATE_NEW_SIGNAL_VALUE}>+ Create new signal</option>
+        </select>
+      </label>
       {signalId && (
         <div className="flex items-center gap-2 py-0.5">
           <span className="text-[10px] text-zinc-500 w-20 shrink-0 text-right">Signal ID</span>
           <EntityLink
             item={{ type: 'signal', id: signalId }}
-            className="text-[11px] text-amber-400 hover:text-amber-300"
+            className="truncate text-[10px] text-amber-400 hover:text-amber-300"
             title="Reveal signal"
           >
             {signalId}
@@ -1834,6 +2185,8 @@ function TextBoxInspector({ tb }: { tb: TextBoxLayout }) {
   const updateTextBox = useHarnessStore((s) => s.updateTextBox);
   const removeTextBox = useHarnessStore((s) => s.removeTextBox);
   const selectTextBox = useHarnessStore((s) => s.selectTextBox);
+  const pushUndoSnapshot = useHarnessStore((s) => s.pushUndoSnapshot);
+  const commitUndoSnapshot = useHarnessStore((s) => s.commitUndoSnapshot);
   const [localText, setLocalText] = useState(tb.text);
   useEffect(() => { setLocalText(tb.text); }, [tb.text]);
 
@@ -1855,7 +2208,11 @@ function TextBoxInspector({ tb }: { tb: TextBoxLayout }) {
         <textarea
           value={localText}
           onChange={(e) => setLocalText(e.target.value)}
-          onBlur={() => updateTextBox(tb.id, { text: localText })}
+          onFocus={() => pushUndoSnapshot(`textBox:${tb.id}:text`)}
+          onBlur={() => {
+            updateTextBox(tb.id, { text: localText });
+            commitUndoSnapshot();
+          }}
           rows={4}
           placeholder="Type here…"
           className="w-full text-[11px] px-2 py-1.5 bg-zinc-800 border border-zinc-700 rounded text-zinc-200 placeholder-zinc-600 focus:border-amber-600 focus:outline-none resize-none"
@@ -2045,11 +2402,13 @@ export function InspectorPanel() {
           </span>
         </div>
         <div className="px-2 pb-3">
-          {tb ? (
-            <TextBoxInspector tb={tb} />
-          ) : (
-            <div className="text-xs text-zinc-500 italic">Text box not found</div>
-          )}
+          <ReadOnlyInspectorControls>
+            {tb ? (
+              <TextBoxInspector tb={tb} />
+            ) : (
+              <div className="text-xs text-zinc-500 italic">Text box not found</div>
+            )}
+          </ReadOnlyInspectorControls>
         </div>
       </div>
     );
@@ -2064,7 +2423,7 @@ export function InspectorPanel() {
   }
 
   // Bundle inspector
-  if (selectedBundle && selectedBundle.length > 0) {
+  if (selectedBundle && selectedBundle.pathIds.length > 0) {
     return (
       <div ref={containerRef} className="overflow-y-auto h-full">
         <div className="px-2 py-1 flex items-center gap-1.5">
@@ -2076,7 +2435,9 @@ export function InspectorPanel() {
           </span>
         </div>
         <div className="px-2 pb-3">
-          <BundleInspector pathIds={selectedBundle} />
+          <ReadOnlyInspectorControls>
+            <BundleInspector bundleId={selectedBundle.id} pathIds={selectedBundle.pathIds} />
+          </ReadOnlyInspectorControls>
         </div>
       </div>
     );
@@ -2141,7 +2502,9 @@ export function InspectorPanel() {
           {typeLabels[selectedItem.type] ?? selectedItem.type}
         </span>
       </div>
-      <div className="px-2 pb-3">{renderContent()}</div>
+      <div className="px-2 pb-3">
+        <ReadOnlyInspectorControls>{renderContent()}</ReadOnlyInspectorControls>
+      </div>
     </div>
   );
 }

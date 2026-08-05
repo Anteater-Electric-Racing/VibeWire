@@ -1,4 +1,4 @@
-import { create } from 'zustand';
+import { create, type StateCreator } from 'zustand';
 import type {
   AppView,
   BackgroundLayout,
@@ -17,10 +17,14 @@ import type {
   MergePointLayouts,
   NodeLayout,
   Path,
+  PathMeasurement,
+  PathNode,
   PortLayouts,
   RotationLayouts,
+  SelectedBundle,
   SelectedItem,
   Signal,
+  SignalPropertyDefinition,
   SizeLayouts,
   SubsystemDocument,
   SubsystemEntityLayout,
@@ -34,6 +38,7 @@ import type {
   WaypointLayouts,
 } from '../types';
 import {
+  applySpanTotalLength,
   assignManufacturingEndpointGender,
   EMPTY_MANUFACTURING_DOCUMENT,
   MANUFACTURING_STEPS,
@@ -44,6 +49,7 @@ import {
   deriveBundles,
   findPathSegmentForBundle,
   GENERIC_MULTIPIN_TYPE_ID,
+  getBundleSegments,
   getConnectorPairSegments,
   getConnectorOccupancy,
   getConnectorSupportedKeyings,
@@ -60,6 +66,7 @@ import {
   normalizeConnectorKeying,
   parseBundleId,
   dissolveMergePoint,
+  mergeConnectors,
   renumberConnectorPins,
   splicePathWithMerge,
 } from '../lib/harness';
@@ -68,13 +75,57 @@ import {
   resolveConnectorRenderedSize,
 } from '../lib/connectorSize';
 import {
+  normalizeDisplayName,
   renameConnectorType as renameConnectorTypeInLibrary,
   renameHarnessEntity,
   renameSubsystem as renameSubsystemDocument,
   renameSystem as renameSystemDocument,
 } from '../lib/rename';
+import {
+  applyHarnessDiff,
+  applyLibraryDiff,
+  applyLayoutPatch,
+  applyRecordDiff,
+  changedHarnessEntityIds,
+  deepEqual,
+  diffHarness,
+  diffLayouts,
+  diffLibrary,
+  diffRecord,
+  emptyLayouts,
+  isHarnessDiffEmpty,
+  isLayoutPatchEmpty,
+  isLibraryDiffEmpty,
+  isRecordDiffEmpty,
+  mergeRemoteLayouts,
+  mergeRemoteRecord,
+  normalizeLayouts,
+  rebaseHarness,
+  rebaseLibrary,
+} from '../lib/sync/diff';
+import type {
+  AttributionEntry,
+  CollaborationDocumentState,
+  CollaborationLayouts,
+  CollaborationSession,
+  LoginOutcome,
+  MapPatch,
+  PeerPresence,
+  PresenceTargetKind,
+  PresenceUpdate,
+  RevisionConflictResponse,
+  RevisionWriter,
+  SessionUser,
+  SyncConflict,
+  SyncPayload,
+  SyncStatus,
+  UndoStaleness,
+} from '../types/collab';
 
-interface LayoutSnapshot {
+interface UndoSnapshot {
+  harness: HarnessData | null;
+  connectorLibrary: ConnectorLibrary | null;
+  manufacturing: ManufacturingDocument;
   nodeLayouts: NodeLayout;
   portLayouts: PortLayouts;
   sizeLayouts: SizeLayouts;
@@ -86,12 +137,22 @@ interface LayoutSnapshot {
   junctionLayouts: JunctionLayouts;
   mergePointLayouts: MergePointLayouts;
   rotationLayouts: RotationLayouts;
-  subsystemLayouts: Record<string, Pick<SubsystemDocument, 'enclosures' | 'devices' | 'connectors'>>;
+  subsystems: Record<string, SubsystemDocument>;
+  selectedItem: SelectedItem | null;
+  selectedBundle: SelectedBundle | null;
+  selectedTextBoxId: string | null;
+  serverRev: number;
+  libraryRev: number;
+  capturedAt: number;
 }
 
-interface StructuralSnapshot {
-  harness: HarnessData;
-  subsystems: Record<string, SubsystemDocument>;
+interface UndoEntry {
+  before: UndoSnapshot;
+  after: UndoSnapshot;
+  actionKey: string;
+  capturedAt: number;
+  updatedAt: number;
+  active: boolean;
 }
 
 export interface DeleteImpact {
@@ -104,13 +165,19 @@ export interface DeleteImpact {
 
 const MAX_HISTORY = 60;
 
-interface HarnessStore {
+export interface HarnessStore {
   harness: HarnessData | null;
+  serverHarness: HarnessData | null;
   connectorLibrary: ConnectorLibrary | null;
+  serverConnectorLibrary: ConnectorLibrary | null;
   manufacturing: ManufacturingDocument;
+  serverManufacturing: ManufacturingDocument;
+  serverLayouts: CollaborationLayouts;
+  serverSubsystems: Record<string, SubsystemDocument>;
   manufacturingTargetBundleId: string | null;
   appView: AppView;
   connectorLibraryTargetId: string | null;
+  signalLibraryTargetId: string | null;
   activeHarnessName: string;
   availableHarnesses: string[];
   selectedItem: SelectedItem | null;
@@ -129,7 +196,7 @@ interface HarnessStore {
   connectorTypeSizes: ConnectorTypeSizes;
   textBoxLayouts: TextBoxLayouts;
   selectedTextBoxId: string | null;
-  selectedBundle: string[] | null;
+  selectedBundle: SelectedBundle | null;
   revealRequest: { item: SelectedItem; requestId: number } | null;
   revealRequestSequence: number;
   waypointLayouts: WaypointLayouts;
@@ -140,27 +207,57 @@ interface HarnessStore {
   subsystems: Record<string, SubsystemDocument>;
   activeSubsystemId: string | null;
   mutationError: string | null;
-  structuralUndoStack: StructuralSnapshot[];
+  session: CollaborationSession;
+  peers: Record<string, PeerPresence>;
+  serverRev: number;
+  libraryRev: number;
+  lastWriter: RevisionWriter | null;
+  lastWriterAt: number | null;
+  syncStatus: SyncStatus;
+  conflict: SyncConflict | null;
+  collabAvailable: boolean;
+  attribution: Record<string, AttributionEntry>;
+  interactingEntities: Set<string>;
+  queuedRemoteUpdates: SyncPayload[];
 
   setActiveHarnessName: (name: string) => Promise<boolean>;
   setAvailableHarnesses: (harnesses: string[]) => void;
   renameSystem: (name: string) => void;
   openConnectorLibrary: (typeId?: string | null) => void;
+  openSignalLibrary: (signalId?: string | null) => void;
   openManufacturing: (bundleId?: string | null) => void;
   showBundleInHierarchy: (pathIds: string[]) => void;
+  inspectEntity: (item: SelectedItem) => void;
   closeConnectorLibrary: () => void;
   setEditingSurface: (surface: EditingSurface) => void;
   loadSubsystems: (documents: SubsystemDocument[]) => void;
   setActiveSubsystem: (id: string | null) => void;
   upsertSubsystem: (document: SubsystemDocument) => void;
+  acceptSavedSubsystem: (document: SubsystemDocument) => void;
   renameSubsystem: (id: string, name: string) => void;
   updateSubsystemEntityLayout: (kind: 'enclosures' | 'devices' | 'connectors', id: string, layout: SubsystemEntityLayout) => void;
   resizeSubsystemEntityLayout: (kind: 'enclosures' | 'devices', id: string, layout: SubsystemEntityLayout) => void;
   addEntityToActiveSubsystem: (type: 'enclosure' | 'connector', id: string) => void;
   removeEntityFromActiveSubsystem: (type: 'enclosure' | 'connector', id: string) => void;
   renumberConnectorCavities: (connectorId: string, orderedOldPinNumbers: number[]) => void;
+  /**
+   * Absorb `sourceId` into `targetId` (same parent bulkheads). Prefers keeping
+   * non-generated hardware. Returns the surviving connector id, or null on failure.
+   */
+  mergeBulkheadConnectors: (sourceId: string, targetId: string) => string | null;
   getDeleteImpact: (type: 'enclosure' | 'connector' | 'mergePoint' | 'path' | 'signal', id: string) => DeleteImpact;
   deleteEntityCascade: (type: 'enclosure' | 'connector' | 'mergePoint' | 'path' | 'signal', id: string) => void;
+  deletePathBundle: (bundleId: string, pathIds: string[]) => void;
+  addSignal: (input: Pick<Signal, 'name' | 'tags' | 'properties'>) => string | null;
+  addSignalPropertyDefinition: (
+    input: Pick<SignalPropertyDefinition, 'name' | 'options'>,
+  ) => string | null;
+  updateSignalPropertyDefinition: (
+    id: string,
+    patch: Partial<Pick<SignalPropertyDefinition, 'name' | 'options'>>,
+  ) => void;
+  deleteSignalPropertyDefinition: (id: string) => void;
+  addEnclosure: (input: Pick<Enclosure, 'name' | 'parent' | 'container'>) => string | null;
   addConnector: (parentId: string) => string | null;
   setConnectorType: (connectorId: string, typeId: string) => void;
   setConnectorKeying: (connectorId: string, keying: string | undefined) => void;
@@ -175,19 +272,57 @@ interface HarnessStore {
   renameEntity: (type: 'enclosure' | 'connector' | 'mergePoint' | 'path' | 'signal', id: string, name: string) => void;
   updateSignalName: (signalId: string, name: string) => void;
   updateSignalProperty: (signalId: string, key: string, value: string) => void;
+  updatePathSignal: (pathId: string, signalId: string | null) => void;
   updatePathProperty: (pathId: string, key: string, value: string) => void;
   updatePathSegmentLength: (pathId: string, segmentIndex: number, lengthMm: number | undefined) => void;
+  updatePathSpanLength: (
+    pathId: string,
+    fromNodeIndex: number,
+    toNodeIndex: number,
+    lengthMm: number | undefined,
+  ) => void;
+  updatePathSpanLengths: (
+    updates: Array<{
+      pathId: string;
+      fromNodeIndex: number;
+      toNodeIndex: number;
+      lengthMm: number | undefined;
+    }>,
+  ) => void;
   updateConnectorPairSegmentLengths: (pathId: string, segmentIndex: number, lengthMm: number) => void;
+  updateBundleSegmentLengths: (
+    bundleId: string,
+    pathIds: string[],
+    lengthMm: number | undefined,
+  ) => void;
   setMutationError: (message: string | null) => void;
-  pushStructuralSnapshot: () => void;
-  undoStructuralMutation: () => void;
   resetForHarnessSwitch: () => void;
+  login: (login: string) => Promise<LoginOutcome>;
+  logout: () => Promise<void>;
+  refreshSession: () => Promise<void>;
+  /** Arms editing for a remembered identity. Requires an explicit user action. */
+  activateEditSession: () => void;
+  publishPresence: (partial: PresenceUpdate) => void;
+  setInteracting: (kind: PresenceTargetKind, id: string, active: boolean) => void;
+  dismissConflict: () => void;
+  setCollabAvailable: (available: boolean) => void;
+  setSyncStatus: (status: SyncStatus) => void;
+  replacePeers: (peers: PeerPresence[]) => void;
+  loadCollaborationMeta: (meta: {
+    serverRev: number;
+    libraryRev: number;
+    lastWriter: RevisionWriter | null;
+    attribution: Record<string, AttributionEntry>;
+    collabAvailable: boolean;
+  }) => void;
+  applyRemoteSync: (payload: SyncPayload) => void;
 
   loadHarness: (data: HarnessData) => void;
   loadConnectorLibrary: (data: ConnectorLibrary) => void;
   loadManufacturing: (data: ManufacturingDocument) => void;
   updateManufacturingStep: (
     bundleId: string,
+    componentKey: string,
     step: ManufacturingStep,
     completed: boolean,
   ) => void;
@@ -226,7 +361,7 @@ interface HarnessStore {
   updateMergePointLayout: (contextKey: string, mergePointId: string, x: number, y: number) => void;
 
   setDrillDown: (encId: string | null) => void;
-  setSelectedBundle: (pathIds: string[] | null) => void;
+  setSelectedBundle: (bundle: SelectedBundle | null) => void;
 
   setEdgeWaypoints: (edgeId: string, waypoints: WaypointItem[]) => void;
   clearEdgeWaypoints: (edgeId: string) => void;
@@ -241,9 +376,12 @@ interface HarnessStore {
   draggingEdgeInfo: { edgeId: string; position: { x: number; y: number }; waypointIndex?: number } | null;
   setDraggingEdgeInfo: (info: { edgeId: string; position: { x: number; y: number }; waypointIndex?: number } | null) => void;
 
-  undoStack: LayoutSnapshot[];
-  redoStack: LayoutSnapshot[];
-  pushUndoSnapshot: () => void;
+  undoStack: UndoEntry[];
+  redoStack: UndoEntry[];
+  pushUndoSnapshot: (actionKey?: string) => void;
+  commitUndoSnapshot: () => void;
+  cancelUndoSnapshot: () => void;
+  getUndoAffectedEntities: () => string[];
   undo: () => void;
   redo: () => void;
   canUndo: () => boolean;
@@ -273,10 +411,27 @@ interface HarnessStore {
 }
 
 function normalizeHarness(data: HarnessData): HarnessData {
-  const normalized = structuredClone(data) as HarnessData & { pcbs?: unknown[]; wires?: unknown[] };
+  type LegacyPcb = {
+    id: string;
+    name: string;
+    parent?: string | null;
+    tags?: string[];
+    properties?: Record<string, string>;
+  };
+  type LegacyPathNode = PathNode & { id?: string };
+  type LegacyMeasurement = Partial<PathMeasurement> & {
+    from_node_id?: string;
+    to_node_id?: string;
+    length_mm?: number;
+    note?: string;
+  };
+  const normalized = structuredClone(data) as HarnessData & {
+    pcbs?: LegacyPcb[];
+    wires?: unknown[];
+  };
 
-  if (Array.isArray((normalized as any).pcbs)) {
-    for (const pcb of (normalized as any).pcbs) {
+  if (Array.isArray(normalized.pcbs)) {
+    for (const pcb of normalized.pcbs) {
       normalized.enclosures.push({
         id: pcb.id,
         name: pcb.name,
@@ -286,12 +441,13 @@ function normalizeHarness(data: HarnessData): HarnessData {
         properties: pcb.properties ?? {},
       });
     }
-    delete (normalized as any).pcbs;
+    delete normalized.pcbs;
   }
 
   normalized.mergePoints ??= [];
   normalized.paths ??= [];
   normalized.signals ??= [];
+  normalized.signalPropertyDefinitions ??= [];
 
   for (const enclosure of normalized.enclosures) {
     enclosure.tags ??= [];
@@ -303,7 +459,7 @@ function normalizeHarness(data: HarnessData): HarnessData {
     connector.tags ??= [];
     connector.properties ??= {};
     connector.parent ??= null;
-    delete (connector as any).pins;
+    delete (connector as Connector & { pins?: unknown }).pins;
   }
 
   for (const mergePoint of normalized.mergePoints) {
@@ -317,24 +473,25 @@ function normalizeHarness(data: HarnessData): HarnessData {
     path.name ??= path.id;
     path.tags ??= [];
     path.properties ??= {};
-    const rawNodes = (path.nodes ?? []) as Array<any>;
-    const legacyNodeById = new Map<string, any>();
+    const rawNodes = (path.nodes ?? []) as LegacyPathNode[];
+    const legacyNodeById = new Map<string, LegacyPathNode>();
     for (const rawNode of rawNodes) {
-      if (typeof rawNode?.id === 'string') legacyNodeById.set(rawNode.id, rawNode);
+      if (typeof rawNode.id === 'string') legacyNodeById.set(rawNode.id, rawNode);
     }
     path.nodes = rawNodes.map((rawNode) => {
-      const { id: _legacyId, ...nodeWithoutId } = rawNode ?? {};
+      const nodeWithoutId = { ...rawNode };
+      delete nodeWithoutId.id;
       return nodeWithoutId;
     });
-    path.measurements = (path.measurements ?? []).map((measurement: any) => {
-      if (measurement?.from && measurement?.to) return measurement;
-      const fromNode = typeof measurement?.from_node_id === 'string'
+    path.measurements = ((path.measurements ?? []) as LegacyMeasurement[]).map((measurement) => {
+      if (measurement.from && measurement.to) return measurement as PathMeasurement;
+      const fromNode = typeof measurement.from_node_id === 'string'
         ? legacyNodeById.get(measurement.from_node_id)
         : null;
-      const toNode = typeof measurement?.to_node_id === 'string'
+      const toNode = typeof measurement.to_node_id === 'string'
         ? legacyNodeById.get(measurement.to_node_id)
         : null;
-      if (!fromNode || !toNode) return measurement;
+      if (!fromNode || !toNode) return measurement as PathMeasurement;
       return {
         from: fromNode.kind === 'connector'
           ? { kind: 'connector', connector_id: fromNode.connector_id, pin_number: fromNode.pin_number }
@@ -384,8 +541,11 @@ function setPathSegmentLength(
   return true;
 }
 
-function makeSnapshot(state: HarnessStore): LayoutSnapshot {
+function makeSnapshot(state: HarnessStore): UndoSnapshot {
   return {
+    harness: state.harness,
+    connectorLibrary: state.connectorLibrary,
+    manufacturing: state.manufacturing,
     nodeLayouts: state.nodeLayouts,
     portLayouts: state.portLayouts,
     sizeLayouts: state.sizeLayouts,
@@ -397,24 +557,383 @@ function makeSnapshot(state: HarnessStore): LayoutSnapshot {
     junctionLayouts: state.junctionLayouts,
     mergePointLayouts: state.mergePointLayouts,
     rotationLayouts: state.rotationLayouts,
-    subsystemLayouts: Object.fromEntries(
-      Object.entries(state.subsystems).map(([id, subsystem]) => [id, {
-        enclosures: subsystem.enclosures,
-        devices: subsystem.devices,
-        connectors: subsystem.connectors,
-      }]),
-    ),
+    subsystems: state.subsystems,
+    selectedItem: state.selectedItem,
+    selectedBundle: state.selectedBundle,
+    selectedTextBoxId: state.selectedTextBoxId,
+    serverRev: state.serverRev,
+    libraryRev: state.libraryRev,
+    capturedAt: Date.now(),
   };
 }
 
-function restoreSnapshot(state: HarnessStore, snapshot: LayoutSnapshot) {
-  const { subsystemLayouts, ...layoutState } = snapshot;
-  const subsystems = { ...state.subsystems };
-  for (const [id, layouts] of Object.entries(subsystemLayouts)) {
-    const subsystem = subsystems[id];
-    if (subsystem) subsystems[id] = { ...subsystem, ...layouts };
+function applyNullableHarnessDelta(
+  current: HarnessData | null,
+  from: HarnessData | null,
+  to: HarnessData | null,
+): HarnessData | null {
+  if (from && to && current) {
+    const diff = diffHarness(from, to);
+    return isHarnessDiffEmpty(diff) ? current : applyHarnessDiff(current, diff);
   }
-  return { ...layoutState, subsystems };
+  return from === to ? current : to;
+}
+
+function applyNullableLibraryDelta(
+  current: ConnectorLibrary | null,
+  from: ConnectorLibrary | null,
+  to: ConnectorLibrary | null,
+): ConnectorLibrary | null {
+  if (from && to && current) {
+    const diff = diffLibrary(from, to);
+    return isLibraryDiffEmpty(diff) ? current : applyLibraryDiff(current, diff);
+  }
+  return from === to ? current : to;
+}
+
+function applySnapshotDelta(
+  base: UndoSnapshot,
+  from: UndoSnapshot,
+  to: UndoSnapshot,
+): UndoSnapshot {
+  const layouts = applyLayoutPatch(
+    {
+      nodes: base.nodeLayouts,
+      ports: base.portLayouts,
+      sizes: base.sizeLayouts,
+      free: base.freePortLayouts,
+      backgrounds: base.backgroundLayouts,
+      connectorTypeSizes: base.connectorTypeSizes,
+      textBoxes: base.textBoxLayouts,
+      waypoints: base.waypointLayouts,
+      junctions: base.junctionLayouts,
+      mergePoints: base.mergePointLayouts,
+      rotations: base.rotationLayouts,
+    },
+    diffLayouts(
+      {
+        nodes: from.nodeLayouts,
+        ports: from.portLayouts,
+        sizes: from.sizeLayouts,
+        free: from.freePortLayouts,
+        backgrounds: from.backgroundLayouts,
+        connectorTypeSizes: from.connectorTypeSizes,
+        textBoxes: from.textBoxLayouts,
+        waypoints: from.waypointLayouts,
+        junctions: from.junctionLayouts,
+        mergePoints: from.mergePointLayouts,
+        rotations: from.rotationLayouts,
+      },
+      {
+        nodes: to.nodeLayouts,
+        ports: to.portLayouts,
+        sizes: to.sizeLayouts,
+        free: to.freePortLayouts,
+        backgrounds: to.backgroundLayouts,
+        connectorTypeSizes: to.connectorTypeSizes,
+        textBoxes: to.textBoxLayouts,
+        waypoints: to.waypointLayouts,
+        junctions: to.junctionLayouts,
+        mergePoints: to.mergePointLayouts,
+        rotations: to.rotationLayouts,
+      },
+    ),
+  );
+  const manufacturingDiff = diffRecord(
+    from.manufacturing.bundles,
+    to.manufacturing.bundles,
+  );
+  const subsystemDiff = diffRecord(from.subsystems, to.subsystems);
+  return {
+    ...base,
+    harness: applyNullableHarnessDelta(base.harness, from.harness, to.harness),
+    connectorLibrary: applyNullableLibraryDelta(
+      base.connectorLibrary,
+      from.connectorLibrary,
+      to.connectorLibrary,
+    ),
+    manufacturing: isRecordDiffEmpty(manufacturingDiff)
+      ? base.manufacturing
+      : {
+          ...base.manufacturing,
+          bundles: applyRecordDiff(base.manufacturing.bundles, manufacturingDiff),
+        },
+    nodeLayouts: layouts.nodes,
+    portLayouts: layouts.ports,
+    sizeLayouts: layouts.sizes,
+    freePortLayouts: layouts.free,
+    backgroundLayouts: layouts.backgrounds,
+    connectorTypeSizes: layouts.connectorTypeSizes,
+    textBoxLayouts: layouts.textBoxes,
+    waypointLayouts: layouts.waypoints,
+    junctionLayouts: layouts.junctions,
+    mergePointLayouts: layouts.mergePoints,
+    rotationLayouts: layouts.rotations,
+    subsystems: isRecordDiffEmpty(subsystemDiff)
+      ? base.subsystems
+      : applyRecordDiff(base.subsystems, subsystemDiff),
+    selectedItem: deepEqual(from.selectedItem, to.selectedItem) ? base.selectedItem : to.selectedItem,
+    selectedBundle: deepEqual(from.selectedBundle, to.selectedBundle) ? base.selectedBundle : to.selectedBundle,
+    selectedTextBoxId: from.selectedTextBoxId === to.selectedTextBoxId
+      ? base.selectedTextBoxId
+      : to.selectedTextBoxId,
+    capturedAt: Date.now(),
+  };
+}
+
+function snapshotsEqual(left: UndoSnapshot, right: UndoSnapshot): boolean {
+  return left.harness === right.harness
+    && left.connectorLibrary === right.connectorLibrary
+    && left.manufacturing === right.manufacturing
+    && left.nodeLayouts === right.nodeLayouts
+    && left.portLayouts === right.portLayouts
+    && left.sizeLayouts === right.sizeLayouts
+    && left.freePortLayouts === right.freePortLayouts
+    && left.backgroundLayouts === right.backgroundLayouts
+    && left.connectorTypeSizes === right.connectorTypeSizes
+    && left.textBoxLayouts === right.textBoxLayouts
+    && left.waypointLayouts === right.waypointLayouts
+    && left.junctionLayouts === right.junctionLayouts
+    && left.mergePointLayouts === right.mergePointLayouts
+    && left.rotationLayouts === right.rotationLayouts
+    && left.subsystems === right.subsystems
+    && deepEqual(left.selectedItem, right.selectedItem)
+    && deepEqual(left.selectedBundle, right.selectedBundle)
+    && left.selectedTextBoxId === right.selectedTextBoxId;
+}
+
+function appendUndoEntry(stack: UndoEntry[], entry: UndoEntry): UndoEntry[] {
+  const next = [...stack, entry];
+  return next.length > MAX_HISTORY ? next.slice(-MAX_HISTORY) : next;
+}
+
+function historyPatch(
+  state: HarnessStore,
+  patch: Partial<HarnessStore>,
+  actionKey: string,
+): Partial<HarnessStore> {
+  const beforeMutation = makeSnapshot(state);
+  const afterMutation = makeSnapshot({ ...state, ...patch } as HarnessStore);
+  if (snapshotsEqual(beforeMutation, afterMutation)) return patch;
+
+  const now = Date.now();
+  const top = state.undoStack.at(-1);
+  if (top?.active) {
+    const after = applySnapshotDelta(top.after, beforeMutation, afterMutation);
+    const entry = { ...top, after, updatedAt: now };
+    return {
+      ...patch,
+      undoStack: [...state.undoStack.slice(0, -1), entry],
+      redoStack: [],
+    };
+  }
+  if (top?.actionKey === actionKey && now - top.updatedAt <= 2_000) {
+    const after = applySnapshotDelta(top.after, beforeMutation, afterMutation);
+    const entry = { ...top, after, updatedAt: now };
+    return {
+      ...patch,
+      undoStack: [...state.undoStack.slice(0, -1), entry],
+      redoStack: [],
+    };
+  }
+  const entry: UndoEntry = {
+    before: beforeMutation,
+    after: afterMutation,
+    actionKey,
+    capturedAt: now,
+    updatedAt: now,
+    active: false,
+  };
+  return {
+    ...patch,
+    undoStack: appendUndoEntry(state.undoStack, entry),
+    redoStack: [],
+  };
+}
+
+function changedLayoutIds(from: UndoSnapshot, to: UndoSnapshot): string[] {
+  const diff = diffLayouts({
+    nodes: from.nodeLayouts,
+    ports: from.portLayouts,
+    sizes: from.sizeLayouts,
+    free: from.freePortLayouts,
+    backgrounds: from.backgroundLayouts,
+    connectorTypeSizes: from.connectorTypeSizes,
+    textBoxes: from.textBoxLayouts,
+    waypoints: from.waypointLayouts,
+    junctions: from.junctionLayouts,
+    mergePoints: from.mergePointLayouts,
+    rotations: from.rotationLayouts,
+  }, {
+    nodes: to.nodeLayouts,
+    ports: to.portLayouts,
+    sizes: to.sizeLayouts,
+    free: to.freePortLayouts,
+    backgrounds: to.backgroundLayouts,
+    connectorTypeSizes: to.connectorTypeSizes,
+    textBoxes: to.textBoxLayouts,
+    waypoints: to.waypointLayouts,
+    junctions: to.junctionLayouts,
+    mergePoints: to.mergePointLayouts,
+    rotations: to.rotationLayouts,
+  });
+  const ids = new Set<string>();
+  for (const value of Object.values(diff.patch)) {
+    for (const id of Object.keys(value ?? {})) ids.add(id);
+  }
+  for (const value of Object.values(diff.removed)) {
+    if (Array.isArray(value)) value.forEach((id) => ids.add(id));
+    else Object.values(value ?? {}).flat().forEach((id) => ids.add(id));
+  }
+  return [...ids];
+}
+
+function getEntryAffectedEntities(entry: UndoEntry): string[] {
+  const affected: string[] = [];
+  if (entry.before.harness && entry.after.harness) {
+    const diff = diffHarness(entry.before.harness, entry.after.harness);
+    if (diff.metadata) affected.push('system name');
+    affected.push(...changedHarnessEntityIds(diff));
+  } else if (entry.before.harness !== entry.after.harness) {
+    affected.push('harness');
+  }
+  if (entry.before.connectorLibrary && entry.after.connectorLibrary) {
+    const diff = diffLibrary(entry.before.connectorLibrary, entry.after.connectorLibrary);
+    affected.push(...Object.keys(diff.connectorTypes.patch), ...diff.connectorTypes.removed);
+  } else if (entry.before.connectorLibrary !== entry.after.connectorLibrary) {
+    affected.push('connector library');
+  }
+  affected.push(...changedLayoutIds(entry.before, entry.after));
+  const subsystemDiff = diffRecord(entry.before.subsystems, entry.after.subsystems);
+  affected.push(...Object.keys(subsystemDiff.patch), ...subsystemDiff.removed);
+  const manufacturingDiff = diffRecord(
+    entry.before.manufacturing.bundles,
+    entry.after.manufacturing.bundles,
+  );
+  affected.push(...Object.keys(manufacturingDiff.patch), ...manufacturingDiff.removed);
+  return [...new Set(affected)];
+}
+
+function findAffectedHarnessItem(
+  harness: HarnessData | null,
+  affectedIds: string[],
+): SelectedItem | null {
+  if (!harness) return null;
+  for (const id of affectedIds) {
+    if (harness.enclosures.some((item) => item.id === id)) return { type: 'enclosure', id };
+    if (harness.connectors.some((item) => item.id === id)) return { type: 'connector', id };
+    if (harness.mergePoints.some((item) => item.id === id)) return { type: 'mergePoint', id };
+    if (harness.paths.some((item) => item.id === id)) return { type: 'path', id };
+    if (harness.signals.some((item) => item.id === id)) return { type: 'signal', id };
+  }
+  return null;
+}
+
+function scopedHistoryPatch(
+  state: HarnessStore,
+  entry: UndoEntry,
+  direction: 'undo' | 'redo',
+): Partial<HarnessStore> {
+  const from = direction === 'undo' ? entry.after : entry.before;
+  const to = direction === 'undo' ? entry.before : entry.after;
+  const applied = applySnapshotDelta(makeSnapshot(state), from, to);
+  const affectedIds = getEntryAffectedEntities(entry);
+  const selectedItem = to.selectedItem
+    && findAffectedHarnessItem(applied.harness, [to.selectedItem.id])
+      ? to.selectedItem
+      : null;
+  const selectedBundle = to.selectedBundle
+    && to.selectedBundle.pathIds.some((id) => applied.harness?.paths.some((path) => path.id === id))
+      ? to.selectedBundle
+      : null;
+  const selectedTextBoxId = to.selectedTextBoxId && applied.textBoxLayouts[to.selectedTextBoxId]
+    ? to.selectedTextBoxId
+    : null;
+  const patch: Partial<HarnessStore> = {
+    harness: applied.harness,
+    connectorLibrary: applied.connectorLibrary,
+    manufacturing: applied.manufacturing,
+    nodeLayouts: applied.nodeLayouts,
+    portLayouts: applied.portLayouts,
+    sizeLayouts: applied.sizeLayouts,
+    freePortLayouts: applied.freePortLayouts,
+    backgroundLayouts: applied.backgroundLayouts,
+    connectorTypeSizes: applied.connectorTypeSizes,
+    textBoxLayouts: applied.textBoxLayouts,
+    waypointLayouts: applied.waypointLayouts,
+    junctionLayouts: applied.junctionLayouts,
+    mergePointLayouts: applied.mergePointLayouts,
+    rotationLayouts: applied.rotationLayouts,
+    subsystems: applied.subsystems,
+    selectedItem,
+    selectedBundle,
+    selectedTextBoxId,
+    isDirty: true,
+  };
+
+  const revealItem = selectedItem
+    ?? (!selectedBundle && !selectedTextBoxId
+      ? findAffectedHarnessItem(applied.harness, affectedIds)
+      : null);
+  if (revealItem && applied.harness) {
+    const requestId = state.revealRequestSequence + 1;
+    patch.appView = 'canvas';
+    patch.editingSurface = 'hierarchy';
+    patch.drillDownEnclosure = getEntityRevealContext(
+      applied.harness,
+      revealItem,
+      state.drillDownEnclosure,
+    );
+    patch.selectedItem = revealItem;
+    patch.selectedBundle = null;
+    patch.selectedTextBoxId = null;
+    patch.revealRequest = { item: revealItem, requestId };
+    patch.revealRequestSequence = requestId;
+  } else if (selectedBundle && applied.harness) {
+    const firstPathId = selectedBundle.pathIds.find((id) =>
+      applied.harness?.paths.some((path) => path.id === id)
+    );
+    if (firstPathId) {
+      patch.appView = 'canvas';
+      patch.editingSurface = 'hierarchy';
+      patch.drillDownEnclosure = getEntityRevealContext(
+        applied.harness,
+        { type: 'path', id: firstPathId },
+        state.drillDownEnclosure,
+      );
+    }
+  } else if (selectedTextBoxId) {
+    const contextKey = applied.textBoxLayouts[selectedTextBoxId]?.contextKey ?? 'graph';
+    patch.appView = 'canvas';
+    patch.editingSurface = 'hierarchy';
+    patch.drillDownEnclosure = contextKey === 'graph' ? null : contextKey;
+  } else {
+    const libraryDiff = from.connectorLibrary && to.connectorLibrary
+      ? diffLibrary(from.connectorLibrary, to.connectorLibrary)
+      : null;
+    const connectorTypeId = libraryDiff
+      ? [...Object.keys(libraryDiff.connectorTypes.patch), ...libraryDiff.connectorTypes.removed][0]
+      : null;
+    const manufacturingDiff = diffRecord(from.manufacturing.bundles, to.manufacturing.bundles);
+    const manufacturingBundleId = [
+      ...Object.keys(manufacturingDiff.patch),
+      ...manufacturingDiff.removed,
+    ][0];
+    const subsystemDiff = diffRecord(from.subsystems, to.subsystems);
+    const subsystemId = [...Object.keys(subsystemDiff.patch), ...subsystemDiff.removed][0];
+    if (connectorTypeId) {
+      patch.appView = 'connectorLibrary';
+      patch.connectorLibraryTargetId = connectorTypeId;
+    } else if (manufacturingBundleId) {
+      patch.appView = 'manufacturing';
+      patch.manufacturingTargetBundleId = manufacturingBundleId;
+    } else if (subsystemId && applied.subsystems[subsystemId]) {
+      patch.appView = 'canvas';
+      patch.editingSurface = 'subsystem';
+      patch.activeSubsystemId = subsystemId;
+    }
+  }
+  return patch;
 }
 
 function clampToRange(value: number, max: number): number {
@@ -445,13 +964,202 @@ function getInitialHarnessName(): string {
   try { return localStorage.getItem('vw-active-harness') ?? 'fsae-car'; } catch { return 'fsae-car'; }
 }
 
-export const useHarnessStore = create<HarnessStore>((set, get) => ({
+const TRUSTED_DOCUMENT_UPDATE = Symbol('trusted-document-update');
+type TrustedDocumentPatch = {
+  readonly [TRUSTED_DOCUMENT_UPDATE]?: true;
+};
+
+const DOCUMENT_SLICES = [
+  'harness',
+  'connectorLibrary',
+  'manufacturing',
+  'subsystems',
+  'nodeLayouts',
+  'portLayouts',
+  'sizeLayouts',
+  'freePortLayouts',
+  'backgroundLayouts',
+  'connectorTypeSizes',
+  'textBoxLayouts',
+  'waypointLayouts',
+  'junctionLayouts',
+  'mergePointLayouts',
+  'rotationLayouts',
+] as const satisfies readonly (keyof HarnessStore)[];
+
+function trustedDocumentPatch<T extends object>(patch: T): T {
+  Object.defineProperty(patch, TRUSTED_DOCUMENT_UPDATE, {
+    value: true,
+    enumerable: false,
+  });
+  return patch;
+}
+
+function readOnlyMiddleware(
+  config: StateCreator<HarnessStore, [], []>,
+): StateCreator<HarnessStore, [], []> {
+  return (set, get, api) => {
+    const guardedSet = ((
+      update: Parameters<typeof set>[0],
+      replace?: boolean,
+    ) => {
+      const current = get();
+      const patch = typeof update === 'function' ? update(current) : update;
+      if (!patch) return;
+      const candidate = patch as Partial<HarnessStore> & TrustedDocumentPatch;
+      const isTrusted = candidate[TRUSTED_DOCUMENT_UPDATE] === true;
+      const touchesDocument = DOCUMENT_SLICES.some(
+        (key) => Object.hasOwn(candidate, key) && candidate[key] !== current[key],
+      );
+      if (
+        touchesDocument
+        && !isTrusted
+        // Without a collaboration-capable server there are no accounts to log
+        // into, so the app stays editable as a single user. Individual mutators
+        // (addSignal, addEnclosure) already gate on this; the middleware has to
+        // agree or it silently blocks edits the mutators would have allowed.
+        && current.collabAvailable
+        && !current.session.isEditor
+      ) {
+        set({ mutationError: 'Log in to edit' });
+        return;
+      }
+      if (replace) set(candidate as HarnessStore, true);
+      else set(candidate);
+    }) as typeof set;
+    api.setState = guardedSet;
+    return config(guardedSet, get, api);
+  };
+}
+
+function getLayouts(state: HarnessStore): CollaborationLayouts {
+  return {
+    nodes: state.nodeLayouts,
+    ports: state.portLayouts,
+    sizes: state.sizeLayouts,
+    free: state.freePortLayouts,
+    backgrounds: state.backgroundLayouts,
+    connectorTypeSizes: state.connectorTypeSizes,
+    textBoxes: state.textBoxLayouts,
+    waypoints: state.waypointLayouts,
+    junctions: state.junctionLayouts,
+    mergePoints: state.mergePointLayouts,
+    rotations: state.rotationLayouts,
+  };
+}
+
+function layoutStatePatch(layouts: CollaborationLayouts): Pick<
+  HarnessStore,
+  | 'nodeLayouts'
+  | 'portLayouts'
+  | 'sizeLayouts'
+  | 'freePortLayouts'
+  | 'backgroundLayouts'
+  | 'connectorTypeSizes'
+  | 'textBoxLayouts'
+  | 'waypointLayouts'
+  | 'junctionLayouts'
+  | 'mergePointLayouts'
+  | 'rotationLayouts'
+> {
+  return {
+    nodeLayouts: layouts.nodes,
+    portLayouts: layouts.ports,
+    sizeLayouts: layouts.sizes,
+    freePortLayouts: layouts.free,
+    backgroundLayouts: layouts.backgrounds,
+    connectorTypeSizes: layouts.connectorTypeSizes,
+    textBoxLayouts: layouts.textBoxes,
+    waypointLayouts: layouts.waypoints,
+    junctionLayouts: layouts.junctions,
+    mergePointLayouts: layouts.mergePoints,
+    rotationLayouts: layouts.rotations,
+  };
+}
+
+function subsystemRecord(
+  documents: SubsystemDocument[] | Record<string, SubsystemDocument>,
+): Record<string, SubsystemDocument> {
+  return Array.isArray(documents)
+    ? Object.fromEntries(documents.map((document) => [document.id, document]))
+    : documents;
+}
+
+function normalizeSubsystemDocument(
+  harness: HarnessData | null,
+  document: SubsystemDocument,
+): SubsystemDocument {
+  if (!harness) return document;
+  const entities = new Map(harness.enclosures.map((entity) => [entity.id, entity]));
+  const enclosures = { ...document.enclosures };
+  const devices = { ...document.devices };
+  let deviceConnectorMode = document.device_connector_mode;
+  let changed = false;
+
+  for (const [id, layout] of Object.entries(document.enclosures)) {
+    const entity = entities.get(id);
+    if (!entity || entity.container) continue;
+    if (!Object.hasOwn(devices, id)) devices[id] = layout;
+    delete enclosures[id];
+    changed = true;
+  }
+  for (const [id, layout] of Object.entries(document.devices)) {
+    const entity = entities.get(id);
+    if (!entity?.container) continue;
+    if (!Object.hasOwn(enclosures, id)) enclosures[id] = layout;
+    delete devices[id];
+    if (deviceConnectorMode && Object.hasOwn(deviceConnectorMode, id)) {
+      deviceConnectorMode = { ...deviceConnectorMode };
+      delete deviceConnectorMode[id];
+    }
+    changed = true;
+  }
+
+  return changed
+    ? { ...document, enclosures, devices, device_connector_mode: deviceConnectorMode }
+    : document;
+}
+
+type SubsystemMapKey = 'enclosures' | 'devices' | 'connectors' | 'device_connector_mode';
+
+export function buildSubsystemSavePayload(
+  serverDocument: SubsystemDocument | undefined,
+  localDocument: SubsystemDocument,
+): {
+  patch: SubsystemDocument;
+  removed: Partial<Record<SubsystemMapKey, string[]>>;
+} {
+  if (!serverDocument) return { patch: localDocument, removed: {} };
+
+  const removed: Partial<Record<SubsystemMapKey, string[]>> = {};
+  const mapKeys: SubsystemMapKey[] = [
+    'enclosures',
+    'devices',
+    'connectors',
+    'device_connector_mode',
+  ];
+  for (const key of mapKeys) {
+    const serverMap = serverDocument[key] ?? {};
+    const localMap = localDocument[key] ?? {};
+    const removedIds = Object.keys(serverMap).filter((id) => !Object.hasOwn(localMap, id));
+    if (removedIds.length > 0) removed[key] = removedIds;
+  }
+  return { patch: localDocument, removed };
+}
+
+export const useHarnessStore = create<HarnessStore>(readOnlyMiddleware((set, get) => ({
   harness: null,
+  serverHarness: null,
   connectorLibrary: null,
+  serverConnectorLibrary: null,
   manufacturing: structuredClone(EMPTY_MANUFACTURING_DOCUMENT),
+  serverManufacturing: structuredClone(EMPTY_MANUFACTURING_DOCUMENT),
+  serverLayouts: emptyLayouts(),
+  serverSubsystems: {},
   manufacturingTargetBundleId: null,
   appView: 'canvas',
   connectorLibraryTargetId: null,
+  signalLibraryTargetId: null,
   activeHarnessName: getInitialHarnessName(),
   availableHarnesses: [],
   selectedItem: null,
@@ -480,7 +1188,18 @@ export const useHarnessStore = create<HarnessStore>((set, get) => ({
   subsystems: {},
   activeSubsystemId: null,
   mutationError: null,
-  structuralUndoStack: [],
+  session: { user: null, editSessionActive: false, isEditor: false, isAdmin: false },
+  peers: {},
+  serverRev: 0,
+  libraryRev: 0,
+  lastWriter: null,
+  lastWriterAt: null,
+  syncStatus: 'offline',
+  conflict: null,
+  collabAvailable: true,
+  attribution: {},
+  interactingEntities: new Set<string>(),
+  queuedRemoteUpdates: [],
   draggingEdgeInfo: null,
   undoStack: [],
   redoStack: [],
@@ -494,11 +1213,179 @@ export const useHarnessStore = create<HarnessStore>((set, get) => ({
     return true;
   },
   setAvailableHarnesses: (harnesses) => set({ availableHarnesses: harnesses }),
+  login: async (login) => {
+    try {
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ login }),
+      });
+      if (response.status === 404) {
+        set({ collabAvailable: false });
+        return { ok: false, reason: 'unavailable' };
+      }
+      if (response.status === 429) return { ok: false, reason: 'rateLimited' };
+      if (response.status === 401) return { ok: false, reason: 'unknown' };
+      if (!response.ok) return { ok: false, reason: 'error' };
+      const body = await response.json() as { user: SessionUser; bootstrap?: boolean };
+      const user: SessionUser = {
+        id: body.user.id,
+        displayName: body.user.displayName,
+        role: body.user.role,
+        color: body.user.color,
+      };
+      set({
+        session: {
+          user,
+          // Typing your name IS the explicit activation.
+          editSessionActive: true,
+          isEditor: user.role === 'editor' || user.role === 'admin',
+          isAdmin: user.role === 'admin',
+        },
+        collabAvailable: true,
+        mutationError: null,
+      });
+      queuePresencePublish({});
+      return { ok: true, bootstrapAdmin: body.bootstrap === true };
+    } catch {
+      return { ok: false, reason: 'error' };
+    }
+  },
+  logout: async () => {
+    try {
+      if (get().collabAvailable) {
+        await fetch('/api/auth/logout', {
+          method: 'POST',
+          credentials: 'same-origin',
+        });
+      }
+    } finally {
+      resetPresencePublisher();
+      set({
+        session: { user: null, editSessionActive: false, isEditor: false, isAdmin: false },
+        peers: {},
+      });
+    }
+  },
+  refreshSession: async () => {
+    try {
+      const response = await fetch('/api/auth/me', {
+        credentials: 'same-origin',
+        cache: 'no-store',
+      });
+      if (response.status === 404) {
+        set({
+          session: { user: null, editSessionActive: false, isEditor: false, isAdmin: false },
+          collabAvailable: false,
+        });
+        return;
+      }
+      if (!response.ok) throw new Error(`Session request failed: ${response.status}`);
+      const body = await response.json() as { user: SessionUser | null };
+      const user: SessionUser | null = body.user
+        ? {
+            id: body.user.id,
+            displayName: body.user.displayName,
+            role: body.user.role,
+            color: body.user.color,
+          }
+        : null;
+      // A remembered cookie tells us who you are so the UI can offer
+      // "Continue as <name>", but editing stays disarmed until you activate it.
+      const previous = get().session;
+      const stillSameUser = !!user && previous.user?.id === user.id;
+      const editSessionActive = stillSameUser && previous.editSessionActive;
+      set({
+        session: {
+          user,
+          editSessionActive,
+          isEditor: editSessionActive && (user.role === 'editor' || user.role === 'admin'),
+          isAdmin: editSessionActive && user.role === 'admin',
+        },
+        collabAvailable: true,
+      });
+    } catch {
+      set({
+        session: { user: null, editSessionActive: false, isEditor: false, isAdmin: false },
+      });
+    }
+  },
+  activateEditSession: () => {
+    const user = get().session.user;
+    if (!user) return;
+    set({
+      session: {
+        user,
+        editSessionActive: true,
+        isEditor: user.role === 'editor' || user.role === 'admin',
+        isAdmin: user.role === 'admin',
+      },
+      mutationError: null,
+    });
+    queuePresencePublish({});
+  },
+  publishPresence: (partial) => {
+    queuePresencePublish(partial);
+  },
+  setInteracting: (kind, id, active) => {
+    const key = `${kind}:${id}`;
+    set((state) => {
+      const interactingEntities = new Set(state.interactingEntities);
+      if (active) interactingEntities.add(key);
+      else interactingEntities.delete(key);
+      return { interactingEntities };
+    });
+    if (!active && get().interactingEntities.size === 0) {
+      const queued = get().queuedRemoteUpdates;
+      if (queued.length > 0) {
+        set({ queuedRemoteUpdates: [] });
+        for (const payload of queued) applyRemoteSyncPayload(payload);
+      }
+    }
+    get().publishPresence({
+      editing: active ? { kind, id } : null,
+    });
+  },
+  dismissConflict: () => set({ conflict: null }),
+  setCollabAvailable: (available) => {
+    if (!available) resetPresencePublisher();
+    set({
+      collabAvailable: available,
+      ...(!available ? { peers: {}, syncStatus: 'offline' as const } : {}),
+    });
+  },
+  setSyncStatus: (syncStatus) => set({ syncStatus }),
+  replacePeers: (peers) => set((state) => ({
+    peers: Object.fromEntries(
+      peers
+        .filter((peer) => peer.userId !== state.session.user?.id)
+        .map((peer) => [peer.sessionId, peer]),
+    ),
+  })),
+  loadCollaborationMeta: ({
+    serverRev,
+    libraryRev,
+    lastWriter,
+    attribution,
+    collabAvailable,
+  }) => set({
+    serverRev,
+    libraryRev,
+    lastWriter,
+    lastWriterAt: lastWriter ? Date.now() : null,
+    attribution,
+    collabAvailable,
+    conflict: null,
+  }),
+  applyRemoteSync: (payload) => applyRemoteSyncPayload(payload),
   renameSystem: (name) => set((state) => {
     if (!state.harness) return state;
     try {
       const harness = renameSystemDocument(state.harness, name);
-      return harness === state.harness ? state : { harness, isDirty: true, mutationError: null };
+      return harness === state.harness
+        ? state
+        : historyPatch(state, { harness, isDirty: true, mutationError: null }, 'rename:system');
     } catch (error) {
       return { mutationError: error instanceof Error ? error.message : 'System rename failed.' };
     }
@@ -506,10 +1393,18 @@ export const useHarnessStore = create<HarnessStore>((set, get) => ({
   openConnectorLibrary: (typeId = null) => set({
     appView: 'connectorLibrary',
     connectorLibraryTargetId: typeId,
+    signalLibraryTargetId: null,
+  }),
+  openSignalLibrary: (signalId = null) => set({
+    appView: 'signalLibrary',
+    connectorLibraryTargetId: null,
+    signalLibraryTargetId: signalId,
+    manufacturingTargetBundleId: null,
   }),
   openManufacturing: (bundleId = null) => set({
     appView: 'manufacturing',
     connectorLibraryTargetId: null,
+    signalLibraryTargetId: null,
     manufacturingTargetBundleId: bundleId,
   }),
   showBundleInHierarchy: (pathIds) => set((state) => {
@@ -539,57 +1434,66 @@ export const useHarnessStore = create<HarnessStore>((set, get) => ({
       appView: 'canvas',
       editingSurface: 'hierarchy',
       drillDownEnclosure,
-      selectedBundle: visibleBundle?.pathIds ?? (firstPathId ? [firstPathId] : null),
+      selectedBundle: visibleBundle
+        ? { id: visibleBundle.id, pathIds: visibleBundle.pathIds }
+        : firstPathId
+          ? { id: '', pathIds: [firstPathId] }
+          : null,
       selectedItem: null,
       selectedTextBoxId: null,
       revealRequest: null,
       manufacturingTargetBundleId: null,
     };
   }),
+  inspectEntity: (item) => set((state) => {
+    const requestId = (state.revealRequestSequence ?? 0) + 1;
+    const drillDownEnclosure = state.harness
+      ? getEntityRevealContext(state.harness, item, state.drillDownEnclosure)
+      : state.drillDownEnclosure;
+    return {
+      appView: 'canvas',
+      editingSurface: 'hierarchy',
+      connectorLibraryTargetId: null,
+      signalLibraryTargetId: null,
+      manufacturingTargetBundleId: null,
+      selectedItem: item,
+      selectedBundle: null,
+      selectedTextBoxId: null,
+      revealRequest: { item, requestId },
+      revealRequestSequence: requestId,
+      drillDownEnclosure,
+    };
+  }),
   closeConnectorLibrary: () => set({
     appView: 'canvas',
     connectorLibraryTargetId: null,
+    signalLibraryTargetId: null,
     manufacturingTargetBundleId: null,
   }),
   setEditingSurface: (surface) => set({ editingSurface: surface }),
   loadSubsystems: (documents) => set((state) => {
-    const harness = state.harness ? structuredClone(state.harness) : null;
-    if (harness) {
-      const addSystemTag = (tags: string[], subsystemId: string) => {
-        const tag = `system:${subsystemId}`;
-        if (!tags.includes(tag)) tags.push(tag);
-      };
-      for (const document of documents) {
-        const enclosureMembership = new Set([
-          ...Object.keys(document.enclosures),
-          ...Object.keys(document.devices),
-        ]);
-        for (const enclosure of harness.enclosures) {
-          if (enclosureMembership.has(enclosure.id)) addSystemTag(enclosure.tags, document.id);
-        }
-        for (const connector of harness.connectors) {
-          const deviceMode = connector.parent
-            ? document.device_connector_mode?.[connector.parent] ?? 'all'
-            : 'all';
-          if (
-            document.connectors[connector.id] ||
-            (connector.parent !== null && document.devices[connector.parent] && deviceMode === 'all')
-          ) {
-            addSystemTag(connector.tags, document.id);
-          }
-        }
-      }
-    }
-    return {
-      harness,
-      subsystems: Object.fromEntries(documents.map((document) => [document.id, document])),
+    const serverRecords = Object.fromEntries(documents.map((document) => [document.id, document]));
+    const normalizedDocuments = documents.map((document) =>
+      normalizeSubsystemDocument(state.harness, document));
+    const records = Object.fromEntries(normalizedDocuments.map((document) => [document.id, document]));
+    return trustedDocumentPatch({
+      harness: tagHarnessForSubsystems(state.harness, normalizedDocuments),
+      subsystems: records,
+      serverSubsystems: structuredClone(serverRecords),
       activeSubsystemId: documents[0]?.id ?? null,
-    };
+    });
   }),
   setActiveSubsystem: (id) => set({ activeSubsystemId: id }),
-  upsertSubsystem: (document) => set((state) => ({
+  upsertSubsystem: (document) => set((state) => historyPatch(state, {
     subsystems: { ...state.subsystems, [document.id]: document },
     activeSubsystemId: document.id,
+  }, `subsystem:${document.id}:upsert`)),
+  acceptSavedSubsystem: (document) => set((state) => trustedDocumentPatch({
+    subsystems: { ...state.subsystems, [document.id]: document },
+    serverSubsystems: {
+      ...state.serverSubsystems,
+      [document.id]: structuredClone(document),
+    },
   })),
   renameSubsystem: (id, name) => set((state) => {
     const subsystem = state.subsystems[id];
@@ -597,11 +1501,11 @@ export const useHarnessStore = create<HarnessStore>((set, get) => ({
     try {
       const renamed = renameSubsystemDocument(subsystem, name);
       if (renamed === subsystem) return state;
-      return {
+      return historyPatch(state, {
         subsystems: { ...state.subsystems, [id]: renamed },
         isDirty: true,
         mutationError: null,
-      };
+      }, `subsystem:${id}:rename`);
     } catch (error) {
       return { mutationError: error instanceof Error ? error.message : 'Subsystem rename failed.' };
     }
@@ -610,7 +1514,22 @@ export const useHarnessStore = create<HarnessStore>((set, get) => ({
     const activeId = state.activeSubsystemId;
     if (!activeId || !state.subsystems[activeId]) return state;
     const document = state.subsystems[activeId];
-    return {
+    if (kind !== 'connectors') {
+      const entity = state.harness?.enclosures.find((item) => item.id === id);
+      const correctKind = entity?.container ? 'enclosures' : 'devices';
+      if (!entity || kind !== correctKind) return state;
+    }
+    if (!Object.hasOwn(document[kind], id)) {
+      if (kind !== 'connectors') return state;
+      const connector = state.harness?.connectors.find((item) => item.id === id);
+      const parentId = connector?.parent;
+      const connectorIsImplicitlyVisible = !!parentId
+        && Object.hasOwn(document.devices, parentId)
+        && (document.device_connector_mode?.[parentId] ?? 'all') === 'all'
+        && !(document.hidden_connectors ?? []).includes(id);
+      if (!connectorIsImplicitlyVisible) return state;
+    }
+    return historyPatch(state, {
       subsystems: {
         ...state.subsystems,
         [activeId]: {
@@ -618,7 +1537,7 @@ export const useHarnessStore = create<HarnessStore>((set, get) => ({
           [kind]: { ...document[kind], [id]: layout },
         },
       },
-    };
+    }, `subsystem:${activeId}:${kind}:${id}:layout`);
   }),
   resizeSubsystemEntityLayout: (kind, id, layout) => set((state) => {
     const activeId = state.activeSubsystemId;
@@ -688,7 +1607,7 @@ export const useHarnessStore = create<HarnessStore>((set, get) => ({
       }
     }
 
-    return {
+    return historyPatch(state, {
       subsystems: {
         ...state.subsystems,
         [activeId]: {
@@ -702,7 +1621,7 @@ export const useHarnessStore = create<HarnessStore>((set, get) => ({
           connectors,
         },
       },
-    };
+    }, `subsystem:${activeId}:${kind}:${id}:resize`);
   }),
   addEntityToActiveSubsystem: (type, id) => set((state) => {
     const subsystemId = state.activeSubsystemId;
@@ -733,6 +1652,11 @@ export const useHarnessStore = create<HarnessStore>((set, get) => ({
       if (mutableEntity && !mutableEntity.tags.includes(systemTag)) mutableEntity.tags.push(systemTag);
       const isDevice = !entity.container;
       const frameId = isDevice ? entity.parent : entity.id;
+      if (isDevice) delete document.enclosures[id];
+      else {
+        delete document.devices[id];
+        if (document.device_connector_mode) delete document.device_connector_mode[id];
+      }
       if (frameId && !document.enclosures[frameId]) {
         document.enclosures[frameId] = nextFrameLayout();
       }
@@ -754,7 +1678,11 @@ export const useHarnessStore = create<HarnessStore>((set, get) => ({
           if (!connector.tags.includes(systemTag)) connector.tags.push(systemTag);
         }
       }
-      return { harness: nextHarness, subsystems: { ...state.subsystems, [subsystemId]: document }, isDirty: true };
+      return historyPatch(state, {
+        harness: nextHarness,
+        subsystems: { ...state.subsystems, [subsystemId]: document },
+        isDirty: true,
+      }, `subsystem:${subsystemId}:add:${type}:${id}`);
     }
 
     const connector = harness.connectors.find((item) => item.id === id);
@@ -788,7 +1716,11 @@ export const useHarnessStore = create<HarnessStore>((set, get) => ({
         if (mutableFrame && !mutableFrame.tags.includes(systemTag)) mutableFrame.tags.push(systemTag);
       }
     }
-    return { harness: nextHarness, subsystems: { ...state.subsystems, [subsystemId]: document }, isDirty: true };
+    return historyPatch(state, {
+      harness: nextHarness,
+      subsystems: { ...state.subsystems, [subsystemId]: document },
+      isDirty: true,
+    }, `subsystem:${subsystemId}:add:${type}:${id}`);
   }),
   removeEntityFromActiveSubsystem: (type, id) => set((state) => {
     const subsystemId = state.activeSubsystemId;
@@ -816,6 +1748,7 @@ export const useHarnessStore = create<HarnessStore>((set, get) => ({
       if (!enclosure) return state;
       enclosure.tags = stripTag(enclosure.tags);
       if (!enclosure.container) {
+        delete document.enclosures[id];
         delete document.devices[id];
         if (document.device_connector_mode) delete document.device_connector_mode[id];
         const associatedConnectorIds = new Set(
@@ -829,6 +1762,8 @@ export const useHarnessStore = create<HarnessStore>((set, get) => ({
         document.hidden_connectors = (document.hidden_connectors ?? []).filter((connectorId) => !associatedConnectorIds.has(connectorId));
       } else {
         delete document.enclosures[id];
+        delete document.devices[id];
+        if (document.device_connector_mode) delete document.device_connector_mode[id];
         const removedDeviceIds = harness.enclosures
           .filter((item) => item.parent === id && document.devices[item.id])
           .map((item) => item.id);
@@ -849,17 +1784,95 @@ export const useHarnessStore = create<HarnessStore>((set, get) => ({
         }
       }
     }
-    return {
+    return historyPatch(state, {
       harness,
       subsystems: { ...state.subsystems, [subsystemId]: document },
       selectedItem: null,
       isDirty: true,
-    };
+    }, `subsystem:${subsystemId}:remove:${type}:${id}`);
   }),
   renumberConnectorCavities: (connectorId, orderedOldPinNumbers) => set((state) => {
     if (!state.harness) return state;
-    return { harness: renumberConnectorPins(state.harness, connectorId, orderedOldPinNumbers), isDirty: true };
+    return historyPatch(state, {
+      harness: renumberConnectorPins(state.harness, connectorId, orderedOldPinNumbers),
+      isDirty: true,
+    }, `connector:${connectorId}:renumber-cavities`);
   }),
+  mergeBulkheadConnectors: (sourceId, targetId) => {
+    const state = get();
+    if (!state.harness) return null;
+    const sourceConnector = state.harness.connectors.find((connector) => connector.id === sourceId);
+    const targetConnector = state.harness.connectors.find((connector) => connector.id === targetId);
+    if (!sourceConnector || !targetConnector) {
+      set({ mutationError: 'Both bulkheads must exist to merge.' });
+      return null;
+    }
+    // Prefer keeping authored hardware over a generated placeholder.
+    let absorbId = sourceId;
+    let keepId = targetId;
+    if (
+      !sourceConnector.tags.includes('generated')
+      && targetConnector.tags.includes('generated')
+    ) {
+      absorbId = targetId;
+      keepId = sourceId;
+    }
+    const surviving = keepId === targetId ? targetConnector : sourceConnector;
+    const targetType = state.connectorLibrary?.connector_types.find(
+      (item) => item.id === surviving.connector_type,
+    );
+    try {
+      const harness = mergeConnectors(state.harness, absorbId, keepId, { targetType });
+      const subsystems = Object.fromEntries(
+        Object.entries(state.subsystems).map(([subsystemId, subsystem]) => {
+          const connectors = { ...subsystem.connectors };
+          const absorbedLayout = connectors[absorbId];
+          delete connectors[absorbId];
+          // When the drop target was the generated placeholder we swapped away,
+          // keep the surviving connector at the drop position if it had no layout.
+          if (absorbedLayout && !connectors[keepId]) {
+            connectors[keepId] = absorbedLayout;
+          }
+          return [
+            subsystemId,
+            {
+              ...subsystem,
+              connectors,
+              hidden_connectors: (subsystem.hidden_connectors ?? []).filter(
+                (connectorId) => connectorId !== absorbId,
+              ),
+            },
+          ];
+        }),
+      );
+      const portLayouts = { ...state.portLayouts };
+      delete portLayouts[absorbId];
+      const freePortLayouts = { ...state.freePortLayouts };
+      delete freePortLayouts[absorbId];
+      const sizeLayouts = { ...state.sizeLayouts };
+      delete sizeLayouts[absorbId];
+      const rotationLayouts = { ...state.rotationLayouts };
+      delete rotationLayouts[absorbId];
+      set(historyPatch(state, {
+        harness,
+        subsystems,
+        portLayouts,
+        freePortLayouts,
+        sizeLayouts,
+        rotationLayouts,
+        selectedItem: { type: 'connector', id: keepId },
+        selectedBundle: null,
+        mutationError: null,
+        isDirty: true,
+      }, `connector:${keepId}:merge`));
+      return keepId;
+    } catch (error) {
+      set({
+        mutationError: error instanceof Error ? error.message : 'Bulkhead merge failed.',
+      });
+      return null;
+    }
+  },
   getDeleteImpact: (type, id) => {
     const harness = get().harness;
     return harness ? collectDeleteImpact(harness, type, id) : emptyDeleteImpact();
@@ -898,19 +1911,352 @@ export const useHarnessStore = create<HarnessStore>((set, get) => ({
         connectors: Object.fromEntries(Object.entries(subsystem.connectors).filter(([entityId]) => !connectorIds.has(entityId))),
       },
     ]));
-    return {
+    return historyPatch(state, {
       harness,
       subsystems,
       ...layoutCleanup,
       selectedItem: null,
       selectedBundle: null,
       isDirty: true,
-      structuralUndoStack: [
-        ...state.structuralUndoStack.slice(-9),
-        { harness: structuredClone(state.harness), subsystems: structuredClone(state.subsystems) },
-      ],
-    };
+    }, `delete:${type}:${id}`);
   }),
+  deletePathBundle: (bundleId, pathIds) => set((state) => {
+    if (!state.harness || pathIds.length === 0) return state;
+    const ids = new Set(pathIds);
+    const existingIds = state.harness.paths
+      .filter((path) => ids.has(path.id))
+      .map((path) => path.id);
+    if (existingIds.length === 0) return state;
+    const removedPathIds = new Set(existingIds);
+
+    const harness = structuredClone(state.harness);
+    harness.paths = harness.paths.filter((path) => !removedPathIds.has(path.id));
+    const removedGeneratedConnectorIds = new Set(
+      harness.connectors
+        .filter((connector) =>
+          removedPathIds.has(connector.properties.generated_by_route)
+          && !harness.paths.some((path) => path.nodes.some((node) =>
+            node.kind === 'connector' && node.connector_id === connector.id
+          ))
+        )
+        .map((connector) => connector.id),
+    );
+    harness.connectors = harness.connectors.filter(
+      (connector) => !removedGeneratedConnectorIds.has(connector.id),
+    );
+    const subsystems = Object.fromEntries(
+      Object.entries(state.subsystems).map(([subsystemId, subsystem]) => [
+        subsystemId,
+        {
+          ...subsystem,
+          connectors: Object.fromEntries(
+            Object.entries(subsystem.connectors).filter(
+              ([connectorId]) => !removedGeneratedConnectorIds.has(connectorId),
+            ),
+          ),
+          hidden_connectors: (subsystem.hidden_connectors ?? []).filter(
+            (connectorId) => !removedGeneratedConnectorIds.has(connectorId),
+          ),
+        },
+      ]),
+    );
+
+    // Bundle waypoints are presentation data. Remove the selected edge's
+    // geometry so recreating the same endpoint pair starts with a clean route.
+    const waypointLayouts = { ...state.waypointLayouts };
+    delete waypointLayouts[bundleId];
+    const junctionLayouts = structuredClone(state.junctionLayouts);
+    for (const [junctionId, junction] of Object.entries(junctionLayouts)) {
+      junction.memberEdgeIds = junction.memberEdgeIds.filter((edgeId) => edgeId !== bundleId);
+      if (junction.memberEdgeIds.length === 0) delete junctionLayouts[junctionId];
+    }
+
+    return historyPatch(state, {
+      harness,
+      subsystems,
+      waypointLayouts,
+      junctionLayouts,
+      selectedItem:
+        (
+          state.selectedItem?.type === 'path' && removedPathIds.has(state.selectedItem.id)
+        ) || (
+          state.selectedItem?.type === 'connector'
+          && removedGeneratedConnectorIds.has(state.selectedItem.id)
+        )
+          ? null
+          : state.selectedItem,
+      selectedBundle: null,
+      mutationError: null,
+      isDirty: true,
+    }, `delete:bundle:${bundleId}`);
+  }),
+  addSignal: (input) => {
+    const state = get();
+    if (!state.harness) return null;
+    if (state.collabAvailable && !state.session.isEditor) {
+      set({ mutationError: 'Log in to edit' });
+      return null;
+    }
+
+    let name: string;
+    try {
+      name = normalizeDisplayName(input.name);
+    } catch (error) {
+      set({
+        mutationError: error instanceof Error ? error.message : 'Enter a signal name.',
+      });
+      return null;
+    }
+
+    const slug = name
+      .normalize('NFKD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toUpperCase()
+      .replace(/[^A-Z0-9]+/g, '_')
+      .replace(/^_+|_+$/g, '')
+      .slice(0, 48);
+    const baseId = `sig_${slug || 'NEW'}`;
+    const existingIds = new Set(state.harness.signals.map((signal) => signal.id));
+    let signalId = baseId;
+    let suffix = 2;
+    while (existingIds.has(signalId)) {
+      signalId = `${baseId}_${suffix}`;
+      suffix += 1;
+    }
+
+    const signal: Signal = {
+      id: signalId,
+      name,
+      tags: Array.from(new Set(input.tags.map((tag) => tag.trim()).filter(Boolean))),
+      properties: { ...input.properties },
+    };
+    set((current) => {
+      if (!current.harness) return current;
+      const harness = structuredClone(current.harness);
+      harness.signals.push(signal);
+      return historyPatch(current, {
+        harness,
+        selectedItem: null,
+        selectedBundle: null,
+        mutationError: null,
+        isDirty: true,
+      }, `signal:${signalId}:add`);
+    });
+    return signalId;
+  },
+  addSignalPropertyDefinition: (input) => {
+    const state = get();
+    if (!state.harness) return null;
+    if (state.collabAvailable && !state.session.isEditor) {
+      set({ mutationError: 'Log in to edit' });
+      return null;
+    }
+
+    let name: string;
+    try {
+      name = normalizeDisplayName(input.name);
+    } catch (error) {
+      set({
+        mutationError: error instanceof Error ? error.message : 'Enter a property name.',
+      });
+      return null;
+    }
+    const options = Array.from(new Set(
+      input.options.map((option) => option.trim()).filter(Boolean),
+    ));
+    if (options.length === 0) {
+      set({ mutationError: 'Add at least one dropdown option.' });
+      return null;
+    }
+
+    const keyBase = name
+      .normalize('NFKD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '_')
+      .replace(/^_+|_+$/g, '')
+      .slice(0, 48) || 'property';
+    const existingKeys = new Set(
+      [
+        'preferred_wire_color',
+        ...state.harness.signalPropertyDefinitions.map((definition) => definition.key),
+      ],
+    );
+    let key = keyBase;
+    let keySuffix = 2;
+    while (existingKeys.has(key)) {
+      key = `${keyBase}_${keySuffix}`;
+      keySuffix += 1;
+    }
+
+    const existingIds = new Set([
+      ...state.harness.enclosures.map((item) => item.id),
+      ...state.harness.connectors.map((item) => item.id),
+      ...state.harness.mergePoints.map((item) => item.id),
+      ...state.harness.paths.map((item) => item.id),
+      ...state.harness.signals.map((item) => item.id),
+      ...state.harness.signalPropertyDefinitions.map((item) => item.id),
+    ]);
+    const idBase = `signal_property_${key}`;
+    let id = idBase;
+    let idSuffix = 2;
+    while (existingIds.has(id)) {
+      id = `${idBase}_${idSuffix}`;
+      idSuffix += 1;
+    }
+
+    const existingValues = state.harness.signals
+      .map((signal) => signal.properties[key]?.trim())
+      .filter((value): value is string => !!value);
+    const definition: SignalPropertyDefinition = {
+      id,
+      key,
+      name,
+      type: 'select',
+      options: Array.from(new Set([...options, ...existingValues])),
+    };
+    set((current) => {
+      if (!current.harness) return current;
+      const harness = structuredClone(current.harness);
+      harness.signalPropertyDefinitions.push(definition);
+      return historyPatch(current, {
+        harness,
+        mutationError: null,
+        isDirty: true,
+      }, `signal-property:${id}:add`);
+    });
+    return id;
+  },
+  updateSignalPropertyDefinition: (id, patch) => set((state) => {
+    if (!state.harness) return state;
+    const current = state.harness.signalPropertyDefinitions.find(
+      (definition) => definition.id === id,
+    );
+    if (!current) {
+      return { mutationError: `Cannot update missing signal property '${id}'.` };
+    }
+
+    let name = current.name;
+    if (patch.name !== undefined) {
+      try {
+        name = normalizeDisplayName(patch.name);
+      } catch (error) {
+        return {
+          mutationError: error instanceof Error ? error.message : 'Enter a property name.',
+        };
+      }
+    }
+    let options = current.options;
+    if (patch.options !== undefined) {
+      const requested = Array.from(new Set(
+        patch.options.map((option) => option.trim()).filter(Boolean),
+      ));
+      if (requested.length === 0) {
+        return { mutationError: 'A dropdown property needs at least one option.' };
+      }
+      const inUse = state.harness.signals
+        .map((signal) => signal.properties[current.key]?.trim())
+        .filter((value): value is string => !!value);
+      options = Array.from(new Set([...requested, ...inUse]));
+    }
+
+    const harness = structuredClone(state.harness);
+    const definition = harness.signalPropertyDefinitions.find((item) => item.id === id)!;
+    definition.name = name;
+    definition.options = options;
+    return historyPatch(state, {
+      harness,
+      mutationError: null,
+      isDirty: true,
+    }, `signal-property:${id}:update`);
+  }),
+  deleteSignalPropertyDefinition: (id) => set((state) => {
+    if (!state.harness) return state;
+    const current = state.harness.signalPropertyDefinitions.find(
+      (definition) => definition.id === id,
+    );
+    if (!current) return state;
+    const harness = structuredClone(state.harness);
+    harness.signalPropertyDefinitions = harness.signalPropertyDefinitions.filter(
+      (definition) => definition.id !== id,
+    );
+    for (const signal of harness.signals) delete signal.properties[current.key];
+    return historyPatch(state, {
+      harness,
+      mutationError: null,
+      isDirty: true,
+    }, `signal-property:${id}:delete`);
+  }),
+  addEnclosure: (input) => {
+    const state = get();
+    if (!state.harness) return null;
+    if (state.collabAvailable && !state.session.isEditor) {
+      set({ mutationError: 'Log in to edit' });
+      return null;
+    }
+
+    const name = input.name.trim();
+    if (!name) {
+      set({ mutationError: 'Enter a name for the device or enclosure.' });
+      return null;
+    }
+
+    if (input.parent !== null) {
+      const parent = state.harness.enclosures.find((item) => item.id === input.parent);
+      if (!parent?.container) {
+        set({ mutationError: 'Devices and enclosures can only be placed inside an enclosure.' });
+        return null;
+      }
+    }
+
+    const slug = name
+      .normalize('NFKD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '_')
+      .replace(/^_+|_+$/g, '')
+      .slice(0, 48);
+    const prefix = input.container ? 'enc' : 'dev';
+    const baseId = `${prefix}_${slug || 'new'}`;
+    const existingIds = new Set([
+      ...state.harness.enclosures.map((item) => item.id),
+      ...state.harness.connectors.map((item) => item.id),
+      ...state.harness.mergePoints.map((item) => item.id),
+      ...state.harness.paths.map((item) => item.id),
+      ...state.harness.signals.map((item) => item.id),
+    ]);
+    let enclosureId = baseId;
+    let suffix = 2;
+    while (existingIds.has(enclosureId)) {
+      enclosureId = `${baseId}_${suffix}`;
+      suffix += 1;
+    }
+
+    const enclosure: Enclosure = {
+      id: enclosureId,
+      name,
+      parent: input.parent,
+      container: input.container,
+      tags: [],
+      properties: {},
+    };
+
+    set((prev) => {
+      if (!prev.harness) return prev;
+      const harness = structuredClone(prev.harness);
+      harness.enclosures.push(enclosure);
+      return historyPatch(prev, {
+        harness,
+        selectedItem: { type: 'enclosure', id: enclosureId },
+        selectedBundle: null,
+        selectedTextBoxId: null,
+        mutationError: null,
+        isDirty: true,
+      }, `enclosure:${enclosureId}:add`);
+    });
+
+    return enclosureId;
+  },
   addConnector: (parentId) => {
     const state = get();
     if (!state.harness) return null;
@@ -1005,7 +2351,7 @@ export const useHarnessStore = create<HarnessStore>((set, get) => ({
         }
       }
 
-      return {
+      return historyPatch(prev, {
         harness,
         subsystems,
         portLayouts,
@@ -1013,11 +2359,7 @@ export const useHarnessStore = create<HarnessStore>((set, get) => ({
         selectedBundle: null,
         selectedTextBoxId: null,
         isDirty: true,
-        structuralUndoStack: [
-          ...prev.structuralUndoStack.slice(-9),
-          { harness: structuredClone(prev.harness), subsystems: structuredClone(prev.subsystems) },
-        ],
-      };
+      }, `connector:${connectorId}:add`);
     });
 
     return connectorId;
@@ -1051,7 +2393,11 @@ export const useHarnessStore = create<HarnessStore>((set, get) => ({
         );
     applyConnectorPinCount(connector, libraryType, requested);
     normalizeConnectorKeying(connector, libraryType);
-    return { harness, isDirty: true, mutationError: null };
+    return historyPatch(
+      state,
+      { harness, isDirty: true, mutationError: null },
+      `connector:${connectorId}:type`,
+    );
   }),
   setConnectorKeying: (connectorId, keying) => set((state) => {
     if (!state.harness) return state;
@@ -1067,7 +2413,11 @@ export const useHarnessStore = create<HarnessStore>((set, get) => ({
     }
     if (keying) connector.keying = keying;
     else delete connector.keying;
-    return { harness, isDirty: true, mutationError: null };
+    return historyPatch(
+      state,
+      { harness, isDirty: true, mutationError: null },
+      `connector:${connectorId}:keying`,
+    );
   }),
   addConnectorCavity: (connectorId) => set((state) => {
     if (!state.harness) return state;
@@ -1082,7 +2432,7 @@ export const useHarnessStore = create<HarnessStore>((set, get) => ({
     if (next === current) return state;
     applyConnectorPinCount(connector, type, next);
     normalizeConnectorKeying(connector, type);
-    return { harness, isDirty: true };
+    return historyPatch(state, { harness, isDirty: true }, `connector:${connectorId}:add-cavity`);
   }),
   removeConnectorCavity: (connectorId) => set((state) => {
     if (!state.harness) return state;
@@ -1101,13 +2451,19 @@ export const useHarnessStore = create<HarnessStore>((set, get) => ({
     if (next === current) return state;
     applyConnectorPinCount(connector, type, next);
     normalizeConnectorKeying(connector, type);
-    return { harness, isDirty: true };
+    return historyPatch(state, { harness, isDirty: true }, `connector:${connectorId}:remove-cavity`);
   }),
   renameEntity: (type, id, name) => set((state) => {
     if (!state.harness) return state;
     try {
       const harness = renameHarnessEntity(state.harness, type, id, name);
-      return harness === state.harness ? state : { harness, isDirty: true, mutationError: null };
+      return harness === state.harness
+        ? state
+        : historyPatch(
+            state,
+            { harness, isDirty: true, mutationError: null },
+            `rename:${type}:${id}`,
+          );
     } catch (error) {
       return { mutationError: error instanceof Error ? error.message : 'Rename failed.' };
     }
@@ -1121,7 +2477,35 @@ export const useHarnessStore = create<HarnessStore>((set, get) => ({
       if (value === '') delete signal.properties[key];
       else signal.properties[key] = value;
     }
-    return { harness, isDirty: true };
+    return historyPatch(
+      state,
+      { harness, isDirty: true },
+      `signal:${signalId}:property:${key}`,
+    );
+  }),
+  updatePathSignal: (pathId, signalId) => set((state) => {
+    if (!state.harness) return state;
+    if (signalId && !state.harness.signals.some((signal) => signal.id === signalId)) {
+      return { mutationError: `Cannot assign missing signal '${signalId}'.` };
+    }
+
+    const harness = structuredClone(state.harness);
+    const path = harness.paths.find((item) => item.id === pathId);
+    if (!path) return state;
+
+    path.tags = path.tags.filter((tag) => !tag.startsWith('signal:'));
+    if (signalId) {
+      path.signal_id = signalId;
+      path.tags.push(`signal:${signalId.replace(/^sig_/, '')}`);
+    } else {
+      delete path.signal_id;
+    }
+
+    return historyPatch(
+      state,
+      { harness, isDirty: true, mutationError: null },
+      `path:${pathId}:signal`,
+    );
   }),
   updatePathProperty: (pathId, key, value) => set((state) => {
     if (!state.harness) return state;
@@ -1134,7 +2518,11 @@ export const useHarnessStore = create<HarnessStore>((set, get) => ({
       // Keep wire_color as the canonical key; drop legacy `color` whenever either changes.
       if (key === 'wire_color') delete path.properties.color;
     }
-    return { harness, isDirty: true };
+    return historyPatch(
+      state,
+      { harness, isDirty: true },
+      `path:${pathId}:property:${key}`,
+    );
   }),
   updatePathSegmentLength: (pathId, segmentIndex, lengthMm) => set((state) => {
     if (!state.harness) return state;
@@ -1150,7 +2538,55 @@ export const useHarnessStore = create<HarnessStore>((set, get) => ({
     const path = harness.paths.find((item) => item.id === pathId)!;
     setPathSegmentLength(path, segmentIndex, lengthMm);
 
-    return { harness, isDirty: true, mutationError: null };
+    return historyPatch(
+      state,
+      { harness, isDirty: true, mutationError: null },
+      `path:${pathId}:segment:${segmentIndex}:length`,
+    );
+  }),
+  updatePathSpanLength: (pathId, fromNodeIndex, toNodeIndex, lengthMm) => set((state) => {
+    if (!state.harness) return state;
+    if (lengthMm !== undefined && (!Number.isFinite(lengthMm) || lengthMm < 0)) {
+      return { mutationError: 'Stretch length must be a non-negative number.' };
+    }
+
+    const harness = structuredClone(state.harness);
+    const path = harness.paths.find((item) => item.id === pathId);
+    if (!path) return state;
+    if (!applySpanTotalLength(path, fromNodeIndex, toNodeIndex, lengthMm)) return state;
+    return historyPatch(
+      state,
+      { harness, isDirty: true, mutationError: null },
+      `path:${pathId}:span:${fromNodeIndex}:${toNodeIndex}:length`,
+    );
+  }),
+  updatePathSpanLengths: (updates) => set((state) => {
+    if (!state.harness || updates.length === 0) return state;
+    for (const update of updates) {
+      if (update.lengthMm !== undefined && (!Number.isFinite(update.lengthMm) || update.lengthMm < 0)) {
+        return { mutationError: 'Stretch length must be a non-negative number.' };
+      }
+    }
+
+    const harness = structuredClone(state.harness);
+    let changed = false;
+    for (const update of updates) {
+      const path = harness.paths.find((item) => item.id === update.pathId);
+      if (!path) continue;
+      changed = applySpanTotalLength(
+        path,
+        update.fromNodeIndex,
+        update.toNodeIndex,
+        update.lengthMm,
+      ) || changed;
+    }
+    return changed
+      ? historyPatch(
+          state,
+          { harness, isDirty: true, mutationError: null },
+          `paths:${updates.map((update) => update.pathId).sort().join(',')}:span-lengths`,
+        )
+      : state;
   }),
   updateConnectorPairSegmentLengths: (pathId, segmentIndex, lengthMm) => set((state) => {
     if (!state.harness) return state;
@@ -1166,7 +2602,11 @@ export const useHarnessStore = create<HarnessStore>((set, get) => ({
       const harness = structuredClone(state.harness);
       const path = harness.paths.find((item) => item.id === pathId)!;
       return setPathSegmentLength(path, segmentIndex, lengthMm)
-        ? { harness, isDirty: true, mutationError: null }
+        ? historyPatch(
+            state,
+            { harness, isDirty: true, mutationError: null },
+            `path:${pathId}:segment:${segmentIndex}:pair-length`,
+          )
         : state;
     }
 
@@ -1176,30 +2616,39 @@ export const useHarnessStore = create<HarnessStore>((set, get) => ({
     for (const match of matches) {
       changed = setPathSegmentLength(match.path, match.segmentIndex, lengthMm) || changed;
     }
-    return changed ? { harness, isDirty: true, mutationError: null } : state;
+    return changed
+      ? historyPatch(
+          state,
+          { harness, isDirty: true, mutationError: null },
+          `path:${pathId}:segment:${segmentIndex}:pair-length`,
+        )
+      : state;
+  }),
+  updateBundleSegmentLengths: (bundleId, pathIds, lengthMm) => set((state) => {
+    if (!state.harness) return state;
+    if (lengthMm !== undefined && (!Number.isFinite(lengthMm) || lengthMm < 0)) {
+      return { mutationError: 'Stretch length must be a non-negative number.' };
+    }
+    if (!bundleId || pathIds.length === 0) return state;
+
+    const harness = structuredClone(state.harness);
+    const matches = getBundleSegments(harness, bundleId, pathIds);
+    let changed = false;
+    for (const match of matches) {
+      changed = setPathSegmentLength(match.path, match.segmentIndex, lengthMm) || changed;
+    }
+    return changed
+      ? historyPatch(
+          state,
+          { harness, isDirty: true, mutationError: null },
+          `bundle:${bundleId}:length`,
+        )
+      : state;
   }),
   setMutationError: (message) => set({ mutationError: message }),
-  pushStructuralSnapshot: () => set((state) => {
-    if (!state.harness) return state;
-    return {
-      structuralUndoStack: [
-        ...state.structuralUndoStack.slice(-9),
-        { harness: structuredClone(state.harness), subsystems: structuredClone(state.subsystems) },
-      ],
-    };
-  }),
-  undoStructuralMutation: () => set((state) => {
-    const previous = state.structuralUndoStack.at(-1);
-    if (!previous) return state;
-    return {
-      harness: structuredClone(previous.harness),
-      subsystems: structuredClone(previous.subsystems),
-      structuralUndoStack: state.structuralUndoStack.slice(0, -1),
-      isDirty: true,
-    };
-  }),
-  resetForHarnessSwitch: () => set({
+  resetForHarnessSwitch: () => set(trustedDocumentPatch({
     harness: null,
+    serverHarness: null,
     nodeLayouts: {},
     portLayouts: {},
     sizeLayouts: {},
@@ -1215,7 +2664,6 @@ export const useHarnessStore = create<HarnessStore>((set, get) => ({
     subsystems: {},
     activeSubsystemId: null,
     mutationError: null,
-    structuralUndoStack: [],
     undoStack: [],
     redoStack: [],
     selectedItem: null,
@@ -1229,23 +2677,65 @@ export const useHarnessStore = create<HarnessStore>((set, get) => ({
     isDirty: false,
     draggingEdgeInfo: null,
     manufacturing: structuredClone(EMPTY_MANUFACTURING_DOCUMENT),
+    serverManufacturing: structuredClone(EMPTY_MANUFACTURING_DOCUMENT),
+    serverLayouts: emptyLayouts(),
+    serverSubsystems: {},
     manufacturingTargetBundleId: null,
-  }),
+    signalLibraryTargetId: null,
+    serverRev: 0,
+    lastWriter: null,
+    lastWriterAt: null,
+    attribution: {},
+    peers: {},
+    conflict: null,
+    interactingEntities: new Set(),
+    queuedRemoteUpdates: [],
+  })),
 
-  loadHarness: (data) => set({ harness: normalizeHarness(data), isDirty: false }),
-  loadConnectorLibrary: (data) => set({ connectorLibrary: data }),
-  loadManufacturing: (data) => set({
+  loadHarness: (data) => set((state) => {
+    const harness = normalizeHarness(data);
+    const patch = { harness, serverHarness: structuredClone(harness), isDirty: false };
+    if (!state.harness) return trustedDocumentPatch(patch);
+    const changedIds = changedHarnessEntityIds(diffHarness(state.harness, harness)).sort();
+    return trustedDocumentPatch(historyPatch(
+      state,
+      patch,
+      `server:harness:${changedIds.join(',') || 'metadata'}`,
+    ));
+  }),
+  loadConnectorLibrary: (data) => set((state) => {
+    const patch = {
+      connectorLibrary: data,
+      serverConnectorLibrary: structuredClone(data),
+    };
+    if (!state.connectorLibrary) return trustedDocumentPatch(patch);
+    const diff = diffLibrary(state.connectorLibrary, data);
+    const changedIds = [
+      ...Object.keys(diff.connectorTypes.patch),
+      ...diff.connectorTypes.removed,
+    ].sort();
+    return trustedDocumentPatch(historyPatch(
+      state,
+      patch,
+      `server:library:${changedIds.join(',') || 'metadata'}`,
+    ));
+  }),
+  loadManufacturing: (data) => set(trustedDocumentPatch({
     manufacturing: {
       schema_version: '1.1.0',
       bundles: data?.bundles ?? {},
     },
-  }),
+    serverManufacturing: {
+      schema_version: '1.1.0',
+      bundles: structuredClone(data?.bundles ?? {}),
+    },
+  })),
   updateManufacturingEndpointGender: (
     bundleId,
     connectorId,
     gender,
     mateBundleIds,
-  ) => set((state) => ({
+  ) => set((state) => historyPatch(state, {
     manufacturing: assignManufacturingEndpointGender(
       state.manufacturing,
       bundleId,
@@ -1254,19 +2744,30 @@ export const useHarnessStore = create<HarnessStore>((set, get) => ({
       mateBundleIds,
     ),
     isDirty: true,
-  })),
-  updateManufacturingStep: (bundleId, step, completed) => set((state) => {
+  }, `manufacturing:${bundleId}:gender:${connectorId}`)),
+  updateManufacturingStep: (bundleId, componentKey, step, completed) => set((state) => {
     const document = structuredClone(state.manufacturing);
     const progress = document.bundles[bundleId] ?? { steps: {} };
     const stepIndex = MANUFACTURING_STEPS.findIndex((candidate) => candidate.id === step);
     if (stepIndex < 0) return state;
+    const componentSteps = {
+      ...(progress.component_steps?.[componentKey] ?? progress.steps),
+    };
     for (let index = 0; index < MANUFACTURING_STEPS.length; index += 1) {
       const candidate = MANUFACTURING_STEPS[index].id;
-      if (completed && index <= stepIndex) progress.steps[candidate] = true;
-      if (!completed && index >= stepIndex) delete progress.steps[candidate];
+      if (completed && index <= stepIndex) componentSteps[candidate] = true;
+      if (!completed && index >= stepIndex) delete componentSteps[candidate];
     }
+    progress.component_steps = {
+      ...(progress.component_steps ?? {}),
+      [componentKey]: componentSteps,
+    };
     document.bundles[bundleId] = progress;
-    return { manufacturing: document, isDirty: true };
+    return historyPatch(
+      state,
+      { manufacturing: document, isDirty: true },
+      `manufacturing:${bundleId}:${componentKey}:${step}`,
+    );
   }),
   updateManufacturingNotes: (bundleId, notes) => set((state) => {
     const document = structuredClone(state.manufacturing);
@@ -1275,38 +2776,94 @@ export const useHarnessStore = create<HarnessStore>((set, get) => ({
     if (normalized) progress.notes = notes;
     else delete progress.notes;
     document.bundles[bundleId] = progress;
-    return { manufacturing: document, isDirty: true };
+    return historyPatch(
+      state,
+      { manufacturing: document, isDirty: true },
+      `manufacturing:${bundleId}:notes`,
+    );
   }),
-  updateConnectorLibrary: (data) => set({ connectorLibrary: data, isDirty: true }),
-  loadLayouts: (layouts) => set({ nodeLayouts: layouts }),
+  updateConnectorLibrary: (data) => set((state) => {
+    if (!state.connectorLibrary) return { connectorLibrary: data, isDirty: true };
+    const diff = diffLibrary(state.connectorLibrary, data);
+    const changedIds = [
+      ...Object.keys(diff.connectorTypes.patch),
+      ...diff.connectorTypes.removed,
+    ].sort();
+    return historyPatch(
+      state,
+      { connectorLibrary: data, isDirty: true },
+      `library:${changedIds.join(',') || 'metadata'}`,
+    );
+  }),
+  loadLayouts: (layouts) => set((state) => trustedDocumentPatch({
+    nodeLayouts: layouts,
+    serverLayouts: { ...state.serverLayouts, nodes: structuredClone(layouts) },
+  })),
   loadPortLayouts: (ports) => {
     const clean: PortLayouts = {};
     for (const [key, value] of Object.entries(ports)) {
-      if (typeof (value as any).x === 'number' && typeof (value as any).y === 'number') {
-        clean[key] = value as { x: number; y: number };
+      if (typeof value.x === 'number' && typeof value.y === 'number') {
+        clean[key] = value;
       }
     }
-    set({ portLayouts: clean });
+    set((state) => trustedDocumentPatch({
+      portLayouts: clean,
+      serverLayouts: { ...state.serverLayouts, ports: structuredClone(clean) },
+    }));
   },
-  loadSizeLayouts: (sizes) => set({ sizeLayouts: sizes }),
-  loadFreePortLayouts: (free) => set({ freePortLayouts: free }),
-  loadBackgroundLayouts: (bg) => set({ backgroundLayouts: bg }),
-  loadConnectorTypeSizes: (sizes) => set({ connectorTypeSizes: sizes }),
+  loadSizeLayouts: (sizes) => set((state) => trustedDocumentPatch({
+    sizeLayouts: sizes,
+    serverLayouts: { ...state.serverLayouts, sizes: structuredClone(sizes) },
+  })),
+  loadFreePortLayouts: (free) => set((state) => trustedDocumentPatch({
+    freePortLayouts: free,
+    serverLayouts: { ...state.serverLayouts, free: structuredClone(free) },
+  })),
+  loadBackgroundLayouts: (bg) => set((state) => trustedDocumentPatch({
+    backgroundLayouts: bg,
+    serverLayouts: { ...state.serverLayouts, backgrounds: structuredClone(bg) },
+  })),
+  loadConnectorTypeSizes: (sizes) => set((state) => trustedDocumentPatch({
+    connectorTypeSizes: sizes,
+    serverLayouts: { ...state.serverLayouts, connectorTypeSizes: structuredClone(sizes) },
+  })),
   loadTextBoxLayouts: (tbs) =>
-    set({
-      textBoxLayouts: Object.fromEntries(
+    set((state) => {
+      const textBoxLayouts = Object.fromEntries(
         Object.entries(tbs).map(([id, tb]) => [id, { ...tb, contextKey: tb.contextKey ?? 'graph' }]),
-      ),
+      );
+      return trustedDocumentPatch({
+        textBoxLayouts,
+        serverLayouts: {
+          ...state.serverLayouts,
+          textBoxes: structuredClone(textBoxLayouts),
+        },
+      });
     }),
-  loadWaypointLayouts: (wps) => set({ waypointLayouts: wps }),
-  loadJunctionLayouts: (junctions) => set({ junctionLayouts: junctions }),
-  loadMergePointLayouts: (layouts) => set({ mergePointLayouts: layouts }),
-  loadRotationLayouts: (rotations) => set({ rotationLayouts: rotations }),
+  loadWaypointLayouts: (wps) => set((state) => trustedDocumentPatch({
+    waypointLayouts: wps,
+    serverLayouts: { ...state.serverLayouts, waypoints: structuredClone(wps) },
+  })),
+  loadJunctionLayouts: (junctions) => set((state) => trustedDocumentPatch({
+    junctionLayouts: junctions,
+    serverLayouts: { ...state.serverLayouts, junctions: structuredClone(junctions) },
+  })),
+  loadMergePointLayouts: (layouts) => set((state) => trustedDocumentPatch({
+    mergePointLayouts: layouts,
+    serverLayouts: { ...state.serverLayouts, mergePoints: structuredClone(layouts) },
+  })),
+  loadRotationLayouts: (rotations) => set((state) => trustedDocumentPatch({
+    rotationLayouts: rotations,
+    serverLayouts: { ...state.serverLayouts, rotations: structuredClone(rotations) },
+  })),
   rotateConnector: (connectorId) =>
     set((state) => {
       const current = state.rotationLayouts[connectorId] ?? 0;
       const next = (current + 90) % 360;
-      return { rotationLayouts: { ...state.rotationLayouts, [connectorId]: next }, isDirty: true };
+      return historyPatch(state, {
+        rotationLayouts: { ...state.rotationLayouts, [connectorId]: next },
+        isDirty: true,
+      }, `connector:${connectorId}:rotate`);
     }),
   rotateEnclosure: (enclosureId) =>
     set((state) => {
@@ -1401,18 +2958,24 @@ export const useHarnessStore = create<HarnessStore>((set, get) => ({
             connectors: connectorLayouts,
           };
 
-          return {
+          return historyPatch(state, {
             rotationLayouts,
             subsystems: {
               ...state.subsystems,
               [subsystem.id]: nextSubsystem,
             },
             isDirty: true,
-          };
+          }, `enclosure:${enclosureId}:rotate`);
         }
       }
 
-      if (!harness) return { rotationLayouts, isDirty: true };
+      if (!harness) {
+        return historyPatch(
+          state,
+          { rotationLayouts, isDirty: true },
+          `enclosure:${enclosureId}:rotate`,
+        );
+      }
 
       const oldSize = state.sizeLayouts[enclosureId] ?? { w: 220, h: 180 };
       const connectors = harness.connectors.filter(
@@ -1465,7 +3028,7 @@ export const useHarnessStore = create<HarnessStore>((set, get) => ({
           }
         : state.nodeLayouts;
 
-      return {
+      return historyPatch(state, {
         rotationLayouts,
         nodeLayouts,
         portLayouts,
@@ -1474,29 +3037,33 @@ export const useHarnessStore = create<HarnessStore>((set, get) => ({
           [enclosureId]: newSize,
         },
         isDirty: true,
-      };
+      }, `enclosure:${enclosureId}:rotate`);
     }),
 
   updateBackground: (contextKey, patch) =>
     set((state) => {
       const prev = state.backgroundLayouts[contextKey];
-      return {
+      return historyPatch(state, {
         backgroundLayouts: {
           ...state.backgroundLayouts,
           [contextKey]: { ...(prev ?? { x: 0, y: 0, w: 800, h: 600, locked: false, image: '' }), ...patch },
         },
-      };
+      }, `background:${contextKey}`);
     }),
   removeBackground: (contextKey) =>
     set((state) => {
       const next = { ...state.backgroundLayouts };
       delete next[contextKey];
-      return { backgroundLayouts: next };
+      return historyPatch(
+        state,
+        { backgroundLayouts: next },
+        `background:${contextKey}:remove`,
+      );
     }),
 
   addTextBox: (x, y) => {
     const id = `tb_${Date.now()}`;
-    set((state) => ({
+    set((state) => historyPatch(state, {
       textBoxLayouts: {
         ...state.textBoxLayouts,
         [id]: {
@@ -1523,22 +3090,24 @@ export const useHarnessStore = create<HarnessStore>((set, get) => ({
       selectedTextBoxId: id,
       selectedItem: null,
       selectedBundle: null,
-    }));
+    }, `textBox:${id}:add`));
   },
   updateTextBox: (id, patch) =>
     set((state) => {
       const prev = state.textBoxLayouts[id];
       if (!prev) return state;
-      return { textBoxLayouts: { ...state.textBoxLayouts, [id]: { ...prev, ...patch } } };
+      return historyPatch(state, {
+        textBoxLayouts: { ...state.textBoxLayouts, [id]: { ...prev, ...patch } },
+      }, `textBox:${id}:${Object.keys(patch).sort().join(',')}`);
     }),
   removeTextBox: (id) =>
     set((state) => {
       const next = { ...state.textBoxLayouts };
       delete next[id];
-      return {
+      return historyPatch(state, {
         textBoxLayouts: next,
         selectedTextBoxId: state.selectedTextBoxId === id ? null : state.selectedTextBoxId,
-      };
+      }, `textBox:${id}:remove`);
     }),
   selectTextBox: (id) => set({
     selectedTextBoxId: id,
@@ -1585,12 +3154,20 @@ export const useHarnessStore = create<HarnessStore>((set, get) => ({
       expandedSizeOverrides: { ...state.expandedSizeOverrides, [nodeId]: { w, h } },
     })),
 
-  updateNodePosition: (nodeId, x, y) => set((state) => ({ nodeLayouts: { ...state.nodeLayouts, [nodeId]: { x, y } } })),
-  updatePortLayout: (connectorId, x, y) => set((state) => ({ portLayouts: { ...state.portLayouts, [connectorId]: { x, y } } })),
-  updateNodeSize: (nodeId, w, h) => set((state) => ({ sizeLayouts: { ...state.sizeLayouts, [nodeId]: { w, h } } })),
-  updateFreePortLayout: (connectorId, x, y) => set((state) => ({ freePortLayouts: { ...state.freePortLayouts, [connectorId]: { x, y } } })),
+  updateNodePosition: (nodeId, x, y) => set((state) => historyPatch(state, {
+    nodeLayouts: { ...state.nodeLayouts, [nodeId]: { x, y } },
+  }, `node:${nodeId}:position`)),
+  updatePortLayout: (connectorId, x, y) => set((state) => historyPatch(state, {
+    portLayouts: { ...state.portLayouts, [connectorId]: { x, y } },
+  }, `connector:${connectorId}:port-position`)),
+  updateNodeSize: (nodeId, w, h) => set((state) => historyPatch(state, {
+    sizeLayouts: { ...state.sizeLayouts, [nodeId]: { w, h } },
+  }, `node:${nodeId}:size`)),
+  updateFreePortLayout: (connectorId, x, y) => set((state) => historyPatch(state, {
+    freePortLayouts: { ...state.freePortLayouts, [connectorId]: { x, y } },
+  }, `connector:${connectorId}:free-position`)),
   updateMergePointLayout: (contextKey, mergePointId, x, y) =>
-    set((state) => ({
+    set((state) => historyPatch(state, {
       mergePointLayouts: {
         ...state.mergePointLayouts,
         [contextKey]: {
@@ -1598,7 +3175,7 @@ export const useHarnessStore = create<HarnessStore>((set, get) => ({
           [mergePointId]: { x, y },
         },
       },
-    })),
+    }, `mergePoint:${mergePointId}:position`)),
 
   setDrillDown: (encId) => set({
     drillDownEnclosure: encId,
@@ -1607,19 +3184,25 @@ export const useHarnessStore = create<HarnessStore>((set, get) => ({
     selectedTextBoxId: null,
     revealRequest: null,
   }),
-  setSelectedBundle: (pathIds) => set({
-    selectedBundle: pathIds,
+  setSelectedBundle: (bundle) => set({
+    selectedBundle: bundle,
     selectedItem: null,
     selectedTextBoxId: null,
     revealRequest: null,
   }),
 
-  setEdgeWaypoints: (edgeId, waypoints) => set((state) => ({ waypointLayouts: { ...state.waypointLayouts, [edgeId]: waypoints } })),
+  setEdgeWaypoints: (edgeId, waypoints) => set((state) => historyPatch(state, {
+    waypointLayouts: { ...state.waypointLayouts, [edgeId]: waypoints },
+  }, `edge:${edgeId}:waypoints`)),
   clearEdgeWaypoints: (edgeId) =>
     set((state) => {
       const next = { ...state.waypointLayouts };
       delete next[edgeId];
-      return { waypointLayouts: next };
+      return historyPatch(
+        state,
+        { waypointLayouts: next },
+        `edge:${edgeId}:clear-waypoints`,
+      );
     }),
   createJunction: (pos, edgeId, waypointIndex) => {
     const id = `jct_${Date.now()}`;
@@ -1675,7 +3258,7 @@ export const useHarnessStore = create<HarnessStore>((set, get) => ({
         }
       }
 
-      return {
+      return historyPatch(state, {
         junctionLayouts: {
           ...state.junctionLayouts,
           [id]: { id, x: pos.x, y: pos.y, memberEdgeIds: [edgeId], mergePointId },
@@ -1683,7 +3266,7 @@ export const useHarnessStore = create<HarnessStore>((set, get) => ({
         waypointLayouts: nextWaypointLayouts,
         mergePointLayouts: nextMergePointLayouts,
         harness: nextHarness,
-      };
+      }, `junction:${id}:create`);
     });
     return id;
   },
@@ -1691,12 +3274,12 @@ export const useHarnessStore = create<HarnessStore>((set, get) => ({
     set((state) => {
       const junction = state.junctionLayouts[junctionId];
       if (!junction) return state;
-      return {
+      return historyPatch(state, {
         junctionLayouts: {
           ...state.junctionLayouts,
           [junctionId]: { ...junction, x: pos.x, y: pos.y },
         },
-      };
+      }, `junction:${junctionId}:position`);
     }),
   deleteJunction: (junctionId) =>
     set((state) => {
@@ -1725,12 +3308,12 @@ export const useHarnessStore = create<HarnessStore>((set, get) => ({
         nextMergePointLayouts = stripMergePointLayouts(state.mergePointLayouts, [mergePointId]);
       }
 
-      return {
+      return historyPatch(state, {
         junctionLayouts: nextJunctions,
         waypointLayouts,
         harness: nextHarness,
         mergePointLayouts: nextMergePointLayouts,
-      };
+      }, `junction:${junctionId}:delete`);
     }),
   linkEdgeToJunction: (junctionId, edgeId, insertAfterIndex) =>
     set((state) => {
@@ -1769,14 +3352,14 @@ export const useHarnessStore = create<HarnessStore>((set, get) => ({
         }
       }
 
-      return {
+      return historyPatch(state, {
         junctionLayouts: {
           ...state.junctionLayouts,
           [junctionId]: { ...junction, memberEdgeIds: [...junction.memberEdgeIds, edgeId] },
         },
         waypointLayouts: nextWaypointLayouts,
         harness: nextHarness,
-      };
+      }, `junction:${junctionId}:link:${edgeId}`);
     }),
   unlinkEdgeFromJunction: (junctionId, edgeId) =>
     set((state) => {
@@ -1829,14 +3412,14 @@ export const useHarnessStore = create<HarnessStore>((set, get) => ({
       if (remaining.length === 0) {
         const nextJunctions = { ...state.junctionLayouts };
         delete nextJunctions[junctionId];
-        return {
+        return historyPatch(state, {
           junctionLayouts: nextJunctions,
           waypointLayouts: { ...state.waypointLayouts, [edgeId]: waypoints },
           harness: nextHarness,
           mergePointLayouts: nextMergePointLayouts,
-        };
+        }, `junction:${junctionId}:unlink:${edgeId}`);
       }
-      return {
+      return historyPatch(state, {
         junctionLayouts: {
           ...state.junctionLayouts,
           [junctionId]: { ...junction, memberEdgeIds: remaining },
@@ -1844,7 +3427,7 @@ export const useHarnessStore = create<HarnessStore>((set, get) => ({
         waypointLayouts: { ...state.waypointLayouts, [edgeId]: waypoints },
         harness: nextHarness,
         mergePointLayouts: nextMergePointLayouts,
-      };
+      }, `junction:${junctionId}:unlink:${edgeId}`);
     }),
   findJunctionForEdgeWaypoint: (edgeId, waypointIndex) => {
     const state = get();
@@ -1862,29 +3445,91 @@ export const useHarnessStore = create<HarnessStore>((set, get) => ({
 
   setDraggingEdgeInfo: (info) => set({ draggingEdgeInfo: info }),
 
-  pushUndoSnapshot: () =>
+  pushUndoSnapshot: (actionKey = 'manual') =>
     set((state) => {
-      const next = [...state.undoStack, makeSnapshot(state)];
-      if (next.length > MAX_HISTORY) next.shift();
-      return { undoStack: next, redoStack: [] };
+      const now = Date.now();
+      const current = makeSnapshot(state);
+      const top = state.undoStack.at(-1);
+      if (top?.active) return state;
+      if (top?.actionKey === actionKey && now - top.updatedAt <= 2_000) {
+        return {
+          undoStack: [
+            ...state.undoStack.slice(0, -1),
+            { ...top, active: true, updatedAt: now },
+          ],
+          redoStack: [],
+        };
+      }
+      return {
+        undoStack: appendUndoEntry(state.undoStack, {
+          before: current,
+          after: current,
+          actionKey,
+          capturedAt: now,
+          updatedAt: now,
+          active: true,
+        }),
+        redoStack: [],
+      };
     }),
+  commitUndoSnapshot: () =>
+    set((state) => {
+      const top = state.undoStack.at(-1);
+      if (!top?.active) return state;
+      const current = makeSnapshot(state);
+      const after = applySnapshotDelta(top.after, top.after, current);
+      if (snapshotsEqual(top.before, after)) {
+        return { undoStack: state.undoStack.slice(0, -1) };
+      }
+      return {
+        undoStack: [
+          ...state.undoStack.slice(0, -1),
+          { ...top, after, active: false, updatedAt: Date.now() },
+        ],
+      };
+    }),
+  cancelUndoSnapshot: () =>
+    set((state) => {
+      const top = state.undoStack.at(-1);
+      if (!top?.active) return state;
+      const current = makeSnapshot(state);
+      return snapshotsEqual(top.before, current)
+        ? { undoStack: state.undoStack.slice(0, -1) }
+        : {
+            undoStack: [
+              ...state.undoStack.slice(0, -1),
+              { ...top, after: current, active: false, updatedAt: Date.now() },
+            ],
+          };
+    }),
+  getUndoAffectedEntities: () => {
+    const entry = get().undoStack.at(-1);
+    return entry ? getEntryAffectedEntities(entry) : [];
+  },
   undo: () =>
     set((state) => {
       if (state.undoStack.length === 0) return state;
-      const prev = state.undoStack[state.undoStack.length - 1];
+      const current = makeSnapshot(state);
+      const pending = state.undoStack[state.undoStack.length - 1];
+      const entry = pending.active
+        ? { ...pending, after: current, active: false, updatedAt: Date.now() }
+        : pending;
+      if (snapshotsEqual(entry.before, entry.after)) {
+        return { undoStack: state.undoStack.slice(0, -1) };
+      }
       return {
-        ...restoreSnapshot(state, prev),
+        ...scopedHistoryPatch(state, entry, 'undo'),
         undoStack: state.undoStack.slice(0, -1),
-        redoStack: [...state.redoStack, makeSnapshot(state)],
+        redoStack: appendUndoEntry(state.redoStack, entry),
       };
     }),
   redo: () =>
     set((state) => {
       if (state.redoStack.length === 0) return state;
-      const next = state.redoStack[state.redoStack.length - 1];
+      const entry = state.redoStack[state.redoStack.length - 1];
       return {
-        ...restoreSnapshot(state, next),
-        undoStack: [...state.undoStack, makeSnapshot(state)],
+        ...scopedHistoryPatch(state, entry, 'redo'),
+        undoStack: appendUndoEntry(state.undoStack, entry),
         redoStack: state.redoStack.slice(0, -1),
       };
     }),
@@ -1892,9 +3537,9 @@ export const useHarnessStore = create<HarnessStore>((set, get) => ({
   canRedo: () => get().redoStack.length > 0,
 
   updateConnectorTypeSize: (typeId, w, h) =>
-    set((state) => ({
+    set((state) => historyPatch(state, {
       connectorTypeSizes: { ...state.connectorTypeSizes, [typeId]: { w: Math.round(w), h: Math.round(h) } },
-    })),
+    }, `connectorType:${typeId}:size`)),
   updateConnectorTypeImage: (typeId, image, pinCount) =>
     set((state) => {
       if (!state.connectorLibrary) return state;
@@ -1903,7 +3548,11 @@ export const useHarnessStore = create<HarnessStore>((set, get) => ({
       const variant = connectorType?.cavity_variants?.find((item) => item.pin_count === pinCount);
       if (variant) variant.image = image || undefined;
       else if (connectorType) connectorType.image = image || undefined;
-      return { connectorLibrary: library, isDirty: true };
+      return historyPatch(
+        state,
+        { connectorLibrary: library, isDirty: true },
+        `connectorType:${typeId}:image:${pinCount ?? 'default'}`,
+      );
     }),
   updateConnectorTypeSideImage: (typeId, image, pinCount) =>
     set((state) => {
@@ -1913,7 +3562,11 @@ export const useHarnessStore = create<HarnessStore>((set, get) => ({
       const variant = connectorType?.cavity_variants?.find((item) => item.pin_count === pinCount);
       if (variant) variant.side_image = image || undefined;
       else if (connectorType) connectorType.side_image = image || undefined;
-      return { connectorLibrary: library, isDirty: true };
+      return historyPatch(
+        state,
+        { connectorLibrary: library, isDirty: true },
+        `connectorType:${typeId}:side-image:${pinCount ?? 'default'}`,
+      );
     }),
   renameConnectorType: (typeId, name) =>
     set((state) => {
@@ -1922,7 +3575,11 @@ export const useHarnessStore = create<HarnessStore>((set, get) => ({
         const connectorLibrary = renameConnectorTypeInLibrary(state.connectorLibrary, typeId, name);
         return connectorLibrary === state.connectorLibrary
           ? state
-          : { connectorLibrary, isDirty: true, mutationError: null };
+          : historyPatch(
+              state,
+              { connectorLibrary, isDirty: true, mutationError: null },
+              `connectorType:${typeId}:rename`,
+            );
       } catch (error) {
         return { mutationError: error instanceof Error ? error.message : 'Connector type rename failed.' };
       }
@@ -1936,7 +3593,11 @@ export const useHarnessStore = create<HarnessStore>((set, get) => ({
         if (value === '') delete enclosure.properties[key];
         else enclosure.properties[key] = value;
       }
-      return { harness, isDirty: true };
+      return historyPatch(
+        state,
+        { harness, isDirty: true },
+        `enclosure:${encId}:property:${key}`,
+      );
     }),
   updateConnectorProperty: (conId, key, value) =>
     set((state) => {
@@ -1947,7 +3608,11 @@ export const useHarnessStore = create<HarnessStore>((set, get) => ({
         if (value === '') delete connector.properties[key];
         else connector.properties[key] = value;
       }
-      return { harness, isDirty: true };
+      return historyPatch(
+        state,
+        { harness, isDirty: true },
+        `connector:${conId}:property:${key}`,
+      );
     }),
 
   addTag: (entityType, entityId, tag) =>
@@ -1956,7 +3621,11 @@ export const useHarnessStore = create<HarnessStore>((set, get) => ({
       const harness = structuredClone(state.harness);
       const target = findMutableEntity(harness, entityType, entityId);
       if (target && !target.tags.includes(tag)) target.tags.push(tag);
-      return { harness, isDirty: true };
+      return historyPatch(
+        state,
+        { harness, isDirty: true },
+        `${entityType}:${entityId}:tag`,
+      );
     }),
   removeTag: (entityType, entityId, tag) =>
     set((state) => {
@@ -1964,7 +3633,11 @@ export const useHarnessStore = create<HarnessStore>((set, get) => ({
       const harness = structuredClone(state.harness);
       const target = findMutableEntity(harness, entityType, entityId);
       if (target) target.tags = target.tags.filter((item) => item !== tag);
-      return { harness, isDirty: true };
+      return historyPatch(
+        state,
+        { harness, isDirty: true },
+        `${entityType}:${entityId}:tag`,
+      );
     }),
 
   toggleFilter: (namespace, value) =>
@@ -2033,7 +3706,40 @@ export const useHarnessStore = create<HarnessStore>((set, get) => ({
     if (!harness) return parentId;
     return harness.enclosures.find((item) => item.id === parentId)?.name ?? parentId;
   },
-}));
+})));
+
+function tagHarnessForSubsystems(
+  source: HarnessData | null,
+  documents: SubsystemDocument[],
+): HarnessData | null {
+  if (!source) return null;
+  const harness = structuredClone(source);
+  const addSystemTag = (tags: string[], subsystemId: string) => {
+    const tag = `system:${subsystemId}`;
+    if (!tags.includes(tag)) tags.push(tag);
+  };
+  for (const document of documents) {
+    const enclosureMembership = new Set([
+      ...Object.keys(document.enclosures),
+      ...Object.keys(document.devices),
+    ]);
+    for (const enclosure of harness.enclosures) {
+      if (enclosureMembership.has(enclosure.id)) addSystemTag(enclosure.tags, document.id);
+    }
+    for (const connector of harness.connectors) {
+      const deviceMode = connector.parent
+        ? document.device_connector_mode?.[connector.parent] ?? 'all'
+        : 'all';
+      if (
+        document.connectors[connector.id]
+        || (connector.parent !== null && document.devices[connector.parent] && deviceMode === 'all')
+      ) {
+        addSystemTag(connector.tags, document.id);
+      }
+    }
+  }
+  return harness;
+}
 
 function emptyDeleteImpact(): DeleteImpact {
   return { enclosureIds: [], connectorIds: [], mergePointIds: [], pathIds: [], signalIds: [] };
@@ -2189,123 +3895,631 @@ function findMutableEntity(
   }
 }
 
-const AUTO_SAVE_DELAY = 1000;
+function isMapPatch<T>(value: unknown): value is MapPatch<T> {
+  if (!value || typeof value !== 'object') return false;
+  const candidate = value as Partial<MapPatch<T>>;
+  return !!candidate.patch
+    && typeof candidate.patch === 'object'
+    && Array.isArray(candidate.removed);
+}
+
+function payloadDocuments(payload: SyncPayload): CollaborationDocumentState {
+  return payload.full ? payload : (payload.changed ?? payload);
+}
+
+function payloadTouchesInteraction(payload: SyncPayload, state: HarnessStore): boolean {
+  if (state.interactingEntities.size === 0) return false;
+  const ids = new Set(
+    [...state.interactingEntities].map((key) => key.slice(key.indexOf(':') + 1)),
+  );
+  if (payload.changedEntityIds && payload.changedEntityIds.length > 0) {
+    return payload.changedEntityIds.some((id) => ids.has(id));
+  }
+  const documents = payloadDocuments(payload);
+  return !!(
+    documents.harness
+    || documents.connectorLibrary
+    || documents.library
+    || documents.layouts
+    || documents.manufacturing
+    || documents.subsystems
+  );
+}
+
+function remoteLayouts(
+  current: CollaborationLayouts,
+  incoming: CollaborationDocumentState['layouts'],
+  full: boolean,
+): CollaborationLayouts | null {
+  if (!incoming) return null;
+  if ('patch' in incoming && 'removed' in incoming) {
+    return applyLayoutPatch(current, incoming, 'contexts');
+  }
+  return full
+    ? normalizeLayouts(incoming)
+    : normalizeLayouts({ ...current, ...incoming });
+}
+
+function remoteManufacturing(
+  current: ManufacturingDocument,
+  incoming: CollaborationDocumentState['manufacturing'],
+): ManufacturingDocument | null {
+  if (!incoming) return null;
+  if (isMapPatch<ManufacturingDocument['bundles'][string]>(incoming)) {
+    return {
+      schema_version: '1.1.0',
+      bundles: applyRecordDiff(current.bundles, incoming),
+    };
+  }
+  return {
+    schema_version: '1.1.0',
+    bundles: incoming.bundles ?? {},
+  };
+}
+
+function remoteSubsystems(
+  current: Record<string, SubsystemDocument>,
+  incoming: CollaborationDocumentState['subsystems'],
+  full: boolean,
+): Record<string, SubsystemDocument> | null {
+  if (!incoming) return null;
+  if (isMapPatch<SubsystemDocument>(incoming)) return applyRecordDiff(current, incoming);
+  const records = subsystemRecord(incoming);
+  return full ? records : { ...current, ...records };
+}
+
+function applyRemoteSyncPayload(payload: SyncPayload): void {
+  const state = useHarnessStore.getState();
+  if (payloadTouchesInteraction(payload, state)) {
+    useHarnessStore.setState({
+      queuedRemoteUpdates: [...state.queuedRemoteUpdates, payload],
+    });
+    return;
+  }
+
+  const documents = payloadDocuments(payload);
+  const incomingLibrary = documents.connectorLibrary ?? documents.library;
+  const libraryOnly = !!incomingLibrary
+    && !documents.harness
+    && !documents.layouts
+    && !documents.manufacturing
+    && !documents.subsystems;
+  const patch: Partial<HarnessStore> = {
+    serverRev: libraryOnly ? state.serverRev : Math.max(state.serverRev, payload.rev),
+    libraryRev: Math.max(
+      state.libraryRev,
+      payload.libraryRev ?? (libraryOnly ? payload.rev : state.libraryRev),
+    ),
+  };
+  let nextConflict: SyncConflict | null = null;
+
+  if (documents.harness) {
+    const remote = normalizeHarness(documents.harness);
+    if (!state.serverHarness || !state.harness) {
+      patch.serverHarness = remote;
+      patch.harness = structuredClone(remote);
+    } else {
+      const localDiff = diffHarness(state.serverHarness, state.harness);
+      patch.serverHarness = remote;
+      if (isHarnessDiffEmpty(localDiff)) {
+        patch.harness = structuredClone(remote);
+      } else {
+        const rebased = rebaseHarness(state.serverHarness, state.harness, remote);
+        if (rebased.value) {
+          patch.harness = rebased.value;
+        } else {
+          nextConflict = {
+            kind: 'rebase',
+            server: {
+              error: 'remote-deletion',
+              currentRev: payload.rev,
+              lastWriter: documents.lastWriter ?? payload.by ?? state.lastWriter,
+              changedEntityIds: rebased.conflictIds,
+            },
+            localDiffJson: JSON.stringify(localDiff, null, 2),
+          };
+        }
+      }
+    }
+  }
+
+  if (incomingLibrary) {
+    if (!state.serverConnectorLibrary || !state.connectorLibrary) {
+      patch.serverConnectorLibrary = incomingLibrary;
+      patch.connectorLibrary = structuredClone(incomingLibrary);
+    } else {
+      const localDiff = diffLibrary(state.serverConnectorLibrary, state.connectorLibrary);
+      patch.serverConnectorLibrary = incomingLibrary;
+      if (isLibraryDiffEmpty(localDiff)) {
+        patch.connectorLibrary = structuredClone(incomingLibrary);
+      } else {
+        const rebased = rebaseLibrary(
+          state.serverConnectorLibrary,
+          state.connectorLibrary,
+          incomingLibrary,
+        );
+        if (rebased.value) {
+          patch.connectorLibrary = rebased.value;
+        } else {
+          nextConflict = {
+            kind: 'rebase',
+            server: {
+              error: 'remote-deletion',
+              currentRev: payload.libraryRev ?? state.libraryRev,
+              lastWriter: documents.lastWriter ?? payload.by ?? state.lastWriter,
+              changedEntityIds: rebased.conflictIds,
+            },
+            localDiffJson: JSON.stringify(localDiff, null, 2),
+          };
+        }
+      }
+    }
+  }
+
+  const nextRemoteLayouts = remoteLayouts(state.serverLayouts, documents.layouts, payload.full);
+  if (nextRemoteLayouts) {
+    const merged = mergeRemoteLayouts(state.serverLayouts, getLayouts(state), nextRemoteLayouts);
+    patch.serverLayouts = merged.server;
+    Object.assign(patch, layoutStatePatch(merged.live));
+  }
+
+  const nextRemoteManufacturing = remoteManufacturing(
+    state.serverManufacturing,
+    documents.manufacturing,
+  );
+  if (nextRemoteManufacturing) {
+    const merged = mergeRemoteRecord(
+      state.serverManufacturing.bundles,
+      state.manufacturing.bundles,
+      nextRemoteManufacturing.bundles,
+    );
+    patch.serverManufacturing = nextRemoteManufacturing;
+    patch.manufacturing = {
+      schema_version: '1.1.0',
+      bundles: merged.live,
+    };
+  }
+
+  const nextRemoteSubsystems = remoteSubsystems(
+    state.serverSubsystems,
+    documents.subsystems,
+    payload.full,
+  );
+  if (nextRemoteSubsystems) {
+    const merged = mergeRemoteRecord(
+      state.serverSubsystems,
+      state.subsystems,
+      nextRemoteSubsystems,
+    );
+    patch.serverSubsystems = merged.server;
+    const subsystemHarness = patch.harness ?? state.harness;
+    patch.subsystems = Object.fromEntries(
+      Object.entries(merged.live).map(([id, document]) => [
+        id,
+        normalizeSubsystemDocument(subsystemHarness, document),
+      ]),
+    );
+  }
+
+  if (documents.attribution) {
+    patch.attribution = payload.full
+      ? documents.attribution
+      : { ...state.attribution, ...documents.attribution };
+  }
+  const writer = documents.lastWriter !== undefined
+    ? documents.lastWriter
+    : payload.by;
+  if (writer !== undefined) {
+    patch.lastWriter = writer;
+    patch.lastWriterAt = writer ? Date.now() : null;
+  }
+  if (nextConflict) patch.conflict = nextConflict;
+
+  useHarnessStore.setState(trustedDocumentPatch(patch));
+  useHarnessStore.setState({ isDirty: hasOutstandingChanges(useHarnessStore.getState()) });
+}
+
+const PRESENCE_HEARTBEAT_MS = 10_000;
+const PRESENCE_COALESCE_MS = 50;
+let pendingPresence: PresenceUpdate = {};
+let presenceTimer: ReturnType<typeof setTimeout> | null = null;
+let presenceHeartbeat: ReturnType<typeof setInterval> | null = null;
+let lastPresenceSentAt = 0;
+
+function resetPresencePublisher(): void {
+  if (presenceTimer) clearTimeout(presenceTimer);
+  if (presenceHeartbeat) clearInterval(presenceHeartbeat);
+  presenceTimer = null;
+  presenceHeartbeat = null;
+  pendingPresence = {};
+  lastPresenceSentAt = 0;
+}
+
+function sendPresence(): void {
+  if (presenceTimer) {
+    clearTimeout(presenceTimer);
+    presenceTimer = null;
+  }
+  const state = useHarnessStore.getState();
+  if (!state.collabAvailable || !state.session.user) return;
+  lastPresenceSentAt = Date.now();
+  void fetch('/api/presence', {
+    method: 'POST',
+    credentials: 'same-origin',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      harness: state.activeHarnessName,
+      appView: state.appView,
+      editingSurface: state.editingSurface,
+      drillDownEnclosure: state.drillDownEnclosure,
+      activeSubsystemId: state.activeSubsystemId,
+      focus: null,
+      editing: null,
+      ...pendingPresence,
+    }),
+  }).then((response) => {
+    if (response.status === 404) state.setCollabAvailable(false);
+  }).catch(() => {
+    // Presence is advisory and never blocks document editing or saving.
+  });
+}
+
+function queuePresencePublish(partial: PresenceUpdate): void {
+  pendingPresence = { ...pendingPresence, ...partial };
+  const state = useHarnessStore.getState();
+  if (!state.collabAvailable || !state.session.user) return;
+  if (!presenceHeartbeat) {
+    presenceHeartbeat = setInterval(
+      () => queuePresencePublish({}),
+      PRESENCE_HEARTBEAT_MS,
+    );
+  }
+  const immediate = Object.hasOwn(partial, 'focus') || Object.hasOwn(partial, 'editing');
+  if (presenceTimer) clearTimeout(presenceTimer);
+  const delay = immediate
+    ? PRESENCE_COALESCE_MS
+    : Math.max(0, PRESENCE_HEARTBEAT_MS - (Date.now() - lastPresenceSentAt));
+  presenceTimer = setTimeout(sendPresence, delay);
+}
+
+let peerIndexSource: Record<string, PeerPresence> | null = null;
+let peerIndex = new Map<string, PeerPresence[]>();
+const EMPTY_PEERS: PeerPresence[] = [];
+
+function getPeerIndex(peers: Record<string, PeerPresence>): Map<string, PeerPresence[]> {
+  if (peerIndexSource === peers) return peerIndex;
+  const next = new Map<string, PeerPresence[]>();
+  for (const peer of Object.values(peers)) {
+    const targets = [peer.focus, peer.editing].filter(
+      (target): target is NonNullable<typeof target> => target !== null,
+    );
+    const seen = new Set<string>();
+    for (const target of targets) {
+      const key = `${target.kind}:${target.id}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      const entries = next.get(key) ?? [];
+      entries.push(peer);
+      next.set(key, entries);
+    }
+  }
+  peerIndexSource = peers;
+  peerIndex = next;
+  return peerIndex;
+}
+
+export function usePeersForEntity(
+  kind: PresenceTargetKind,
+  id: string,
+): PeerPresence[] {
+  return useHarnessStore((state) => getPeerIndex(state.peers).get(`${kind}:${id}`) ?? EMPTY_PEERS);
+}
+
+let undoStalenessInputs: readonly unknown[] = [];
+let undoStalenessValue: UndoStaleness = {
+  state: 'none',
+  lastWriter: null,
+  since: null,
+};
+
+function selectUndoStaleness(state: HarnessStore): UndoStaleness {
+  const snapshot = state.undoStack.at(-1);
+  const inputs = [
+    snapshot,
+    state.serverRev,
+    state.lastWriter,
+    state.lastWriterAt,
+    state.session.user,
+  ] as const;
+  if (
+    inputs.length === undoStalenessInputs.length
+    && inputs.every((value, index) => value === undoStalenessInputs[index])
+  ) return undoStalenessValue;
+  undoStalenessInputs = inputs;
+  if (!snapshot) {
+    undoStalenessValue = { state: 'none', lastWriter: state.lastWriter, since: null };
+  } else {
+    const writtenBySomeoneElse =
+      (
+        state.serverRev > snapshot.before.serverRev
+        || state.libraryRev > snapshot.before.libraryRev
+      )
+      && state.lastWriter?.id !== state.session.user?.id;
+    undoStalenessValue = {
+      state: writtenBySomeoneElse ? 'red' : 'green',
+      lastWriter: state.lastWriter,
+      since: writtenBySomeoneElse ? state.lastWriterAt : snapshot.capturedAt,
+    };
+  }
+  return undoStalenessValue;
+}
+
+export function useUndoStaleness(): UndoStaleness {
+  return useHarnessStore(selectUndoStaleness);
+}
+
+const FAST_AUTO_SAVE_DELAY = 300;
+const SLOW_AUTO_SAVE_DELAY = 1_000;
 type AutoSaveType =
   | 'harness'
   | 'layouts'
   | 'library'
   | 'manufacturing'
   | 'subsystem';
-let autoSaveTimer: ReturnType<typeof setTimeout> | null = null;
+const ALL_AUTO_SAVE_TYPES = new Set<AutoSaveType>([
+  'harness',
+  'layouts',
+  'library',
+  'manufacturing',
+  'subsystem',
+]);
+let fastAutoSaveTimer: ReturnType<typeof setTimeout> | null = null;
+let slowAutoSaveTimer: ReturnType<typeof setTimeout> | null = null;
+let pendingFastSaveTypes = new Set<AutoSaveType>();
+let pendingSlowSaveTypes = new Set<AutoSaveType>();
 let autoSaveActive = false;
-let pendingSaveTypes = new Set<AutoSaveType>();
-let pendingSubsystemIds = new Set<string>();
 let activeAutoSave: Promise<boolean> | null = null;
 
-async function performAutoSave(
-  what: Set<AutoSaveType>,
-  subsystemIds: Set<string>,
-): Promise<boolean> {
-  const state = useHarnessStore.getState();
-  if (!state.harness) return true;
+interface SaveResponseBody {
+  ok?: boolean;
+  rev?: number;
+  error?: string;
+}
 
-  const nameParam = `?harness=${encodeURIComponent(state.activeHarnessName)}`;
-
+async function readSaveBody(response: Response): Promise<SaveResponseBody> {
   try {
-    const saves: Promise<Response>[] = [];
-    if (what.has('harness')) {
-      saves.push(fetch(`/api/save-harness${nameParam}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(state.harness, null, 2),
-      }));
+    return await response.json() as SaveResponseBody;
+  } catch {
+    return {};
+  }
+}
+
+function updateConfirmedRevision(body: SaveResponseBody): void {
+  const state = useHarnessStore.getState();
+  const writer = state.session.user
+    ? { id: state.session.user.id, displayName: state.session.user.displayName }
+    : state.lastWriter;
+  useHarnessStore.setState({
+    serverRev: typeof body.rev === 'number' ? Math.max(state.serverRev, body.rev) : state.serverRev,
+    lastWriter: writer,
+    lastWriterAt: writer ? Date.now() : state.lastWriterAt,
+  });
+}
+
+function reportSaveFailure(response: Response, body: SaveResponseBody): false {
+  useHarnessStore.getState().setMutationError(
+    `Autosave failed: ${body.error ?? `${response.status} ${response.statusText}`}`,
+  );
+  return false;
+}
+
+function normalizeConflict(
+  body: SaveResponseBody,
+  fallbackRev: number,
+  fallbackWriter: RevisionWriter | null,
+): RevisionConflictResponse {
+  const candidate = body as Partial<RevisionConflictResponse>;
+  return {
+    error: candidate.error ?? 'conflict',
+    currentRev: candidate.currentRev ?? fallbackRev,
+    baseRev: candidate.baseRev ?? fallbackRev,
+    lastWriter: candidate.lastWriter ?? fallbackWriter,
+    changedEntityIds: candidate.changedEntityIds ?? [],
+  };
+}
+
+function hasOutstandingChanges(state: HarnessStore): boolean {
+  if (
+    state.harness
+    && state.serverHarness
+    && !isHarnessDiffEmpty(diffHarness(state.serverHarness, state.harness))
+  ) return true;
+  if (
+    state.connectorLibrary
+    && state.serverConnectorLibrary
+    && !isLibraryDiffEmpty(diffLibrary(state.serverConnectorLibrary, state.connectorLibrary))
+  ) return true;
+  if (!isLayoutPatchEmpty(diffLayouts(state.serverLayouts, getLayouts(state)))) return true;
+  if (!isRecordDiffEmpty(diffRecord(
+    state.serverManufacturing.bundles,
+    state.manufacturing.bundles,
+  ))) return true;
+  return !isRecordDiffEmpty(diffRecord(state.serverSubsystems, state.subsystems));
+}
+
+async function performAutoSave(what: Set<AutoSaveType>): Promise<boolean> {
+  let saved = true;
+  try {
+    let state = useHarnessStore.getState();
+    if (!state.harness) return true;
+    const nameParam = `?harness=${encodeURIComponent(state.activeHarnessName)}`;
+
+    if (what.has('harness') && state.serverHarness) {
+      const localDiff = diffHarness(state.serverHarness, state.harness);
+      if (!isHarnessDiffEmpty(localDiff)) {
+        if (state.conflict?.kind === 'harness' || state.conflict?.kind === 'rebase') return false;
+        const snapshot = structuredClone(state.harness);
+        const response = await fetch(`/api/save-harness${nameParam}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Base-Rev': String(state.serverRev),
+          },
+          body: JSON.stringify(snapshot, null, 2),
+        });
+        const body = await readSaveBody(response);
+        if (response.status === 409) {
+          useHarnessStore.setState({
+            conflict: {
+              kind: 'harness',
+              server: normalizeConflict(body, state.serverRev, state.lastWriter),
+              localDiffJson: JSON.stringify(localDiff, null, 2),
+            },
+          });
+          saved = false;
+        } else if (!response.ok) {
+          saved = reportSaveFailure(response, body);
+        } else {
+          useHarnessStore.setState({ serverHarness: snapshot });
+          updateConfirmedRevision(body);
+        }
+      }
     }
+
+    state = useHarnessStore.getState();
+    if (what.has('library') && state.connectorLibrary && state.serverConnectorLibrary) {
+      const localDiff = diffLibrary(state.serverConnectorLibrary, state.connectorLibrary);
+      if (!isLibraryDiffEmpty(localDiff)) {
+        if (state.conflict?.kind === 'library' || state.conflict?.kind === 'rebase') return false;
+        const snapshot = structuredClone(state.connectorLibrary);
+        const response = await fetch('/api/save-library', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Base-Rev': String(state.libraryRev),
+          },
+          body: JSON.stringify(snapshot, null, 2),
+        });
+        const body = await readSaveBody(response);
+        if (response.status === 409) {
+          useHarnessStore.setState({
+            conflict: {
+              kind: 'library',
+              server: normalizeConflict(body, state.libraryRev, state.lastWriter),
+              localDiffJson: JSON.stringify(localDiff, null, 2),
+            },
+          });
+          saved = false;
+        } else if (!response.ok) {
+          saved = reportSaveFailure(response, body);
+        } else {
+          useHarnessStore.setState({
+            serverConnectorLibrary: snapshot,
+            libraryRev: typeof body.rev === 'number'
+              ? Math.max(state.libraryRev, body.rev)
+              : state.libraryRev,
+          });
+        }
+      }
+    }
+
+    state = useHarnessStore.getState();
     if (what.has('layouts')) {
-      saves.push(fetch(`/api/save-layouts${nameParam}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          nodes: state.nodeLayouts,
-          ports: state.portLayouts,
-          sizes: state.sizeLayouts,
-          free: state.freePortLayouts,
-          backgrounds: state.backgroundLayouts,
-          connectorTypeSizes: state.connectorTypeSizes,
-          textBoxes: state.textBoxLayouts,
-          waypoints: state.waypointLayouts,
-          junctions: state.junctionLayouts,
-          mergePoints: state.mergePointLayouts,
-          rotations: state.rotationLayouts,
-        }, null, 2),
-      }));
+      const snapshot = structuredClone(getLayouts(state));
+      const localDiff = diffLayouts(state.serverLayouts, snapshot);
+      if (!isLayoutPatchEmpty(localDiff)) {
+        const response = await fetch(`/api/save-layouts${nameParam}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(state.collabAvailable ? localDiff : snapshot, null, 2),
+        });
+        const body = await readSaveBody(response);
+        if (!response.ok) {
+          saved = reportSaveFailure(response, body);
+        } else {
+          useHarnessStore.setState({ serverLayouts: snapshot });
+          updateConfirmedRevision(body);
+        }
+      }
     }
-    if (what.has('library') && state.connectorLibrary) {
-      saves.push(fetch('/api/save-library', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(state.connectorLibrary, null, 2),
-      }));
-    }
+
+    state = useHarnessStore.getState();
     if (what.has('manufacturing')) {
-      saves.push(fetch(`/api/save-manufacturing${nameParam}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(state.manufacturing, null, 2),
-      }));
+      const snapshot = structuredClone(state.manufacturing);
+      const localDiff = diffRecord(
+        state.serverManufacturing.bundles,
+        snapshot.bundles,
+      );
+      if (!isRecordDiffEmpty(localDiff)) {
+        const response = await fetch(`/api/save-manufacturing${nameParam}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(
+            state.collabAvailable
+              ? { patch: localDiff.patch, removed: localDiff.removed }
+              : snapshot,
+            null,
+            2,
+          ),
+        });
+        const body = await readSaveBody(response);
+        if (!response.ok) {
+          saved = reportSaveFailure(response, body);
+        } else {
+          useHarnessStore.setState({ serverManufacturing: snapshot });
+          updateConfirmedRevision(body);
+        }
+      }
     }
+
+    state = useHarnessStore.getState();
     if (what.has('subsystem')) {
-      for (const subsystemId of subsystemIds) {
-        const subsystem = state.subsystems[subsystemId];
-        if (!subsystem) continue;
-        saves.push(fetch(`/api/subsystems/${encodeURIComponent(subsystem.id)}${nameParam}`, {
+      const localDiff = diffRecord(state.serverSubsystems, state.subsystems);
+      for (const [id, subsystem] of Object.entries(localDiff.patch)) {
+        const savePayload = buildSubsystemSavePayload(state.serverSubsystems[id], subsystem);
+        const response = await fetch(`/api/subsystems/${encodeURIComponent(id)}${nameParam}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(subsystem, null, 2),
+          body: JSON.stringify(savePayload, null, 2),
+        });
+        const body = await readSaveBody(response);
+        if (!response.ok) {
+          saved = reportSaveFailure(response, body);
+          continue;
+        }
+        useHarnessStore.setState((current) => ({
+          serverSubsystems: {
+            ...current.serverSubsystems,
+            [id]: structuredClone(subsystem),
+          },
         }));
+        updateConfirmedRevision(body);
+      }
+      for (const id of localDiff.removed) {
+        const response = await fetch(`/api/subsystems/${encodeURIComponent(id)}${nameParam}`, {
+          method: 'DELETE',
+        });
+        const body = await readSaveBody(response);
+        if (!response.ok) {
+          saved = reportSaveFailure(response, body);
+          continue;
+        }
+        useHarnessStore.setState((current) => {
+          const serverSubsystems = { ...current.serverSubsystems };
+          delete serverSubsystems[id];
+          return { serverSubsystems };
+        });
+        updateConfirmedRevision(body);
       }
     }
-    const results = await Promise.all(saves);
-    if (results.every((result) => result.ok)) {
-      const current = useHarnessStore.getState();
-      const unchangedSinceSave =
-        (!what.has('harness') || current.harness === state.harness) &&
-        (!what.has('layouts') || (
-          current.nodeLayouts === state.nodeLayouts &&
-          current.portLayouts === state.portLayouts &&
-          current.sizeLayouts === state.sizeLayouts &&
-          current.freePortLayouts === state.freePortLayouts &&
-          current.backgroundLayouts === state.backgroundLayouts &&
-          current.connectorTypeSizes === state.connectorTypeSizes &&
-          current.textBoxLayouts === state.textBoxLayouts &&
-          current.waypointLayouts === state.waypointLayouts &&
-          current.junctionLayouts === state.junctionLayouts &&
-          current.mergePointLayouts === state.mergePointLayouts &&
-          current.rotationLayouts === state.rotationLayouts
-        )) &&
-        (!what.has('library') || current.connectorLibrary === state.connectorLibrary) &&
-        (!what.has('manufacturing') || current.manufacturing === state.manufacturing) &&
-        (!what.has('subsystem') || [...subsystemIds].every(
-          (id) => current.subsystems[id] === state.subsystems[id],
-        ));
-      if (unchangedSinceSave) current.markClean();
-      if (current.mutationError?.startsWith('Autosave failed:')) {
-        current.setMutationError(null);
-      }
-      return true;
-    } else {
-      const failures = await Promise.all(results
-        .filter((result) => !result.ok)
-        .map(async (result) => {
-          try {
-            const body = await result.json() as { error?: string };
-            return body.error ?? `${result.status} ${result.statusText}`;
-          } catch {
-            return `${result.status} ${result.statusText}`;
-          }
-        }));
-      useHarnessStore.getState().setMutationError(`Autosave failed: ${failures.join('; ')}`);
-      return false;
+
+    const current = useHarnessStore.getState();
+    const dirty = hasOutstandingChanges(current);
+    useHarnessStore.setState({ isDirty: dirty });
+    if (saved && current.mutationError?.startsWith('Autosave failed:')) {
+      current.setMutationError(null);
     }
+    return saved;
   } catch (error) {
     useHarnessStore.getState().setMutationError(
       `Autosave failed: ${error instanceof Error ? error.message : 'API unavailable'}`,
@@ -2314,86 +4528,110 @@ async function performAutoSave(
   }
 }
 
-function startAutoSave(what: Set<AutoSaveType>, subsystemIds: Set<string>): Promise<boolean> {
+function startAutoSave(what: Set<AutoSaveType>): Promise<boolean> {
   const previous = activeAutoSave;
-  const save = (previous ?? Promise.resolve(true)).then(() => performAutoSave(what, subsystemIds));
+  const save = (previous ?? Promise.resolve(true))
+    .catch(() => false)
+    .then(() => performAutoSave(what));
   activeAutoSave = save;
-  void save.then((saved) => {
-    if (saved) return;
-    for (const type of what) pendingSaveTypes.add(type);
-    for (const id of subsystemIds) pendingSubsystemIds.add(id);
-  }).finally(() => {
+  void save.finally(() => {
     if (activeAutoSave === save) activeAutoSave = null;
   });
   return save;
 }
 
-export async function flushAutoSave(): Promise<boolean> {
-  if (autoSaveTimer) {
-    clearTimeout(autoSaveTimer);
-    autoSaveTimer = null;
-  }
-  if (activeAutoSave && !(await activeAutoSave)) return false;
+function scheduleAutoSave(types: Set<AutoSaveType>, delay: number): void {
+  const fast = delay === FAST_AUTO_SAVE_DELAY;
+  const pending = fast ? pendingFastSaveTypes : pendingSlowSaveTypes;
+  for (const type of types) pending.add(type);
+  const currentTimer = fast ? fastAutoSaveTimer : slowAutoSaveTimer;
+  if (currentTimer) clearTimeout(currentTimer);
+  const timer = setTimeout(() => {
+    const toSave = new Set(fast ? pendingFastSaveTypes : pendingSlowSaveTypes);
+    if (fast) {
+      fastAutoSaveTimer = null;
+      pendingFastSaveTypes = new Set();
+    } else {
+      slowAutoSaveTimer = null;
+      pendingSlowSaveTypes = new Set();
+    }
+    void startAutoSave(toSave);
+  }, delay);
+  if (fast) fastAutoSaveTimer = timer;
+  else slowAutoSaveTimer = timer;
+}
 
-  while (pendingSaveTypes.size > 0) {
-    const toSave = pendingSaveTypes;
-    const subsystemIds = pendingSubsystemIds;
-    pendingSaveTypes = new Set();
-    pendingSubsystemIds = new Set();
-    if (!(await startAutoSave(toSave, subsystemIds))) return false;
+export async function flushAutoSave(): Promise<boolean> {
+  if (fastAutoSaveTimer) clearTimeout(fastAutoSaveTimer);
+  if (slowAutoSaveTimer) clearTimeout(slowAutoSaveTimer);
+  fastAutoSaveTimer = null;
+  slowAutoSaveTimer = null;
+  pendingFastSaveTypes = new Set();
+  pendingSlowSaveTypes = new Set();
+
+  if (activeAutoSave && !(await activeAutoSave)) return false;
+  while (hasOutstandingChanges(useHarnessStore.getState())) {
+    if (!(await startAutoSave(new Set(ALL_AUTO_SAVE_TYPES)))) return false;
   }
   return true;
 }
 
-export function initAutoSave() {
+export function initAutoSave(): void {
   if (autoSaveActive) return;
   autoSaveActive = true;
 
   useHarnessStore.subscribe((state, prev) => {
-    const layoutChanged =
-      state.nodeLayouts !== prev.nodeLayouts ||
-      state.portLayouts !== prev.portLayouts ||
-      state.sizeLayouts !== prev.sizeLayouts ||
-      state.freePortLayouts !== prev.freePortLayouts ||
-      state.backgroundLayouts !== prev.backgroundLayouts ||
-      state.connectorTypeSizes !== prev.connectorTypeSizes ||
-      state.textBoxLayouts !== prev.textBoxLayouts ||
-      state.waypointLayouts !== prev.waypointLayouts ||
-      state.junctionLayouts !== prev.junctionLayouts ||
-      state.mergePointLayouts !== prev.mergePointLayouts ||
-      state.rotationLayouts !== prev.rotationLayouts;
-    const harnessChanged = state.harness !== prev.harness;
-    const libraryChanged = state.connectorLibrary !== prev.connectorLibrary;
-    const manufacturingChanged = state.manufacturing !== prev.manufacturing;
-    const subsystemChanged = state.subsystems !== prev.subsystems;
+    const fast = new Set<AutoSaveType>();
+    const slow = new Set<AutoSaveType>();
+    if (state.harness !== prev.harness) fast.add('harness');
+    if (state.connectorLibrary !== prev.connectorLibrary) fast.add('library');
+    if (
+      state.nodeLayouts !== prev.nodeLayouts
+      || state.portLayouts !== prev.portLayouts
+      || state.sizeLayouts !== prev.sizeLayouts
+      || state.freePortLayouts !== prev.freePortLayouts
+      || state.backgroundLayouts !== prev.backgroundLayouts
+      || state.connectorTypeSizes !== prev.connectorTypeSizes
+      || state.textBoxLayouts !== prev.textBoxLayouts
+      || state.waypointLayouts !== prev.waypointLayouts
+      || state.junctionLayouts !== prev.junctionLayouts
+      || state.mergePointLayouts !== prev.mergePointLayouts
+      || state.rotationLayouts !== prev.rotationLayouts
+    ) slow.add('layouts');
+    if (state.manufacturing !== prev.manufacturing) slow.add('manufacturing');
+    if (state.subsystems !== prev.subsystems) slow.add('subsystem');
+
+    if (fast.size > 0) scheduleAutoSave(fast, FAST_AUTO_SAVE_DELAY);
+    if (slow.size > 0) scheduleAutoSave(slow, SLOW_AUTO_SAVE_DELAY);
 
     if (
-      !layoutChanged
-      && !harnessChanged
-      && !libraryChanged
-      && !manufacturingChanged
-      && !subsystemChanged
-    ) return;
-
-    if (layoutChanged) pendingSaveTypes.add('layouts');
-    if (harnessChanged) pendingSaveTypes.add('harness');
-    if (libraryChanged) pendingSaveTypes.add('library');
-    if (manufacturingChanged) pendingSaveTypes.add('manufacturing');
-    if (subsystemChanged) {
-      pendingSaveTypes.add('subsystem');
-      for (const [id, document] of Object.entries(state.subsystems)) {
-        if (document !== prev.subsystems[id]) pendingSubsystemIds.add(id);
-      }
+      state.selectedItem !== prev.selectedItem
+      || state.selectedTextBoxId !== prev.selectedTextBoxId
+      || state.selectedBundle !== prev.selectedBundle
+    ) {
+      const focus = state.selectedItem
+        ? { kind: state.selectedItem.type, id: state.selectedItem.id }
+        : state.selectedTextBoxId
+          ? { kind: 'textBox' as const, id: state.selectedTextBoxId }
+          : state.selectedBundle?.id
+            ? { kind: 'bundle' as const, id: state.selectedBundle.id }
+            : state.selectedBundle?.pathIds[0]
+              ? { kind: 'path' as const, id: state.selectedBundle.pathIds[0] }
+            : null;
+      queuePresencePublish({ focus });
     }
-
-    if (autoSaveTimer) clearTimeout(autoSaveTimer);
-    autoSaveTimer = setTimeout(() => {
-      autoSaveTimer = null;
-      const toSave = pendingSaveTypes;
-      const subsystemIds = pendingSubsystemIds;
-      pendingSaveTypes = new Set();
-      pendingSubsystemIds = new Set();
-      void startAutoSave(toSave, subsystemIds);
-    }, AUTO_SAVE_DELAY);
+    if (
+      state.appView !== prev.appView
+      || state.editingSurface !== prev.editingSurface
+      || state.drillDownEnclosure !== prev.drillDownEnclosure
+      || state.activeSubsystemId !== prev.activeSubsystemId
+    ) {
+      queuePresencePublish({
+        appView: state.appView,
+        editingSurface: state.editingSurface,
+        drillDownEnclosure: state.drillDownEnclosure,
+        activeSubsystemId: state.activeSubsystemId,
+      });
+    }
   });
 }

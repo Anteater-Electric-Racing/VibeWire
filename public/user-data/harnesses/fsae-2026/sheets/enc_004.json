@@ -1,0 +1,506 @@
+{
+  "schema_version": "0.2.0-sheets",
+  "sheet_enclosure_id": "enc_004",
+  "enclosures": [
+    {
+      "id": "enc_060",
+      "name": "Charge Board (PCB)",
+      "parent": "enc_004",
+      "container": false,
+      "tags": [
+        "system:charging"
+      ],
+      "properties": {
+        "notes": "Charge-box PCB. 12V input from AC-to-DC, outputs to car and charger handshake (J1772 CP/CC)."
+      }
+    },
+    {
+      "id": "enc_061",
+      "name": "AC-to-DC Converter",
+      "parent": "enc_004",
+      "container": false,
+      "tags": [
+        "system:charging"
+      ],
+      "properties": {
+        "notes": "AC-to-DC supply. Port 1 = Live+Neutral, Port 2 = Chassis GND, Port 3 = 12V DC terminal block (transcript)."
+      }
+    },
+    {
+      "id": "enc_062",
+      "name": "DC-to-DC (Charger LV rail)",
+      "parent": "enc_004",
+      "container": false,
+      "tags": [
+        "system:charging"
+      ],
+      "properties": {
+        "notes": "In-charger DC-to-DC supplying always-on 12V and charge-enable 12V (transcript)."
+      }
+    },
+    {
+      "id": "enc_063",
+      "name": "Charger Box E-Stop",
+      "parent": "enc_004",
+      "container": false,
+      "tags": [
+        "system:sdc",
+        "system:charging"
+      ],
+      "properties": {
+        "notes": "Charger-box E-Stop \u2014 two green daisy-chain leads (transcript)."
+      }
+    },
+    {
+      "id": "enc_064",
+      "name": "J1772 Port",
+      "parent": "enc_004",
+      "container": false,
+      "tags": [
+        "system:charging"
+      ],
+      "properties": {
+        "notes": "SAE J1772 charging inlet on charger face."
+      }
+    },
+    {
+      "id": "enc_065",
+      "name": "Charging Box Face 12-pin",
+      "parent": "enc_004",
+      "container": false,
+      "tags": [
+        "system:charging"
+      ],
+      "properties": {
+        "notes": "12-pin Deutsch on the face of the Charging Box \u2014 passes through AC-to-DC 12V to the car."
+      }
+    },
+    {
+      "id": "enc_066",
+      "name": "Charger Box 12V Battery",
+      "parent": "enc_004",
+      "container": false,
+      "tags": [
+        "system:charging"
+      ],
+      "properties": {
+        "notes": "Internal 12V backup battery inside the Charging Box (transcript)."
+      }
+    }
+  ],
+  "connectors": [
+    {
+      "id": "con_115",
+      "name": "AC-DC DC Output (Terminal Block)",
+      "parent": "enc_061",
+      "connector_type": "generic_multipin",
+      "tags": [
+        "system:charging"
+      ],
+      "properties": {
+        "notes": "AC-to-DC DC-side terminal block. Pins are arbitrary \u2014 1/2 = +/- to Charge Board, 3/4 = Cooling Pump, 5/6 = Cooling Fan (transcript)."
+      },
+      "pin_count": 6
+    },
+    {
+      "id": "con_114",
+      "name": "AC-DC Input (L/N/PE)",
+      "parent": "enc_061",
+      "connector_type": "generic_multipin",
+      "tags": [
+        "system:charging"
+      ],
+      "properties": {
+        "notes": "AC inlet. Port 1 = L+N, Port 2 = chassis GND, Port 3 = DC out."
+      },
+      "pin_count": 3
+    },
+    {
+      "id": "con_116",
+      "name": "Charge Board 12V Input",
+      "parent": "enc_060",
+      "connector_type": "molex_minifit_jr",
+      "tags": [
+        "system:charging",
+        "status:needs-verification"
+      ],
+      "properties": {
+        "notes": "Charge-board power input (from AC-to-DC). Placeholder 4-pin."
+      },
+      "pin_count": 4
+    },
+    {
+      "id": "con_119",
+      "name": "Charger DC-DC Input (LV)",
+      "parent": "enc_062",
+      "connector_type": "molex_minifit_jr",
+      "tags": [
+        "system:charging",
+        "status:needs-verification"
+      ],
+      "properties": {
+        "notes": "In-charger DC-DC LV input (from internal 12V battery)."
+      },
+      "pin_count": 4
+    },
+    {
+      "id": "con_120",
+      "name": "Charger DC-DC Output (Always-on + Enable)",
+      "parent": "enc_062",
+      "connector_type": "molex_minifit_jr",
+      "tags": [
+        "system:charging",
+        "status:needs-verification"
+      ],
+      "properties": {
+        "notes": "In-charger DC-DC outputs: pin 1 = always-on 12V, pin 2 = charge-enable 12V, pin 3 = GND, pin 4 = GND."
+      },
+      "pin_count": 4
+    },
+    {
+      "id": "con_121",
+      "name": "Charger Box 12V Battery",
+      "parent": "enc_066",
+      "connector_type": "generic_multipin",
+      "tags": [
+        "system:charging"
+      ],
+      "properties": {
+        "notes": "12V backup battery inside charger box, + stud."
+      },
+      "pin_count": 1
+    },
+    {
+      "id": "con_122",
+      "name": "Charger Box 12V Battery -",
+      "parent": "enc_066",
+      "connector_type": "generic_multipin",
+      "tags": [
+        "system:charging"
+      ],
+      "properties": {
+        "notes": "12V backup battery inside charger box, - stud."
+      },
+      "pin_count": 1
+    },
+    {
+      "id": "con_123",
+      "name": "J1772 Port (5p)",
+      "parent": "enc_064",
+      "connector_type": "generic_multipin",
+      "tags": [
+        "system:charging"
+      ],
+      "properties": {
+        "notes": "SAE J1772 inlet (L1, L2, PE, CP, CC)."
+      },
+      "pin_count": 5
+    },
+    {
+      "id": "con_124",
+      "name": "Charger Box E-Stop (lead A)",
+      "parent": "enc_063",
+      "connector_type": "generic_multipin",
+      "tags": [
+        "system:sdc",
+        "system:charging"
+      ],
+      "properties": {
+        "notes": "First green safety daisy-chain lead."
+      },
+      "pin_count": 2
+    },
+    {
+      "id": "con_125",
+      "name": "Charger Box E-Stop (lead B)",
+      "parent": "enc_063",
+      "connector_type": "generic_multipin",
+      "tags": [
+        "system:sdc",
+        "system:charging"
+      ],
+      "properties": {
+        "notes": "Second green safety daisy-chain lead."
+      },
+      "pin_count": 2
+    },
+    {
+      "id": "con_126",
+      "name": "Charging Box Face 12-pin Deutsch",
+      "parent": "enc_065",
+      "connector_type": "generic_multipin",
+      "tags": [
+        "system:charging"
+      ],
+      "properties": {
+        "notes": "12-pin Deutsch on Charging Box face \u2014 12V pass-through to car."
+      },
+      "pin_count": 12
+    }
+  ],
+  "mergePoints": [],
+  "paths": [
+    {
+      "id": "path_225",
+      "name": "AC-DC DC+ -> Charge Board +",
+      "tags": [
+        "bundle:transcript",
+        "system:charging",
+        "signal:CHG_12V_PLUS",
+        "status:needs-verification"
+      ],
+      "properties": {
+        "notes": "AC-to-DC terminal block 12V+ to Charge Board (placeholder pin)."
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_115",
+          "pin_number": 1
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_116",
+          "pin_number": 1
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_226",
+      "name": "AC-DC DC- -> Charge Board -",
+      "tags": [
+        "bundle:transcript",
+        "system:charging",
+        "signal:CHG_12V_MINUS",
+        "status:needs-verification"
+      ],
+      "properties": {
+        "notes": "AC-to-DC terminal block 12V- to Charge Board."
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_115",
+          "pin_number": 2
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_116",
+          "pin_number": 2
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_231",
+      "name": "Charge Board -> Face 12p (Always-on)",
+      "tags": [
+        "bundle:transcript",
+        "system:charging",
+        "signal:CHG_ALWAYS_ON_12V",
+        "status:needs-verification"
+      ],
+      "properties": {
+        "notes": "Always-on 12V pass-through on Charging Box face."
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_117",
+          "pin_number": 1
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_126",
+          "pin_number": 1
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_232",
+      "name": "Charge Board -> Face 12p (Enable)",
+      "tags": [
+        "bundle:transcript",
+        "system:charging",
+        "signal:CHG_ENABLE_12V",
+        "status:needs-verification"
+      ],
+      "properties": {
+        "notes": "Charge-enable 12V pass-through on Charging Box face."
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_117",
+          "pin_number": 2
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_126",
+          "pin_number": 2
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_233",
+      "name": "Charger Box 12V Batt -> DCDC +",
+      "tags": [
+        "bundle:transcript",
+        "system:charging",
+        "signal:CHG_BOX_12V_BATT",
+        "status:needs-verification"
+      ],
+      "properties": {
+        "notes": "Internal 12V battery to charger DCDC (transcript)."
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_121",
+          "pin_number": 1
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_119",
+          "pin_number": 1
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_234",
+      "name": "Charger Box 12V Batt - -> DCDC -",
+      "tags": [
+        "bundle:transcript",
+        "system:charging",
+        "status:needs-verification"
+      ],
+      "properties": {
+        "notes": "Internal 12V battery GND to charger DCDC."
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_122",
+          "pin_number": 1
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_119",
+          "pin_number": 2
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_235",
+      "name": "Charger Estop lead A",
+      "tags": [
+        "bundle:transcript",
+        "system:sdc",
+        "system:charging",
+        "signal:SDC_CHG_DAISY",
+        "status:needs-verification"
+      ],
+      "properties": {
+        "notes": "Charger E-stop safety daisy-chain lead A (transcript)."
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_124",
+          "pin_number": 1
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_118",
+          "pin_number": 1
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_236",
+      "name": "Charger Estop lead B",
+      "tags": [
+        "bundle:transcript",
+        "system:sdc",
+        "system:charging",
+        "signal:SDC_CHG_DAISY",
+        "status:needs-verification"
+      ],
+      "properties": {
+        "notes": "Charger E-stop safety daisy-chain lead B (transcript)."
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_125",
+          "pin_number": 1
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_118",
+          "pin_number": 2
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_237",
+      "name": "J1772 CP -> Charge Board",
+      "tags": [
+        "bundle:transcript",
+        "system:charging",
+        "signal:J1772_CP",
+        "status:needs-verification"
+      ],
+      "properties": {
+        "notes": "J1772 Control Pilot to Charge Board."
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_123",
+          "pin_number": 4
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_116",
+          "pin_number": 3
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_238",
+      "name": "J1772 CC -> Charge Board",
+      "tags": [
+        "bundle:transcript",
+        "system:charging",
+        "signal:J1772_CC",
+        "status:needs-verification"
+      ],
+      "properties": {
+        "notes": "J1772 Proximity Detect to Charge Board."
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_123",
+          "pin_number": 5
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_116",
+          "pin_number": 4
+        }
+      ],
+      "measurements": []
+    }
+  ],
+  "ports": []
+}

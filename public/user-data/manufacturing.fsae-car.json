@@ -1,0 +1,26 @@
+{
+  "schema_version": "1.1.0",
+  "bundles": {
+    "bundle:connector:con_017|connector:con_030": {
+      "steps": {},
+      "endpoint_genders": {
+        "con_017": "male",
+        "con_030": "female"
+      }
+    },
+    "bundle:connector:con_030|connector:con_127": {
+      "steps": {},
+      "endpoint_genders": {
+        "con_030": "male"
+      }
+    },
+    "bundle:connectors:con_021|con_071": {
+      "steps": {
+        "ordered": true,
+        "cut": true,
+        "crimped": true,
+        "populated": true
+      }
+    }
+  }
+}

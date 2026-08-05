@@ -12,10 +12,17 @@ import type {
   SelectedItem,
 } from '../types';
 import { getWireAppearance, type WireAppearance } from './colors';
+import {
+  applyConnectorPinCount,
+  getEffectivePinCount,
+  normalizeConnectorKeying,
+} from './connectorFamily';
 export {
   applyConnectorPinCount,
+  formatConnectorOccupancySummary,
   GENERIC_MULTIPIN_TYPE_ID,
   getConnectorCavityVariant,
+  getConnectorFamilyCode,
   getConnectorPinGuideImage,
   getConnectorSideImage,
   getConnectorSupportedKeyings,
@@ -461,20 +468,57 @@ export function nextMergePointId(harness: HarnessData): string {
 }
 
 /**
+ * Graph wire groups may append `#handle|handle` when connectors are pin-expanded.
+ * Segment lookups use the base endpoint-pair id only.
+ */
+export function getBaseBundleId(bundleId: string): string {
+  const hash = bundleId.indexOf('#');
+  return hash >= 0 ? bundleId.slice(0, hash) : bundleId;
+}
+
+/**
  * Inverse of `getBundleIdForSegment`.  Returns the two endpoint ref keys, or
  * null when the id does not match the current bundle format.
  */
 export function parseBundleId(
   bundleId: string,
 ): { sourceRefKey: string; targetRefKey: string } | null {
-  if (!bundleId.startsWith('bundle:')) return null;
-  const body = bundleId.slice('bundle:'.length);
+  const baseId = getBaseBundleId(bundleId);
+  if (!baseId.startsWith('bundle:')) return null;
+  const body = baseId.slice('bundle:'.length);
   const pipe = body.indexOf('|');
   if (pipe < 0) return null;
   const a = body.slice(0, pipe);
   const b = body.slice(pipe + 1);
   if (!a || !b) return null;
   return { sourceRefKey: a, targetRefKey: b };
+}
+
+export interface BundleSegment {
+  path: Path;
+  segmentIndex: number;
+  from: PathNode;
+  to: PathNode;
+}
+
+/** Segments that make up a graph bundle (one hop per path, often connector↔splice). */
+export function getBundleSegments(
+  harness: HarnessData,
+  bundleId: string,
+  pathIds?: Iterable<string>,
+): BundleSegment[] {
+  const pathIdSet = pathIds ? new Set(pathIds) : null;
+  const matches: BundleSegment[] = [];
+  for (const path of harness.paths) {
+    if (pathIdSet && !pathIdSet.has(path.id)) continue;
+    const match = findPathSegmentForBundle(path, bundleId);
+    if (!match) continue;
+    const from = path.nodes[match.index];
+    const to = path.nodes[match.index + 1];
+    if (!from || !to) continue;
+    matches.push({ path, segmentIndex: match.index, from, to });
+  }
+  return matches;
 }
 
 /**
@@ -628,5 +672,93 @@ export function renumberConnectorPins(
       remap(measurement.to);
     });
   }
+  return next;
+}
+
+export type MergeConnectorsOptions = {
+  /** Catalog type for the surviving (target) connector; used to grow capacity. */
+  targetType?: Parameters<typeof applyConnectorPinCount>[1];
+};
+
+/**
+ * Absorb `sourceId` into `targetId`: remap every path/measurement cavity on the
+ * source onto free cavities on the target, grow the target's pin_count as needed,
+ * then delete the source connector. Both connectors must share a parent.
+ */
+export function mergeConnectors(
+  harness: HarnessData,
+  sourceId: string,
+  targetId: string,
+  options: MergeConnectorsOptions = {},
+): HarnessData {
+  if (sourceId === targetId) {
+    throw new Error('Cannot merge a connector into itself');
+  }
+  const source = harness.connectors.find((connector) => connector.id === sourceId);
+  const target = harness.connectors.find((connector) => connector.id === targetId);
+  if (!source || !target) {
+    throw new Error('Both connectors must exist to merge');
+  }
+  if (source.parent !== target.parent) {
+    throw new Error('Connectors must share the same parent enclosure to merge');
+  }
+
+  for (const wirePath of harness.paths) {
+    let refsSource = false;
+    let refsTarget = false;
+    for (const node of wirePath.nodes) {
+      if (node.kind !== 'connector') continue;
+      if (node.connector_id === sourceId) refsSource = true;
+      if (node.connector_id === targetId) refsTarget = true;
+    }
+    if (refsSource && refsTarget) {
+      throw new Error('Cannot merge connectors that already share a path');
+    }
+  }
+
+  const sourcePins = [...new Set(
+    getConnectorOccupancy(harness, sourceId).map((entry) => entry.pinNumber),
+  )].sort((left, right) => left - right);
+
+  const usedPins = new Set(
+    getConnectorOccupancy(harness, targetId).map((entry) => entry.pinNumber),
+  );
+  const pinMapping = new Map<number, number>();
+  let cursor = 1;
+  for (const oldPin of sourcePins) {
+    while (usedPins.has(cursor)) cursor += 1;
+    pinMapping.set(oldPin, cursor);
+    usedPins.add(cursor);
+    cursor += 1;
+  }
+
+  const next = structuredClone(harness);
+  const remap = (node: PathNode) => {
+    if (node.kind !== 'connector' || node.connector_id !== sourceId) return;
+    const oldPin = normalizeOccupiedPinNumber(node.pin_number);
+    node.connector_id = targetId;
+    node.pin_number = pinMapping.get(oldPin) ?? oldPin;
+  };
+  for (const wirePath of next.paths) {
+    wirePath.nodes.forEach(remap);
+    wirePath.measurements.forEach((measurement) => {
+      remap(measurement.from);
+      remap(measurement.to);
+    });
+  }
+
+  const surviving = next.connectors.find((connector) => connector.id === targetId);
+  if (!surviving) {
+    throw new Error('Target connector disappeared during merge');
+  }
+  const requiredCapacity = Math.max(
+    getEffectivePinCount(surviving, options.targetType),
+    ...usedPins,
+    1,
+  );
+  applyConnectorPinCount(surviving, options.targetType, requiredCapacity);
+  normalizeConnectorKeying(surviving, options.targetType ?? null);
+
+  next.connectors = next.connectors.filter((connector) => connector.id !== sourceId);
   return next;
 }

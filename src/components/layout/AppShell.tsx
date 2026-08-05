@@ -5,6 +5,7 @@ import { GraphView } from '../graph/GraphView';
 import { TreeView } from '../tree/TreeView';
 import { InspectorPanel } from '../inspector/InspectorPanel';
 import { ConnectorLibraryPage } from '../connectors/ConnectorLibraryPage';
+import { SignalLibraryPage } from '../signals/SignalLibraryPage';
 import { ManufacturingPage } from '../manufacturing/ManufacturingPage';
 import { useHarnessStore } from '../../store';
 
@@ -12,6 +13,10 @@ const LEFT_WIDTH_MIN = 160;
 const LEFT_WIDTH_MAX = 520;
 const LEFT_WIDTH_DEFAULT = 224;
 const PANEL_HEADER_H = 28; // px — height of each panel's header strip
+
+function requestUndoWithWarning() {
+  window.dispatchEvent(new CustomEvent('vibewire:request-undo'));
+}
 
 export function AppShell() {
   const selectedItem = useHarnessStore((s) => s.selectedItem);
@@ -21,17 +26,17 @@ export function AppShell() {
   const selectItem = useHarnessStore((s) => s.selectItem);
   const selectTextBox = useHarnessStore((s) => s.selectTextBox);
   const setDrillDown = useHarnessStore((s) => s.setDrillDown);
-  const undo = useHarnessStore((s) => s.undo);
   const redo = useHarnessStore((s) => s.redo);
   const rotateConnector = useHarnessStore((s) => s.rotateConnector);
   const rotateEnclosure = useHarnessStore((s) => s.rotateEnclosure);
-  const pushUndoSnapshot = useHarnessStore((s) => s.pushUndoSnapshot);
   const getDeleteImpact = useHarnessStore((s) => s.getDeleteImpact);
   const deleteEntityCascade = useHarnessStore((s) => s.deleteEntityCascade);
+  const deletePathBundle = useHarnessStore((s) => s.deletePathBundle);
   const editingSurface = useHarnessStore((s) => s.editingSurface);
   const removeEntityFromActiveSubsystem = useHarnessStore((s) => s.removeEntityFromActiveSubsystem);
   const appView = useHarnessStore((s) => s.appView);
-  const showInspector = !!(selectedItem || (selectedBundle && selectedBundle.length > 0) || selectedTextBoxId);
+  const isEditor = useHarnessStore((s) => s.session.isEditor);
+  const showInspector = !!(selectedItem || (selectedBundle && selectedBundle.pathIds.length > 0) || selectedTextBoxId);
 
   // Left sidebar state
   const [leftWidth, setLeftWidth] = useState(LEFT_WIDTH_DEFAULT);
@@ -66,13 +71,25 @@ export function AppShell() {
       const target = e.target as HTMLElement | null;
       const isTyping = target?.tagName === 'INPUT' || target?.tagName === 'TEXTAREA' || target?.isContentEditable;
 
-      if (!isTyping && (e.key === 'Delete' || e.key === 'Backspace') && selectedItem) {
+      if (isEditor && !isTyping && (e.key === 'Delete' || e.key === 'Backspace') && selectedBundle) {
+        e.preventDefault();
+        const count = selectedBundle.pathIds.length;
+        const label = count === 1
+          ? 'Delete this path bundle?'
+          : `Delete all ${count} paths in this bundle?`;
+        if (window.confirm(`${label}\n\nThis removes the complete underlying path${count === 1 ? '' : 's'}, including any other visible hops.`)) {
+          deletePathBundle(selectedBundle.id, selectedBundle.pathIds);
+        }
+        return;
+      }
+
+      if (isEditor && !isTyping && (e.key === 'Delete' || e.key === 'Backspace') && selectedItem) {
         if (editingSurface === 'subsystem') {
           if (selectedItem.type === 'enclosure' || selectedItem.type === 'connector') {
             e.preventDefault();
             removeEntityFromActiveSubsystem(selectedItem.type, selectedItem.id);
+            return;
           }
-          return;
         }
         if (selectedItem.type === 'mergePoint') {
           const impact = getDeleteImpact(selectedItem.type, selectedItem.id);
@@ -97,29 +114,27 @@ export function AppShell() {
       }
 
       // Undo: Cmd/Ctrl+Z (without Shift)
-      if (mod && e.key === 'z' && !e.shiftKey) {
+      if (isEditor && !isTyping && mod && e.key === 'z' && !e.shiftKey) {
         e.preventDefault();
-        undo();
+        requestUndoWithWarning();
         return;
       }
 
       // Redo: Cmd/Ctrl+Shift+Z or Cmd/Ctrl+Y
-      if (mod && (e.key === 'Z' || (e.shiftKey && e.key === 'z') || e.key === 'y')) {
+      if (isEditor && !isTyping && mod && (e.key === 'Z' || (e.shiftKey && e.key === 'z') || e.key === 'y')) {
         e.preventDefault();
         redo();
         return;
       }
 
       // Rotate selected connector or enclosure: R (no modifier)
-      if (e.key === 'r' && !mod && selectedItem?.type === 'connector') {
+      if (isEditor && !isTyping && e.key === 'r' && !mod && selectedItem?.type === 'connector') {
         e.preventDefault();
-        pushUndoSnapshot();
         rotateConnector(selectedItem.id);
         return;
       }
-      if (e.key === 'r' && !mod && selectedItem?.type === 'enclosure') {
+      if (isEditor && !isTyping && e.key === 'r' && !mod && selectedItem?.type === 'enclosure') {
         e.preventDefault();
-        pushUndoSnapshot();
         rotateEnclosure(selectedItem.id);
         return;
       }
@@ -134,7 +149,7 @@ export function AppShell() {
     }
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [showInspector, drillDownEnclosure, selectItem, selectTextBox, setDrillDown, undo, redo, selectedItem, rotateConnector, rotateEnclosure, pushUndoSnapshot, editingSurface, getDeleteImpact, deleteEntityCascade, removeEntityFromActiveSubsystem]);
+  }, [showInspector, drillDownEnclosure, selectItem, selectTextBox, setDrillDown, redo, selectedItem, selectedBundle, rotateConnector, rotateEnclosure, editingSurface, getDeleteImpact, deleteEntityCascade, deletePathBundle, removeEntityFromActiveSubsystem, isEditor]);
 
   return (
     <div className="h-screen w-screen flex flex-col bg-zinc-950 text-zinc-100 overflow-hidden">
@@ -142,6 +157,10 @@ export function AppShell() {
       {appView === 'connectorLibrary' ? (
         <div className="flex-1 min-h-0">
           <ConnectorLibraryPage />
+        </div>
+      ) : appView === 'signalLibrary' ? (
+        <div className="flex-1 min-h-0">
+          <SignalLibraryPage />
         </div>
       ) : appView === 'manufacturing' ? (
         <div className="flex-1 min-h-0">

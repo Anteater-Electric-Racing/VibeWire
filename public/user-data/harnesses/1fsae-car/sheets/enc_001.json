@@ -1,0 +1,37 @@
+{
+  "schema_version": "0.2.0-sheets",
+  "sheet_enclosure_id": "enc_001",
+  "enclosures": [
+    {
+      "id": "pcb_001",
+      "name": "Human Interface Board",
+      "parent": "enc_001",
+      "container": false,
+      "tags": [],
+      "properties": {}
+    }
+  ],
+  "connectors": [
+    {
+      "id": "con_001",
+      "name": "4 Pin",
+      "parent": "pcb_001",
+      "connector_type": "molex_minifit_jr",
+      "tags": [],
+      "properties": {},
+      "pin_count": 4
+    },
+    {
+      "id": "con_002",
+      "name": "6 Pin",
+      "parent": "pcb_001",
+      "connector_type": "molex_minifit_jr",
+      "tags": [],
+      "properties": {},
+      "pin_count": 6
+    }
+  ],
+  "mergePoints": [],
+  "paths": [],
+  "ports": []
+}

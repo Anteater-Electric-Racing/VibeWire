@@ -1,0 +1,190 @@
+I'll move through Mr. 1, 2, 3, and 4.
+Rename BPS breakout to BPS connector.
+Also, make sure BPS connects to FOC.
+It goes to the footwell bulkhead.
+Move THRS 1 and 2.
+There's only one throttle sensor, APPS.
+That connects to footwell connector as well, FOC2.
+Also, I see something wrong with FOC2.
+It looks like everything is double populated.
+It looks like it's just wired to itself for some reason.
+FOC3 also needs to connect.
+Wait, I take it back.
+Wait, I take it back.
+That's a duplicate with FOCHO3A.
+Yeah, remove FOC3.
+FOC3 should be removed.
+So, the brake light should be removed.
+Also, the brake light only has 12 volt and ground.
+Remove BRK-LT.
+So, the brake light should be removed.
+So, the brake light should be removed.
+So, the brake light should be removed.
+So, the brake light should be removed.
+So, the brake light should be removed.
+So, the brake light should be removed.
+So, the brake light should be removed.
+So, the brake light should be removed.
+So, the brake light should be removed.
+Inertia switch isn't connected to anything.
+That is the next connection in the safety daisy chain.
+The first one being BOTS break over treble switch.
+One of the pins on BOTS needs to go to Inertia switch.
+Next on the safety daisy chain is left roll hoop E stop.
+And then that goes to right roll hoop E stop.
+And then finally to BBC sorry not BBC ROC.
+Each of the E stops and Inertia switch.
+Just connect it to one of the pins.
+For each E stop there is two pins.
+Pick one pin to be in and one pin to be out.
+There is one connector on each.
+Also delete PWM input breakout.
+I2C expansion breakout.
+And linear pot expansion breakout.
+And GPIO expansion breakout.
+HV current sensitivity is inside of accumulator or HV battery now.
+HV connector accumulator out goes on the high voltage battery.
+Also all of the inverter connections go on HVB.
+Inverter does not connect to our front of car enclosure.
+Oh I'm mistaken there's already a high voltage current sensor.
+HVB current sensor already exists.
+Only delete HV current sensor.
+O
+Now, correct me if I'm wrong, but
+HPB-C2 current sensor is only a bulkhead. It should have a current sensor inside. The current
+sensor inside has four pins. Make sure you connect that to the bulkhead.
+Do both want to address problems that have just been difficult for those
+faults?
+Canationpresa, make sure you access options
+for the constraints?
+On the playlist.
+Why does adequate sensor mend speed?
+I will happen in my classroom too.
+Let me write it down in my classroom.
+Help me write theeka daddy вот on the mend
+side,
+Thank you.
+Remove motor HV-IL.
+Motor has motor HV-IN, which is correctly wired, but it needs all of the wires to be switched
+to orange.
+Remove inverter PCC control 4P, as well as inverter HV-IL.
+Thank you.
+Thank you.
+Thank you.
+Thank you.
+Thank you.
+Thank you.
+Thank you.
+Thank you.
+Thank you.
+Thank you.
+On inverter, inverter only has, or on the inverter main bulkhead, it's labeled inverter LV-TE
+amp seal 23P.
+Add a HV-IL connection pin.
+HV-IL in and HV-IL out.
+Add it to pin 24 and 25 as an intentional placeholder.
+So inverter should only have three connections.
+One is going to be the amp seal.
+All of those connections go to an 8-pin on HV-B.
+So inverter should only have three connections.
+One is going to be the amp seal.
+All of those connections go to an 8-pin on HV-B.
+All of those connections go to an 8-pin on HV-B.
+Assign the pins randomly and tag it as blatantly wrong, please fix, on the HV-B side connection.
+Do the same on the inverter side connection.
+Let us know your needs put in耶 brown bleeding.
+We have to try Windows at All right.
+Chili.
+All right I will do that.
+I can find it.
+All right.
+We'll need to try to animate and full circle the two characters.
+Now this one, this is your thinking,
+you will need me.
+Remove wheel speed sensor break out.
+Cooling fan has way too many connectors.
+It should have one connector which is fan plus, fan PWM, and ground.
+custom mode.
+That's right.
+The damageanie on the edge, clean the connect area and thin although she can do it with no major
+Camera party, focus them with removing himself and havingśnieorte a little bit
+and simply drag it over to the end of the row.
+Amen.
+Amen.
+Remove CCM J1 mate from FOC device that goes on the CCM device inside of that container.
+I think it's already there.
+Thank you.
+Create a cooling pump which is plus 24 volt and PWM low side.
+Those two connections in addition to the cooling fan connections connect to a new connector
+on FOC.
+It's titled placeholder cooling harness.
+Assign the connections randomly.
+Tag it as needs fixing.
+Tag it as needs fixing.
+Tag it as needed.
+Tag it as needed.
+Tag it as needed.
+LV battery 24-volt should only have a single 2-pin connection.
+Remove LV battery dash ring plus and minus.
+We can leave it as a 2-pin Deutsch connector only on that device.
+ROC dash C2.
+We can leave it as a 2-pin.
+We can leave it as a 2-pin.
+It should be a 2-pin Deutsch connector connecting to the LV battery.
+Create a 2-pin Deutsch connector on ROC titled Charging Connector.
+The LV battery is a 2-pin.
+It should be a 1-pin of the battery.
+It should be a 3-pin.
+It should be an 8-pin.
+It should be a 2-pin.
+The LV battery is a 2-pin.
+Remove the DSSI device
+and rename TractoSystemLights.tsl to RollHoopLights.tssi.rtm
+and rename TractoSystemLights.tss.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+connector that is already there populated.
+Remove all of the splices inside of accumulator.
+Nossa commentая overtime et alkança a sorrisão im sided,
+while that wordlingt perdente,
+conform just with mildoute and smooth И para heavily because of the Fuels
+of supposedly the Mikaya continue to be the middle norm.
+Rub쪽 oil so that we can replace that and plug the cents bar in each other and
+that we are able to change.

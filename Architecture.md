@@ -295,15 +295,17 @@ then fall back to type-level media. Connector media is served from `public/user-
 ### Manufacturing model
 
 `src/lib/manufacturing.ts` derives manufacturing output from assembled `HarnessData` plus the
-shared connector library. A cut is one adjacent path segment, so a path crossing a splice or
-intermediate connector produces multiple physical cuts. `bundle:<name>` tags are the preferred
-grouping key; untagged cuts fall back to the graph's stable endpoint-pair bundle key.
+shared connector library. A manufacturing harness is one run between consecutive connectors.
+Crossing an intermediate connector starts a new harness; splices inside a run remain explicit,
+markable work points with per-hop measurements. Connector-to-splice stub legs stay visible rather
+than being assigned an invented mate. Runs are grouped by their stable physical endpoint pair.
 
-Each cut carries its wire ID, signal, color, explicit wire gauge, segment measurement, and both
-resolved endpoints. When an explicit path gauge is absent, the connector family's wire range is
-shown as an inferred crimp-compatibility range rather than asserted as an exact conductor gauge.
-When a path has no explicit wire color, `Signal.properties.preferred_wire_color` supplies the
-manufacturing color and the UI marks it as a signal default.
+Each cut carries its wire ID, signal, color, explicit wire gauge, total run length, per-splice hop
+measurements, and both resolved endpoints. When an explicit path gauge is absent, the connector
+family's wire range is shown as an inferred crimp-compatibility range rather than asserted as an
+exact conductor gauge. When a path has no explicit wire color,
+`Signal.properties.preferred_wire_color` supplies the manufacturing color and the UI marks it as a
+signal default.
 
 Male/female crimp selection never guesses from connector names. Gender is assigned to a
 `(bundle, connector)` endpoint in `ManufacturingDocument`, which applies to every wire at that
@@ -319,15 +321,16 @@ Manufacturing cut lengths are editable numeric millimeter values backed by the s
 `Path.measurements` segment records used by the path inspector, so edits auto-save with the
 harness and immediately update cut-list and BOM totals.
 
-`ManufacturingDocument` persists six ordered bundle workflow flags (`ordered`, `cut`, `crimped`,
-`populated`, `qc`, `installed`), bundle-end gender assignments, and notes. Checking a later stage
-completes all prior stages; clearing a stage clears it and all later stages.
+`ManufacturingDocument` persists six ordered workflow flags (`ordered`, `cut`, `crimped`,
+`populated`, `qc`, `installed`) for every connector end and splice in a run, plus bundle-end gender
+assignments and notes. Legacy whole-bundle flags remain a read fallback. Checking a later component
+stage completes all prior stages; clearing a stage clears it and all later stages.
 
 Navigation is bidirectional. A manufacturing bundle can open the hierarchy canvas at a sheet that
 contains one of its paths and select the best-overlapping visible graph bundle. The graph bundle
-inspector derives its best matching logical manufacturing bundle and can open the Manufacturing
-page with that bundle preselected. `manufacturingTargetBundleId` is transient store state used only
-for this handoff.
+inspector compares segment spans—not only path IDs—to choose the correct connector-to-connector run
+and can open the Manufacturing page with that bundle preselected. `manufacturingTargetBundleId` is
+transient store state used only for this handoff.
 
 ### Layout model
 

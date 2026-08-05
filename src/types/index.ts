@@ -53,6 +53,17 @@ export interface Signal {
   properties: Record<string, string>;
 }
 
+export interface SignalPropertyDefinition {
+  /** Stable schema identity; the property key may be renamed independently. */
+  id: string;
+  /** Key used in each signal's `properties` record. */
+  key: string;
+  /** Human-readable field label. */
+  name: string;
+  type: 'select';
+  options: string[];
+}
+
 export interface ConnectorPathNode {
   kind: 'connector';
   connector_id: string;
@@ -106,6 +117,7 @@ export interface HarnessData {
   mergePoints: MergePoint[];
   paths: Path[];
   signals: Signal[];
+  signalPropertyDefinitions: SignalPropertyDefinition[];
 }
 
 export interface ConnectorCavityVariant {
@@ -158,6 +170,12 @@ export type EntityType = 'enclosure' | 'connector' | 'mergePoint' | 'path' | 'si
 export interface SelectedItem {
   type: EntityType;
   id: string;
+}
+
+/** Canvas bundle edge selection — `id` is the graph bundle/edge id. */
+export interface SelectedBundle {
+  id: string;
+  pathIds: string[];
 }
 
 export interface TagFilter {
@@ -301,7 +319,10 @@ export type ManufacturingStep =
   | 'installed';
 
 export interface ManufacturingBundleProgress {
+  /** Legacy whole-harness progress. Used as a fallback for pre-component data. */
   steps: Partial<Record<ManufacturingStep, boolean>>;
+  /** Build progress for each connector end or splice within this harness run. */
+  component_steps?: Record<string, Partial<Record<ManufacturingStep, boolean>>>;
   /** Contact gender for every wire ending at a connector in this bundle. */
   endpoint_genders?: Record<string, 'male' | 'female'>;
   notes?: string;
@@ -313,7 +334,7 @@ export interface ManufacturingDocument {
 }
 
 export type EditingSurface = 'hierarchy' | 'subsystem';
-export type AppView = 'canvas' | 'connectorLibrary' | 'manufacturing';
+export type AppView = 'canvas' | 'connectorLibrary' | 'signalLibrary' | 'manufacturing';
 
 export interface SubsystemEntityLayout {
   x: number;

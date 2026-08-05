@@ -1,0 +1,2819 @@
+{
+  "schema_version": "0.2.0-sheets",
+  "sheet_enclosure_id": "enc_003",
+  "enclosures": [
+    {
+      "id": "enc_093",
+      "name": "Inverter",
+      "parent": "enc_003",
+      "container": false,
+      "tags": [
+        "system:ts"
+      ],
+      "properties": {
+        "notes": "Motor inverter mounted with the HVB system. Connections: LV Ampseal, HV phase output, and HVB interface."
+      }
+    },
+    {
+      "id": "enc_094",
+      "name": "HV Connector (Accumulator Out)",
+      "parent": "enc_003",
+      "container": false,
+      "tags": [
+        "system:ts"
+      ],
+      "properties": {
+        "notes": "Bulkhead high-voltage output connector with interlock (transcript)."
+      }
+    },
+    {
+      "id": "enc_040",
+      "name": "PCC (Precharge Control)",
+      "parent": "enc_003",
+      "container": false,
+      "tags": [
+        "system:ts"
+      ],
+      "properties": {
+        "notes": "Precharge Control PCB, J1-J9 + J12."
+      }
+    },
+    {
+      "id": "enc_041",
+      "name": "RTM (Ready Tractive Monitor)",
+      "parent": "enc_003",
+      "container": false,
+      "tags": [
+        "system:ts",
+        "system:tsal"
+      ],
+      "properties": {
+        "notes": "RTM PCB with isolated 12V light driver. J2 light out, J5 to PCC, J7 power in."
+      }
+    },
+    {
+      "id": "enc_042",
+      "name": "Orion BMS",
+      "parent": "enc_003",
+      "container": false,
+      "tags": [
+        "system:bms",
+        "system:ts"
+      ],
+      "properties": {
+        "notes": "Orion BMS \u2014 3-pin CAN connector faces outward (transcript)."
+      }
+    },
+    {
+      "id": "enc_043",
+      "name": "IMD (Bender)",
+      "parent": "enc_003",
+      "container": false,
+      "tags": [
+        "system:ts"
+      ],
+      "properties": {
+        "notes": "Insulation Monitoring Device. DT06-08SA harness port."
+      }
+    },
+    {
+      "id": "enc_044",
+      "name": "Energy Meter",
+      "parent": "enc_003",
+      "container": false,
+      "tags": [
+        "system:ts",
+        "system:bms"
+      ],
+      "properties": {
+        "notes": "Inline HV energy/current meter. 3 HV taps + 4-pin CAN."
+      }
+    },
+    {
+      "id": "enc_045",
+      "name": "Contactor B+ (AIR+)",
+      "parent": "enc_003",
+      "container": false,
+      "tags": [
+        "system:ts"
+      ],
+      "properties": {
+        "notes": "Positive AIR/contactor (B+). Pins 1,2 = coil, Switch = aux contact, HV+ = load stud."
+      }
+    },
+    {
+      "id": "enc_046",
+      "name": "Contactor B- (AIR-)",
+      "parent": "enc_003",
+      "container": false,
+      "tags": [
+        "system:ts"
+      ],
+      "properties": {
+        "notes": "Negative AIR/contactor (B-). Pins 1,2 = coil, HV- = load stud."
+      }
+    },
+    {
+      "id": "enc_047",
+      "name": "Voltage Indicator",
+      "parent": "enc_003",
+      "container": false,
+      "tags": [
+        "system:ts",
+        "system:tsal"
+      ],
+      "properties": {
+        "notes": "HV Tractive-System voltage indicator lamp."
+      }
+    },
+    {
+      "id": "enc_048",
+      "name": "Precharge / Discharge Board",
+      "parent": "enc_003",
+      "container": false,
+      "tags": [
+        "system:ts"
+      ],
+      "properties": {
+        "notes": "Precharge / discharge circuit v0.2 (PCB pinout not in xlsx; placeholder 4-pin used)."
+      }
+    },
+    {
+      "id": "enc_049",
+      "name": "Maintenance Plug 1",
+      "parent": "enc_003",
+      "container": false,
+      "tags": [
+        "system:ts"
+      ],
+      "properties": {
+        "notes": "MSD maintenance plug 1 (upper bank)."
+      }
+    },
+    {
+      "id": "enc_050",
+      "name": "Maintenance Plug 5",
+      "parent": "enc_003",
+      "container": false,
+      "tags": [
+        "system:ts"
+      ],
+      "properties": {
+        "notes": "MSD maintenance plug 5 (lower bank)."
+      }
+    },
+    {
+      "id": "enc_051",
+      "name": "BMS Satellite 1",
+      "parent": "enc_003",
+      "container": false,
+      "tags": [
+        "system:bms"
+      ],
+      "properties": {
+        "notes": "BMS cell-tap satellite board 1 (4-pin Deutsch)."
+      }
+    },
+    {
+      "id": "enc_052",
+      "name": "BMS Satellite 2",
+      "parent": "enc_003",
+      "container": false,
+      "tags": [
+        "system:bms"
+      ],
+      "properties": {
+        "notes": "BMS cell-tap satellite board 2 (4-pin Deutsch)."
+      }
+    },
+    {
+      "id": "enc_053",
+      "name": "HV Battery (Cells)",
+      "parent": "enc_003",
+      "container": false,
+      "tags": [
+        "system:ts"
+      ],
+      "properties": {
+        "notes": "Series-connected HV battery modules. HV+ and HV- stud terminals."
+      }
+    },
+    {
+      "id": "enc_054",
+      "name": "HV Fuse",
+      "parent": "enc_003",
+      "container": false,
+      "tags": [
+        "system:ts",
+        "status:needs-verification"
+      ],
+      "properties": {
+        "notes": "High-voltage fuse \u2014 location in HV path to be confirmed (transcript)."
+      }
+    },
+    {
+      "id": "enc_055",
+      "name": "DCDC-Iso (Accu internal)",
+      "parent": "enc_003",
+      "container": false,
+      "tags": [
+        "system:ts",
+        "system:lvs"
+      ],
+      "properties": {
+        "notes": "Isolated DC-DC inside accumulator providing BMS low-voltage rail. 8-pin Deutsch harness port."
+      }
+    },
+    {
+      "id": "enc_095",
+      "name": "TSMP Connector",
+      "parent": "enc_003",
+      "container": false,
+      "tags": [
+        "system:ts"
+      ],
+      "properties": {
+        "notes": "Tractive-System Measurement Point connector (inside accumulator)."
+      }
+    },
+    {
+      "id": "enc_096",
+      "name": "HV Out Connector",
+      "parent": "enc_003",
+      "container": false,
+      "tags": [
+        "system:ts"
+      ],
+      "properties": {
+        "notes": "Accumulator HV-output internal connector (3 contacts)."
+      }
+    },
+    {
+      "id": "enc_107",
+      "name": "HVB Current Sensor",
+      "parent": "enc_003",
+      "container": false,
+      "tags": [
+        "system:ts",
+        "system:sensors"
+      ],
+      "properties": {
+        "notes": "Four-pin current sensor inside the accumulator, connected to HVB-C2."
+      }
+    }
+  ],
+  "connectors": [
+    {
+      "id": "con_113",
+      "name": "HV Connector (Accu Out, 5p w/ HVIL)",
+      "parent": "enc_094",
+      "connector_type": "generic_multipin",
+      "tags": [
+        "system:ts",
+        "status:needs-verification"
+      ],
+      "properties": {
+        "notes": "Bulkhead HV-output: 1=HV+, 2=HV-, 3=PE/Shield, 4=HVIL+, 5=HVIL-. PN TBC."
+      },
+      "pin_count": 5
+    },
+    {
+      "id": "con_101",
+      "name": "PCC J12 (Inverter CAN)",
+      "parent": "enc_040",
+      "connector_type": "molex_minifit_jr",
+      "tags": [
+        "bundle:internal"
+      ],
+      "properties": {
+        "notes": "PCC PCB connector J12."
+      },
+      "pin_count": 4
+    },
+    {
+      "id": "con_102",
+      "name": "Contactor B+ (AIR+)",
+      "parent": "enc_045",
+      "connector_type": "generic_multipin",
+      "tags": [
+        "bundle:Accu_Internal",
+        "system:ts"
+      ],
+      "properties": {
+        "notes": "Positive AIR. Pins: 1=coil+, 2=coil-, Switch\u21923 aux, HV+\u21924 stud."
+      },
+      "pin_count": 4
+    },
+    {
+      "id": "con_103",
+      "name": "Contactor B- (AIR-)",
+      "parent": "enc_046",
+      "connector_type": "generic_multipin",
+      "tags": [
+        "bundle:Accu_Internal",
+        "system:ts"
+      ],
+      "properties": {
+        "notes": "Negative AIR. Pins: 1=coil+, 2=coil-, HV-\u21924 stud."
+      },
+      "pin_count": 4
+    },
+    {
+      "id": "con_183",
+      "name": "HVB Inverter Interface (8p)",
+      "parent": "enc_003",
+      "connector_type": "deutsch_dt",
+      "tags": [
+        "system:ts",
+        "status:blatantly-wrong"
+      ],
+      "properties": {
+        "notes": "Placeholder HVB-side inverter interface. Random assignment is blatantly wrong; fix before manufacture."
+      },
+      "pin_count": 8,
+      "keying": "A"
+    },
+    {
+      "id": "con_078",
+      "name": "C11 (Accu Internal 12p)",
+      "parent": "enc_003",
+      "connector_type": "deutsch_dt",
+      "tags": [
+        "bundle:Accu_Internal"
+      ],
+      "properties": {
+        "notes": "Internal 12-pin mating half of ACCU-C1 inside the accumulator (used as Accu Internal designator C11)."
+      },
+      "pin_count": 12
+    },
+    {
+      "id": "con_081",
+      "name": "Maintenance Plug 1",
+      "parent": "enc_049",
+      "connector_type": "generic_multipin",
+      "tags": [
+        "bundle:Accu_Internal"
+      ],
+      "properties": {
+        "notes": "MSD maintenance plug upper bank."
+      },
+      "pin_count": 6
+    },
+    {
+      "id": "con_082",
+      "name": "Maintenance Plug 5",
+      "parent": "enc_050",
+      "connector_type": "generic_multipin",
+      "tags": [
+        "bundle:Accu_Internal"
+      ],
+      "properties": {
+        "notes": "MSD maintenance plug lower bank."
+      },
+      "pin_count": 6
+    },
+    {
+      "id": "con_083",
+      "name": "BMS Satellite 1 (DT04-4P)",
+      "parent": "enc_051",
+      "connector_type": "deutsch_dt",
+      "tags": [
+        "bundle:Accu_Internal",
+        "system:bms"
+      ],
+      "properties": {
+        "notes": "BMS Satellite 1 cell-tap connector."
+      },
+      "pin_count": 4
+    },
+    {
+      "id": "con_084",
+      "name": "BMS Satellite 2 (DT04-4P)",
+      "parent": "enc_052",
+      "connector_type": "deutsch_dt",
+      "tags": [
+        "bundle:Accu_Internal",
+        "system:bms"
+      ],
+      "properties": {
+        "notes": "BMS Satellite 2 cell-tap connector."
+      },
+      "pin_count": 4
+    },
+    {
+      "id": "con_085",
+      "name": "Energy Meter (HV + 3-pin)",
+      "parent": "enc_044",
+      "connector_type": "deutsch_dt",
+      "tags": [
+        "bundle:Accu_Internal",
+        "system:ts"
+      ],
+      "properties": {
+        "notes": "Energy-meter 3-pin Deutsch (HV+, HV-, inline). Pin 1=HV-, pin 2=HV+ (sense lead not wired yet per transcript)."
+      },
+      "pin_count": 3
+    },
+    {
+      "id": "con_086",
+      "name": "Energy Meter CAN (4-pin Mini-Fit)",
+      "parent": "enc_044",
+      "connector_type": "molex_minifit_jr",
+      "tags": [
+        "bundle:Accu_Internal",
+        "system:bms"
+      ],
+      "properties": {
+        "notes": "Energy-meter CAN: CAN_H, GLV+, CAN_L, GLV- (per transcript)."
+      },
+      "pin_count": 4
+    },
+    {
+      "id": "con_087",
+      "name": "DCDC-Iso 8-pin (Accu)",
+      "parent": "enc_055",
+      "connector_type": "deutsch_dt",
+      "tags": [
+        "bundle:Accu_Internal"
+      ],
+      "properties": {
+        "notes": "Isolated DC-DC 8-pin connector inside accumulator."
+      },
+      "pin_count": 8,
+      "keying": "A"
+    },
+    {
+      "id": "con_088",
+      "name": "IMD 8-pin (Bender)",
+      "parent": "enc_043",
+      "connector_type": "deutsch_dt",
+      "tags": [
+        "bundle:Accu_Internal"
+      ],
+      "properties": {
+        "notes": "IMD / Bender 8-pin connector."
+      },
+      "pin_count": 8,
+      "keying": "A"
+    },
+    {
+      "id": "con_089",
+      "name": "RTM 8-pin (Accu harness)",
+      "parent": "enc_041",
+      "connector_type": "deutsch_dt",
+      "tags": [
+        "bundle:Accu_Internal"
+      ],
+      "properties": {
+        "notes": "RTM 8-pin accumulator-side connector."
+      },
+      "pin_count": 8,
+      "keying": "A"
+    },
+    {
+      "id": "con_090",
+      "name": "RTM J2 (Light out)",
+      "parent": "enc_041",
+      "connector_type": "molex_minifit_jr",
+      "tags": [
+        "bundle:internal"
+      ],
+      "properties": {
+        "notes": "RTM isolated light-driver output."
+      },
+      "pin_count": 2
+    },
+    {
+      "id": "con_091",
+      "name": "RTM J5 (to PCC)",
+      "parent": "enc_041",
+      "connector_type": "molex_minifit_jr",
+      "tags": [
+        "bundle:internal"
+      ],
+      "properties": {
+        "notes": "RTM HV sense connection to PCC."
+      },
+      "pin_count": 2
+    },
+    {
+      "id": "con_092",
+      "name": "RTM J7 (Power in)",
+      "parent": "enc_041",
+      "connector_type": "molex_minifit_jr",
+      "tags": [
+        "bundle:internal"
+      ],
+      "properties": {
+        "notes": "RTM isolated 12V power input."
+      },
+      "pin_count": 2
+    },
+    {
+      "id": "con_093",
+      "name": "PCC J1 (to AIRs)",
+      "parent": "enc_040",
+      "connector_type": "molex_minifit_jr",
+      "tags": [
+        "bundle:internal"
+      ],
+      "properties": {
+        "notes": "PCC PCB connector J1."
+      },
+      "pin_count": 4
+    },
+    {
+      "id": "con_094",
+      "name": "PCC J2 (HV connections)",
+      "parent": "enc_040",
+      "connector_type": "molex_minifit_jr",
+      "tags": [
+        "bundle:internal"
+      ],
+      "properties": {
+        "notes": "PCC PCB connector J2."
+      },
+      "pin_count": 12
+    },
+    {
+      "id": "con_095",
+      "name": "PCC J3 (to Bulkhead)",
+      "parent": "enc_040",
+      "connector_type": "molex_minifit_jr",
+      "tags": [
+        "bundle:internal"
+      ],
+      "properties": {
+        "notes": "PCC PCB connector J3."
+      },
+      "pin_count": 6
+    },
+    {
+      "id": "con_096",
+      "name": "PCC J5 (IMD)",
+      "parent": "enc_040",
+      "connector_type": "molex_minifit_jr",
+      "tags": [
+        "bundle:internal"
+      ],
+      "properties": {
+        "notes": "PCC PCB connector J5."
+      },
+      "pin_count": 6
+    },
+    {
+      "id": "con_097",
+      "name": "PCC J6 (Thermistor Exp.)",
+      "parent": "enc_040",
+      "connector_type": "molex_minifit_jr",
+      "tags": [
+        "bundle:internal"
+      ],
+      "properties": {
+        "notes": "PCC PCB connector J6."
+      },
+      "pin_count": 4
+    },
+    {
+      "id": "con_098",
+      "name": "PCC J7 (RTM)",
+      "parent": "enc_040",
+      "connector_type": "molex_minifit_jr",
+      "tags": [
+        "bundle:internal"
+      ],
+      "properties": {
+        "notes": "PCC PCB connector J7."
+      },
+      "pin_count": 4
+    },
+    {
+      "id": "con_099",
+      "name": "PCC J8 (BMS)",
+      "parent": "enc_040",
+      "connector_type": "molex_minifit_jr",
+      "tags": [
+        "bundle:internal"
+      ],
+      "properties": {
+        "notes": "PCC PCB connector J8."
+      },
+      "pin_count": 4
+    },
+    {
+      "id": "con_100",
+      "name": "PCC J9 (Energy Meter CAN)",
+      "parent": "enc_040",
+      "connector_type": "molex_minifit_jr",
+      "tags": [
+        "bundle:internal"
+      ],
+      "properties": {
+        "notes": "PCC PCB connector J9."
+      },
+      "pin_count": 4
+    },
+    {
+      "id": "con_104",
+      "name": "Voltage Indicator (3p)",
+      "parent": "enc_047",
+      "connector_type": "generic_multipin",
+      "tags": [
+        "bundle:Accu_Internal",
+        "system:tsal"
+      ],
+      "properties": {
+        "notes": "HV voltage indicator lamp driver (3-pin)."
+      },
+      "pin_count": 3
+    },
+    {
+      "id": "con_105",
+      "name": "Precharge/Discharge (4p placeholder)",
+      "parent": "enc_048",
+      "connector_type": "molex_minifit_jr",
+      "tags": [
+        "bundle:Accu_Internal",
+        "system:ts",
+        "status:needs-verification"
+      ],
+      "properties": {
+        "notes": "Precharge/Discharge 4-pin connector. PCB Precharge Circuit v0.2 pinout missing from xlsx \u2014 pins 1 & 3 used per gigadoc, 2 & 4 inferred."
+      },
+      "pin_count": 4
+    },
+    {
+      "id": "con_106",
+      "name": "TSMP Connector (5p)",
+      "parent": "enc_095",
+      "connector_type": "generic_multipin",
+      "tags": [
+        "bundle:Accu_Internal",
+        "system:ts"
+      ],
+      "properties": {
+        "notes": "Tractive-System Measurement Point (5-pin)."
+      },
+      "pin_count": 5
+    },
+    {
+      "id": "con_107",
+      "name": "HV Out Connector (3p)",
+      "parent": "enc_096",
+      "connector_type": "generic_multipin",
+      "tags": [
+        "bundle:Accu_Internal",
+        "system:ts"
+      ],
+      "properties": {
+        "notes": "Accumulator HV-output 3-pin internal connector."
+      },
+      "pin_count": 3
+    },
+    {
+      "id": "con_108",
+      "name": "HV Battery +",
+      "parent": "enc_053",
+      "connector_type": "generic_multipin",
+      "tags": [
+        "system:ts"
+      ],
+      "properties": {
+        "notes": "HV battery + stud terminal."
+      },
+      "pin_count": 1
+    },
+    {
+      "id": "con_109",
+      "name": "HV Battery -",
+      "parent": "enc_053",
+      "connector_type": "generic_multipin",
+      "tags": [
+        "system:ts"
+      ],
+      "properties": {
+        "notes": "HV battery - stud terminal."
+      },
+      "pin_count": 1
+    },
+    {
+      "id": "con_110",
+      "name": "HV Fuse Input",
+      "parent": "enc_054",
+      "connector_type": "generic_multipin",
+      "tags": [
+        "system:ts",
+        "status:needs-verification"
+      ],
+      "properties": {
+        "notes": "HV fuse input stud (location TBC per transcript)."
+      },
+      "pin_count": 1
+    },
+    {
+      "id": "con_111",
+      "name": "HV Fuse Output",
+      "parent": "enc_054",
+      "connector_type": "generic_multipin",
+      "tags": [
+        "system:ts",
+        "status:needs-verification"
+      ],
+      "properties": {
+        "notes": "HV fuse output stud (location TBC per transcript)."
+      },
+      "pin_count": 1
+    },
+    {
+      "id": "con_112",
+      "name": "Orion BMS CAN (3p)",
+      "parent": "enc_042",
+      "connector_type": "generic_multipin",
+      "tags": [
+        "system:bms",
+        "status:needs-verification"
+      ],
+      "properties": {
+        "notes": "Orion BMS 3-pin CAN connector (CAN_H, CAN_L, GND) \u2014 pinout assumed."
+      },
+      "pin_count": 3
+    },
+    {
+      "id": "con_172",
+      "name": "PCC J11 (Discharge Enable, 2p)",
+      "parent": "enc_040",
+      "connector_type": "molex_minifit_jr",
+      "tags": [
+        "bundle:internal",
+        "system:ts",
+        "status:needs-verification"
+      ],
+      "properties": {
+        "notes": "PCC J11 discharge-enable input. 1=DISCH_EN_12V, 2=GND. Real PCC J11 footprint TBC (CSV not in xlsx)."
+      },
+      "pin_count": 2
+    },
+    {
+      "id": "con_180",
+      "name": "HVB Current Sensor (4p)",
+      "parent": "enc_107",
+      "connector_type": "deutsch_dt",
+      "tags": [
+        "system:ts",
+        "system:sensors"
+      ],
+      "properties": {
+        "notes": "Internal current sensor: 1=5V, 2=current signal, 3=GND, 4=reserved."
+      },
+      "pin_count": 4
+    }
+  ],
+  "mergePoints": [],
+  "paths": [
+    {
+      "id": "path_241",
+      "name": "HV Connector +",
+      "tags": [
+        "bundle:transcript",
+        "system:ts",
+        "signal:HV_PLUS",
+        "status:needs-verification"
+      ],
+      "properties": {
+        "notes": "HV connector + (exit from AIR+)."
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_102",
+          "pin_number": 2
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_113",
+          "pin_number": 1
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_242",
+      "name": "HV Connector -",
+      "tags": [
+        "bundle:transcript",
+        "system:ts",
+        "signal:HV_MINUS",
+        "status:needs-verification"
+      ],
+      "properties": {
+        "notes": "HV connector - (exit from AIR-)."
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_103",
+          "pin_number": 2
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_113",
+          "pin_number": 2
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_396",
+      "name": "Inverter HV-IL IN placeholder",
+      "tags": [
+        "system:ts",
+        "status:blatantly-wrong",
+        "signal:HVIL_IN"
+      ],
+      "properties": {
+        "wire_id": "INV-HVIL-24",
+        "wire_color": "Orange",
+        "wire_gauge": "20 AWG",
+        "notes": "Intentional random placeholder; blatantly wrong, please fix."
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_127",
+          "pin_number": 24
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_183",
+          "pin_number": 7
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_397",
+      "name": "Inverter HV-IL OUT placeholder",
+      "tags": [
+        "system:ts",
+        "status:blatantly-wrong",
+        "signal:HVIL_OUT"
+      ],
+      "properties": {
+        "wire_id": "INV-HVIL-25",
+        "wire_color": "Orange",
+        "wire_gauge": "20 AWG",
+        "notes": "Intentional random placeholder; blatantly wrong, please fix."
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_127",
+          "pin_number": 25
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_183",
+          "pin_number": 8
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_002",
+      "name": "W13 - C11.3 -> Precharge/Discharge.1",
+      "tags": [
+        "system:ts",
+        "system:bms",
+        "bundle:Accu_Internal",
+        "status:needs-verification"
+      ],
+      "properties": {
+        "wire_id": "W13",
+        "wire_color": "Blue",
+        "wire_gauge": "18 AWG"
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_078",
+          "pin_number": 3
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_105",
+          "pin_number": 1
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_003",
+      "name": "W30 - C11.4 -> Voltage Indicator.1",
+      "tags": [
+        "system:ts",
+        "system:bms",
+        "bundle:Accu_Internal"
+      ],
+      "properties": {
+        "wire_id": "W30",
+        "wire_color": "Blue",
+        "wire_gauge": "18 AWG"
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_078",
+          "pin_number": 4
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_104",
+          "pin_number": 1
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_004",
+      "name": "W29 - TS+",
+      "tags": [
+        "system:ts",
+        "system:bms",
+        "bundle:Accu_Internal",
+        "signal:TS_PLUS"
+      ],
+      "properties": {
+        "wire_id": "W29",
+        "wire_color": "Orange",
+        "wire_gauge": "18 AWG",
+        "notes": "TS+"
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_102",
+          "pin_number": 1
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_078",
+          "pin_number": 2
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_005",
+      "name": "W6 - TS+",
+      "tags": [
+        "system:ts",
+        "system:bms",
+        "bundle:Accu_Internal",
+        "signal:TS_PLUS"
+      ],
+      "properties": {
+        "wire_id": "W6",
+        "wire_color": "Orange",
+        "wire_gauge": "18 AWG",
+        "notes": "TS+"
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_102",
+          "pin_number": 1
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_082",
+          "pin_number": 6
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_006",
+      "name": "W28 - TS+",
+      "tags": [
+        "system:ts",
+        "system:bms",
+        "bundle:Accu_Internal",
+        "signal:TS_PLUS"
+      ],
+      "properties": {
+        "wire_id": "W28",
+        "wire_color": "Orange",
+        "wire_gauge": "18 AWG",
+        "notes": "TS+"
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_102",
+          "pin_number": 3
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_078",
+          "pin_number": 2
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_007",
+      "name": "W20 - TS-",
+      "tags": [
+        "system:ts",
+        "system:bms",
+        "bundle:Accu_Internal",
+        "signal:TS_MINUS"
+      ],
+      "properties": {
+        "wire_id": "W20",
+        "wire_color": "White",
+        "wire_gauge": "18 AWG",
+        "notes": "TS-"
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_103",
+          "pin_number": 2
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_087",
+          "pin_number": 1
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_008",
+      "name": "W21 - TS-",
+      "tags": [
+        "system:ts",
+        "system:bms",
+        "bundle:Accu_Internal",
+        "signal:TS_MINUS"
+      ],
+      "properties": {
+        "wire_id": "W21",
+        "wire_color": "White",
+        "wire_gauge": "18 AWG",
+        "notes": "TS-"
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_103",
+          "pin_number": 2
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_087",
+          "pin_number": 2
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_009",
+      "name": "W22 - TS-",
+      "tags": [
+        "system:ts",
+        "system:bms",
+        "bundle:Accu_Internal",
+        "signal:TS_MINUS"
+      ],
+      "properties": {
+        "wire_id": "W22",
+        "wire_color": "White",
+        "wire_gauge": "18 AWG",
+        "notes": "TS-"
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_103",
+          "pin_number": 2
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_088",
+          "pin_number": 7
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_010",
+      "name": "W18 - TS-",
+      "tags": [
+        "system:ts",
+        "system:bms",
+        "bundle:Accu_Internal",
+        "signal:TS_MINUS"
+      ],
+      "properties": {
+        "wire_id": "W18",
+        "wire_color": "White",
+        "wire_gauge": "18 AWG",
+        "notes": "TS-"
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_103",
+          "pin_number": 2
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_089",
+          "pin_number": 1
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_011",
+      "name": "W19 - TS-",
+      "tags": [
+        "system:ts",
+        "system:bms",
+        "bundle:Accu_Internal",
+        "signal:TS_MINUS"
+      ],
+      "properties": {
+        "wire_id": "W19",
+        "wire_color": "White",
+        "wire_gauge": "18 AWG",
+        "notes": "TS-"
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_103",
+          "pin_number": 2
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_089",
+          "pin_number": 2
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_012",
+      "name": "W25 - TS-",
+      "tags": [
+        "system:ts",
+        "system:bms",
+        "bundle:Accu_Internal",
+        "signal:TS_MINUS"
+      ],
+      "properties": {
+        "wire_id": "W25",
+        "wire_color": "Orange",
+        "wire_gauge": "18 AWG",
+        "notes": "TS-"
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_103",
+          "pin_number": 4
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_085",
+          "pin_number": 1
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_015",
+      "name": "W26 - Accumulator HV out",
+      "tags": [
+        "system:ts",
+        "system:bms",
+        "bundle:Accu_Internal",
+        "signal:ACCUMULATOR_HV_OUT"
+      ],
+      "properties": {
+        "wire_id": "W26",
+        "wire_color": "Orange",
+        "wire_gauge": "18 AWG",
+        "notes": "Accumulator HV out"
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_085",
+          "pin_number": 1
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_107",
+          "pin_number": 1
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_016",
+      "name": "W31 - HV Out Connector.2 -> Precharge/Discharge.3",
+      "tags": [
+        "system:ts",
+        "system:bms",
+        "bundle:Accu_Internal",
+        "status:needs-verification"
+      ],
+      "properties": {
+        "wire_id": "W31",
+        "wire_color": "Orange",
+        "wire_gauge": "18 AWG"
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_107",
+          "pin_number": 2
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_105",
+          "pin_number": 3
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_019",
+      "name": "W1 - Showing only 1 connection betw",
+      "tags": [
+        "system:ts",
+        "system:bms",
+        "bundle:Accu_Internal"
+      ],
+      "properties": {
+        "wire_id": "W1",
+        "wire_color": "White",
+        "wire_gauge": "18 AWG",
+        "notes": "Showing only 1 connection between these modules but there are actually 5 of these modules and they have their own connections."
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_081",
+          "pin_number": 1
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_082",
+          "pin_number": 1
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_020",
+      "name": "W24 - Maintance Plug_1.2 -> BMS Satellite_1.1",
+      "tags": [
+        "system:ts",
+        "system:bms",
+        "bundle:Accu_Internal"
+      ],
+      "properties": {
+        "wire_id": "W24",
+        "wire_color": "Orange",
+        "wire_gauge": "18 AWG"
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_081",
+          "pin_number": 2
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_083",
+          "pin_number": 1
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_021",
+      "name": "W3 - Maintance Plug_1.3 -> BMS Satellite_1.2",
+      "tags": [
+        "system:ts",
+        "system:bms",
+        "bundle:Accu_Internal"
+      ],
+      "properties": {
+        "wire_id": "W3",
+        "wire_color": "Orange",
+        "wire_gauge": "18 AWG"
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_081",
+          "pin_number": 3
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_083",
+          "pin_number": 2
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_022",
+      "name": "W4 - Maintance Plug_1.4 -> BMS Satellite_1.3",
+      "tags": [
+        "system:ts",
+        "system:bms",
+        "bundle:Accu_Internal"
+      ],
+      "properties": {
+        "wire_id": "W4",
+        "wire_color": "Orange",
+        "wire_gauge": "18 AWG"
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_081",
+          "pin_number": 4
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_083",
+          "pin_number": 3
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_023",
+      "name": "W5 - Maintance Plug_1.5 -> BMS Satellite_1.4",
+      "tags": [
+        "system:ts",
+        "system:bms",
+        "bundle:Accu_Internal"
+      ],
+      "properties": {
+        "wire_id": "W5",
+        "wire_color": "Orange",
+        "wire_gauge": "18 AWG"
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_081",
+          "pin_number": 5
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_083",
+          "pin_number": 4
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_024",
+      "name": "W2 - Maintance Plug_1.6 -> Contactor_B-.1",
+      "tags": [
+        "system:ts",
+        "system:bms",
+        "bundle:Accu_Internal"
+      ],
+      "properties": {
+        "wire_id": "W2",
+        "wire_color": "Orange",
+        "wire_gauge": "18 AWG"
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_081",
+          "pin_number": 6
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_103",
+          "pin_number": 1
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_025",
+      "name": "W16 - Maintenance Plug_5.2 -> BMS Satellite_2.1",
+      "tags": [
+        "system:ts",
+        "system:bms",
+        "bundle:Accu_Internal"
+      ],
+      "properties": {
+        "wire_id": "W16",
+        "wire_color": "Orange",
+        "wire_gauge": "18 AWG"
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_082",
+          "pin_number": 2
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_084",
+          "pin_number": 1
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_026",
+      "name": "W7 - Maintenance Plug_5.3 -> BMS Satellite_2.2",
+      "tags": [
+        "system:ts",
+        "system:bms",
+        "bundle:Accu_Internal"
+      ],
+      "properties": {
+        "wire_id": "W7",
+        "wire_color": "Orange",
+        "wire_gauge": "18 AWG"
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_082",
+          "pin_number": 3
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_084",
+          "pin_number": 2
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_027",
+      "name": "W14 - Maintenance Plug_5.4 -> BMS Satellite_2.3",
+      "tags": [
+        "system:ts",
+        "system:bms",
+        "bundle:Accu_Internal"
+      ],
+      "properties": {
+        "wire_id": "W14",
+        "wire_color": "Orange",
+        "wire_gauge": "18 AWG"
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_082",
+          "pin_number": 4
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_084",
+          "pin_number": 3
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_028",
+      "name": "W15 - Maintenance Plug_5.5 -> BMS Satellite_2.4",
+      "tags": [
+        "system:ts",
+        "system:bms",
+        "bundle:Accu_Internal"
+      ],
+      "properties": {
+        "wire_id": "W15",
+        "wire_color": "Orange",
+        "wire_gauge": "18 AWG"
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_082",
+          "pin_number": 5
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_084",
+          "pin_number": 4
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_029",
+      "name": "W37 - Precharge/Discharge.2 -> Voltage Indicator.3",
+      "tags": [
+        "system:ts",
+        "system:bms",
+        "bundle:Accu_Internal",
+        "status:needs-verification"
+      ],
+      "properties": {
+        "wire_id": "W37",
+        "wire_color": "Blue",
+        "wire_gauge": "18 AWG"
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_105",
+          "pin_number": 2
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_104",
+          "pin_number": 3
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_030",
+      "name": "W42 - HV-",
+      "tags": [
+        "system:ts",
+        "system:bms",
+        "bundle:Accu_Internal",
+        "signal:HV_MINUS",
+        "status:needs-verification"
+      ],
+      "properties": {
+        "wire_id": "W42",
+        "wire_color": "Blue",
+        "wire_gauge": "18 AWG",
+        "notes": "HV-"
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_105",
+          "pin_number": 4
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_106",
+          "pin_number": 1
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_036",
+      "name": "W43 - HV+",
+      "tags": [
+        "system:ts",
+        "system:bms",
+        "bundle:Accu_Internal",
+        "signal:HV_PLUS"
+      ],
+      "properties": {
+        "wire_id": "W43",
+        "wire_color": "Blue",
+        "wire_gauge": "18 AWG",
+        "notes": "HV+"
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_106",
+          "pin_number": 5
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_078",
+          "pin_number": 2
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_214",
+      "name": "Orion BMS CAN pin 1 - CAN_BMS_H",
+      "tags": [
+        "bundle:transcript",
+        "status:needs-verification",
+        "signal:CAN_BMS_H",
+        "system:bms"
+      ],
+      "properties": {
+        "notes": "Orion BMS CAN fan-out (pinout inferred \u2014 transcript flagged)."
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_112",
+          "pin_number": 1
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_099",
+          "pin_number": 1
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_215",
+      "name": "Orion BMS CAN pin 2 - CAN_BMS_L",
+      "tags": [
+        "bundle:transcript",
+        "status:needs-verification",
+        "signal:CAN_BMS_L",
+        "system:bms"
+      ],
+      "properties": {
+        "notes": "Orion BMS CAN fan-out (pinout inferred \u2014 transcript flagged)."
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_112",
+          "pin_number": 2
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_099",
+          "pin_number": 3
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_216",
+      "name": "Orion BMS CAN pin 3 - GLV_GND",
+      "tags": [
+        "bundle:transcript",
+        "status:needs-verification",
+        "signal:GLV_GND",
+        "system:bms"
+      ],
+      "properties": {
+        "notes": "Orion BMS CAN fan-out (pinout inferred \u2014 transcript flagged)."
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_112",
+          "pin_number": 3
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_099",
+          "pin_number": 4
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_221",
+      "name": "Energy Meter CAN pin 1 - CAN_EM_H",
+      "tags": [
+        "bundle:Accu_Internal",
+        "signal:CAN_EM_H",
+        "system:bms",
+        "system:ts"
+      ],
+      "properties": {
+        "notes": "Energy meter CAN 4-pin (transcript)."
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_100",
+          "pin_number": 1
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_086",
+          "pin_number": 1
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_222",
+      "name": "Energy Meter CAN pin 2 - GLV_PLUS",
+      "tags": [
+        "bundle:Accu_Internal",
+        "signal:GLV_PLUS",
+        "system:bms",
+        "system:ts"
+      ],
+      "properties": {
+        "notes": "Energy meter CAN 4-pin (transcript)."
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_100",
+          "pin_number": 2
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_086",
+          "pin_number": 2
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_223",
+      "name": "Energy Meter CAN pin 3 - CAN_EM_L",
+      "tags": [
+        "bundle:Accu_Internal",
+        "signal:CAN_EM_L",
+        "system:bms",
+        "system:ts"
+      ],
+      "properties": {
+        "notes": "Energy meter CAN 4-pin (transcript)."
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_100",
+          "pin_number": 3
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_086",
+          "pin_number": 3
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_224",
+      "name": "Energy Meter CAN pin 4 - GLV_MINUS",
+      "tags": [
+        "bundle:Accu_Internal",
+        "signal:GLV_MINUS",
+        "system:bms",
+        "system:ts"
+      ],
+      "properties": {
+        "notes": "Energy meter CAN 4-pin (transcript)."
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_100",
+          "pin_number": 4
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_086",
+          "pin_number": 4
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_239",
+      "name": "HV Battery+ -> AIR+ load",
+      "tags": [
+        "bundle:transcript",
+        "system:ts",
+        "signal:HV_PLUS"
+      ],
+      "properties": {
+        "notes": "HV battery + stud to AIR+ load terminal."
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_108",
+          "pin_number": 1
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_102",
+          "pin_number": 4
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_240",
+      "name": "HV Battery- -> AIR- load",
+      "tags": [
+        "bundle:transcript",
+        "system:ts",
+        "signal:HV_MINUS"
+      ],
+      "properties": {
+        "notes": "HV battery - stud to AIR- load terminal."
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_109",
+          "pin_number": 1
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_103",
+          "pin_number": 4
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_331",
+      "name": "PCC J1.1 - AIR_SHUTDOWN_IN",
+      "tags": [
+        "bundle:Accu_Internal",
+        "system:ts",
+        "signal:AIR_SHUTDOWN_IN"
+      ],
+      "properties": {
+        "notes": "PCC J1 (to AIRs) per AER xlsx.",
+        "wire_id": "PCC-J1-1"
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_093",
+          "pin_number": 1
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_102",
+          "pin_number": 3
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_332",
+      "name": "PCC J1.2 - IR_PLUS_GND",
+      "tags": [
+        "bundle:Accu_Internal",
+        "system:ts",
+        "signal:IR_PLUS_GND"
+      ],
+      "properties": {
+        "notes": "PCC J1 (to AIRs) per AER xlsx.",
+        "wire_id": "PCC-J1-2"
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_093",
+          "pin_number": 2
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_102",
+          "pin_number": 2
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_333",
+      "name": "PCC J1.3 - IR_MINUS_GND",
+      "tags": [
+        "bundle:Accu_Internal",
+        "system:ts",
+        "signal:IR_MINUS_GND"
+      ],
+      "properties": {
+        "notes": "PCC J1 (to AIRs) per AER xlsx.",
+        "wire_id": "PCC-J1-3"
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_093",
+          "pin_number": 3
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_103",
+          "pin_number": 2
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_334",
+      "name": "PCC J1.4 - AIR_SHUTDOWN_IN",
+      "tags": [
+        "bundle:Accu_Internal",
+        "system:ts",
+        "signal:AIR_SHUTDOWN_IN"
+      ],
+      "properties": {
+        "notes": "PCC J1 (to AIRs) per AER xlsx.",
+        "wire_id": "PCC-J1-4"
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_093",
+          "pin_number": 4
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_103",
+          "pin_number": 3
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_335",
+      "name": "PCC J2.2 - FUSED_TS_PLUS_1_IMD",
+      "tags": [
+        "bundle:Accu_Internal",
+        "system:ts",
+        "signal:FUSED_TS_PLUS_1_IMD"
+      ],
+      "properties": {
+        "notes": "PCC J2 HV connection (AER xlsx).",
+        "wire_id": "PCC-J2-2"
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_094",
+          "pin_number": 2
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_088",
+          "pin_number": 1
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_336",
+      "name": "PCC J2.3 - FUSED_TS_PLUS_2_RTML",
+      "tags": [
+        "bundle:Accu_Internal",
+        "system:ts",
+        "signal:FUSED_TS_PLUS_2_RTML"
+      ],
+      "properties": {
+        "notes": "PCC J2 HV connection (AER xlsx).",
+        "wire_id": "PCC-J2-3"
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_094",
+          "pin_number": 3
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_091",
+          "pin_number": 1
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_337",
+      "name": "PCC J2.4 - FUSED_TS_PLUS_3_HVIND",
+      "tags": [
+        "bundle:Accu_Internal",
+        "system:ts",
+        "signal:FUSED_TS_PLUS_3_HVIND"
+      ],
+      "properties": {
+        "notes": "PCC J2 HV connection (AER xlsx).",
+        "wire_id": "PCC-J2-4"
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_094",
+          "pin_number": 4
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_104",
+          "pin_number": 1
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_338",
+      "name": "PCC J2.5 - FUSED_TS_PLUS_4_EM",
+      "tags": [
+        "bundle:Accu_Internal",
+        "system:ts",
+        "signal:FUSED_TS_PLUS_4_EM"
+      ],
+      "properties": {
+        "notes": "PCC J2 HV connection (AER xlsx).",
+        "wire_id": "PCC-J2-5"
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_094",
+          "pin_number": 5
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_085",
+          "pin_number": 2
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_339",
+      "name": "PCC J2.6 - TSMP_PLUS",
+      "tags": [
+        "bundle:Accu_Internal",
+        "system:ts",
+        "signal:TSMP_PLUS"
+      ],
+      "properties": {
+        "notes": "PCC J2 HV connection (AER xlsx).",
+        "wire_id": "PCC-J2-6"
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_094",
+          "pin_number": 6
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_106",
+          "pin_number": 1
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_340",
+      "name": "PCC J2.8 - FUSED_TS_MINUS_1_IMD",
+      "tags": [
+        "bundle:Accu_Internal",
+        "system:ts",
+        "signal:FUSED_TS_MINUS_1_IMD"
+      ],
+      "properties": {
+        "notes": "PCC J2 HV connection (AER xlsx).",
+        "wire_id": "PCC-J2-8"
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_094",
+          "pin_number": 8
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_088",
+          "pin_number": 2
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_341",
+      "name": "PCC J2.9 - FUSED_TS_MINUS_2_RTML",
+      "tags": [
+        "bundle:Accu_Internal",
+        "system:ts",
+        "signal:FUSED_TS_MINUS_2_RTML"
+      ],
+      "properties": {
+        "notes": "PCC J2 HV connection (AER xlsx).",
+        "wire_id": "PCC-J2-9"
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_094",
+          "pin_number": 9
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_091",
+          "pin_number": 2
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_342",
+      "name": "PCC J2.10 - FUSED_TS_MINUS_3_HVIND",
+      "tags": [
+        "bundle:Accu_Internal",
+        "system:ts",
+        "signal:FUSED_TS_MINUS_3_HVIND"
+      ],
+      "properties": {
+        "notes": "PCC J2 HV connection (AER xlsx).",
+        "wire_id": "PCC-J2-10"
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_094",
+          "pin_number": 10
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_104",
+          "pin_number": 2
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_343",
+      "name": "PCC J2.12 - TSMP_MINUS",
+      "tags": [
+        "bundle:Accu_Internal",
+        "system:ts",
+        "signal:TSMP_MINUS"
+      ],
+      "properties": {
+        "notes": "PCC J2 HV connection (AER xlsx).",
+        "wire_id": "PCC-J2-12"
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_094",
+          "pin_number": 12
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_106",
+          "pin_number": 2
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_344",
+      "name": "PCC J3.1 - CAN_BMS_L",
+      "tags": [
+        "bundle:Accu_Internal",
+        "system:ts",
+        "signal:CAN_BMS_L",
+        "system:bms"
+      ],
+      "properties": {
+        "notes": "PCC J3 (to Bulkhead) per AER xlsx \u2014 landing pins on ACCU-C1.",
+        "wire_id": "PCC-J3-1"
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_095",
+          "pin_number": 1
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_077",
+          "pin_number": 1
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_345",
+      "name": "PCC J3.2 - GLV_MINUS",
+      "tags": [
+        "bundle:Accu_Internal",
+        "system:ts",
+        "signal:GLV_MINUS",
+        "system:bms"
+      ],
+      "properties": {
+        "notes": "PCC J3 (to Bulkhead) per AER xlsx \u2014 landing pins on ACCU-C1.",
+        "wire_id": "PCC-J3-2"
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_095",
+          "pin_number": 2
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_077",
+          "pin_number": 2
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_346",
+      "name": "PCC J3.3 - RTM_SIG",
+      "tags": [
+        "bundle:Accu_Internal",
+        "system:ts",
+        "signal:RTM_SIG",
+        "system:bms"
+      ],
+      "properties": {
+        "notes": "PCC J3 (to Bulkhead) per AER xlsx \u2014 landing pins on ACCU-C1.",
+        "wire_id": "PCC-J3-3"
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_095",
+          "pin_number": 3
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_077",
+          "pin_number": 3
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_347",
+      "name": "PCC J3.4 - CAN_BMS_H",
+      "tags": [
+        "bundle:Accu_Internal",
+        "system:ts",
+        "signal:CAN_BMS_H",
+        "system:bms"
+      ],
+      "properties": {
+        "notes": "PCC J3 (to Bulkhead) per AER xlsx \u2014 landing pins on ACCU-C1.",
+        "wire_id": "PCC-J3-4"
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_095",
+          "pin_number": 4
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_077",
+          "pin_number": 4
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_348",
+      "name": "PCC J3.5 - GLV_PLUS",
+      "tags": [
+        "bundle:Accu_Internal",
+        "system:ts",
+        "signal:GLV_PLUS",
+        "system:bms"
+      ],
+      "properties": {
+        "notes": "PCC J3 (to Bulkhead) per AER xlsx \u2014 landing pins on ACCU-C1.",
+        "wire_id": "PCC-J3-5"
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_095",
+          "pin_number": 5
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_077",
+          "pin_number": 5
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_349",
+      "name": "PCC J3.6 - IMD_FAULT",
+      "tags": [
+        "bundle:Accu_Internal",
+        "system:ts",
+        "signal:IMD_FAULT",
+        "system:bms"
+      ],
+      "properties": {
+        "notes": "PCC J3 (to Bulkhead) per AER xlsx \u2014 landing pins on ACCU-C1.",
+        "wire_id": "PCC-J3-6"
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_095",
+          "pin_number": 6
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_077",
+          "pin_number": 6
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_350",
+      "name": "PCC J5.1 - CAN_BMS_L",
+      "tags": [
+        "bundle:Accu_Internal",
+        "system:ts",
+        "signal:CAN_BMS_L"
+      ],
+      "properties": {
+        "notes": "PCC J5 (IMD) per AER xlsx.",
+        "wire_id": "PCC-J5-1"
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_096",
+          "pin_number": 1
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_088",
+          "pin_number": 3
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_351",
+      "name": "PCC J5.2 - GLV_MINUS",
+      "tags": [
+        "bundle:Accu_Internal",
+        "system:ts",
+        "signal:GLV_MINUS"
+      ],
+      "properties": {
+        "notes": "PCC J5 (IMD) per AER xlsx.",
+        "wire_id": "PCC-J5-2"
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_096",
+          "pin_number": 2
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_088",
+          "pin_number": 4
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_352",
+      "name": "PCC J5.3 - RTM_SIG",
+      "tags": [
+        "bundle:Accu_Internal",
+        "system:ts",
+        "signal:RTM_SIG"
+      ],
+      "properties": {
+        "notes": "PCC J5 (IMD) per AER xlsx.",
+        "wire_id": "PCC-J5-3"
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_096",
+          "pin_number": 3
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_088",
+          "pin_number": 5
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_353",
+      "name": "PCC J5.4 - CAN_BMS_H",
+      "tags": [
+        "bundle:Accu_Internal",
+        "system:ts",
+        "signal:CAN_BMS_H"
+      ],
+      "properties": {
+        "notes": "PCC J5 (IMD) per AER xlsx.",
+        "wire_id": "PCC-J5-4"
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_096",
+          "pin_number": 4
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_088",
+          "pin_number": 6
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_354",
+      "name": "PCC J5.5 - GLV_PLUS",
+      "tags": [
+        "bundle:Accu_Internal",
+        "system:ts",
+        "signal:GLV_PLUS"
+      ],
+      "properties": {
+        "notes": "PCC J5 (IMD) per AER xlsx.",
+        "wire_id": "PCC-J5-5"
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_096",
+          "pin_number": 5
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_088",
+          "pin_number": 7
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_355",
+      "name": "PCC J5.6 - IMD_FAULT",
+      "tags": [
+        "bundle:Accu_Internal",
+        "system:ts",
+        "signal:IMD_FAULT"
+      ],
+      "properties": {
+        "notes": "PCC J5 (IMD) per AER xlsx.",
+        "wire_id": "PCC-J5-6"
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_096",
+          "pin_number": 6
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_088",
+          "pin_number": 8
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_363",
+      "name": "AIR+ Aux Switch \u2192 AIR- Aux Switch",
+      "tags": [
+        "bundle:transcript",
+        "system:ts",
+        "signal:HVIL_LOOP"
+      ],
+      "properties": {
+        "notes": "HVIL bridges across both AIR aux contacts (series interlock)."
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_102",
+          "pin_number": 3
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_103",
+          "pin_number": 3
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_364",
+      "name": "AIR- Aux Switch \u2192 PCC J2.1 (/IL)",
+      "tags": [
+        "bundle:transcript",
+        "system:ts",
+        "signal:HVIL_LOOP"
+      ],
+      "properties": {
+        "notes": "HVIL terminates at PCC J2 pin 1 (/IL)."
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_103",
+          "pin_number": 3
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_094",
+          "pin_number": 1
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_366",
+      "name": "PCC J11.1 \u2192 Precharge/Discharge LV +",
+      "tags": [
+        "bundle:Accu_Internal",
+        "system:ts",
+        "status:needs-verification",
+        "signal:DISCH_ENABLE_12V"
+      ],
+      "properties": {
+        "notes": "Discharge-enable 12V from PCC J11 to Precharge/Discharge board."
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_172",
+          "pin_number": 1
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_173",
+          "pin_number": 1
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_367",
+      "name": "PCC J11.2 \u2192 Precharge/Discharge LV GND",
+      "tags": [
+        "bundle:Accu_Internal",
+        "system:ts",
+        "status:needs-verification"
+      ],
+      "properties": {
+        "notes": "Discharge-enable GND."
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_172",
+          "pin_number": 2
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_173",
+          "pin_number": 2
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_381",
+      "name": "Orion BMS Main.4 - CAN_BMS_H",
+      "tags": [
+        "system:bms",
+        "status:needs-verification",
+        "signal:CAN_BMS_H",
+        "bundle:transcript"
+      ],
+      "properties": {
+        "notes": "Orion BMS main 23p net CAN_BMS_H (placeholder pinout).",
+        "wire_id": "ORION-4"
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_174",
+          "pin_number": 4
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_099",
+          "pin_number": 1
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_382",
+      "name": "Orion BMS Main.5 - CAN_BMS_L",
+      "tags": [
+        "system:bms",
+        "status:needs-verification",
+        "signal:CAN_BMS_L",
+        "bundle:transcript"
+      ],
+      "properties": {
+        "notes": "Orion BMS main 23p net CAN_BMS_L (placeholder pinout).",
+        "wire_id": "ORION-5"
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_174",
+          "pin_number": 5
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_099",
+          "pin_number": 3
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_384",
+      "name": "Orion BMS Main.7 - ORION_DISCH_ENABLE",
+      "tags": [
+        "system:bms",
+        "status:needs-verification",
+        "signal:ORION_DISCH_ENABLE",
+        "bundle:transcript"
+      ],
+      "properties": {
+        "notes": "Orion BMS main 23p net ORION_DISCH_ENABLE (placeholder pinout).",
+        "wire_id": "ORION-7"
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_174",
+          "pin_number": 7
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_172",
+          "pin_number": 1
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_398",
+      "name": "HVB-C2 \u2192 internal current sensor: CURR_5V",
+      "tags": [
+        "bundle:Accu_Internal",
+        "system:ts",
+        "system:sensors",
+        "signal:CURR_5V"
+      ],
+      "properties": {
+        "wire_id": "HVB-C2-1",
+        "wire_color": "Yellow",
+        "wire_gauge": "18 AWG",
+        "notes": "Bulkhead to four-pin current sensor inside HVB."
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_079",
+          "pin_number": 1
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_180",
+          "pin_number": 1
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_399",
+      "name": "HVB-C2 \u2192 internal current sensor: CURR_IN",
+      "tags": [
+        "bundle:Accu_Internal",
+        "system:ts",
+        "system:sensors",
+        "signal:CURR_IN"
+      ],
+      "properties": {
+        "wire_id": "HVB-C2-2",
+        "wire_color": "White-Black",
+        "wire_gauge": "18 AWG",
+        "notes": "Bulkhead to four-pin current sensor inside HVB."
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_079",
+          "pin_number": 2
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_180",
+          "pin_number": 2
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_400",
+      "name": "HVB-C2 \u2192 internal current sensor: CURR_GND",
+      "tags": [
+        "bundle:Accu_Internal",
+        "system:ts",
+        "system:sensors",
+        "signal:CURR_GND"
+      ],
+      "properties": {
+        "wire_id": "HVB-C2-3",
+        "wire_color": "Black",
+        "wire_gauge": "18 AWG",
+        "notes": "Bulkhead to four-pin current sensor inside HVB."
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_079",
+          "pin_number": 3
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_180",
+          "pin_number": 3
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_401",
+      "name": "Accumulator direct daisy chain (splices removed)",
+      "tags": [
+        "bundle:Accu_Internal",
+        "system:ts",
+        "status:needs-verification"
+      ],
+      "properties": {
+        "wire_id": "ACCU-DIRECT",
+        "wire_color": "Orange",
+        "wire_gauge": "18 AWG",
+        "notes": "Direct daisy-chain replacement for accumulator splices S2-S6; verify physical routing."
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_078",
+          "pin_number": 1
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_087",
+          "pin_number": 4
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_085",
+          "pin_number": 2
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_107",
+          "pin_number": 3
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_088",
+          "pin_number": 1
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_089",
+          "pin_number": 3
+        }
+      ],
+      "measurements": []
+    }
+  ],
+  "ports": []
+}

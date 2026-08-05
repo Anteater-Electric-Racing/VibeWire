@@ -1,0 +1,777 @@
+{
+  "schema_version": "0.2.0-sheets",
+  "sheet_enclosure_id": "enc_002",
+  "enclosures": [
+    {
+      "id": "enc_030",
+      "name": "HI-BBC Board (ROC)",
+      "parent": "enc_002",
+      "container": false,
+      "tags": [
+        "system:sdc"
+      ],
+      "properties": {
+        "notes": "Human Interface / Brake Bias Controller PCB, rear of car. Same schematic as FOC HI-BBC."
+      }
+    },
+    {
+      "id": "enc_031",
+      "name": "HV Master Switch",
+      "parent": "enc_002",
+      "container": false,
+      "tags": [
+        "system:sdc",
+        "system:ts"
+      ],
+      "properties": {
+        "notes": "Rear HV master-switch disconnect."
+      }
+    },
+    {
+      "id": "enc_032",
+      "name": "LV Master Switch",
+      "parent": "enc_002",
+      "container": false,
+      "tags": [
+        "system:sdc",
+        "system:lvs"
+      ],
+      "properties": {
+        "notes": "Rear LV master-switch disconnect."
+      }
+    },
+    {
+      "id": "enc_033",
+      "name": "Speaker (RTD Buzzer)",
+      "parent": "enc_002",
+      "container": false,
+      "tags": [
+        "system:lvs"
+      ],
+      "properties": {
+        "notes": "Ready-to-drive buzzer / speaker."
+      }
+    },
+    {
+      "id": "enc_034",
+      "name": "E-Stop Left (ES-LT)",
+      "parent": "enc_002",
+      "container": false,
+      "tags": [
+        "system:sdc"
+      ],
+      "properties": {
+        "notes": "Left-side emergency stop."
+      }
+    },
+    {
+      "id": "enc_035",
+      "name": "E-Stop Right (ES-RT)",
+      "parent": "enc_002",
+      "container": false,
+      "tags": [
+        "system:sdc"
+      ],
+      "properties": {
+        "notes": "Right-side emergency stop."
+      }
+    }
+  ],
+  "connectors": [
+    {
+      "id": "con_049",
+      "name": "HI-J1 (ROC sw-latch)",
+      "parent": "enc_030",
+      "connector_type": "generic_multipin",
+      "tags": [
+        "bundle:Inside_ROC"
+      ],
+      "properties": {
+        "notes": "HI-BBC ROC side J1: sw-latch (BSPD/IMD/BMS reset fan-out)."
+      },
+      "pin_count": 4
+    },
+    {
+      "id": "con_050",
+      "name": "HI-J2 (ROC led-latch)",
+      "parent": "enc_030",
+      "connector_type": "generic_multipin",
+      "tags": [
+        "bundle:Inside_ROC"
+      ],
+      "properties": {
+        "notes": "HI-BBC ROC side J2: 12V/GND + fault LEDs."
+      },
+      "pin_count": 6
+    },
+    {
+      "id": "con_053",
+      "name": "HV MS (Master Switch posts)",
+      "parent": "enc_031",
+      "connector_type": "generic_multipin",
+      "tags": [],
+      "properties": {
+        "notes": "High-voltage master switch bolted posts."
+      },
+      "pin_count": 2
+    },
+    {
+      "id": "con_054",
+      "name": "LV MS (Master Switch posts)",
+      "parent": "enc_032",
+      "connector_type": "generic_multipin",
+      "tags": [],
+      "properties": {
+        "notes": "Low-voltage master switch bolted posts."
+      },
+      "pin_count": 2
+    },
+    {
+      "id": "con_055",
+      "name": "Speaker + Ring",
+      "parent": "enc_033",
+      "connector_type": "generic_multipin",
+      "tags": [],
+      "properties": {
+        "notes": "Speaker + ring terminal."
+      },
+      "pin_count": 1
+    },
+    {
+      "id": "con_056",
+      "name": "Speaker - Ring",
+      "parent": "enc_033",
+      "connector_type": "generic_multipin",
+      "tags": [],
+      "properties": {
+        "notes": "Speaker - ring terminal."
+      },
+      "pin_count": 1
+    },
+    {
+      "id": "con_057",
+      "name": "ES-RT Connector",
+      "parent": "enc_035",
+      "connector_type": "deutsch_dt",
+      "tags": [
+        "bundle:EXT_H4"
+      ],
+      "properties": {
+        "notes": "Right E-stop 2-pin DT connector."
+      },
+      "pin_count": 2
+    }
+  ],
+  "mergePoints": [],
+  "paths": [
+    {
+      "id": "path_099",
+      "name": "W5 - ES-RT_IN (ES-LT_OUT)",
+      "tags": [
+        "system:sdc",
+        "bundle:EXT_H4",
+        "signal:ES_RT_IN_ES_LT_OUT"
+      ],
+      "properties": {
+        "wire_id": "W5",
+        "wire_color": "Green",
+        "wire_gauge": "18 AWG",
+        "length": "30 in",
+        "notes": "ES-RT_IN (ES-LT_OUT)"
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_058",
+          "pin_number": 2
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_057",
+          "pin_number": 1
+        }
+      ],
+      "measurements": [
+        {
+          "from": {
+            "kind": "connector",
+            "connector_id": "con_058",
+            "pin_number": 2
+          },
+          "to": {
+            "kind": "connector",
+            "connector_id": "con_057",
+            "pin_number": 1
+          },
+          "length_mm": 762
+        }
+      ]
+    },
+    {
+      "id": "path_100",
+      "name": "W4 - HV MS+",
+      "tags": [
+        "system:sdc",
+        "bundle:EXT_H4",
+        "signal:HV_MS_PLUS"
+      ],
+      "properties": {
+        "wire_id": "W4",
+        "wire_color": "Green",
+        "wire_gauge": "18 AWG",
+        "length": "16 in",
+        "notes": "HV MS+"
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_057",
+          "pin_number": 2
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_063",
+          "pin_number": 2
+        }
+      ],
+      "measurements": [
+        {
+          "from": {
+            "kind": "connector",
+            "connector_id": "con_057",
+            "pin_number": 2
+          },
+          "to": {
+            "kind": "connector",
+            "connector_id": "con_063",
+            "pin_number": 2
+          },
+          "length_mm": 406
+        }
+      ]
+    },
+    {
+      "id": "path_196",
+      "name": "W4 - BSPD Reset-",
+      "tags": [
+        "system:sdc",
+        "system:lvs",
+        "bundle:Inside_ROC",
+        "signal:BSPD_RESET_MINUS"
+      ],
+      "properties": {
+        "wire_id": "W4",
+        "wire_color": "Violet",
+        "wire_gauge": "18 AWG",
+        "notes": "BSPD Reset-"
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_049",
+          "pin_number": 1
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_051",
+          "pin_number": 5
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_197",
+      "name": "W5 - IMD Reset in",
+      "tags": [
+        "system:sdc",
+        "system:lvs",
+        "bundle:Inside_ROC",
+        "signal:IMD_RESET_IN"
+      ],
+      "properties": {
+        "wire_id": "W5",
+        "wire_color": "Violet",
+        "wire_gauge": "18 AWG",
+        "notes": "IMD Reset in"
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_049",
+          "pin_number": 2
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_051",
+          "pin_number": 7
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_198",
+      "name": "W3 - BMS Reset-",
+      "tags": [
+        "system:sdc",
+        "system:lvs",
+        "bundle:Inside_ROC",
+        "signal:BMS_RESET_MINUS"
+      ],
+      "properties": {
+        "wire_id": "W3",
+        "wire_color": "Violet",
+        "wire_gauge": "18 AWG",
+        "notes": "BMS Reset-"
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_049",
+          "pin_number": 3
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_051",
+          "pin_number": 3
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_199",
+      "name": "W6 - IMD Reset out",
+      "tags": [
+        "system:sdc",
+        "system:lvs",
+        "bundle:Inside_ROC",
+        "signal:IMD_RESET_OUT"
+      ],
+      "properties": {
+        "wire_id": "W6",
+        "wire_color": "Violet",
+        "wire_gauge": "18 AWG",
+        "notes": "IMD Reset out"
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_049",
+          "pin_number": 4
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_051",
+          "pin_number": 8
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_200",
+      "name": "W2 - GND GLVMP",
+      "tags": [
+        "system:sdc",
+        "system:lvs",
+        "bundle:Inside_ROC",
+        "signal:GND_GLVMP"
+      ],
+      "properties": {
+        "wire_id": "W2",
+        "wire_color": "Black",
+        "wire_gauge": "18 AWG",
+        "notes": "GND GLVMP"
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_050",
+          "pin_number": 1
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_051",
+          "pin_number": 2
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_201",
+      "name": "W1 - 12V",
+      "tags": [
+        "system:sdc",
+        "system:lvs",
+        "bundle:Inside_ROC",
+        "signal:12V"
+      ],
+      "properties": {
+        "wire_id": "W1",
+        "wire_color": "Red",
+        "wire_gauge": "18 AWG",
+        "notes": "12V"
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_050",
+          "pin_number": 3
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_051",
+          "pin_number": 1
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_202",
+      "name": "W7 - BMS LED+",
+      "tags": [
+        "system:sdc",
+        "system:lvs",
+        "bundle:Inside_ROC",
+        "signal:BMS_LED_PLUS"
+      ],
+      "properties": {
+        "wire_id": "W7",
+        "wire_color": "Gray",
+        "wire_gauge": "18 AWG",
+        "notes": "BMS LED+"
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_050",
+          "pin_number": 4
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_051",
+          "pin_number": 4
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_203",
+      "name": "W9 - IMD LED+",
+      "tags": [
+        "system:sdc",
+        "system:lvs",
+        "bundle:Inside_ROC",
+        "signal:IMD_LED_PLUS"
+      ],
+      "properties": {
+        "wire_id": "W9",
+        "wire_color": "Gray",
+        "wire_gauge": "18 AWG",
+        "notes": "IMD LED+"
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_050",
+          "pin_number": 5
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_051",
+          "pin_number": 9
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_204",
+      "name": "W8 - BSPD LED+",
+      "tags": [
+        "system:sdc",
+        "system:lvs",
+        "bundle:Inside_ROC",
+        "signal:BSPD_LED_PLUS"
+      ],
+      "properties": {
+        "wire_id": "W8",
+        "wire_color": "Gray",
+        "wire_gauge": "18 AWG",
+        "notes": "BSPD LED+"
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_050",
+          "pin_number": 6
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_051",
+          "pin_number": 6
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_205",
+      "name": "W17 - LV MS post",
+      "tags": [
+        "system:sdc",
+        "system:lvs",
+        "bundle:Inside_ROC",
+        "signal:LV_MS_POST"
+      ],
+      "properties": {
+        "wire_id": "W17",
+        "wire_color": "Blue",
+        "wire_gauge": "18 AWG",
+        "notes": "LV MS post"
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_051",
+          "pin_number": 10
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_054",
+          "pin_number": 2
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_206",
+      "name": "W12 - Speaker+",
+      "tags": [
+        "system:sdc",
+        "system:lvs",
+        "bundle:Inside_ROC",
+        "signal:SPEAKER_PLUS"
+      ],
+      "properties": {
+        "wire_id": "W12",
+        "wire_color": "Gray",
+        "wire_gauge": "18 AWG",
+        "notes": "Speaker+"
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_051",
+          "pin_number": 11
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_055",
+          "pin_number": 1
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_207",
+      "name": "W13 - Speaker-",
+      "tags": [
+        "system:sdc",
+        "system:lvs",
+        "bundle:Inside_ROC",
+        "signal:SPEAKER_MINUS"
+      ],
+      "properties": {
+        "wire_id": "W13",
+        "wire_color": "Gray",
+        "wire_gauge": "18 AWG",
+        "notes": "Speaker-"
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_051",
+          "pin_number": 12
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_056",
+          "pin_number": 1
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_208",
+      "name": "W19 - HV MS+",
+      "tags": [
+        "system:sdc",
+        "system:lvs",
+        "bundle:Inside_ROC",
+        "signal:HV_MS_PLUS"
+      ],
+      "properties": {
+        "wire_id": "W19",
+        "wire_color": "Green",
+        "wire_gauge": "18 AWG",
+        "notes": "HV MS+"
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_052",
+          "pin_number": 1
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_053",
+          "pin_number": 1
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_209",
+      "name": "W20 - HV MS-",
+      "tags": [
+        "system:sdc",
+        "system:lvs",
+        "bundle:Inside_ROC",
+        "signal:HV_MS_MINUS"
+      ],
+      "properties": {
+        "wire_id": "W20",
+        "wire_color": "Green",
+        "wire_gauge": "18 AWG",
+        "notes": "HV MS-"
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_052",
+          "pin_number": 2
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_053",
+          "pin_number": 2
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_210",
+      "name": "W16 - LV MS pre",
+      "tags": [
+        "system:sdc",
+        "system:lvs",
+        "bundle:Inside_ROC",
+        "signal:LV_MS_PRE"
+      ],
+      "properties": {
+        "wire_id": "W16",
+        "wire_color": "Blue",
+        "wire_gauge": "18 AWG",
+        "notes": "LV MS pre"
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_052",
+          "pin_number": 1
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_054",
+          "pin_number": 1
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_211",
+      "name": "W11 - LV Battery GND",
+      "tags": [
+        "system:sdc",
+        "system:lvs",
+        "bundle:Inside_ROC",
+        "signal:LV_BATTERY_GND"
+      ],
+      "properties": {
+        "wire_id": "W11",
+        "wire_color": "Black",
+        "wire_gauge": "18 AWG",
+        "notes": "LV Battery GND"
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_052",
+          "pin_number": 2
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_050",
+          "pin_number": 2
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_212",
+      "name": "W23 - LV MS Charging +",
+      "tags": [
+        "system:sdc",
+        "system:lvs",
+        "bundle:Inside_ROC",
+        "signal:LV_MS_CHARGING_PLUS"
+      ],
+      "properties": {
+        "wire_id": "W23",
+        "wire_color": "Blue",
+        "wire_gauge": "18 AWG",
+        "notes": "LV MS Charging +"
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_181",
+          "pin_number": 1
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_054",
+          "pin_number": 1
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_213",
+      "name": "W24 - LV MS Charging -",
+      "tags": [
+        "system:sdc",
+        "system:lvs",
+        "bundle:Inside_ROC",
+        "signal:LV_MS_CHARGING"
+      ],
+      "properties": {
+        "wire_id": "W24",
+        "wire_color": "Blue",
+        "wire_gauge": "18 AWG",
+        "notes": "LV MS Charging -"
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_181",
+          "pin_number": 2
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_054",
+          "pin_number": 2
+        }
+      ],
+      "measurements": []
+    }
+  ],
+  "ports": []
+}

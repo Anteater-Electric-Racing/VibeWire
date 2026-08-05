@@ -1,0 +1,3909 @@
+{
+  "schema_version": "0.2.0-sheets",
+  "sheet_enclosure_id": null,
+  "enclosures": [
+    {
+      "id": "enc_001",
+      "name": "FOC (Front of Car)",
+      "parent": null,
+      "container": true,
+      "tags": [
+        "location:front",
+        "system:lvs"
+      ],
+      "properties": {
+        "notes": "Front-of-car control enclosure housing the Safety Board, CCM, Raspberry Pi, RTD switch, cockpit E-stop and dash LEDs."
+      }
+    },
+    {
+      "id": "enc_002",
+      "name": "ROC (Rear of Car)",
+      "parent": null,
+      "container": true,
+      "tags": [
+        "location:rear",
+        "system:lvs"
+      ],
+      "properties": {
+        "notes": "Rear-of-car enclosure containing HI-BBC board, master switches, speaker and left/right E-stops."
+      }
+    },
+    {
+      "id": "enc_003",
+      "name": "HVB (Accumulator)",
+      "parent": null,
+      "container": true,
+      "tags": [
+        "location:accu",
+        "system:ts"
+      ],
+      "properties": {
+        "notes": "High-voltage accumulator container: PCC, RTM, AIRs, energy meter, HV battery, IMD, DCDC-iso, BMS satellites."
+      }
+    },
+    {
+      "id": "enc_004",
+      "name": "Charging Box",
+      "parent": null,
+      "container": true,
+      "tags": [
+        "location:charging",
+        "system:charging"
+      ],
+      "properties": {
+        "notes": "Off-car charging box: charge board, AC-to-DC, DC-to-DC, J1772 port, 12V pass-through, charger E-stop."
+      }
+    },
+    {
+      "id": "enc_070",
+      "name": "LV Battery (24V)",
+      "parent": null,
+      "container": false,
+      "tags": [
+        "system:lvs"
+      ],
+      "properties": {
+        "notes": "24V low-voltage battery."
+      }
+    },
+    {
+      "id": "enc_071",
+      "name": "Wheel Speed Sensor FL",
+      "parent": null,
+      "container": false,
+      "tags": [
+        "system:sensors",
+        "location:front"
+      ],
+      "properties": {
+        "notes": "Front-left wheel speed sensor."
+      }
+    },
+    {
+      "id": "enc_072",
+      "name": "Wheel Speed Sensor FR",
+      "parent": null,
+      "container": false,
+      "tags": [
+        "system:sensors",
+        "location:front"
+      ],
+      "properties": {
+        "notes": "Front-right wheel speed sensor."
+      }
+    },
+    {
+      "id": "enc_073",
+      "name": "Wheel Speed Sensor RL",
+      "parent": null,
+      "container": false,
+      "tags": [
+        "system:sensors",
+        "location:rear"
+      ],
+      "properties": {
+        "notes": "Rear-left wheel speed sensor."
+      }
+    },
+    {
+      "id": "enc_074",
+      "name": "Wheel Speed Sensor RR",
+      "parent": null,
+      "container": false,
+      "tags": [
+        "system:sensors",
+        "location:rear"
+      ],
+      "properties": {
+        "notes": "Rear-right wheel speed sensor."
+      }
+    },
+    {
+      "id": "enc_076",
+      "name": "Motor",
+      "parent": null,
+      "container": false,
+      "tags": [
+        "system:ts"
+      ],
+      "properties": {
+        "notes": "Traction motor."
+      }
+    },
+    {
+      "id": "enc_077",
+      "name": "RLS Encoder (RM44SI)",
+      "parent": null,
+      "container": false,
+      "tags": [
+        "system:sensors"
+      ],
+      "properties": {
+        "notes": "RLS RM44SI magnetic encoder on motor shaft."
+      }
+    },
+    {
+      "id": "enc_078",
+      "name": "Motor Sensor Breakout",
+      "parent": null,
+      "container": false,
+      "tags": [
+        "system:sensors"
+      ],
+      "properties": {
+        "notes": "Souriau UTS breakout between RLS encoder and INV LV (EXT 1-MZ)."
+      }
+    },
+    {
+      "id": "enc_079",
+      "name": "TSSI (Tractive System Status Indicator)",
+      "parent": null,
+      "container": false,
+      "tags": [
+        "system:tsal"
+      ],
+      "properties": {
+        "notes": "TSSI light assembly."
+      }
+    },
+    {
+      "id": "enc_081",
+      "name": "Roll Hoop Lights (TSSI/RTM)",
+      "parent": null,
+      "container": false,
+      "tags": [
+        "system:tsal"
+      ],
+      "properties": {
+        "notes": "Roll-hoop tractive-system status and ready-tractive-monitor lights."
+      }
+    },
+    {
+      "id": "enc_082",
+      "name": "BOTS (Brake-Over-Travel Switch)",
+      "parent": null,
+      "container": false,
+      "tags": [
+        "system:sdc"
+      ],
+      "properties": {
+        "notes": "Brake over-travel switch."
+      }
+    },
+    {
+      "id": "enc_083",
+      "name": "Inertia Switch",
+      "parent": null,
+      "container": false,
+      "tags": [
+        "system:sdc"
+      ],
+      "properties": {
+        "notes": "Inertia-triggered SDC switch."
+      }
+    },
+    {
+      "id": "enc_084",
+      "name": "APPS (Accelerator Pedal Position Sensor)",
+      "parent": null,
+      "container": false,
+      "tags": [
+        "system:sensors"
+      ],
+      "properties": {
+        "notes": "Dual-redundant accelerator pedal sensor (Metri-Pack 150.2 6p)."
+      }
+    },
+    {
+      "id": "enc_087",
+      "name": "BPS1 (P51 Brake Pressure Sensor 1)",
+      "parent": null,
+      "container": false,
+      "tags": [
+        "system:sensors"
+      ],
+      "properties": {
+        "notes": "P51 front brake pressure sensor."
+      }
+    },
+    {
+      "id": "enc_088",
+      "name": "BPS2 (P51 Brake Pressure Sensor 2)",
+      "parent": null,
+      "container": false,
+      "tags": [
+        "system:sensors"
+      ],
+      "properties": {
+        "notes": "P51 rear brake pressure sensor."
+      }
+    },
+    {
+      "id": "enc_089",
+      "name": "BPS Connector",
+      "parent": null,
+      "container": false,
+      "tags": [
+        "system:sensors"
+      ],
+      "properties": {
+        "notes": "Brake-pressure connector joining the two P51 sensors to the FOC footwell bulkhead."
+      }
+    },
+    {
+      "id": "enc_090",
+      "name": "Cooling Pump",
+      "parent": null,
+      "container": false,
+      "tags": [
+        "system:cooling",
+        "status:placeholder"
+      ],
+      "properties": {
+        "notes": "Coolant pump (EXT H5 / FOC H5 are empty in gigadoc; placeholder pin-out)."
+      }
+    },
+    {
+      "id": "enc_091",
+      "name": "Cooling Fan",
+      "parent": null,
+      "container": false,
+      "tags": [
+        "system:cooling",
+        "status:placeholder"
+      ],
+      "properties": {
+        "notes": "Radiator fan (placeholder pin-out)."
+      }
+    },
+    {
+      "id": "enc_098",
+      "name": "Thermistor 1 (Cooling)",
+      "parent": null,
+      "container": false,
+      "tags": [
+        "system:cooling",
+        "system:sensors"
+      ],
+      "properties": {
+        "notes": "Cooling thermistor #1. Wired to CCM J17.2 (thermistor1+) and shared GLV-."
+      }
+    },
+    {
+      "id": "enc_099",
+      "name": "Thermistor 2 (Cooling)",
+      "parent": null,
+      "container": false,
+      "tags": [
+        "system:cooling",
+        "system:sensors"
+      ],
+      "properties": {
+        "notes": "Cooling thermistor #2. Wired to CCM J17.1 (thermistor2+) and shared GLV-."
+      }
+    },
+    {
+      "id": "enc_100",
+      "name": "Thermistor 3 (Cooling)",
+      "parent": null,
+      "container": false,
+      "tags": [
+        "system:cooling",
+        "system:sensors"
+      ],
+      "properties": {
+        "notes": "Cooling thermistor #3. Wired to CCM J18.2 (thermistor3+) and shared GLV-."
+      }
+    },
+    {
+      "id": "enc_101",
+      "name": "Thermistor 4 (Cooling)",
+      "parent": null,
+      "container": false,
+      "tags": [
+        "system:cooling",
+        "system:sensors"
+      ],
+      "properties": {
+        "notes": "Cooling thermistor #4. Wired to CCM J18.1 (thermistor4+) and shared GLV-."
+      }
+    }
+  ],
+  "connectors": [
+    {
+      "id": "con_061",
+      "name": "Inertia Switch Connector",
+      "parent": "enc_083",
+      "connector_type": "generic_multipin",
+      "tags": [
+        "bundle:EXT_H4"
+      ],
+      "properties": {
+        "notes": "Inertia switch 3-pin OEM connector."
+      },
+      "pin_count": 3
+    },
+    {
+      "id": "con_062",
+      "name": "BOTS Connector",
+      "parent": "enc_082",
+      "connector_type": "deutsch_dt",
+      "tags": [
+        "bundle:EXT_H4"
+      ],
+      "properties": {
+        "notes": "BOTS 2-pin DT connector."
+      },
+      "pin_count": 2
+    },
+    {
+      "id": "con_129",
+      "name": "MOT_SENS (Souriau UTS 14p)",
+      "parent": "enc_078",
+      "connector_type": "generic_multipin",
+      "tags": [
+        "bundle:EXT_1_MZ",
+        "system:sensors"
+      ],
+      "properties": {
+        "notes": "Motor-sensor breakout \u2014 Souriau UTS6JC12E14PW 14-pin (letter pins A-L mapped to 1-10)."
+      },
+      "pin_count": 14
+    },
+    {
+      "id": "con_130",
+      "name": "RLS Encoder (RM44SI)",
+      "parent": "enc_077",
+      "connector_type": "generic_multipin",
+      "tags": [
+        "bundle:EXT_1_MZ",
+        "system:sensors"
+      ],
+      "properties": {
+        "notes": "RLS RM44SI encoder connector."
+      },
+      "pin_count": 12
+    },
+    {
+      "id": "con_131",
+      "name": "TSSI Connector (Molex sigma 4p)",
+      "parent": "enc_079",
+      "connector_type": "generic_multipin",
+      "tags": [
+        "bundle:FOC_H3",
+        "system:tsal"
+      ],
+      "properties": {
+        "notes": "TSSI light external connector."
+      },
+      "pin_count": 4
+    },
+    {
+      "id": "con_133",
+      "name": "Roll Hoop Lights Connector (TSSI/RTM)",
+      "parent": "enc_081",
+      "connector_type": "deutsch_dt",
+      "tags": [
+        "bundle:EXT_H3",
+        "system:tsal"
+      ],
+      "properties": {
+        "notes": "Roll-hoop light connector carrying TSSI red/green, RTM, and supply."
+      },
+      "pin_count": 4
+    },
+    {
+      "id": "con_134",
+      "name": "APPS (Metri-Pack 150.2 6p)",
+      "parent": "enc_084",
+      "connector_type": "generic_multipin",
+      "tags": [
+        "bundle:EXT_H2",
+        "system:sensors"
+      ],
+      "properties": {
+        "notes": "APPS Metri-Pack 6-pin connector."
+      },
+      "pin_count": 6
+    },
+    {
+      "id": "con_140",
+      "name": "BPS Male (DT04-6P, Pressure side)",
+      "parent": "enc_089",
+      "connector_type": "deutsch_dt",
+      "tags": [
+        "bundle:EXT_H2"
+      ],
+      "properties": {
+        "notes": "BPS 6-pin male DT to pressure-sensor breakout."
+      },
+      "pin_count": 6
+    },
+    {
+      "id": "con_141",
+      "name": "P51 BPS1 (3p)",
+      "parent": "enc_087",
+      "connector_type": "generic_multipin",
+      "tags": [
+        "bundle:EXT_H2",
+        "system:sensors"
+      ],
+      "properties": {
+        "notes": "P51 brake pressure sensor 1."
+      },
+      "pin_count": 3
+    },
+    {
+      "id": "con_142",
+      "name": "P51 BPS2 (3p)",
+      "parent": "enc_088",
+      "connector_type": "generic_multipin",
+      "tags": [
+        "bundle:EXT_H2",
+        "system:sensors"
+      ],
+      "properties": {
+        "notes": "P51 brake pressure sensor 2."
+      },
+      "pin_count": 3
+    },
+    {
+      "id": "con_147",
+      "name": "LV Battery Connector (DT04-2P)",
+      "parent": "enc_070",
+      "connector_type": "deutsch_dt",
+      "tags": [
+        "bundle:EXT_H8",
+        "system:lvs"
+      ],
+      "properties": {
+        "notes": "LV battery 2-pin DT connector."
+      },
+      "pin_count": 2
+    },
+    {
+      "id": "con_150",
+      "name": "Cooling Pump Connector",
+      "parent": "enc_090",
+      "connector_type": "generic_multipin",
+      "tags": [
+        "status:needs-fixing",
+        "system:cooling"
+      ],
+      "properties": {
+        "notes": "Cooling pump: pin 1=24V+, pin 2=PWM low-side. Placeholder assignment needs fixing."
+      },
+      "pin_count": 2
+    },
+    {
+      "id": "con_151",
+      "name": "Cooling Fan Connector",
+      "parent": "enc_091",
+      "connector_type": "generic_multipin",
+      "tags": [
+        "status:needs-fixing",
+        "system:cooling"
+      ],
+      "properties": {
+        "notes": "Cooling fan: pin 1=Fan+, pin 2=Fan PWM, pin 3=GND."
+      },
+      "pin_count": 3
+    },
+    {
+      "id": "con_166",
+      "name": "CCM J17 Mate (Thermistor 1/2 pigtail)",
+      "parent": "enc_098",
+      "connector_type": "molex_minifit_jr",
+      "tags": [
+        "bundle:CCM_internal",
+        "system:lvs"
+      ],
+      "properties": {
+        "notes": "Harness-side mate for J17; pinout mirrors CCM CSV row-for-row."
+      },
+      "pin_count": 4
+    },
+    {
+      "id": "con_167",
+      "name": "CCM J18 Mate (Thermistor 3/4 pigtail)",
+      "parent": "enc_100",
+      "connector_type": "molex_minifit_jr",
+      "tags": [
+        "bundle:CCM_internal",
+        "system:lvs"
+      ],
+      "properties": {
+        "notes": "Harness-side mate for J18; pinout mirrors CCM CSV row-for-row."
+      },
+      "pin_count": 4
+    },
+    {
+      "id": "con_169",
+      "name": "Motor HV (3p, U/V/W)",
+      "parent": "enc_076",
+      "connector_type": "generic_multipin",
+      "tags": [
+        "system:ts"
+      ],
+      "properties": {
+        "notes": "Motor HV phase input (1=U, 2=V, 3=W)."
+      },
+      "pin_count": 3
+    },
+    {
+      "id": "con_175",
+      "name": "Thermistor 1 Pigtail",
+      "parent": "enc_098",
+      "connector_type": "generic_multipin",
+      "tags": [
+        "system:cooling",
+        "system:sensors"
+      ],
+      "properties": {
+        "notes": "NTC thermistor 1 \u2014 1=signal+, 2=GND."
+      },
+      "pin_count": 2
+    },
+    {
+      "id": "con_176",
+      "name": "Thermistor 2 Pigtail",
+      "parent": "enc_099",
+      "connector_type": "generic_multipin",
+      "tags": [
+        "system:cooling",
+        "system:sensors"
+      ],
+      "properties": {
+        "notes": "NTC thermistor 2 \u2014 1=signal+, 2=GND."
+      },
+      "pin_count": 2
+    },
+    {
+      "id": "con_177",
+      "name": "Thermistor 3 Pigtail",
+      "parent": "enc_100",
+      "connector_type": "generic_multipin",
+      "tags": [
+        "system:cooling",
+        "system:sensors"
+      ],
+      "properties": {
+        "notes": "NTC thermistor 3 \u2014 1=signal+, 2=GND."
+      },
+      "pin_count": 2
+    },
+    {
+      "id": "con_178",
+      "name": "Thermistor 4 Pigtail",
+      "parent": "enc_101",
+      "connector_type": "generic_multipin",
+      "tags": [
+        "system:cooling",
+        "system:sensors"
+      ],
+      "properties": {
+        "notes": "NTC thermistor 4 \u2014 1=signal+, 2=GND."
+      },
+      "pin_count": 2
+    }
+  ],
+  "mergePoints": [
+    {
+      "id": "mp_007",
+      "name": "Splice 12V_INV",
+      "parent": null,
+      "tags": [
+        "bundle:EXT_1_MZ",
+        "system:lvs"
+      ],
+      "properties": {
+        "notes": "12V rail splice for inverter LV supply."
+      }
+    },
+    {
+      "id": "mp_008",
+      "name": "Splice GND_INV",
+      "parent": null,
+      "tags": [
+        "bundle:EXT_1_MZ",
+        "system:lvs"
+      ],
+      "properties": {
+        "notes": "GND splice for inverter LV supply."
+      }
+    },
+    {
+      "id": "mp_009",
+      "name": "Thermistor GND Splice",
+      "parent": null,
+      "tags": [
+        "bundle:CCM_internal",
+        "system:cooling"
+      ],
+      "properties": {
+        "notes": "ATUM splice tying CCM J17/J18 GLV- pins to all 4 thermistor GND pigtails."
+      }
+    }
+  ],
+  "paths": [
+    {
+      "id": "path_037",
+      "name": "W8 - Ready Power",
+      "tags": [
+        "system:ts",
+        "system:lvs",
+        "system:sensors",
+        "bundle:EXT_1_MZ",
+        "signal:READY_POWER"
+      ],
+      "properties": {
+        "wire_id": "W8",
+        "wire_color": "Red",
+        "wire_gauge": "18 AWG",
+        "notes": "Ready Power"
+      },
+      "nodes": [
+        {
+          "kind": "port",
+          "port_id": "port_mp_006"
+        },
+        {
+          "kind": "port",
+          "port_id": "port_con_077",
+          "pin_number": 6
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_038",
+      "name": "W7 - 12V BUS",
+      "tags": [
+        "system:ts",
+        "system:lvs",
+        "system:sensors",
+        "bundle:EXT_1_MZ",
+        "signal:12V_BUS"
+      ],
+      "properties": {
+        "wire_id": "W7",
+        "wire_color": "Red",
+        "wire_gauge": "18 AWG",
+        "notes": "12V BUS"
+      },
+      "nodes": [
+        {
+          "kind": "port",
+          "port_id": "port_mp_006"
+        },
+        {
+          "kind": "port",
+          "port_id": "port_con_077",
+          "pin_number": 7
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_039",
+      "name": "W9 - 12V_INV",
+      "tags": [
+        "system:ts",
+        "system:lvs",
+        "system:sensors",
+        "bundle:EXT_1_MZ",
+        "signal:12V_INV"
+      ],
+      "properties": {
+        "wire_id": "W9",
+        "wire_color": "Red",
+        "wire_gauge": "18 AWG",
+        "notes": "12V_INV"
+      },
+      "nodes": [
+        {
+          "kind": "merge",
+          "merge_point_id": "mp_007"
+        },
+        {
+          "kind": "port",
+          "port_id": "port_con_127",
+          "pin_number": 1
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_040",
+      "name": "W12 - 12V_INV",
+      "tags": [
+        "system:ts",
+        "system:lvs",
+        "system:sensors",
+        "bundle:EXT_1_MZ",
+        "signal:12V_INV"
+      ],
+      "properties": {
+        "wire_id": "W12",
+        "wire_color": "Red",
+        "wire_gauge": "18 AWG",
+        "notes": "12V_INV"
+      },
+      "nodes": [
+        {
+          "kind": "merge",
+          "merge_point_id": "mp_007"
+        },
+        {
+          "kind": "port",
+          "port_id": "port_con_127",
+          "pin_number": 9
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_041",
+      "name": "W24 - RTM_OUT",
+      "tags": [
+        "system:ts",
+        "system:lvs",
+        "system:sensors",
+        "bundle:EXT_1_MZ",
+        "signal:RTM_OUT"
+      ],
+      "properties": {
+        "wire_id": "W24",
+        "wire_color": "Black",
+        "wire_gauge": "18 AWG",
+        "notes": "RTM_OUT"
+      },
+      "nodes": [
+        {
+          "kind": "port",
+          "port_id": "port_con_077",
+          "pin_number": 5
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_133",
+          "pin_number": 4
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_042",
+      "name": "W37 - MS HV-",
+      "tags": [
+        "system:ts",
+        "system:lvs",
+        "system:sensors",
+        "bundle:EXT_1_MZ",
+        "signal:MS_HV_MINUS"
+      ],
+      "properties": {
+        "wire_id": "W37",
+        "wire_color": "Green",
+        "wire_gauge": "18 AWG",
+        "notes": "MS HV-"
+      },
+      "nodes": [
+        {
+          "kind": "port",
+          "port_id": "port_con_063",
+          "pin_number": 3
+        },
+        {
+          "kind": "port",
+          "port_id": "port_con_077",
+          "pin_number": 4
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_043",
+      "name": "W35 - D_INPUT_1_12V_KS",
+      "tags": [
+        "system:ts",
+        "system:lvs",
+        "system:sensors",
+        "bundle:EXT_1_MZ",
+        "signal:D_INPUT_1_12V_KS"
+      ],
+      "properties": {
+        "wire_id": "W35",
+        "wire_color": "Red",
+        "wire_gauge": "16 AWG",
+        "notes": "D_INPUT_1_12V_KS"
+      },
+      "nodes": [
+        {
+          "kind": "port",
+          "port_id": "port_con_001",
+          "pin_number": 1
+        },
+        {
+          "kind": "port",
+          "port_id": "port_con_127",
+          "pin_number": 6
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_044",
+      "name": "W6 - GND_INV",
+      "tags": [
+        "system:ts",
+        "system:lvs",
+        "system:sensors",
+        "bundle:EXT_1_MZ",
+        "signal:GND_INV"
+      ],
+      "properties": {
+        "wire_id": "W6",
+        "wire_color": "Black",
+        "wire_gauge": "18 AWG",
+        "length": "\u2265 38 in",
+        "notes": "GND_INV"
+      },
+      "nodes": [
+        {
+          "kind": "port",
+          "port_id": "port_con_001",
+          "pin_number": 5
+        },
+        {
+          "kind": "port",
+          "port_id": "port_con_077",
+          "pin_number": 8
+        }
+      ],
+      "measurements": [
+        {
+          "from": {
+            "kind": "port",
+            "port_id": "port_con_001",
+            "pin_number": 5
+          },
+          "to": {
+            "kind": "port",
+            "port_id": "port_con_077",
+            "pin_number": 8
+          },
+          "length_mm": 965
+        }
+      ]
+    },
+    {
+      "id": "path_045",
+      "name": "W10 - 12V_INV",
+      "tags": [
+        "system:ts",
+        "system:lvs",
+        "system:sensors",
+        "bundle:EXT_1_MZ",
+        "signal:12V_INV"
+      ],
+      "properties": {
+        "wire_id": "W10",
+        "wire_color": "Red",
+        "wire_gauge": "18 AWG",
+        "length": "\u2265 38 in",
+        "notes": "12V_INV"
+      },
+      "nodes": [
+        {
+          "kind": "port",
+          "port_id": "port_con_001",
+          "pin_number": 6
+        },
+        {
+          "kind": "merge",
+          "merge_point_id": "mp_007"
+        }
+      ],
+      "measurements": [
+        {
+          "from": {
+            "kind": "port",
+            "port_id": "port_con_001",
+            "pin_number": 6
+          },
+          "to": {
+            "kind": "merge",
+            "merge_point_id": "mp_007"
+          },
+          "length_mm": 965
+        }
+      ]
+    },
+    {
+      "id": "path_047",
+      "name": "W13 - GND_ACCU",
+      "tags": [
+        "system:ts",
+        "system:lvs",
+        "system:sensors",
+        "bundle:EXT_1_MZ",
+        "signal:GND_ACCU"
+      ],
+      "properties": {
+        "wire_id": "W13",
+        "wire_color": "Black",
+        "wire_gauge": "18 AWG",
+        "length": "\u2265 38 in",
+        "notes": "GND_ACCU"
+      },
+      "nodes": [
+        {
+          "kind": "port",
+          "port_id": "port_con_001",
+          "pin_number": 8
+        },
+        {
+          "kind": "merge",
+          "merge_point_id": "mp_008"
+        }
+      ],
+      "measurements": [
+        {
+          "from": {
+            "kind": "port",
+            "port_id": "port_con_001",
+            "pin_number": 8
+          },
+          "to": {
+            "kind": "merge",
+            "merge_point_id": "mp_008"
+          },
+          "length_mm": 965
+        }
+      ]
+    },
+    {
+      "id": "path_048",
+      "name": "W5 - BMS Fault",
+      "tags": [
+        "system:ts",
+        "system:lvs",
+        "system:sensors",
+        "bundle:EXT_1_MZ",
+        "signal:BMS_FAULT"
+      ],
+      "properties": {
+        "wire_id": "W5",
+        "wire_color": "Green",
+        "wire_gauge": "18 AWG",
+        "length": "\u2265 38 in",
+        "notes": "BMS Fault"
+      },
+      "nodes": [
+        {
+          "kind": "port",
+          "port_id": "port_con_001",
+          "pin_number": 9
+        },
+        {
+          "kind": "port",
+          "port_id": "port_con_077",
+          "pin_number": 9
+        }
+      ],
+      "measurements": [
+        {
+          "from": {
+            "kind": "port",
+            "port_id": "port_con_001",
+            "pin_number": 9
+          },
+          "to": {
+            "kind": "port",
+            "port_id": "port_con_077",
+            "pin_number": 9
+          },
+          "length_mm": 965
+        }
+      ]
+    },
+    {
+      "id": "path_049",
+      "name": "W4 - IMD_FAULT",
+      "tags": [
+        "system:ts",
+        "system:lvs",
+        "system:sensors",
+        "bundle:EXT_1_MZ",
+        "signal:IMD_FAULT"
+      ],
+      "properties": {
+        "wire_id": "W4",
+        "wire_color": "Green",
+        "wire_gauge": "18 AWG",
+        "length": "\u2265 38 in",
+        "notes": "IMD_FAULT"
+      },
+      "nodes": [
+        {
+          "kind": "port",
+          "port_id": "port_con_001",
+          "pin_number": 10
+        },
+        {
+          "kind": "port",
+          "port_id": "port_con_077",
+          "pin_number": 10
+        }
+      ],
+      "measurements": [
+        {
+          "from": {
+            "kind": "port",
+            "port_id": "port_con_001",
+            "pin_number": 10
+          },
+          "to": {
+            "kind": "port",
+            "port_id": "port_con_077",
+            "pin_number": 10
+          },
+          "length_mm": 965
+        }
+      ]
+    },
+    {
+      "id": "path_050",
+      "name": "W2 - CAN_ACC high",
+      "tags": [
+        "system:ts",
+        "system:lvs",
+        "system:sensors",
+        "bundle:EXT_1_MZ",
+        "signal:CAN_ACC_H"
+      ],
+      "properties": {
+        "wire_id": "W2",
+        "wire_color": "Yellow",
+        "wire_gauge": "18 AWG",
+        "length": "\u2265 38 in",
+        "notes": "CAN_ACC high"
+      },
+      "nodes": [
+        {
+          "kind": "port",
+          "port_id": "port_con_001",
+          "pin_number": 11
+        },
+        {
+          "kind": "port",
+          "port_id": "port_con_077",
+          "pin_number": 11
+        }
+      ],
+      "measurements": [
+        {
+          "from": {
+            "kind": "port",
+            "port_id": "port_con_001",
+            "pin_number": 11
+          },
+          "to": {
+            "kind": "port",
+            "port_id": "port_con_077",
+            "pin_number": 11
+          },
+          "length_mm": 965
+        }
+      ]
+    },
+    {
+      "id": "path_051",
+      "name": "W1 - CAN_ACC low",
+      "tags": [
+        "system:ts",
+        "system:lvs",
+        "system:sensors",
+        "bundle:EXT_1_MZ",
+        "signal:CAN_ACC_L"
+      ],
+      "properties": {
+        "wire_id": "W1",
+        "wire_color": "Green",
+        "wire_gauge": "18 AWG",
+        "length": "\u2265 38 in",
+        "notes": "CAN_ACC low"
+      },
+      "nodes": [
+        {
+          "kind": "port",
+          "port_id": "port_con_001",
+          "pin_number": 12
+        },
+        {
+          "kind": "port",
+          "port_id": "port_con_077",
+          "pin_number": 12
+        }
+      ],
+      "measurements": [
+        {
+          "from": {
+            "kind": "port",
+            "port_id": "port_con_001",
+            "pin_number": 12
+          },
+          "to": {
+            "kind": "port",
+            "port_id": "port_con_077",
+            "pin_number": 12
+          },
+          "length_mm": 965
+        }
+      ]
+    },
+    {
+      "id": "path_052",
+      "name": "W14 - GND_INV",
+      "tags": [
+        "system:ts",
+        "system:lvs",
+        "system:sensors",
+        "bundle:EXT_1_MZ",
+        "signal:GND_INV"
+      ],
+      "properties": {
+        "wire_id": "W14",
+        "wire_color": "Black",
+        "wire_gauge": "18 AWG",
+        "notes": "GND_INV"
+      },
+      "nodes": [
+        {
+          "kind": "merge",
+          "merge_point_id": "mp_008"
+        },
+        {
+          "kind": "port",
+          "port_id": "port_con_127",
+          "pin_number": 16
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_053",
+      "name": "W15 - GND_INV",
+      "tags": [
+        "system:ts",
+        "system:lvs",
+        "system:sensors",
+        "bundle:EXT_1_MZ",
+        "signal:GND_INV"
+      ],
+      "properties": {
+        "wire_id": "W15",
+        "wire_color": "Black",
+        "wire_gauge": "18 AWG",
+        "notes": "GND_INV"
+      },
+      "nodes": [
+        {
+          "kind": "merge",
+          "merge_point_id": "mp_008"
+        },
+        {
+          "kind": "port",
+          "port_id": "port_con_127",
+          "pin_number": 17
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_054",
+      "name": "W18 - CAN1_INV_H",
+      "tags": [
+        "system:ts",
+        "system:lvs",
+        "system:sensors",
+        "bundle:EXT_1_MZ",
+        "signal:CAN1_INV_H"
+      ],
+      "properties": {
+        "wire_id": "W18",
+        "wire_color": "Yellow",
+        "wire_gauge": "18 AWG",
+        "notes": "CAN1_INV_H"
+      },
+      "nodes": [
+        {
+          "kind": "port",
+          "port_id": "port_con_127",
+          "pin_number": 3
+        },
+        {
+          "kind": "port",
+          "port_id": "port_con_001",
+          "pin_number": 3
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_055",
+      "name": "W26 - CAN1_INV_L",
+      "tags": [
+        "system:ts",
+        "system:lvs",
+        "system:sensors",
+        "bundle:EXT_1_MZ",
+        "signal:CAN1_INV_L"
+      ],
+      "properties": {
+        "wire_id": "W26",
+        "wire_color": "Green",
+        "wire_gauge": "18 AWG",
+        "notes": "CAN1_INV_L"
+      },
+      "nodes": [
+        {
+          "kind": "port",
+          "port_id": "port_con_127",
+          "pin_number": 11
+        },
+        {
+          "kind": "port",
+          "port_id": "port_con_001",
+          "pin_number": 4
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_056",
+      "name": "W16 - ABI B diff. signal +",
+      "tags": [
+        "system:ts",
+        "system:lvs",
+        "system:sensors",
+        "bundle:EXT_1_MZ"
+      ],
+      "properties": {
+        "wire_id": "W16",
+        "wire_color": "Green",
+        "wire_gauge": "18 AWG",
+        "notes": "ABI B diff. signal +"
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_129",
+          "pin_number": 1
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_130",
+          "pin_number": 1
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_057",
+      "name": "W17 - ABI B diff. signal -",
+      "tags": [
+        "system:ts",
+        "system:lvs",
+        "system:sensors",
+        "bundle:EXT_1_MZ"
+      ],
+      "properties": {
+        "wire_id": "W17",
+        "wire_color": "Yellow",
+        "wire_gauge": "18 AWG",
+        "notes": "ABI B diff. signal -"
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_129",
+          "pin_number": 2
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_130",
+          "pin_number": 2
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_058",
+      "name": "W40 - ABI A diff. signal +",
+      "tags": [
+        "system:ts",
+        "system:lvs",
+        "system:sensors",
+        "bundle:EXT_1_MZ"
+      ],
+      "properties": {
+        "wire_id": "W40",
+        "wire_color": "Gray",
+        "wire_gauge": "18 AWG",
+        "notes": "ABI A diff. signal +"
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_129",
+          "pin_number": 3
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_130",
+          "pin_number": 3
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_059",
+      "name": "W41 - ABI Z diff. signal -",
+      "tags": [
+        "system:ts",
+        "system:lvs",
+        "system:sensors",
+        "bundle:EXT_1_MZ"
+      ],
+      "properties": {
+        "wire_id": "W41",
+        "wire_color": "Brown",
+        "wire_gauge": "18 AWG",
+        "notes": "ABI Z diff. signal -"
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_129",
+          "pin_number": 4
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_130",
+          "pin_number": 4
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_060",
+      "name": "W42 - Temperature sensor pin 1",
+      "tags": [
+        "system:ts",
+        "system:lvs",
+        "system:sensors",
+        "bundle:EXT_1_MZ",
+        "signal:TEMPERATURE_SENSOR_PIN_1"
+      ],
+      "properties": {
+        "wire_id": "W42",
+        "wire_color": "Blue",
+        "wire_gauge": "18 AWG",
+        "notes": "Temperature sensor pin 1"
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_129",
+          "pin_number": 5
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_130",
+          "pin_number": 5
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_061",
+      "name": "W43 - Temperature sensor pin 2",
+      "tags": [
+        "system:ts",
+        "system:lvs",
+        "system:sensors",
+        "bundle:EXT_1_MZ",
+        "signal:TEMPERATURE_SENSOR_PIN_2"
+      ],
+      "properties": {
+        "wire_id": "W43",
+        "wire_color": "Orange",
+        "wire_gauge": "18 AWG",
+        "notes": "Temperature sensor pin 2"
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_129",
+          "pin_number": 6
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_130",
+          "pin_number": 6
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_062",
+      "name": "W28 - ABI A diff. signal -",
+      "tags": [
+        "system:ts",
+        "system:lvs",
+        "system:sensors",
+        "bundle:EXT_1_MZ"
+      ],
+      "properties": {
+        "wire_id": "W28",
+        "wire_color": "Pink",
+        "wire_gauge": "18 AWG",
+        "notes": "ABI A diff. signal -"
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_129",
+          "pin_number": 7
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_130",
+          "pin_number": 7
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_063",
+      "name": "W25 - ABI Z diff. signal +",
+      "tags": [
+        "system:ts",
+        "system:lvs",
+        "system:sensors",
+        "bundle:EXT_1_MZ"
+      ],
+      "properties": {
+        "wire_id": "W25",
+        "wire_color": "White",
+        "wire_gauge": "18 AWG",
+        "notes": "ABI Z diff. signal +"
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_129",
+          "pin_number": 8
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_130",
+          "pin_number": 8
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_064",
+      "name": "W23 - Sensor supply V+ (+5VDC)",
+      "tags": [
+        "system:ts",
+        "system:lvs",
+        "system:sensors",
+        "bundle:EXT_1_MZ",
+        "signal:SENSOR_SUPPLY_V_PLUS_PLUS5VDC"
+      ],
+      "properties": {
+        "wire_id": "W23",
+        "wire_color": "Red",
+        "wire_gauge": "18 AWG",
+        "notes": "Sensor supply V+ (+5VDC)"
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_129",
+          "pin_number": 9
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_130",
+          "pin_number": 9
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_065",
+      "name": "W27 - Sensor supply GND",
+      "tags": [
+        "system:ts",
+        "system:lvs",
+        "system:sensors",
+        "bundle:EXT_1_MZ",
+        "signal:SENSOR_SUPPLY_GND"
+      ],
+      "properties": {
+        "wire_id": "W27",
+        "wire_color": "Blue",
+        "wire_gauge": "18 AWG",
+        "notes": "Sensor supply GND"
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_129",
+          "pin_number": 10
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_130",
+          "pin_number": 10
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_066",
+      "name": "W70 - BPS1_OUT",
+      "tags": [
+        "system:sensors",
+        "bundle:EXT_H2",
+        "signal:BPS1_OUT"
+      ],
+      "properties": {
+        "wire_id": "W70",
+        "wire_color": "White-Blue",
+        "wire_gauge": "18 AWG",
+        "notes": "BPS1_OUT"
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_140",
+          "pin_number": 1
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_141",
+          "pin_number": 3
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_067",
+      "name": "W72 - BPS1_GND",
+      "tags": [
+        "system:sensors",
+        "bundle:EXT_H2",
+        "signal:BPS1_GND"
+      ],
+      "properties": {
+        "wire_id": "W72",
+        "wire_color": "White",
+        "wire_gauge": "18 AWG",
+        "notes": "BPS1_GND"
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_140",
+          "pin_number": 2
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_141",
+          "pin_number": 2
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_068",
+      "name": "W74 - BPS1_5V",
+      "tags": [
+        "system:sensors",
+        "bundle:EXT_H2",
+        "signal:BPS1_5V"
+      ],
+      "properties": {
+        "wire_id": "W74",
+        "wire_color": "Yellow",
+        "wire_gauge": "18 AWG",
+        "notes": "BPS1_5V"
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_140",
+          "pin_number": 3
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_141",
+          "pin_number": 1
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_069",
+      "name": "W9 - BPS2_5V",
+      "tags": [
+        "system:sensors",
+        "bundle:EXT_H2",
+        "signal:BPS2_5V"
+      ],
+      "properties": {
+        "wire_id": "W9",
+        "wire_color": "Yellow",
+        "wire_gauge": "18 AWG",
+        "notes": "BPS2_5V"
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_140",
+          "pin_number": 4
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_142",
+          "pin_number": 1
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_070",
+      "name": "W73 - BPS2_GND",
+      "tags": [
+        "system:sensors",
+        "bundle:EXT_H2",
+        "signal:BPS2_GND"
+      ],
+      "properties": {
+        "wire_id": "W73",
+        "wire_color": "White",
+        "wire_gauge": "18 AWG",
+        "notes": "BPS2_GND"
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_140",
+          "pin_number": 5
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_142",
+          "pin_number": 2
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_071",
+      "name": "W71 - BPS2_OUT",
+      "tags": [
+        "system:sensors",
+        "bundle:EXT_H2",
+        "signal:BPS2_OUT"
+      ],
+      "properties": {
+        "wire_id": "W71",
+        "wire_color": "White-Blue",
+        "wire_gauge": "18 AWG",
+        "notes": "BPS2_OUT"
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_140",
+          "pin_number": 6
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_142",
+          "pin_number": 3
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_090",
+      "name": "W1 - 12V_TSL",
+      "tags": [
+        "system:tsal",
+        "bundle:EXT_H3",
+        "signal:12V_TSL"
+      ],
+      "properties": {
+        "wire_id": "W1",
+        "wire_color": "Red",
+        "wire_gauge": "18 AWG",
+        "length": "\u2265 75 in",
+        "notes": "12V_TSL"
+      },
+      "nodes": [
+        {
+          "kind": "port",
+          "port_id": "port_con_004",
+          "pin_number": 1
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_133",
+          "pin_number": 4
+        }
+      ],
+      "measurements": [
+        {
+          "from": {
+            "kind": "port",
+            "port_id": "port_con_004",
+            "pin_number": 1
+          },
+          "to": {
+            "kind": "connector",
+            "connector_id": "con_133",
+            "pin_number": 4
+          },
+          "length_mm": 1905
+        }
+      ]
+    },
+    {
+      "id": "path_091",
+      "name": "W6 - TSSI_RED-LT",
+      "tags": [
+        "system:tsal",
+        "bundle:EXT_H3",
+        "signal:TSSI_RED_LT"
+      ],
+      "properties": {
+        "wire_id": "W6",
+        "wire_color": "Black-Red",
+        "wire_gauge": "18 AWG",
+        "length": "\u2265 75 in",
+        "notes": "TSSI_RED-LT"
+      },
+      "nodes": [
+        {
+          "kind": "port",
+          "port_id": "port_con_004",
+          "pin_number": 2
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_133",
+          "pin_number": 2
+        }
+      ],
+      "measurements": [
+        {
+          "from": {
+            "kind": "port",
+            "port_id": "port_con_004",
+            "pin_number": 2
+          },
+          "to": {
+            "kind": "connector",
+            "connector_id": "con_133",
+            "pin_number": 2
+          },
+          "length_mm": 1905
+        }
+      ]
+    },
+    {
+      "id": "path_092",
+      "name": "W9 - TSSI_GRN-LT",
+      "tags": [
+        "system:tsal",
+        "bundle:EXT_H3",
+        "signal:TSSI_GRN_LT"
+      ],
+      "properties": {
+        "wire_id": "W9",
+        "wire_color": "Black-Green",
+        "wire_gauge": "18 AWG",
+        "length": "\u2265 75 in",
+        "notes": "TSSI_GRN-LT"
+      },
+      "nodes": [
+        {
+          "kind": "port",
+          "port_id": "port_con_004",
+          "pin_number": 3
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_133",
+          "pin_number": 3
+        }
+      ],
+      "measurements": [
+        {
+          "from": {
+            "kind": "port",
+            "port_id": "port_con_004",
+            "pin_number": 3
+          },
+          "to": {
+            "kind": "connector",
+            "connector_id": "con_133",
+            "pin_number": 3
+          },
+          "length_mm": 1905
+        }
+      ]
+    },
+    {
+      "id": "path_096",
+      "name": "W10 - RTM-LT",
+      "tags": [
+        "system:tsal",
+        "bundle:EXT_H3",
+        "signal:RTM_LT"
+      ],
+      "properties": {
+        "wire_id": "W10",
+        "wire_color": "Black-Orange",
+        "wire_gauge": "18 AWG",
+        "length": "27 in",
+        "notes": "RTM-LT"
+      },
+      "nodes": [
+        {
+          "kind": "port",
+          "port_id": "port_con_080",
+          "pin_number": 4
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_133",
+          "pin_number": 1
+        }
+      ],
+      "measurements": [
+        {
+          "from": {
+            "kind": "port",
+            "port_id": "port_con_080",
+            "pin_number": 4
+          },
+          "to": {
+            "kind": "connector",
+            "connector_id": "con_133",
+            "pin_number": 1
+          },
+          "length_mm": 685
+        }
+      ]
+    },
+    {
+      "id": "path_097",
+      "name": "BOTS OUT \u2192 Inertia Switch IN",
+      "tags": [
+        "system:sdc",
+        "bundle:EXT_H4",
+        "signal:BOTS_OUT_INT_IN"
+      ],
+      "properties": {
+        "wire_id": "SDC-BOTS-INT",
+        "wire_color": "Green",
+        "wire_gauge": "18 AWG",
+        "notes": "Safety daisy chain: BOTS output to inertia-switch input."
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_062",
+          "pin_number": 2
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_061",
+          "pin_number": 1
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_098",
+      "name": "INTS-C1 - ES-LT_IN (INT_OUT)",
+      "tags": [
+        "system:sdc",
+        "bundle:EXT_H4",
+        "signal:ES_LT_IN_INT_OUT"
+      ],
+      "properties": {
+        "wire_id": "INTS-C1",
+        "wire_color": "Blue",
+        "wire_gauge": "18 AWG",
+        "notes": "ES-LT_IN (INT_OUT)"
+      },
+      "nodes": [
+        {
+          "kind": "port",
+          "port_id": "port_con_058",
+          "pin_number": 1
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_061",
+          "pin_number": 3
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_101",
+      "name": "W1 - SDC IN (BOTS_IN)",
+      "tags": [
+        "system:sdc",
+        "bundle:EXT_H4",
+        "signal:SDC_IN_BOTS_IN"
+      ],
+      "properties": {
+        "wire_id": "W1",
+        "wire_color": "Green",
+        "wire_gauge": "18 AWG",
+        "length": "41 in",
+        "notes": "SDC IN (BOTS_IN)"
+      },
+      "nodes": [
+        {
+          "kind": "port",
+          "port_id": "port_con_005",
+          "pin_number": 1
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_062",
+          "pin_number": 2
+        }
+      ],
+      "measurements": [
+        {
+          "from": {
+            "kind": "port",
+            "port_id": "port_con_005",
+            "pin_number": 1
+          },
+          "to": {
+            "kind": "connector",
+            "connector_id": "con_062",
+            "pin_number": 2
+          },
+          "length_mm": 1041
+        }
+      ]
+    },
+    {
+      "id": "path_116",
+      "name": "W1 - CURR_5V",
+      "tags": [
+        "system:ts",
+        "bundle:EXT_H7",
+        "signal:CURR_5V"
+      ],
+      "properties": {
+        "wire_id": "W1",
+        "wire_color": "Yellow",
+        "wire_gauge": "18 AWG",
+        "notes": "CURR_5V"
+      },
+      "nodes": [
+        {
+          "kind": "port",
+          "port_id": "port_con_007",
+          "pin_number": 1
+        },
+        {
+          "kind": "port",
+          "port_id": "port_con_079",
+          "pin_number": 1
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_117",
+      "name": "W2 - CURR__IN",
+      "tags": [
+        "system:ts",
+        "bundle:EXT_H7",
+        "signal:CURR_IN"
+      ],
+      "properties": {
+        "wire_id": "W2",
+        "wire_color": "White-Black",
+        "wire_gauge": "18 AWG",
+        "notes": "CURR__IN"
+      },
+      "nodes": [
+        {
+          "kind": "port",
+          "port_id": "port_con_007",
+          "pin_number": 2
+        },
+        {
+          "kind": "port",
+          "port_id": "port_con_079",
+          "pin_number": 2
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_118",
+      "name": "W3 - CURR__GND",
+      "tags": [
+        "system:ts",
+        "bundle:EXT_H7",
+        "signal:CURR_GND"
+      ],
+      "properties": {
+        "wire_id": "W3",
+        "wire_color": "Black",
+        "wire_gauge": "18 AWG",
+        "notes": "CURR__GND"
+      },
+      "nodes": [
+        {
+          "kind": "port",
+          "port_id": "port_con_007",
+          "pin_number": 3
+        },
+        {
+          "kind": "port",
+          "port_id": "port_con_079",
+          "pin_number": 3
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_121",
+      "name": "W1 - 12V",
+      "tags": [
+        "system:sdc",
+        "system:lvs",
+        "bundle:EXT_ROC_H1",
+        "signal:12V"
+      ],
+      "properties": {
+        "wire_id": "W1",
+        "wire_color": "Red",
+        "wire_gauge": "18 AWG",
+        "notes": "12V"
+      },
+      "nodes": [
+        {
+          "kind": "port",
+          "port_id": "port_con_051",
+          "pin_number": 1
+        },
+        {
+          "kind": "port",
+          "port_id": "port_con_001",
+          "pin_number": 1
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_122",
+      "name": "W2 - GND_GLVMP",
+      "tags": [
+        "system:sdc",
+        "system:lvs",
+        "bundle:EXT_ROC_H1",
+        "signal:GND_GLVMP"
+      ],
+      "properties": {
+        "wire_id": "W2",
+        "wire_color": "Black",
+        "wire_gauge": "18 AWG",
+        "notes": "GND_GLVMP"
+      },
+      "nodes": [
+        {
+          "kind": "port",
+          "port_id": "port_con_051",
+          "pin_number": 2
+        },
+        {
+          "kind": "port",
+          "port_id": "port_con_001",
+          "pin_number": 2
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_123",
+      "name": "W6 - BMS Reset-",
+      "tags": [
+        "system:sdc",
+        "system:lvs",
+        "bundle:EXT_ROC_H1",
+        "signal:BMS_RESET_MINUS"
+      ],
+      "properties": {
+        "wire_id": "W6",
+        "wire_color": "Violet",
+        "wire_gauge": "18 AWG",
+        "notes": "BMS Reset-"
+      },
+      "nodes": [
+        {
+          "kind": "port",
+          "port_id": "port_con_051",
+          "pin_number": 3
+        },
+        {
+          "kind": "port",
+          "port_id": "port_con_001",
+          "pin_number": 3
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_124",
+      "name": "W3 - BMS LED+",
+      "tags": [
+        "system:sdc",
+        "system:lvs",
+        "bundle:EXT_ROC_H1",
+        "signal:BMS_LED_PLUS"
+      ],
+      "properties": {
+        "wire_id": "W3",
+        "wire_color": "Gray",
+        "wire_gauge": "18 AWG",
+        "notes": "BMS LED+"
+      },
+      "nodes": [
+        {
+          "kind": "port",
+          "port_id": "port_con_051",
+          "pin_number": 4
+        },
+        {
+          "kind": "port",
+          "port_id": "port_con_001",
+          "pin_number": 4
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_125",
+      "name": "W7 - BSPD Reset-",
+      "tags": [
+        "system:sdc",
+        "system:lvs",
+        "bundle:EXT_ROC_H1",
+        "signal:BSPD_RESET_MINUS"
+      ],
+      "properties": {
+        "wire_id": "W7",
+        "wire_color": "Violet",
+        "wire_gauge": "18 AWG",
+        "notes": "BSPD Reset-"
+      },
+      "nodes": [
+        {
+          "kind": "port",
+          "port_id": "port_con_051",
+          "pin_number": 5
+        },
+        {
+          "kind": "port",
+          "port_id": "port_con_001",
+          "pin_number": 5
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_126",
+      "name": "W4 - BSPD LED+",
+      "tags": [
+        "system:sdc",
+        "system:lvs",
+        "bundle:EXT_ROC_H1",
+        "signal:BSPD_LED_PLUS"
+      ],
+      "properties": {
+        "wire_id": "W4",
+        "wire_color": "Gray",
+        "wire_gauge": "18 AWG",
+        "notes": "BSPD LED+"
+      },
+      "nodes": [
+        {
+          "kind": "port",
+          "port_id": "port_con_051",
+          "pin_number": 6
+        },
+        {
+          "kind": "port",
+          "port_id": "port_con_001",
+          "pin_number": 6
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_127",
+      "name": "W9 - IMD Reset+",
+      "tags": [
+        "system:sdc",
+        "system:lvs",
+        "bundle:EXT_ROC_H1",
+        "signal:IMD_RESET_PLUS"
+      ],
+      "properties": {
+        "wire_id": "W9",
+        "wire_color": "Violet",
+        "wire_gauge": "18 AWG",
+        "notes": "IMD Reset+"
+      },
+      "nodes": [
+        {
+          "kind": "port",
+          "port_id": "port_con_051",
+          "pin_number": 7
+        },
+        {
+          "kind": "port",
+          "port_id": "port_con_001",
+          "pin_number": 7
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_128",
+      "name": "W8 - IMD Reset-",
+      "tags": [
+        "system:sdc",
+        "system:lvs",
+        "bundle:EXT_ROC_H1",
+        "signal:IMD_RESET_MINUS"
+      ],
+      "properties": {
+        "wire_id": "W8",
+        "wire_color": "Violet",
+        "wire_gauge": "18 AWG",
+        "notes": "IMD Reset-"
+      },
+      "nodes": [
+        {
+          "kind": "port",
+          "port_id": "port_con_051",
+          "pin_number": 8
+        },
+        {
+          "kind": "port",
+          "port_id": "port_con_001",
+          "pin_number": 8
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_129",
+      "name": "W5 - IMD LED+",
+      "tags": [
+        "system:sdc",
+        "system:lvs",
+        "bundle:EXT_ROC_H1",
+        "signal:IMD_LED_PLUS"
+      ],
+      "properties": {
+        "wire_id": "W5",
+        "wire_color": "Gray",
+        "wire_gauge": "18 AWG",
+        "notes": "IMD LED+"
+      },
+      "nodes": [
+        {
+          "kind": "port",
+          "port_id": "port_con_051",
+          "pin_number": 9
+        },
+        {
+          "kind": "port",
+          "port_id": "port_con_001",
+          "pin_number": 9
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_130",
+      "name": "W17 - LV MS-",
+      "tags": [
+        "system:sdc",
+        "system:lvs",
+        "bundle:EXT_ROC_H1",
+        "signal:LV_MS_MINUS"
+      ],
+      "properties": {
+        "wire_id": "W17",
+        "wire_color": "Blue",
+        "wire_gauge": "18 AWG",
+        "notes": "LV MS-"
+      },
+      "nodes": [
+        {
+          "kind": "port",
+          "port_id": "port_con_051",
+          "pin_number": 10
+        },
+        {
+          "kind": "port",
+          "port_id": "port_con_001",
+          "pin_number": 10
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_131",
+      "name": "W15 - Speaker+",
+      "tags": [
+        "system:sdc",
+        "system:lvs",
+        "bundle:EXT_ROC_H1",
+        "signal:SPEAKER_PLUS"
+      ],
+      "properties": {
+        "wire_id": "W15",
+        "wire_color": "Gray",
+        "wire_gauge": "18 AWG",
+        "notes": "Speaker+"
+      },
+      "nodes": [
+        {
+          "kind": "port",
+          "port_id": "port_con_051",
+          "pin_number": 11
+        },
+        {
+          "kind": "port",
+          "port_id": "port_con_001",
+          "pin_number": 11
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_132",
+      "name": "W16 - Speaker-",
+      "tags": [
+        "system:sdc",
+        "system:lvs",
+        "bundle:EXT_ROC_H1",
+        "signal:SPEAKER_MINUS"
+      ],
+      "properties": {
+        "wire_id": "W16",
+        "wire_color": "Gray",
+        "wire_gauge": "18 AWG",
+        "notes": "Speaker-"
+      },
+      "nodes": [
+        {
+          "kind": "port",
+          "port_id": "port_con_051",
+          "pin_number": 12
+        },
+        {
+          "kind": "port",
+          "port_id": "port_con_001",
+          "pin_number": 12
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_135",
+      "name": "W18 - LV MS pre",
+      "tags": [
+        "system:sdc",
+        "system:lvs",
+        "system:charging",
+        "bundle:EXT_ROC_H2",
+        "signal:LV_MS_PRE"
+      ],
+      "properties": {
+        "wire_id": "W18",
+        "wire_color": "Blue",
+        "wire_gauge": "18 AWG",
+        "notes": "LV MS pre"
+      },
+      "nodes": [
+        {
+          "kind": "port",
+          "port_id": "port_con_052",
+          "pin_number": 1
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_147",
+          "pin_number": 1
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_136",
+      "name": "W2 - LV_Batt_GND",
+      "tags": [
+        "system:sdc",
+        "system:lvs",
+        "system:charging",
+        "bundle:EXT_ROC_H2",
+        "signal:LV_BATT_GND"
+      ],
+      "properties": {
+        "wire_id": "W2",
+        "wire_color": "Black",
+        "wire_gauge": "18 AWG",
+        "notes": "LV_Batt_GND"
+      },
+      "nodes": [
+        {
+          "kind": "port",
+          "port_id": "port_con_052",
+          "pin_number": 2
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_147",
+          "pin_number": 2
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_137",
+      "name": "W17 - LV MS Charging +",
+      "tags": [
+        "system:sdc",
+        "system:lvs",
+        "system:charging",
+        "bundle:EXT_ROC_H2",
+        "signal:LV_MS_CHARGING_PLUS"
+      ],
+      "properties": {
+        "wire_id": "W17",
+        "wire_color": "Blue",
+        "wire_gauge": "18 AWG",
+        "notes": "LV MS Charging +"
+      },
+      "nodes": [
+        {
+          "kind": "port",
+          "port_id": "port_con_181",
+          "pin_number": 1
+        },
+        {
+          "kind": "port",
+          "port_id": "port_con_118",
+          "pin_number": 1
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_138",
+      "name": "W19 - LV MS Charging -",
+      "tags": [
+        "system:sdc",
+        "system:lvs",
+        "system:charging",
+        "bundle:EXT_ROC_H2",
+        "signal:LV_MS_CHARGING"
+      ],
+      "properties": {
+        "wire_id": "W19",
+        "wire_color": "Black",
+        "wire_gauge": "18 AWG",
+        "notes": "LV MS Charging -"
+      },
+      "nodes": [
+        {
+          "kind": "port",
+          "port_id": "port_con_181",
+          "pin_number": 2
+        },
+        {
+          "kind": "port",
+          "port_id": "port_con_118",
+          "pin_number": 2
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_258",
+      "name": "CCM J17.1 - thermistor2+",
+      "tags": [
+        "bundle:CCM_internal",
+        "system:lvs",
+        "signal:THERMISTOR2_PLUS"
+      ],
+      "properties": {
+        "notes": "CCM CSV: net=thermistor2+ on J17 pin 1.",
+        "wire_id": "CCM-J17-1"
+      },
+      "nodes": [
+        {
+          "kind": "port",
+          "port_id": "port_con_044",
+          "pin_number": 1
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_166",
+          "pin_number": 1
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_259",
+      "name": "CCM J17.2 - thermistor1+",
+      "tags": [
+        "bundle:CCM_internal",
+        "system:lvs",
+        "signal:THERMISTOR1_PLUS"
+      ],
+      "properties": {
+        "notes": "CCM CSV: net=thermistor1+ on J17 pin 2.",
+        "wire_id": "CCM-J17-2"
+      },
+      "nodes": [
+        {
+          "kind": "port",
+          "port_id": "port_con_044",
+          "pin_number": 2
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_166",
+          "pin_number": 2
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_260",
+      "name": "CCM J17.3 - GLV-",
+      "tags": [
+        "bundle:CCM_internal",
+        "system:lvs",
+        "signal:GLV_MINUS"
+      ],
+      "properties": {
+        "notes": "CCM CSV: net=GLV- on J17 pin 3.",
+        "wire_id": "CCM-J17-3"
+      },
+      "nodes": [
+        {
+          "kind": "port",
+          "port_id": "port_con_044",
+          "pin_number": 3
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_166",
+          "pin_number": 3
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_261",
+      "name": "CCM J17.4 - GLV-",
+      "tags": [
+        "bundle:CCM_internal",
+        "system:lvs",
+        "signal:GLV_MINUS"
+      ],
+      "properties": {
+        "notes": "CCM CSV: net=GLV- on J17 pin 4.",
+        "wire_id": "CCM-J17-4"
+      },
+      "nodes": [
+        {
+          "kind": "port",
+          "port_id": "port_con_044",
+          "pin_number": 4
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_166",
+          "pin_number": 4
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_262",
+      "name": "CCM J18.1 - thermistor4+",
+      "tags": [
+        "bundle:CCM_internal",
+        "system:lvs",
+        "signal:THERMISTOR4_PLUS"
+      ],
+      "properties": {
+        "notes": "CCM CSV: net=thermistor4+ on J18 pin 1.",
+        "wire_id": "CCM-J18-1"
+      },
+      "nodes": [
+        {
+          "kind": "port",
+          "port_id": "port_con_045",
+          "pin_number": 1
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_167",
+          "pin_number": 1
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_263",
+      "name": "CCM J18.2 - thermistor3+",
+      "tags": [
+        "bundle:CCM_internal",
+        "system:lvs",
+        "signal:THERMISTOR3_PLUS"
+      ],
+      "properties": {
+        "notes": "CCM CSV: net=thermistor3+ on J18 pin 2.",
+        "wire_id": "CCM-J18-2"
+      },
+      "nodes": [
+        {
+          "kind": "port",
+          "port_id": "port_con_045",
+          "pin_number": 2
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_167",
+          "pin_number": 2
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_264",
+      "name": "CCM J18.3 - GLV-",
+      "tags": [
+        "bundle:CCM_internal",
+        "system:lvs",
+        "signal:GLV_MINUS"
+      ],
+      "properties": {
+        "notes": "CCM CSV: net=GLV- on J18 pin 3.",
+        "wire_id": "CCM-J18-3"
+      },
+      "nodes": [
+        {
+          "kind": "port",
+          "port_id": "port_con_045",
+          "pin_number": 3
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_167",
+          "pin_number": 3
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_265",
+      "name": "CCM J18.4 - GLV-",
+      "tags": [
+        "bundle:CCM_internal",
+        "system:lvs",
+        "signal:GLV_MINUS"
+      ],
+      "properties": {
+        "notes": "CCM CSV: net=GLV- on J18 pin 4.",
+        "wire_id": "CCM-J18-4"
+      },
+      "nodes": [
+        {
+          "kind": "port",
+          "port_id": "port_con_045",
+          "pin_number": 4
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_167",
+          "pin_number": 4
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_356",
+      "name": "Inverter\u2192Motor Phase U",
+      "tags": [
+        "bundle:transcript",
+        "system:ts",
+        "signal:PHASE_U"
+      ],
+      "properties": {
+        "notes": "Inverter\u2192Motor 3-phase wire U.",
+        "wire_id": "PHASE-U",
+        "wire_color": "Orange"
+      },
+      "nodes": [
+        {
+          "kind": "port",
+          "port_id": "port_con_168",
+          "pin_number": 1
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_169",
+          "pin_number": 1
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_357",
+      "name": "Inverter\u2192Motor Phase V",
+      "tags": [
+        "bundle:transcript",
+        "system:ts",
+        "signal:PHASE_V"
+      ],
+      "properties": {
+        "notes": "Inverter\u2192Motor 3-phase wire V.",
+        "wire_id": "PHASE-V",
+        "wire_color": "Orange"
+      },
+      "nodes": [
+        {
+          "kind": "port",
+          "port_id": "port_con_168",
+          "pin_number": 2
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_169",
+          "pin_number": 2
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_358",
+      "name": "Inverter\u2192Motor Phase W",
+      "tags": [
+        "bundle:transcript",
+        "system:ts",
+        "signal:PHASE_W"
+      ],
+      "properties": {
+        "notes": "Inverter\u2192Motor 3-phase wire W.",
+        "wire_id": "PHASE-W",
+        "wire_color": "Orange"
+      },
+      "nodes": [
+        {
+          "kind": "port",
+          "port_id": "port_con_168",
+          "pin_number": 3
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_169",
+          "pin_number": 3
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_368",
+      "name": "Charge Board 12V Out.3 \u2192 Precharge/Discharge LV +",
+      "tags": [
+        "bundle:Accu_Internal",
+        "system:ts",
+        "status:needs-verification",
+        "system:charging",
+        "signal:DISCH_ENABLE_12V"
+      ],
+      "properties": {
+        "notes": "Charge Board secondary discharge-enable feed (transcript)."
+      },
+      "nodes": [
+        {
+          "kind": "port",
+          "port_id": "port_con_117",
+          "pin_number": 3
+        },
+        {
+          "kind": "port",
+          "port_id": "port_con_173",
+          "pin_number": 1
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_369",
+      "name": "CCM J17 Mate.2 \u2192 Thermistor1-C1.1",
+      "tags": [
+        "bundle:CCM_internal",
+        "system:cooling",
+        "system:sensors",
+        "signal:THERM1_PLUS"
+      ],
+      "properties": {
+        "notes": "Thermistor signal lead (THERM1_PLUS).",
+        "wire_id": "THERM1_PLUS"
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_166",
+          "pin_number": 2
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_175",
+          "pin_number": 1
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_370",
+      "name": "CCM J17 Mate.1 \u2192 Thermistor2-C1.1",
+      "tags": [
+        "bundle:CCM_internal",
+        "system:cooling",
+        "system:sensors",
+        "signal:THERM2_PLUS"
+      ],
+      "properties": {
+        "notes": "Thermistor signal lead (THERM2_PLUS).",
+        "wire_id": "THERM2_PLUS"
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_166",
+          "pin_number": 1
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_176",
+          "pin_number": 1
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_371",
+      "name": "CCM J18 Mate.2 \u2192 Thermistor3-C1.1",
+      "tags": [
+        "bundle:CCM_internal",
+        "system:cooling",
+        "system:sensors",
+        "signal:THERM3_PLUS"
+      ],
+      "properties": {
+        "notes": "Thermistor signal lead (THERM3_PLUS).",
+        "wire_id": "THERM3_PLUS"
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_167",
+          "pin_number": 2
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_177",
+          "pin_number": 1
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_372",
+      "name": "CCM J18 Mate.1 \u2192 Thermistor4-C1.1",
+      "tags": [
+        "bundle:CCM_internal",
+        "system:cooling",
+        "system:sensors",
+        "signal:THERM4_PLUS"
+      ],
+      "properties": {
+        "notes": "Thermistor signal lead (THERM4_PLUS).",
+        "wire_id": "THERM4_PLUS"
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_167",
+          "pin_number": 1
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_178",
+          "pin_number": 1
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_373",
+      "name": "CCM J17 Mate.3 \u2192 Thermistor GND splice",
+      "tags": [
+        "bundle:CCM_internal",
+        "system:cooling",
+        "system:sensors",
+        "signal:GLV_MINUS"
+      ],
+      "properties": {
+        "notes": "Thermistor GND from CCM J17."
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_166",
+          "pin_number": 3
+        },
+        {
+          "kind": "merge",
+          "merge_point_id": "mp_009"
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_374",
+      "name": "CCM J17 Mate.4 \u2192 Thermistor GND splice",
+      "tags": [
+        "bundle:CCM_internal",
+        "system:cooling",
+        "system:sensors",
+        "signal:GLV_MINUS"
+      ],
+      "properties": {
+        "notes": "Thermistor GND from CCM J17."
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_166",
+          "pin_number": 4
+        },
+        {
+          "kind": "merge",
+          "merge_point_id": "mp_009"
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_375",
+      "name": "CCM J18 Mate.3 \u2192 Thermistor GND splice",
+      "tags": [
+        "bundle:CCM_internal",
+        "system:cooling",
+        "system:sensors",
+        "signal:GLV_MINUS"
+      ],
+      "properties": {
+        "notes": "Thermistor GND from CCM J18."
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_167",
+          "pin_number": 3
+        },
+        {
+          "kind": "merge",
+          "merge_point_id": "mp_009"
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_376",
+      "name": "CCM J18 Mate.4 \u2192 Thermistor GND splice",
+      "tags": [
+        "bundle:CCM_internal",
+        "system:cooling",
+        "system:sensors",
+        "signal:GLV_MINUS"
+      ],
+      "properties": {
+        "notes": "Thermistor GND from CCM J18."
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_167",
+          "pin_number": 4
+        },
+        {
+          "kind": "merge",
+          "merge_point_id": "mp_009"
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_377",
+      "name": "Thermistor GND splice \u2192 Thermistor1-C1.2",
+      "tags": [
+        "bundle:CCM_internal",
+        "system:cooling",
+        "system:sensors",
+        "signal:GLV_MINUS"
+      ],
+      "properties": {
+        "notes": "Shared thermistor GND return."
+      },
+      "nodes": [
+        {
+          "kind": "merge",
+          "merge_point_id": "mp_009"
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_175",
+          "pin_number": 2
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_378",
+      "name": "Thermistor GND splice \u2192 Thermistor2-C1.2",
+      "tags": [
+        "bundle:CCM_internal",
+        "system:cooling",
+        "system:sensors",
+        "signal:GLV_MINUS"
+      ],
+      "properties": {
+        "notes": "Shared thermistor GND return."
+      },
+      "nodes": [
+        {
+          "kind": "merge",
+          "merge_point_id": "mp_009"
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_176",
+          "pin_number": 2
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_379",
+      "name": "Thermistor GND splice \u2192 Thermistor3-C1.2",
+      "tags": [
+        "bundle:CCM_internal",
+        "system:cooling",
+        "system:sensors",
+        "signal:GLV_MINUS"
+      ],
+      "properties": {
+        "notes": "Shared thermistor GND return."
+      },
+      "nodes": [
+        {
+          "kind": "merge",
+          "merge_point_id": "mp_009"
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_177",
+          "pin_number": 2
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_380",
+      "name": "Thermistor GND splice \u2192 Thermistor4-C1.2",
+      "tags": [
+        "bundle:CCM_internal",
+        "system:cooling",
+        "system:sensors",
+        "signal:GLV_MINUS"
+      ],
+      "properties": {
+        "notes": "Shared thermistor GND return."
+      },
+      "nodes": [
+        {
+          "kind": "merge",
+          "merge_point_id": "mp_009"
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_178",
+          "pin_number": 2
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_383",
+      "name": "Orion BMS Main.6 - ORION_CHG_ENABLE",
+      "tags": [
+        "system:bms",
+        "status:needs-verification",
+        "signal:ORION_CHG_ENABLE",
+        "bundle:transcript"
+      ],
+      "properties": {
+        "notes": "Orion BMS main 23p net ORION_CHG_ENABLE (placeholder pinout).",
+        "wire_id": "ORION-6"
+      },
+      "nodes": [
+        {
+          "kind": "port",
+          "port_id": "port_con_174",
+          "pin_number": 6
+        },
+        {
+          "kind": "port",
+          "port_id": "port_con_117",
+          "pin_number": 2
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_385",
+      "name": "APPS channel 1 supply",
+      "tags": [
+        "system:sensors",
+        "bundle:EXT_H2",
+        "signal:CCM_3V3"
+      ],
+      "properties": {
+        "wire_id": "APPS-1",
+        "wire_color": "Brown",
+        "wire_gauge": "20 AWG",
+        "notes": "Single APPS connected to FOC-C2."
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_134",
+          "pin_number": 1
+        },
+        {
+          "kind": "port",
+          "port_id": "port_con_002",
+          "pin_number": 4
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_386",
+      "name": "APPS channel 1 ground",
+      "tags": [
+        "system:sensors",
+        "bundle:EXT_H2",
+        "signal:CCM_GND"
+      ],
+      "properties": {
+        "wire_id": "APPS-2",
+        "wire_color": "White",
+        "wire_gauge": "20 AWG",
+        "notes": "Single APPS connected to FOC-C2."
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_134",
+          "pin_number": 2
+        },
+        {
+          "kind": "port",
+          "port_id": "port_con_002",
+          "pin_number": 5
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_387",
+      "name": "APPS channel 1 output",
+      "tags": [
+        "system:sensors",
+        "bundle:EXT_H2",
+        "signal:APPS1_OUT"
+      ],
+      "properties": {
+        "wire_id": "APPS-3",
+        "wire_color": "White-Blue",
+        "wire_gauge": "20 AWG",
+        "notes": "Single APPS connected to FOC-C2."
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_134",
+          "pin_number": 3
+        },
+        {
+          "kind": "port",
+          "port_id": "port_con_002",
+          "pin_number": 6
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_388",
+      "name": "APPS channel 2 supply",
+      "tags": [
+        "system:sensors",
+        "bundle:EXT_H2",
+        "signal:CCM_3V3"
+      ],
+      "properties": {
+        "wire_id": "APPS-4",
+        "wire_color": "Brown",
+        "wire_gauge": "20 AWG",
+        "notes": "Single APPS connected to FOC-C2."
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_134",
+          "pin_number": 4
+        },
+        {
+          "kind": "port",
+          "port_id": "port_con_002",
+          "pin_number": 7
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_389",
+      "name": "APPS channel 2 ground",
+      "tags": [
+        "system:sensors",
+        "bundle:EXT_H2",
+        "signal:CCM_GND"
+      ],
+      "properties": {
+        "wire_id": "APPS-5",
+        "wire_color": "White",
+        "wire_gauge": "20 AWG",
+        "notes": "Single APPS connected to FOC-C2."
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_134",
+          "pin_number": 5
+        },
+        {
+          "kind": "port",
+          "port_id": "port_con_002",
+          "pin_number": 8
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_390",
+      "name": "APPS channel 2 output",
+      "tags": [
+        "system:sensors",
+        "bundle:EXT_H2",
+        "signal:APPS2_OUT"
+      ],
+      "properties": {
+        "wire_id": "APPS-6",
+        "wire_color": "White-Blue",
+        "wire_gauge": "20 AWG",
+        "notes": "Single APPS connected to FOC-C2."
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_134",
+          "pin_number": 6
+        },
+        {
+          "kind": "port",
+          "port_id": "port_con_002",
+          "pin_number": 9
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_391",
+      "name": "Cooling fan +",
+      "tags": [
+        "system:cooling",
+        "status:needs-fixing",
+        "signal:FAN_PLUS"
+      ],
+      "properties": {
+        "wire_id": "COOL-391",
+        "wire_color": "Red",
+        "wire_gauge": "18 AWG",
+        "notes": "Placeholder cooling-harness pin assignment needs fixing."
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_151",
+          "pin_number": 1
+        },
+        {
+          "kind": "port",
+          "port_id": "port_con_182",
+          "pin_number": 1
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_392",
+      "name": "Cooling fan PWM",
+      "tags": [
+        "system:cooling",
+        "status:needs-fixing",
+        "signal:FAN_PWM"
+      ],
+      "properties": {
+        "wire_id": "COOL-392",
+        "wire_color": "Blue",
+        "wire_gauge": "18 AWG",
+        "notes": "Placeholder cooling-harness pin assignment needs fixing."
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_151",
+          "pin_number": 2
+        },
+        {
+          "kind": "port",
+          "port_id": "port_con_182",
+          "pin_number": 2
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_393",
+      "name": "Cooling fan GND",
+      "tags": [
+        "system:cooling",
+        "status:needs-fixing",
+        "signal:GND"
+      ],
+      "properties": {
+        "wire_id": "COOL-393",
+        "wire_color": "Black",
+        "wire_gauge": "18 AWG",
+        "notes": "Placeholder cooling-harness pin assignment needs fixing."
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_151",
+          "pin_number": 3
+        },
+        {
+          "kind": "port",
+          "port_id": "port_con_182",
+          "pin_number": 3
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_394",
+      "name": "Cooling pump 24V+",
+      "tags": [
+        "system:cooling",
+        "status:needs-fixing",
+        "signal:24V_PLUS"
+      ],
+      "properties": {
+        "wire_id": "COOL-394",
+        "wire_color": "Red",
+        "wire_gauge": "18 AWG",
+        "notes": "Placeholder cooling-harness pin assignment needs fixing."
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_150",
+          "pin_number": 1
+        },
+        {
+          "kind": "port",
+          "port_id": "port_con_182",
+          "pin_number": 4
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_395",
+      "name": "Cooling pump PWM low-side",
+      "tags": [
+        "system:cooling",
+        "status:needs-fixing",
+        "signal:COOL_PUMP_PWM_LS"
+      ],
+      "properties": {
+        "wire_id": "COOL-395",
+        "wire_color": "Blue",
+        "wire_gauge": "18 AWG",
+        "notes": "Placeholder cooling-harness pin assignment needs fixing."
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_150",
+          "pin_number": 2
+        },
+        {
+          "kind": "port",
+          "port_id": "port_con_182",
+          "pin_number": 5
+        }
+      ],
+      "measurements": []
+    }
+  ],
+  "ports": [
+    {
+      "id": "port_mp_006",
+      "name": "Splice 12V_ACCU",
+      "target_child_id": "enc_001",
+      "entity_parent": "enc_001",
+      "entity_kind": "merge",
+      "merge_point_id": "mp_006",
+      "tags": [
+        "bundle:EXT_1_MZ",
+        "system:lvs"
+      ],
+      "properties": {
+        "notes": "12V rail splice merging 12V feeds to ACCU."
+      }
+    },
+    {
+      "id": "port_con_077",
+      "name": "ACCU-C1 (to FOC)",
+      "target_child_id": "enc_003",
+      "entity_parent": "enc_003",
+      "entity_kind": "connector",
+      "connector_id": "con_077",
+      "connector_type": "deutsch_dt",
+      "pin_count": 12,
+      "tags": [
+        "bundle:EXT_1_MZ",
+        "bundle:EXT_ROC_H2"
+      ],
+      "properties": {
+        "notes": "Accumulator bulkhead C1 \u2014 12-pin Deutsch (EXT 1-MZ / ROC H2)."
+      }
+    },
+    {
+      "id": "port_con_127",
+      "name": "Inverter LV (TE AMP Seal 23p)",
+      "target_child_id": "enc_003",
+      "entity_parent": "enc_093",
+      "entity_kind": "connector",
+      "connector_id": "con_127",
+      "connector_type": "generic_multipin",
+      "pin_count": 25,
+      "tags": [
+        "bundle:EXT_1_MZ",
+        "system:ts",
+        "status:blatantly-wrong"
+      ],
+      "properties": {
+        "notes": "Inverter LV Ampseal placeholder. Original 23 positions plus intentional placeholders 24=HV-IL IN and 25=HV-IL OUT; pin assignment is blatantly wrong and must be fixed."
+      }
+    },
+    {
+      "id": "port_con_063",
+      "name": "BBC-C1 (mates EXT 1-MZ/H4 HV MS+)",
+      "target_child_id": "enc_002",
+      "entity_parent": "enc_030",
+      "entity_kind": "connector",
+      "connector_id": "con_063",
+      "connector_type": "deutsch_dt",
+      "pin_count": 6,
+      "tags": [
+        "bundle:EXT_1_MZ",
+        "bundle:EXT_H4"
+      ],
+      "properties": {
+        "notes": "HI-BBC board BBC-C1 6-pin Deutsch \u2014 mixes MS HV- and HV MS+ rails. Gigadoc lists as DT04-6P and mating DT06-6S; modeled as one mated pair on BBC."
+      }
+    },
+    {
+      "id": "port_con_001",
+      "name": "FOC-C1 (to ACCU/INV/MOT)",
+      "target_child_id": "enc_001",
+      "entity_parent": "enc_001",
+      "entity_kind": "connector",
+      "connector_id": "con_001",
+      "connector_type": "deutsch_dt",
+      "pin_count": 12,
+      "tags": [
+        "bundle:EXT_1_MZ"
+      ],
+      "properties": {
+        "notes": "Front-of-car bulkhead C1. Mates EXT 1-MZ harness to the FOC."
+      }
+    },
+    {
+      "id": "port_con_004",
+      "name": "FOC-H03-A (to TS Lights)",
+      "target_child_id": "enc_001",
+      "entity_parent": "enc_001",
+      "entity_kind": "connector",
+      "connector_id": "con_004",
+      "connector_type": "deutsch_dt",
+      "pin_count": 6,
+      "tags": [
+        "bundle:EXT_H3"
+      ],
+      "properties": {
+        "notes": "Front-of-car external connector for TS-Light / Brake-Light harness (EXT H3)."
+      }
+    },
+    {
+      "id": "port_con_080",
+      "name": "HV-BATT (12p to TS-Light RTM)",
+      "target_child_id": "enc_003",
+      "entity_parent": "enc_003",
+      "entity_kind": "connector",
+      "connector_id": "con_080",
+      "connector_type": "deutsch_dt",
+      "pin_count": 12,
+      "tags": [
+        "bundle:EXT_H3"
+      ],
+      "properties": {
+        "notes": "Accumulator external connector to TS-Light harness (pin 4 = RTM-LT)."
+      }
+    },
+    {
+      "id": "port_con_058",
+      "name": "ES-LT Connector",
+      "target_child_id": "enc_002",
+      "entity_parent": "enc_034",
+      "entity_kind": "connector",
+      "connector_id": "con_058",
+      "connector_type": "deutsch_dt",
+      "pin_count": 2,
+      "tags": [
+        "bundle:EXT_H4"
+      ],
+      "properties": {
+        "notes": "Left E-stop 2-pin DT connector."
+      }
+    },
+    {
+      "id": "port_con_005",
+      "name": "FOC-C8 (SDC BOTS)",
+      "target_child_id": "enc_001",
+      "entity_parent": "enc_001",
+      "entity_kind": "connector",
+      "connector_id": "con_005",
+      "connector_type": "deutsch_dt",
+      "pin_count": 2,
+      "tags": [
+        "bundle:EXT_H4"
+      ],
+      "properties": {
+        "notes": "Front-of-car C8 \u2014 SDC input from BOTS."
+      }
+    },
+    {
+      "id": "port_con_007",
+      "name": "FOC-H7 (to Current Sensor)",
+      "target_child_id": "enc_001",
+      "entity_parent": "enc_001",
+      "entity_kind": "connector",
+      "connector_id": "con_007",
+      "connector_type": "deutsch_dt",
+      "pin_count": 3,
+      "tags": [
+        "bundle:FOC_H7"
+      ],
+      "properties": {
+        "notes": "Front-of-car H7 \u2014 3-pin male to the HV current sensor."
+      }
+    },
+    {
+      "id": "port_con_079",
+      "name": "HVB-C2 (Current Sensor)",
+      "target_child_id": "enc_003",
+      "entity_parent": "enc_003",
+      "entity_kind": "connector",
+      "connector_id": "con_079",
+      "connector_type": "deutsch_dt",
+      "pin_count": 3,
+      "tags": [
+        "bundle:EXT_H7"
+      ],
+      "properties": {
+        "notes": "Accumulator C2 \u2014 3-pin Deutsch to Safety Board current sense."
+      }
+    },
+    {
+      "id": "port_con_051",
+      "name": "ROC-C1 (to FOC)",
+      "target_child_id": "enc_002",
+      "entity_parent": "enc_002",
+      "entity_kind": "connector",
+      "connector_id": "con_051",
+      "connector_type": "deutsch_dt",
+      "pin_count": 12,
+      "tags": [
+        "bundle:EXT_ROC_H1"
+      ],
+      "properties": {
+        "notes": "Rear-of-car C1 \u2014 12-pin Deutsch bulkhead mating FOC-ROC1."
+      }
+    },
+    {
+      "id": "port_con_052",
+      "name": "ROC-C2 (LV Battery)",
+      "target_child_id": "enc_002",
+      "entity_parent": "enc_002",
+      "entity_kind": "connector",
+      "connector_id": "con_052",
+      "connector_type": "deutsch_dt",
+      "pin_count": 2,
+      "tags": [
+        "bundle:EXT_ROC_H2"
+      ],
+      "properties": {
+        "notes": "Rear-of-car C2 dedicated to the 24V LV battery: pin 1=LV MS pre/24V+, pin 2=LV battery GND."
+      }
+    },
+    {
+      "id": "port_con_181",
+      "name": "Charging Connector",
+      "target_child_id": "enc_002",
+      "entity_parent": "enc_002",
+      "entity_kind": "connector",
+      "connector_id": "con_181",
+      "connector_type": "deutsch_dt",
+      "pin_count": 2,
+      "tags": [
+        "bundle:EXT_ROC_H2",
+        "system:charging"
+      ],
+      "properties": {
+        "notes": "Dedicated two-pin ROC charging connector."
+      }
+    },
+    {
+      "id": "port_con_118",
+      "name": "Charging-C1 (at ROC)",
+      "target_child_id": "enc_004",
+      "entity_parent": "enc_060",
+      "entity_kind": "connector",
+      "connector_id": "con_118",
+      "connector_type": "deutsch_dt",
+      "pin_count": 2,
+      "tags": [
+        "bundle:EXT_ROC_H2"
+      ],
+      "properties": {
+        "notes": "Charge-board LV MS charging connection (2-pin DT, EXT ROC H2)."
+      }
+    },
+    {
+      "id": "port_con_044",
+      "name": "CCM J17 (Thermistor 1/2)",
+      "target_child_id": "enc_001",
+      "entity_parent": "enc_011",
+      "entity_kind": "connector",
+      "connector_id": "con_044",
+      "connector_type": "molex_minifit_jr",
+      "pin_count": 4,
+      "tags": [
+        "bundle:internal"
+      ],
+      "properties": {
+        "notes": "CCM PCB connector J17."
+      }
+    },
+    {
+      "id": "port_con_045",
+      "name": "CCM J18 (Thermistor 3/4)",
+      "target_child_id": "enc_001",
+      "entity_parent": "enc_011",
+      "entity_kind": "connector",
+      "connector_id": "con_045",
+      "connector_type": "molex_minifit_jr",
+      "pin_count": 4,
+      "tags": [
+        "bundle:internal"
+      ],
+      "properties": {
+        "notes": "CCM PCB connector J18."
+      }
+    },
+    {
+      "id": "port_con_168",
+      "name": "Inverter HV (3p, U/V/W)",
+      "target_child_id": "enc_003",
+      "entity_parent": "enc_093",
+      "entity_kind": "connector",
+      "connector_id": "con_168",
+      "connector_type": "generic_multipin",
+      "tags": [
+        "system:ts"
+      ],
+      "properties": {
+        "notes": "Inverter HV phase output (1=U, 2=V, 3=W). Real PN TBC."
+      },
+      "pin_count": 3
+    },
+    {
+      "id": "port_con_117",
+      "name": "Charge Board 12V Output (to Car)",
+      "target_child_id": "enc_004",
+      "entity_parent": "enc_060",
+      "entity_kind": "connector",
+      "connector_id": "con_117",
+      "connector_type": "molex_minifit_jr",
+      "pin_count": 4,
+      "tags": [
+        "system:charging",
+        "status:needs-verification"
+      ],
+      "properties": {
+        "notes": "Charge-board always-on / charge-enable 12V feed to the car."
+      }
+    },
+    {
+      "id": "port_con_173",
+      "name": "Precharge/Discharge LV (2p)",
+      "target_child_id": "enc_003",
+      "entity_parent": "enc_048",
+      "entity_kind": "connector",
+      "connector_id": "con_173",
+      "connector_type": "molex_minifit_jr",
+      "pin_count": 2,
+      "tags": [
+        "bundle:Accu_Internal",
+        "system:ts",
+        "status:needs-verification"
+      ],
+      "properties": {
+        "notes": "Precharge/Discharge board LV input \u2014 fed by PCC J11 / Charge Board."
+      }
+    },
+    {
+      "id": "port_con_174",
+      "name": "Orion BMS Main (23p, placeholder)",
+      "target_child_id": "enc_003",
+      "entity_parent": "enc_042",
+      "entity_kind": "connector",
+      "connector_id": "con_174",
+      "connector_type": "generic_multipin",
+      "pin_count": 23,
+      "tags": [
+        "system:bms",
+        "status:needs-verification"
+      ],
+      "properties": {
+        "notes": "Orion BMS 2 main I/O. Placeholder pinout: 1=12V_KEY, 2=12V_ALWAYS, 3=GND, 4=CAN_H, 5=CAN_L, 6=CHG_ENABLE, 7=DISCH_ENABLE, 8=READY, 9..23=MULTI_IO. Confirm against Orion BMS 2 datasheet."
+      }
+    },
+    {
+      "id": "port_con_002",
+      "name": "FOC-C2 (Footwell)",
+      "target_child_id": "enc_001",
+      "entity_parent": "enc_001",
+      "entity_kind": "connector",
+      "connector_id": "con_002",
+      "connector_type": "deutsch_dt",
+      "pin_count": 12,
+      "keying": "A",
+      "tags": [
+        "bundle:EXT_H2"
+      ],
+      "properties": {
+        "notes": "Front-of-car bulkhead C2. DT04-12PA-L012 flanged."
+      }
+    },
+    {
+      "id": "port_con_182",
+      "name": "Placeholder Cooling Harness",
+      "target_child_id": "enc_001",
+      "entity_parent": "enc_001",
+      "entity_kind": "connector",
+      "connector_id": "con_182",
+      "connector_type": "deutsch_dt",
+      "pin_count": 6,
+      "tags": [
+        "system:cooling",
+        "status:needs-fixing"
+      ],
+      "properties": {
+        "notes": "Placeholder FOC cooling harness; random pin assignment needs fixing."
+      }
+    }
+  ]
+}

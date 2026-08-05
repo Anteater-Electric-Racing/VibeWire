@@ -1,0 +1,1580 @@
+[
+  {
+    "id": "sig_12V",
+    "name": "12V",
+    "tags": [],
+    "properties": {}
+  },
+  {
+    "id": "sig_12V_ACCU",
+    "name": "12V_ACCU",
+    "tags": [],
+    "properties": {}
+  },
+  {
+    "id": "sig_12V_BRK_LT",
+    "name": "12V_BRK_LT",
+    "tags": [],
+    "properties": {
+      "description": "12V_BRK-LT"
+    }
+  },
+  {
+    "id": "sig_12V_BUS",
+    "name": "12V_BUS",
+    "tags": [],
+    "properties": {
+      "description": "12V BUS"
+    }
+  },
+  {
+    "id": "sig_12V_INV",
+    "name": "12V_INV",
+    "tags": [],
+    "properties": {}
+  },
+  {
+    "id": "sig_12V_PLUS",
+    "name": "12V_PLUS",
+    "tags": [],
+    "properties": {
+      "description": "12V+"
+    }
+  },
+  {
+    "id": "sig_12V_SWITCH",
+    "name": "12V_SWITCH",
+    "tags": [],
+    "properties": {
+      "description": "12V Switch"
+    }
+  },
+  {
+    "id": "sig_12V_TSL",
+    "name": "12V_TSL",
+    "tags": [],
+    "properties": {}
+  },
+  {
+    "id": "sig_24V_LV_BATT",
+    "name": "24V_LV_BATT",
+    "tags": [],
+    "properties": {
+      "description": "24V LV Batt -"
+    }
+  },
+  {
+    "id": "sig_24V_LV_BATT_PLUS",
+    "name": "24V_LV_BATT_PLUS",
+    "tags": [],
+    "properties": {
+      "description": "24V LV Batt +"
+    }
+  },
+  {
+    "id": "sig_24V_MINUS",
+    "name": "24V_MINUS",
+    "tags": [],
+    "properties": {
+      "description": "24V-"
+    }
+  },
+  {
+    "id": "sig_24V_PLUS",
+    "name": "24V_PLUS",
+    "tags": [],
+    "properties": {
+      "description": "24V+"
+    }
+  },
+  {
+    "id": "sig_3_3V",
+    "name": "3_3V",
+    "tags": [],
+    "properties": {
+      "description": "3.3V"
+    }
+  },
+  {
+    "id": "sig_3_3V_READY_TO_DRIVE_BUTTON",
+    "name": "3_3V_READY_TO_DRIVE_BUTTON",
+    "tags": [],
+    "properties": {
+      "description": "3.3V_Ready to Drive Button"
+    }
+  },
+  {
+    "id": "sig_5V_FOR_GPIO_PIN_5",
+    "name": "5V_FOR_GPIO_PIN_5",
+    "tags": [],
+    "properties": {
+      "description": "5V for GPIO pin 5"
+    }
+  },
+  {
+    "id": "sig_ACCUMULATOR_HV_OUT",
+    "name": "ACCUMULATOR_HV_OUT",
+    "tags": [],
+    "properties": {
+      "description": "Accumulator HV out"
+    }
+  },
+  {
+    "id": "sig_ACC_PED_1",
+    "name": "ACC_PED_1",
+    "tags": [],
+    "properties": {
+      "description": "acc_ped_1"
+    }
+  },
+  {
+    "id": "sig_ACC_PED_2",
+    "name": "ACC_PED_2",
+    "tags": [],
+    "properties": {
+      "description": "acc_ped_2"
+    }
+  },
+  {
+    "id": "sig_AIR_SHUTDOWN_IN",
+    "name": "AIR_SHUTDOWN_IN",
+    "tags": [],
+    "properties": {}
+  },
+  {
+    "id": "sig_APPS1_IN",
+    "name": "APPS1_IN",
+    "tags": [],
+    "properties": {}
+  },
+  {
+    "id": "sig_APPS1_OUT",
+    "name": "APPS1_OUT",
+    "tags": [],
+    "properties": {}
+  },
+  {
+    "id": "sig_APPS2_IN",
+    "name": "APPS2_IN",
+    "tags": [],
+    "properties": {}
+  },
+  {
+    "id": "sig_APPS2_OUT",
+    "name": "APPS2_OUT",
+    "tags": [],
+    "properties": {}
+  },
+  {
+    "id": "sig_BATTERY_12V",
+    "name": "BATTERY_12V",
+    "tags": [],
+    "properties": {
+      "description": "Battery_12V"
+    }
+  },
+  {
+    "id": "sig_BATTERY_GND",
+    "name": "BATTERY_GND",
+    "tags": [],
+    "properties": {
+      "description": "Battery_GND"
+    }
+  },
+  {
+    "id": "sig_BMS_FAULT",
+    "name": "BMS_FAULT",
+    "tags": [],
+    "properties": {
+      "description": "BMS Fault"
+    }
+  },
+  {
+    "id": "sig_BMS_LED_PLUS",
+    "name": "BMS_LED_PLUS",
+    "tags": [],
+    "properties": {
+      "description": "BMS LED+"
+    }
+  },
+  {
+    "id": "sig_BMS_RESET",
+    "name": "BMS_RESET",
+    "tags": [],
+    "properties": {}
+  },
+  {
+    "id": "sig_BMS_RESET_MINUS",
+    "name": "BMS_RESET_MINUS",
+    "tags": [],
+    "properties": {
+      "description": "BMS Reset-"
+    }
+  },
+  {
+    "id": "sig_BPS1_5V",
+    "name": "BPS1_5V",
+    "tags": [],
+    "properties": {}
+  },
+  {
+    "id": "sig_BPS1_GND",
+    "name": "BPS1_GND",
+    "tags": [],
+    "properties": {}
+  },
+  {
+    "id": "sig_BPS1_IN",
+    "name": "BPS1_IN",
+    "tags": [],
+    "properties": {}
+  },
+  {
+    "id": "sig_BPS1_OUT",
+    "name": "BPS1_OUT",
+    "tags": [],
+    "properties": {}
+  },
+  {
+    "id": "sig_BPS2_5V",
+    "name": "BPS2_5V",
+    "tags": [],
+    "properties": {}
+  },
+  {
+    "id": "sig_BPS2_GND",
+    "name": "BPS2_GND",
+    "tags": [],
+    "properties": {}
+  },
+  {
+    "id": "sig_BPS2_IN",
+    "name": "BPS2_IN",
+    "tags": [],
+    "properties": {}
+  },
+  {
+    "id": "sig_BPS2_OUT",
+    "name": "BPS2_OUT",
+    "tags": [],
+    "properties": {}
+  },
+  {
+    "id": "sig_BRAKELIGHT",
+    "name": "BRAKELIGHT",
+    "tags": [],
+    "properties": {}
+  },
+  {
+    "id": "sig_BRAKE_1",
+    "name": "BRAKE_1",
+    "tags": [],
+    "properties": {
+      "description": "brake_1"
+    }
+  },
+  {
+    "id": "sig_BRAKE_2",
+    "name": "BRAKE_2",
+    "tags": [],
+    "properties": {
+      "description": "brake_2"
+    }
+  },
+  {
+    "id": "sig_BRAKE_LIGHT",
+    "name": "BRAKE_LIGHT",
+    "tags": [],
+    "properties": {
+      "description": "brake_light"
+    }
+  },
+  {
+    "id": "sig_BRK_LT",
+    "name": "BRK_LT",
+    "tags": [],
+    "properties": {
+      "description": "BRK-LT"
+    }
+  },
+  {
+    "id": "sig_BRK_LT_12V",
+    "name": "BRK_LT_12V",
+    "tags": [],
+    "properties": {
+      "description": "BRK-LT_12V"
+    }
+  },
+  {
+    "id": "sig_BSP1_GND",
+    "name": "BSP1_GND",
+    "tags": [],
+    "properties": {}
+  },
+  {
+    "id": "sig_BSPD_B_IN",
+    "name": "BSPD_B_IN",
+    "tags": [],
+    "properties": {}
+  },
+  {
+    "id": "sig_BSPD_LED_PLUS",
+    "name": "BSPD_LED_PLUS",
+    "tags": [],
+    "properties": {
+      "description": "BSPD LED+"
+    }
+  },
+  {
+    "id": "sig_BSPD_RESET_MINUS",
+    "name": "BSPD_RESET_MINUS",
+    "tags": [],
+    "properties": {
+      "description": "BSPD Reset-"
+    }
+  },
+  {
+    "id": "sig_CAN1_INV_H",
+    "name": "CAN1_INV_H",
+    "tags": [],
+    "properties": {}
+  },
+  {
+    "id": "sig_CAN1_INV_L",
+    "name": "CAN1_INV_L",
+    "tags": [],
+    "properties": {}
+  },
+  {
+    "id": "sig_CANH_1",
+    "name": "CANH_1",
+    "tags": [],
+    "properties": {}
+  },
+  {
+    "id": "sig_CANH_2",
+    "name": "CANH_2",
+    "tags": [],
+    "properties": {}
+  },
+  {
+    "id": "sig_CANL_1",
+    "name": "CANL_1",
+    "tags": [],
+    "properties": {}
+  },
+  {
+    "id": "sig_CANL_2",
+    "name": "CANL_2",
+    "tags": [],
+    "properties": {}
+  },
+  {
+    "id": "sig_CAN_ACC_H",
+    "name": "CAN_ACC_H",
+    "tags": [],
+    "properties": {
+      "description": "CAN_ACC high"
+    }
+  },
+  {
+    "id": "sig_CAN_ACC_L",
+    "name": "CAN_ACC_L",
+    "tags": [],
+    "properties": {
+      "description": "CAN_ACC low"
+    }
+  },
+  {
+    "id": "sig_CAN_BMS_H",
+    "name": "CAN_BMS_H",
+    "tags": [],
+    "properties": {}
+  },
+  {
+    "id": "sig_CAN_BMS_L",
+    "name": "CAN_BMS_L",
+    "tags": [],
+    "properties": {}
+  },
+  {
+    "id": "sig_CAN_EM_H",
+    "name": "CAN_EM_H",
+    "tags": [],
+    "properties": {}
+  },
+  {
+    "id": "sig_CAN_EM_L",
+    "name": "CAN_EM_L",
+    "tags": [],
+    "properties": {}
+  },
+  {
+    "id": "sig_CAN_INV_H",
+    "name": "CAN_INV_H",
+    "tags": [],
+    "properties": {}
+  },
+  {
+    "id": "sig_CAN_INV_L",
+    "name": "CAN_INV_L",
+    "tags": [],
+    "properties": {}
+  },
+  {
+    "id": "sig_CCM_12V",
+    "name": "CCM_12V",
+    "tags": [],
+    "properties": {}
+  },
+  {
+    "id": "sig_CCM_24V",
+    "name": "CCM_24V",
+    "tags": [],
+    "properties": {}
+  },
+  {
+    "id": "sig_CCM_3V3",
+    "name": "CCM_3V3",
+    "tags": [],
+    "properties": {}
+  },
+  {
+    "id": "sig_CCM_5V",
+    "name": "CCM_5V",
+    "tags": [],
+    "properties": {}
+  },
+  {
+    "id": "sig_CCM_FDBK",
+    "name": "CCM_FDBK",
+    "tags": [],
+    "properties": {}
+  },
+  {
+    "id": "sig_CCM_GND",
+    "name": "CCM_GND",
+    "tags": [],
+    "properties": {}
+  },
+  {
+    "id": "sig_CHG_12V_MINUS",
+    "name": "CHG_12V_MINUS",
+    "tags": [],
+    "properties": {}
+  },
+  {
+    "id": "sig_CHG_12V_PLUS",
+    "name": "CHG_12V_PLUS",
+    "tags": [],
+    "properties": {}
+  },
+  {
+    "id": "sig_CHG_ALWAYS_ON_12V",
+    "name": "CHG_ALWAYS_ON_12V",
+    "tags": [],
+    "properties": {}
+  },
+  {
+    "id": "sig_CHG_BOX_12V_BATT",
+    "name": "CHG_BOX_12V_BATT",
+    "tags": [],
+    "properties": {}
+  },
+  {
+    "id": "sig_CHG_ENABLE_12V",
+    "name": "CHG_ENABLE_12V",
+    "tags": [],
+    "properties": {}
+  },
+  {
+    "id": "sig_COOL_FAN_PWR",
+    "name": "COOL_FAN_PWR",
+    "tags": [],
+    "properties": {}
+  },
+  {
+    "id": "sig_COOL_PUMP_PWR",
+    "name": "COOL_PUMP_PWR",
+    "tags": [],
+    "properties": {}
+  },
+  {
+    "id": "sig_CURR_5V",
+    "name": "CURR_5V",
+    "tags": [],
+    "properties": {}
+  },
+  {
+    "id": "sig_CURR_GND",
+    "name": "CURR_GND",
+    "tags": [],
+    "properties": {
+      "description": "CURR__GND"
+    }
+  },
+  {
+    "id": "sig_CURR_IN",
+    "name": "CURR_IN",
+    "tags": [],
+    "properties": {
+      "description": "CURR__IN"
+    }
+  },
+  {
+    "id": "sig_DISCH_ENABLE_12V",
+    "name": "DISCH_ENABLE_12V",
+    "tags": [],
+    "properties": {}
+  },
+  {
+    "id": "sig_D_INPUT_1_12V_KS",
+    "name": "D_INPUT_1_12V_KS",
+    "tags": [],
+    "properties": {}
+  },
+  {
+    "id": "sig_ES_CKP_IN_RTD_OUT",
+    "name": "ES_CKP_IN_RTD_OUT",
+    "tags": [],
+    "properties": {
+      "description": "ES-CKP_IN (RTD_OUT)"
+    }
+  },
+  {
+    "id": "sig_ES_LT_IN_INT_OUT",
+    "name": "ES_LT_IN_INT_OUT",
+    "tags": [],
+    "properties": {
+      "description": "ES-LT_IN (INT_OUT)"
+    }
+  },
+  {
+    "id": "sig_ES_RT_IN_ES_LT_OUT",
+    "name": "ES_RT_IN_ES_LT_OUT",
+    "tags": [],
+    "properties": {
+      "description": "ES-RT_IN (ES-LT_OUT)"
+    }
+  },
+  {
+    "id": "sig_FAN_PLUS",
+    "name": "FAN_PLUS",
+    "tags": [],
+    "properties": {
+      "description": "Fan+"
+    }
+  },
+  {
+    "id": "sig_FAN_PWM",
+    "name": "FAN_PWM",
+    "tags": [],
+    "properties": {
+      "description": "Fan_PWM"
+    }
+  },
+  {
+    "id": "sig_FAULT",
+    "name": "FAULT",
+    "tags": [],
+    "properties": {
+      "description": "Fault"
+    }
+  },
+  {
+    "id": "sig_FUSED_TS_MINUS_1_IMD",
+    "name": "FUSED_TS_MINUS_1_IMD",
+    "tags": [],
+    "properties": {}
+  },
+  {
+    "id": "sig_FUSED_TS_MINUS_2_RTML",
+    "name": "FUSED_TS_MINUS_2_RTML",
+    "tags": [],
+    "properties": {}
+  },
+  {
+    "id": "sig_FUSED_TS_MINUS_3_HVIND",
+    "name": "FUSED_TS_MINUS_3_HVIND",
+    "tags": [],
+    "properties": {}
+  },
+  {
+    "id": "sig_FUSED_TS_PLUS_1_IMD",
+    "name": "FUSED_TS_PLUS_1_IMD",
+    "tags": [],
+    "properties": {}
+  },
+  {
+    "id": "sig_FUSED_TS_PLUS_2_RTML",
+    "name": "FUSED_TS_PLUS_2_RTML",
+    "tags": [],
+    "properties": {}
+  },
+  {
+    "id": "sig_FUSED_TS_PLUS_3_HVIND",
+    "name": "FUSED_TS_PLUS_3_HVIND",
+    "tags": [],
+    "properties": {}
+  },
+  {
+    "id": "sig_FUSED_TS_PLUS_4_EM",
+    "name": "FUSED_TS_PLUS_4_EM",
+    "tags": [],
+    "properties": {}
+  },
+  {
+    "id": "sig_GLV_GND",
+    "name": "GLV_GND",
+    "tags": [],
+    "properties": {}
+  },
+  {
+    "id": "sig_GLV_MINUS",
+    "name": "GLV_MINUS",
+    "tags": [],
+    "properties": {}
+  },
+  {
+    "id": "sig_GLV_PLUS",
+    "name": "GLV_PLUS",
+    "tags": [],
+    "properties": {}
+  },
+  {
+    "id": "sig_GND",
+    "name": "GND",
+    "tags": [],
+    "properties": {}
+  },
+  {
+    "id": "sig_GND_ACCU",
+    "name": "GND_ACCU",
+    "tags": [],
+    "properties": {}
+  },
+  {
+    "id": "sig_GND_AT_GPIO_6",
+    "name": "GND_AT_GPIO_6",
+    "tags": [],
+    "properties": {
+      "description": "GND at GPIO 6"
+    }
+  },
+  {
+    "id": "sig_GND_BRK_LT",
+    "name": "GND_BRK_LT",
+    "tags": [],
+    "properties": {
+      "description": "GND_BRK-LT"
+    }
+  },
+  {
+    "id": "sig_GND_GLVMP",
+    "name": "GND_GLVMP",
+    "tags": [],
+    "properties": {}
+  },
+  {
+    "id": "sig_GND_INV",
+    "name": "GND_INV",
+    "tags": [],
+    "properties": {}
+  },
+  {
+    "id": "sig_GPIO1",
+    "name": "GPIO1",
+    "tags": [],
+    "properties": {
+      "description": "gpio1"
+    }
+  },
+  {
+    "id": "sig_GPIO2",
+    "name": "GPIO2",
+    "tags": [],
+    "properties": {
+      "description": "gpio2"
+    }
+  },
+  {
+    "id": "sig_GPIO3",
+    "name": "GPIO3",
+    "tags": [],
+    "properties": {
+      "description": "gpio3"
+    }
+  },
+  {
+    "id": "sig_GPIO4",
+    "name": "GPIO4",
+    "tags": [],
+    "properties": {
+      "description": "gpio4"
+    }
+  },
+  {
+    "id": "sig_HVB_12V",
+    "name": "HVB_12V",
+    "tags": [],
+    "properties": {}
+  },
+  {
+    "id": "sig_HVB_GND",
+    "name": "HVB_GND",
+    "tags": [],
+    "properties": {}
+  },
+  {
+    "id": "sig_HVIL_LOOP",
+    "name": "HVIL_LOOP",
+    "tags": [],
+    "properties": {}
+  },
+  {
+    "id": "sig_HV_MINUS",
+    "name": "HV_MINUS",
+    "tags": [],
+    "properties": {
+      "description": "HV-"
+    }
+  },
+  {
+    "id": "sig_HV_MS_MINUS",
+    "name": "HV_MS_MINUS",
+    "tags": [],
+    "properties": {
+      "description": "HV MS-"
+    }
+  },
+  {
+    "id": "sig_HV_MS_PLUS",
+    "name": "HV_MS_PLUS",
+    "tags": [],
+    "properties": {
+      "description": "HV MS+"
+    }
+  },
+  {
+    "id": "sig_HV_PLUS",
+    "name": "HV_PLUS",
+    "tags": [],
+    "properties": {
+      "description": "HV+"
+    }
+  },
+  {
+    "id": "sig_I2C_SCL",
+    "name": "I2C_SCL",
+    "tags": [],
+    "properties": {
+      "description": "i2c_SCL"
+    }
+  },
+  {
+    "id": "sig_I2C_SDA",
+    "name": "I2C_SDA",
+    "tags": [],
+    "properties": {
+      "description": "i2c_SDA"
+    }
+  },
+  {
+    "id": "sig_IMD_FAULT",
+    "name": "IMD_FAULT",
+    "tags": [],
+    "properties": {}
+  },
+  {
+    "id": "sig_IMD_LED_PLUS",
+    "name": "IMD_LED_PLUS",
+    "tags": [],
+    "properties": {
+      "description": "IMD LED+"
+    }
+  },
+  {
+    "id": "sig_IMD_RESET_IN",
+    "name": "IMD_RESET_IN",
+    "tags": [],
+    "properties": {
+      "description": "IMD Reset in"
+    }
+  },
+  {
+    "id": "sig_IMD_RESET_MINUS",
+    "name": "IMD_RESET_MINUS",
+    "tags": [],
+    "properties": {
+      "description": "IMD Reset-"
+    }
+  },
+  {
+    "id": "sig_IMD_RESET_OUT",
+    "name": "IMD_RESET_OUT",
+    "tags": [],
+    "properties": {
+      "description": "IMD Reset out"
+    }
+  },
+  {
+    "id": "sig_IMD_RESET_PLUS",
+    "name": "IMD_RESET_PLUS",
+    "tags": [],
+    "properties": {
+      "description": "IMD Reset+"
+    }
+  },
+  {
+    "id": "sig_INT_IN_ES_CKP_OUT",
+    "name": "INT_IN_ES_CKP_OUT",
+    "tags": [],
+    "properties": {
+      "description": "INT_IN (ES-CKP_OUT)"
+    }
+  },
+  {
+    "id": "sig_INV_12V",
+    "name": "INV_12V",
+    "tags": [],
+    "properties": {}
+  },
+  {
+    "id": "sig_INV_GND",
+    "name": "INV_GND",
+    "tags": [],
+    "properties": {}
+  },
+  {
+    "id": "sig_IR_MINUS_GND",
+    "name": "IR_MINUS_GND",
+    "tags": [],
+    "properties": {}
+  },
+  {
+    "id": "sig_IR_PLUS_GND",
+    "name": "IR_PLUS_GND",
+    "tags": [],
+    "properties": {}
+  },
+  {
+    "id": "sig_J1772_CC",
+    "name": "J1772_CC",
+    "tags": [],
+    "properties": {}
+  },
+  {
+    "id": "sig_J1772_CP",
+    "name": "J1772_CP",
+    "tags": [],
+    "properties": {}
+  },
+  {
+    "id": "sig_J1772_PE",
+    "name": "J1772_PE",
+    "tags": [],
+    "properties": {}
+  },
+  {
+    "id": "sig_LED_GND",
+    "name": "LED_GND",
+    "tags": [],
+    "properties": {}
+  },
+  {
+    "id": "sig_LIN_POT_1",
+    "name": "LIN_POT_1",
+    "tags": [],
+    "properties": {
+      "description": "lin_pot_1"
+    }
+  },
+  {
+    "id": "sig_LIN_POT_2",
+    "name": "LIN_POT_2",
+    "tags": [],
+    "properties": {
+      "description": "lin_pot_2"
+    }
+  },
+  {
+    "id": "sig_LIN_POT_3",
+    "name": "LIN_POT_3",
+    "tags": [],
+    "properties": {
+      "description": "lin_pot_3"
+    }
+  },
+  {
+    "id": "sig_LIN_POT_4",
+    "name": "LIN_POT_4",
+    "tags": [],
+    "properties": {
+      "description": "lin_pot_4"
+    }
+  },
+  {
+    "id": "sig_LV_BATTERY_GND",
+    "name": "LV_BATTERY_GND",
+    "tags": [],
+    "properties": {
+      "description": "LV Battery GND"
+    }
+  },
+  {
+    "id": "sig_LV_BATT_GND",
+    "name": "LV_BATT_GND",
+    "tags": [],
+    "properties": {
+      "description": "LV_Batt_GND"
+    }
+  },
+  {
+    "id": "sig_LV_MS_CHARGING",
+    "name": "LV_MS_CHARGING",
+    "tags": [],
+    "properties": {
+      "description": "LV MS Charging -"
+    }
+  },
+  {
+    "id": "sig_LV_MS_CHARGING_PLUS",
+    "name": "LV_MS_CHARGING_PLUS",
+    "tags": [],
+    "properties": {
+      "description": "LV MS Charging +"
+    }
+  },
+  {
+    "id": "sig_LV_MS_MINUS",
+    "name": "LV_MS_MINUS",
+    "tags": [],
+    "properties": {
+      "description": "LV MS-"
+    }
+  },
+  {
+    "id": "sig_LV_MS_POST",
+    "name": "LV_MS_POST",
+    "tags": [],
+    "properties": {
+      "description": "LV MS post"
+    }
+  },
+  {
+    "id": "sig_LV_MS_PRE",
+    "name": "LV_MS_PRE",
+    "tags": [],
+    "properties": {
+      "description": "LV MS pre"
+    }
+  },
+  {
+    "id": "sig_MS_HV_MINUS",
+    "name": "MS_HV_MINUS",
+    "tags": [],
+    "properties": {
+      "description": "MS HV-"
+    }
+  },
+  {
+    "id": "sig_ORION_12V_ALWAYS",
+    "name": "ORION_12V_ALWAYS",
+    "tags": [],
+    "properties": {}
+  },
+  {
+    "id": "sig_ORION_12V_KEY",
+    "name": "ORION_12V_KEY",
+    "tags": [],
+    "properties": {}
+  },
+  {
+    "id": "sig_ORION_CHG_ENABLE",
+    "name": "ORION_CHG_ENABLE",
+    "tags": [],
+    "properties": {}
+  },
+  {
+    "id": "sig_ORION_DISCH_ENABLE",
+    "name": "ORION_DISCH_ENABLE",
+    "tags": [],
+    "properties": {}
+  },
+  {
+    "id": "sig_ORION_READY",
+    "name": "ORION_READY",
+    "tags": [],
+    "properties": {}
+  },
+  {
+    "id": "sig_PHASE_U",
+    "name": "PHASE_U",
+    "tags": [],
+    "properties": {}
+  },
+  {
+    "id": "sig_PHASE_V",
+    "name": "PHASE_V",
+    "tags": [],
+    "properties": {}
+  },
+  {
+    "id": "sig_PHASE_W",
+    "name": "PHASE_W",
+    "tags": [],
+    "properties": {}
+  },
+  {
+    "id": "sig_PUMP1_MINUS",
+    "name": "PUMP1_MINUS",
+    "tags": [],
+    "properties": {
+      "description": "Pump1-"
+    }
+  },
+  {
+    "id": "sig_PUMP2_MINUS",
+    "name": "PUMP2_MINUS",
+    "tags": [],
+    "properties": {
+      "description": "Pump2-"
+    }
+  },
+  {
+    "id": "sig_PWM_IN_1",
+    "name": "PWM_IN_1",
+    "tags": [],
+    "properties": {
+      "description": "PWM_in_1"
+    }
+  },
+  {
+    "id": "sig_PWM_IN_2",
+    "name": "PWM_IN_2",
+    "tags": [],
+    "properties": {
+      "description": "PWM_in_2"
+    }
+  },
+  {
+    "id": "sig_READY_POWER",
+    "name": "READY_POWER",
+    "tags": [],
+    "properties": {
+      "description": "Ready Power"
+    }
+  },
+  {
+    "id": "sig_READY_TO_DRIVE_BUTTON",
+    "name": "READY_TO_DRIVE_BUTTON",
+    "tags": [],
+    "properties": {
+      "description": "ready_to_drive_button"
+    }
+  },
+  {
+    "id": "sig_RTDB",
+    "name": "RTDB",
+    "tags": [],
+    "properties": {}
+  },
+  {
+    "id": "sig_RTD_IN_BOTS_OUT",
+    "name": "RTD_IN_BOTS_OUT",
+    "tags": [],
+    "properties": {
+      "description": "RTD_IN (BOTS_OUT)"
+    }
+  },
+  {
+    "id": "sig_RTMB_5V",
+    "name": "RTMB_5V",
+    "tags": [],
+    "properties": {}
+  },
+  {
+    "id": "sig_RTMB_OUT",
+    "name": "RTMB_OUT",
+    "tags": [],
+    "properties": {
+      "description": "RTMB_out"
+    }
+  },
+  {
+    "id": "sig_RTM_LT",
+    "name": "RTM_LT",
+    "tags": [],
+    "properties": {
+      "description": "RTM-LT"
+    }
+  },
+  {
+    "id": "sig_RTM_OUT",
+    "name": "RTM_OUT",
+    "tags": [],
+    "properties": {}
+  },
+  {
+    "id": "sig_RTM_SIG",
+    "name": "RTM_SIG",
+    "tags": [],
+    "properties": {}
+  },
+  {
+    "id": "sig_SCREEN_CLK",
+    "name": "SCREEN_CLK",
+    "tags": [],
+    "properties": {
+      "description": "Screen_CLK"
+    }
+  },
+  {
+    "id": "sig_SCREEN_CS",
+    "name": "SCREEN_CS",
+    "tags": [],
+    "properties": {
+      "description": "Screen_CS"
+    }
+  },
+  {
+    "id": "sig_SCREEN_DC",
+    "name": "SCREEN_DC",
+    "tags": [],
+    "properties": {
+      "description": "Screen_DC"
+    }
+  },
+  {
+    "id": "sig_SCREEN_DIN",
+    "name": "SCREEN_DIN",
+    "tags": [],
+    "properties": {
+      "description": "Screen_DIN"
+    }
+  },
+  {
+    "id": "sig_SCREEN_GND",
+    "name": "SCREEN_GND",
+    "tags": [],
+    "properties": {
+      "description": "Screen_GND"
+    }
+  },
+  {
+    "id": "sig_SCREEN_RST",
+    "name": "SCREEN_RST",
+    "tags": [],
+    "properties": {
+      "description": "Screen_RST"
+    }
+  },
+  {
+    "id": "sig_SDC_CHG_DAISY",
+    "name": "SDC_CHG_DAISY",
+    "tags": [],
+    "properties": {}
+  },
+  {
+    "id": "sig_SDC_IN_BOTS_IN",
+    "name": "SDC_IN_BOTS_IN",
+    "tags": [],
+    "properties": {
+      "description": "SDC IN (BOTS_IN)"
+    }
+  },
+  {
+    "id": "sig_SENSOR_SUPPLY_GND",
+    "name": "SENSOR_SUPPLY_GND",
+    "tags": [],
+    "properties": {
+      "description": "Sensor supply GND"
+    }
+  },
+  {
+    "id": "sig_SENSOR_SUPPLY_V_PLUS_PLUS5VDC",
+    "name": "SENSOR_SUPPLY_V_PLUS_PLUS5VDC",
+    "tags": [],
+    "properties": {
+      "description": "Sensor supply V+ (+5VDC)"
+    }
+  },
+  {
+    "id": "sig_SPEAKER_IN",
+    "name": "SPEAKER_IN",
+    "tags": [],
+    "properties": {}
+  },
+  {
+    "id": "sig_SPEAKER_MINUS",
+    "name": "SPEAKER_MINUS",
+    "tags": [],
+    "properties": {
+      "description": "Speaker-"
+    }
+  },
+  {
+    "id": "sig_SPEAKER_PLUS",
+    "name": "SPEAKER_PLUS",
+    "tags": [],
+    "properties": {
+      "description": "Speaker+"
+    }
+  },
+  {
+    "id": "sig_TEMPERATURE_SENSOR_PIN_1",
+    "name": "TEMPERATURE_SENSOR_PIN_1",
+    "tags": [],
+    "properties": {
+      "description": "Temperature sensor pin 1"
+    }
+  },
+  {
+    "id": "sig_TEMPERATURE_SENSOR_PIN_2",
+    "name": "TEMPERATURE_SENSOR_PIN_2",
+    "tags": [],
+    "properties": {
+      "description": "Temperature sensor pin 2"
+    }
+  },
+  {
+    "id": "sig_THERM1_PLUS",
+    "name": "THERM1_PLUS",
+    "tags": [],
+    "properties": {}
+  },
+  {
+    "id": "sig_THERM2_PLUS",
+    "name": "THERM2_PLUS",
+    "tags": [],
+    "properties": {}
+  },
+  {
+    "id": "sig_THERM3_PLUS",
+    "name": "THERM3_PLUS",
+    "tags": [],
+    "properties": {}
+  },
+  {
+    "id": "sig_THERM4_PLUS",
+    "name": "THERM4_PLUS",
+    "tags": [],
+    "properties": {}
+  },
+  {
+    "id": "sig_THERMISTOR1_PLUS",
+    "name": "THERMISTOR1_PLUS",
+    "tags": [],
+    "properties": {
+      "description": "thermistor1+"
+    }
+  },
+  {
+    "id": "sig_THERMISTOR2_PLUS",
+    "name": "THERMISTOR2_PLUS",
+    "tags": [],
+    "properties": {
+      "description": "thermistor2+"
+    }
+  },
+  {
+    "id": "sig_THERMISTOR3_PLUS",
+    "name": "THERMISTOR3_PLUS",
+    "tags": [],
+    "properties": {
+      "description": "thermistor3+"
+    }
+  },
+  {
+    "id": "sig_THERMISTOR4_PLUS",
+    "name": "THERMISTOR4_PLUS",
+    "tags": [],
+    "properties": {
+      "description": "thermistor4+"
+    }
+  },
+  {
+    "id": "sig_THRS1_3_3V",
+    "name": "THRS1_3_3V",
+    "tags": [],
+    "properties": {
+      "description": "THRS1_3.3V"
+    }
+  },
+  {
+    "id": "sig_THRS1_GND",
+    "name": "THRS1_GND",
+    "tags": [],
+    "properties": {}
+  },
+  {
+    "id": "sig_THRS1_IN",
+    "name": "THRS1_IN",
+    "tags": [],
+    "properties": {}
+  },
+  {
+    "id": "sig_THRS1_OUT",
+    "name": "THRS1_OUT",
+    "tags": [],
+    "properties": {}
+  },
+  {
+    "id": "sig_THRS2_3_3V",
+    "name": "THRS2_3_3V",
+    "tags": [],
+    "properties": {
+      "description": "THRS2_3.3V"
+    }
+  },
+  {
+    "id": "sig_THRS2_GND",
+    "name": "THRS2_GND",
+    "tags": [],
+    "properties": {}
+  },
+  {
+    "id": "sig_THRS2_IN",
+    "name": "THRS2_IN",
+    "tags": [],
+    "properties": {}
+  },
+  {
+    "id": "sig_THRS2_OUT",
+    "name": "THRS2_OUT",
+    "tags": [],
+    "properties": {}
+  },
+  {
+    "id": "sig_TSMP_MINUS",
+    "name": "TSMP_MINUS",
+    "tags": [],
+    "properties": {}
+  },
+  {
+    "id": "sig_TSMP_PLUS",
+    "name": "TSMP_PLUS",
+    "tags": [],
+    "properties": {}
+  },
+  {
+    "id": "sig_TSSI_12V",
+    "name": "TSSI_12V",
+    "tags": [],
+    "properties": {}
+  },
+  {
+    "id": "sig_TSSI_BYP",
+    "name": "TSSI_BYP",
+    "tags": [],
+    "properties": {}
+  },
+  {
+    "id": "sig_TSSI_GREEN",
+    "name": "TSSI_GREEN",
+    "tags": [],
+    "properties": {
+      "description": "TSSI_Green"
+    }
+  },
+  {
+    "id": "sig_TSSI_GRN_LT",
+    "name": "TSSI_GRN_LT",
+    "tags": [],
+    "properties": {
+      "description": "TSSI_GRN-LT"
+    }
+  },
+  {
+    "id": "sig_TSSI_RED",
+    "name": "TSSI_RED",
+    "tags": [],
+    "properties": {
+      "description": "TSSI_Red"
+    }
+  },
+  {
+    "id": "sig_TSSI_RED_LT",
+    "name": "TSSI_RED_LT",
+    "tags": [],
+    "properties": {
+      "description": "TSSI_RED-LT"
+    }
+  },
+  {
+    "id": "sig_TS_MINUS",
+    "name": "TS_MINUS",
+    "tags": [],
+    "properties": {
+      "description": "TS-"
+    }
+  },
+  {
+    "id": "sig_TS_PLUS",
+    "name": "TS_PLUS",
+    "tags": [],
+    "properties": {
+      "description": "TS+"
+    }
+  },
+  {
+    "id": "sig_VIN",
+    "name": "VIN",
+    "tags": [],
+    "properties": {
+      "description": "Vin"
+    }
+  },
+  {
+    "id": "sig_WHEEL_SHOCK1_IN",
+    "name": "WHEEL_SHOCK1_IN",
+    "tags": [],
+    "properties": {}
+  },
+  {
+    "id": "sig_WHEEL_SHOCK1_OUT",
+    "name": "WHEEL_SHOCK1_OUT",
+    "tags": [],
+    "properties": {}
+  },
+  {
+    "id": "sig_WHEEL_SHOCK2_IN",
+    "name": "WHEEL_SHOCK2_IN",
+    "tags": [],
+    "properties": {}
+  },
+  {
+    "id": "sig_WHEEL_SHOCK2_OUT",
+    "name": "WHEEL_SHOCK2_OUT",
+    "tags": [],
+    "properties": {}
+  },
+  {
+    "id": "sig_WHEEL_SHOCK3_IN",
+    "name": "WHEEL_SHOCK3_IN",
+    "tags": [],
+    "properties": {}
+  },
+  {
+    "id": "sig_WHEEL_SHOCK3_OUT",
+    "name": "WHEEL_SHOCK3_OUT",
+    "tags": [],
+    "properties": {}
+  },
+  {
+    "id": "sig_WHEEL_SHOCK4_IN",
+    "name": "WHEEL_SHOCK4_IN",
+    "tags": [],
+    "properties": {}
+  },
+  {
+    "id": "sig_WHEEL_SHOCK4_OUT",
+    "name": "WHEEL_SHOCK4_OUT",
+    "tags": [],
+    "properties": {}
+  },
+  {
+    "id": "sig_WS1_5V",
+    "name": "WS1_5V",
+    "tags": [],
+    "properties": {}
+  },
+  {
+    "id": "sig_WS1_GND",
+    "name": "WS1_GND",
+    "tags": [],
+    "properties": {}
+  },
+  {
+    "id": "sig_WS1_IN",
+    "name": "WS1_IN",
+    "tags": [],
+    "properties": {}
+  },
+  {
+    "id": "sig_WS2_5V",
+    "name": "WS2_5V",
+    "tags": [],
+    "properties": {}
+  },
+  {
+    "id": "sig_WS2_GND",
+    "name": "WS2_GND",
+    "tags": [],
+    "properties": {}
+  },
+  {
+    "id": "sig_WS2_IN",
+    "name": "WS2_IN",
+    "tags": [],
+    "properties": {}
+  },
+  {
+    "id": "sig_WS3_5V",
+    "name": "WS3_5V",
+    "tags": [],
+    "properties": {}
+  },
+  {
+    "id": "sig_WS3_GND",
+    "name": "WS3_GND",
+    "tags": [],
+    "properties": {}
+  },
+  {
+    "id": "sig_WS3_IN",
+    "name": "WS3_IN",
+    "tags": [],
+    "properties": {}
+  },
+  {
+    "id": "sig_WS4_5V",
+    "name": "WS4_5V",
+    "tags": [],
+    "properties": {}
+  },
+  {
+    "id": "sig_WS4_GND",
+    "name": "WS4_GND",
+    "tags": [],
+    "properties": {}
+  },
+  {
+    "id": "sig_WS4_IN",
+    "name": "WS4_IN",
+    "tags": [],
+    "properties": {}
+  },
+  {
+    "id": "sig_BOTS_OUT_INT_IN",
+    "name": "BOTS_OUT_INT_IN",
+    "tags": [],
+    "properties": {
+      "description": "BOTS output to inertia-switch input"
+    }
+  },
+  {
+    "id": "sig_COOL_PUMP_PWM_LS",
+    "name": "COOL_PUMP_PWM_LS",
+    "tags": [],
+    "properties": {
+      "description": "Cooling-pump PWM low-side control"
+    }
+  },
+  {
+    "id": "sig_HVIL_IN",
+    "name": "HVIL_IN",
+    "tags": [],
+    "properties": {
+      "description": "Inverter HV interlock input placeholder"
+    }
+  },
+  {
+    "id": "sig_HVIL_OUT",
+    "name": "HVIL_OUT",
+    "tags": [],
+    "properties": {
+      "description": "Inverter HV interlock output placeholder"
+    }
+  }
+]

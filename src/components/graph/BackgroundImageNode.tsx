@@ -16,6 +16,7 @@ export const BackgroundImageNode = memo(function BackgroundImageNode({
 }: NodeProps<BackgroundImageNodeType>) {
   const updateBackground = useHarnessStore((s) => s.updateBackground);
   const removeBackground = useHarnessStore((s) => s.removeBackground);
+  const isEditor = useHarnessStore((s) => s.session.isEditor);
 
   return (
     <div
@@ -29,7 +30,7 @@ export const BackgroundImageNode = memo(function BackgroundImageNode({
         pointerEvents: data.locked ? 'none' : 'auto',
       }}
     >
-      {!data.locked && (
+      {!data.locked && isEditor && (
         <NodeResizer
           isVisible={selected}
           minWidth={100}
@@ -54,8 +55,9 @@ export const BackgroundImageNode = memo(function BackgroundImageNode({
         style={{ pointerEvents: 'auto' }}
       >
         <button
-          title={data.locked ? 'Unlock to move/resize' : 'Lock position'}
-          className="text-[10px] bg-zinc-900/80 border border-zinc-600 text-zinc-300 hover:text-amber-400 rounded px-1.5 py-0.5 transition-colors opacity-70 hover:opacity-100"
+          disabled={!isEditor}
+          title={isEditor ? (data.locked ? 'Unlock to move/resize' : 'Lock position') : 'Log in to change the background'}
+          className="text-[10px] bg-zinc-900/80 border border-zinc-600 text-zinc-300 hover:text-amber-400 rounded px-1.5 py-0.5 transition-colors opacity-70 hover:opacity-100 disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:text-zinc-300"
           onClick={(e) => {
             e.stopPropagation();
             updateBackground(data.contextKey, { locked: !data.locked });
@@ -64,8 +66,9 @@ export const BackgroundImageNode = memo(function BackgroundImageNode({
           {data.locked ? '🔓' : '🔒'}
         </button>
         <button
-          title="Remove background"
-          className="text-[10px] bg-zinc-900/80 border border-zinc-600 text-zinc-400 hover:text-red-400 rounded px-1.5 py-0.5 transition-colors opacity-70 hover:opacity-100"
+          disabled={!isEditor}
+          title={isEditor ? 'Remove background' : 'Log in to remove the background'}
+          className="text-[10px] bg-zinc-900/80 border border-zinc-600 text-zinc-400 hover:text-red-400 rounded px-1.5 py-0.5 transition-colors opacity-70 hover:opacity-100 disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:text-zinc-400"
           onClick={(e) => {
             e.stopPropagation();
             removeBackground(data.contextKey);

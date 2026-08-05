@@ -7,7 +7,7 @@ import {
 } from '@xyflow/react';
 import { useHarnessStore } from '../../store';
 import {
-  linePath,
+  filletedPolylinePath,
   nearestOnPolyline,
   pointOnRectBoundaryToward,
   type Point,
@@ -161,51 +161,10 @@ function getInteractiveCorners(points: Point[]): Point[] {
   return points.filter((_, index) => isSharpCorner(points, index));
 }
 
-function offsetPolyline(points: Point[], offset: number): string {
-  if (points.length < 2) return '';
-  if (Math.abs(offset) < 0.01) return linePath(points);
-  const result: Point[] = [];
-  for (let i = 0; i < points.length; i++) {
-    let nx: number, ny: number;
-    if (i === 0) {
-      const dx = points[1].x - points[0].x;
-      const dy = points[1].y - points[0].y;
-      const len = Math.hypot(dx, dy) || 1;
-      nx = -dy / len;
-      ny = dx / len;
-    } else if (i === points.length - 1) {
-      const dx = points[i].x - points[i - 1].x;
-      const dy = points[i].y - points[i - 1].y;
-      const len = Math.hypot(dx, dy) || 1;
-      nx = -dy / len;
-      ny = dx / len;
-    } else {
-      const dx1 = points[i].x - points[i - 1].x;
-      const dy1 = points[i].y - points[i - 1].y;
-      const len1 = Math.hypot(dx1, dy1) || 1;
-      const dx2 = points[i + 1].x - points[i].x;
-      const dy2 = points[i + 1].y - points[i].y;
-      const len2 = Math.hypot(dx2, dy2) || 1;
-      nx = (-dy1 / len1 + -dy2 / len2) / 2;
-      ny = (dx1 / len1 + dx2 / len2) / 2;
-      const nlen = Math.hypot(nx, ny);
-      if (nlen < 0.001) {
-        nx = -dy1 / len1;
-        ny = dx1 / len1;
-      } else {
-        nx /= nlen;
-        ny /= nlen;
-      }
-    }
-    result.push({ x: points[i].x + nx * offset, y: points[i].y + ny * offset });
-  }
-  return linePath(result);
-}
-
 export function BundleEdge(props: EdgeProps<BundleEdgeType>) {
   const { id, source: sourceId, target: targetId, sourceX, sourceY, targetX, targetY, data, selected } = props;
 
-  const { screenToFlowPosition } = useReactFlow();
+  const { screenToFlowPosition, setEdges } = useReactFlow();
   const sourceNode = useInternalNode(sourceId);
   const targetNode = useInternalNode(targetId);
   const setSelectedBundle = useHarnessStore((s) => s.setSelectedBundle);
@@ -216,7 +175,9 @@ export function BundleEdge(props: EdgeProps<BundleEdgeType>) {
   const draggingEdgeInfo = useHarnessStore((s) => s.draggingEdgeInfo);
   const setDraggingEdgeInfo = useHarnessStore((s) => s.setDraggingEdgeInfo);
   const pushUndoSnapshot = useHarnessStore((s) => s.pushUndoSnapshot);
+  const commitUndoSnapshot = useHarnessStore((s) => s.commitUndoSnapshot);
   const rawWaypoints = useHarnessStore((s) => s.waypointLayouts[id] ?? EMPTY_WAYPOINTS);
+  const isEditor = useHarnessStore((s) => s.session.isEditor);
 
   const [hovered, setHovered] = useState(false);
   const [dragIdx, setDragIdx] = useState<number | null>(null);
@@ -274,7 +235,6 @@ export function BundleEdge(props: EdgeProps<BundleEdgeType>) {
   }, [sourceRect, targetRect, sourceX, sourceY, targetX, targetY, waypoints]);
 
   const allPoints = [source, ...waypoints, target];
-  const edgePath = linePath(allPoints);
 
   const wireAppearances = data?.wireAppearances ?? Array(wireCount).fill(FALLBACK_WIRE_APPEARANCE);
   const rawTotalW = wireCount * DEFAULT_WIRE_W + Math.max(0, wireCount - 1) * WIRE_GAP;
@@ -283,6 +243,10 @@ export function BundleEdge(props: EdgeProps<BundleEdgeType>) {
   const wireGap = WIRE_GAP * wireScale;
   const wireStep = wireW + wireGap;
   const bundleW = wireCount <= 1 ? wireW : (wireCount - 1) * wireStep + wireW;
+  // Compact bend: clear the innermost wire, but stay tight and circular.
+  const halfBundle = bundleW / 2;
+  const cornerRadius = halfBundle + Math.max(6, wireStep);
+  const edgePath = filletedPolylinePath(allPoints, cornerRadius, 0, halfBundle);
   const strokeWidth = bundleW + 4;
   const hitStrokeWidth = Math.max(20, strokeWidth + 14);
   const cornerHitRadius = Math.max(4, Math.min(8, hitStrokeWidth * 0.2));
@@ -313,14 +277,16 @@ export function BundleEdge(props: EdgeProps<BundleEdgeType>) {
 
   // Delete/Backspace key removes hovered waypoint or junction
   useEffect(() => {
-    if (hoveredWpIdx === null) return;
+    if (!isEditor || hoveredWpIdx === null) return;
     const idx = hoveredWpIdx;
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key !== 'Delete' && e.key !== 'Backspace') return;
+      const target = e.target as HTMLElement | null;
+      if (target?.tagName === 'INPUT' || target?.tagName === 'TEXTAREA' || target?.isContentEditable) return;
       e.preventDefault();
       e.stopPropagation();
-      pushUndoSnapshot();
+      pushUndoSnapshot(`edge:${id}:delete-waypoint`);
 
       const meta = junctionMeta[idx];
       if (meta?.junctionId) {
@@ -333,45 +299,49 @@ export function BundleEdge(props: EdgeProps<BundleEdgeType>) {
         const newWps = rawWaypointsRef.current.filter((_, i) => i !== idx);
         commitWaypoints(newWps);
       }
+      commitUndoSnapshot();
       setHoveredWpIdx(null);
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [hoveredWpIdx, junctionMeta, pushUndoSnapshot, deleteJunction, unlinkEdgeFromJunction, id, commitWaypoints]);
+  }, [hoveredWpIdx, isEditor, junctionMeta, pushUndoSnapshot, commitUndoSnapshot, deleteJunction, unlinkEdgeFromJunction, id, commitWaypoints]);
 
   // Click: select the edge
   const handleHitAreaClick = useCallback(
     (e: React.MouseEvent) => {
       e.stopPropagation();
-      if (!selected && data?.pathIds) setSelectedBundle(data.pathIds);
+      if (!selected && data?.pathIds) {
+        setSelectedBundle({ id, pathIds: data.pathIds });
+      }
     },
-    [selected, data?.pathIds, setSelectedBundle],
+    [selected, id, data?.pathIds, setSelectedBundle],
   );
 
   // Double-click edge body: insert a bend point (only if not over a handle)
   const handlePathDoubleClick = useCallback(
     (e: React.MouseEvent) => {
-      if (!selected) return;
+      if (!isEditor || !selected) return;
       e.stopPropagation();
       e.preventDefault();
-      pushUndoSnapshot();
+      pushUndoSnapshot(`edge:${id}:add-waypoint`);
       const flowPos = screenToFlowPosition({ x: e.clientX, y: e.clientY });
       const idx = findInsertIndex(flowPos);
       const newWps = [...rawWaypointsRef.current];
       newWps.splice(idx, 0, { x: flowPos.x, y: flowPos.y });
       commitWaypoints(newWps);
+      commitUndoSnapshot();
     },
-    [selected, screenToFlowPosition, findInsertIndex, commitWaypoints, pushUndoSnapshot],
+    [isEditor, selected, screenToFlowPosition, findInsertIndex, commitWaypoints, pushUndoSnapshot, commitUndoSnapshot, id],
   );
 
   // Drag an existing regular waypoint
   const handleWaypointDragStart = useCallback(
     (e: React.MouseEvent, resolvedIndex: number) => {
-      if (e.button !== 0) return;
+      if (!isEditor || e.button !== 0) return;
       e.stopPropagation();
       e.preventDefault();
-      pushUndoSnapshot();
+      pushUndoSnapshot(`edge:${id}:move-waypoint:${resolvedIndex}`);
 
       setDragIdx(resolvedIndex);
       const startPt = resolvedWaypoints[resolvedIndex];
@@ -395,6 +365,7 @@ export function BundleEdge(props: EdgeProps<BundleEdgeType>) {
           newWps[resolvedIndex] = { x: dragPosRef.current.x, y: dragPosRef.current.y };
           commitWaypoints(newWps);
         }
+        commitUndoSnapshot();
 
         setDragIdx(null);
         setDragPos(null);
@@ -404,17 +375,17 @@ export function BundleEdge(props: EdgeProps<BundleEdgeType>) {
       document.addEventListener('mousemove', onMove);
       document.addEventListener('mouseup', onUp);
     },
-    [resolvedWaypoints, screenToFlowPosition, commitWaypoints, id,
-      setDraggingEdgeInfo, pushUndoSnapshot],
+    [isEditor, resolvedWaypoints, screenToFlowPosition, commitWaypoints, id,
+      setDraggingEdgeInfo, pushUndoSnapshot, commitUndoSnapshot],
   );
 
   // Drag a junction
   const handleJunctionDragStart = useCallback(
     (e: React.MouseEvent, junctionId: string, resolvedIndex: number) => {
-      if (e.button !== 0) return;
+      if (!isEditor || e.button !== 0) return;
       e.stopPropagation();
       e.preventDefault();
-      pushUndoSnapshot();
+      pushUndoSnapshot(`junction:${junctionId}:move`);
 
       const startPt = resolvedWaypoints[resolvedIndex];
       setDragIdx(resolvedIndex);
@@ -434,6 +405,7 @@ export function BundleEdge(props: EdgeProps<BundleEdgeType>) {
         if (dragPosRef.current) {
           moveJunction(junctionId, dragPosRef.current);
         }
+        commitUndoSnapshot();
         setDragIdx(null);
         setDragPos(null);
         dragPosRef.current = null;
@@ -442,7 +414,7 @@ export function BundleEdge(props: EdgeProps<BundleEdgeType>) {
       document.addEventListener('mousemove', onMove);
       document.addEventListener('mouseup', onUp);
     },
-    [resolvedWaypoints, screenToFlowPosition, moveJunction, pushUndoSnapshot],
+    [isEditor, resolvedWaypoints, screenToFlowPosition, moveJunction, pushUndoSnapshot, commitUndoSnapshot],
   );
 
   // Proximity detection for junction auto-merge
@@ -453,7 +425,7 @@ export function BundleEdge(props: EdgeProps<BundleEdgeType>) {
     return dist < 50;
   })();
 
-  const showHandles = selected || hovered;
+  const showHandles = isEditor && (selected || hovered);
 
   // Label position: offset perpendicular from the midpoint segment
   const labelPos = (() => {
@@ -471,10 +443,28 @@ export function BundleEdge(props: EdgeProps<BundleEdgeType>) {
     return { x: mx + nx * offset, y: my + ny * offset };
   })();
 
+  // Keep the active edge (bend handles included) above crossing harnesses.
+  const elevateEdge = useCallback((elevate: boolean) => {
+    setEdges((eds) =>
+      eds.map((edge) => {
+        if (edge.id !== id) return edge;
+        if (elevate) return { ...edge, zIndex: Math.max(edge.zIndex ?? 0, 1000) };
+        if (edge.selected) return { ...edge, zIndex: 1000 };
+        return { ...edge, zIndex: 0 };
+      }),
+    );
+  }, [id, setEdges]);
+
   return (
     <g
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
+      onMouseEnter={() => {
+        setHovered(true);
+        elevateEdge(true);
+      }}
+      onMouseLeave={() => {
+        setHovered(false);
+        elevateEdge(false);
+      }}
       className="cursor-pointer"
     >
       {/* ── Layer 1: all visuals (no events) ── */}
@@ -505,7 +495,9 @@ export function BundleEdge(props: EdgeProps<BundleEdgeType>) {
 
       {wireAppearances.map((appearance, wi) => {
         const wo = (wi - (wireCount - 1) / 2) * wireStep;
-        const wp = wireCount <= 1 ? edgePath : offsetPolyline(allPoints, wo);
+        const wp = wireCount <= 1
+          ? edgePath
+          : filletedPolylinePath(allPoints, cornerRadius, wo, halfBundle);
         const layers = isNearbyDrag
           ? [{ color: '#f59e0b', width: wireW }]
           : getWireStrokeLayers(appearance ?? FALLBACK_WIRE_APPEARANCE, wireW);
@@ -629,7 +621,7 @@ export function BundleEdge(props: EdgeProps<BundleEdgeType>) {
 
       {/* Junction grab circles — on EVERY edge (not just owner) so the topmost
            edge in SVG paint order always has a grabbable target */}
-      {waypoints.map((wp, i) => {
+      {isEditor && waypoints.map((wp, i) => {
         const meta = junctionMeta[i];
         if (!meta?.junctionId) return null;
         return (

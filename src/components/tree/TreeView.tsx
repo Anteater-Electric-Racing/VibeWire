@@ -1,8 +1,9 @@
 import { useMemo, useState } from 'react';
 import { useHarnessStore } from '../../store';
 import type { Enclosure, Connector, MergePoint } from '../../types';
-import { getConnectorOccupancy } from '../../lib/harness';
+import { formatConnectorOccupancySummary, getConnectorOccupancy } from '../../lib/harness';
 import type { EntityType } from '../../types';
+import { CreateHierarchyEntityModal } from './CreateHierarchyEntityModal';
 
 function matchesQuery(text: string, query: string): boolean {
   return text.toLowerCase().includes(query);
@@ -16,6 +17,7 @@ function TreeEntityActions({ type, id }: { type: Extract<EntityType, 'enclosure'
   const deleteEntity = useHarnessStore((s) => s.deleteEntityCascade);
   const findEntity = useHarnessStore((s) => s.findEntity);
   const renameEntity = useHarnessStore((s) => s.renameEntity);
+  const isEditor = useHarnessStore((s) => s.session.isEditor);
 
   const promptRename = () => {
     const entity = findEntity(type, id);
@@ -46,7 +48,7 @@ function TreeEntityActions({ type, id }: { type: Extract<EntityType, 'enclosure'
       `${impact.mergePointIds.length} merge point`,
       `${impact.pathIds.length} path`,
     ].join(', ');
-    if (window.confirm(`Permanently delete ${id}?\n\nThis will also delete: ${summary}.\n\nThis cannot be undone with normal layout undo.`)) {
+    if (window.confirm(`Permanently delete ${id}?\n\nThis will also delete: ${summary}.\n\nYou can restore it with Undo.`)) {
       deleteEntity(type, id);
     }
   };
@@ -55,8 +57,9 @@ function TreeEntityActions({ type, id }: { type: Extract<EntityType, 'enclosure'
     <span className="ml-auto flex items-center gap-1 shrink-0">
       {editingSurface === 'subsystem' && activeSubsystemId && type !== 'mergePoint' && (
         <button
-          className="text-zinc-500 hover:text-amber-300"
-          title="Add only this item to the active subsystem"
+          disabled={!isEditor}
+          className="text-zinc-500 hover:text-amber-300 disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:text-zinc-500"
+          title={isEditor ? 'Add only this item to the active subsystem' : 'Log in to edit the subsystem'}
           onClick={(event) => {
             event.stopPropagation();
             addEntity(type, id);
@@ -66,8 +69,9 @@ function TreeEntityActions({ type, id }: { type: Extract<EntityType, 'enclosure'
         </button>
       )}
       <button
-        className="text-zinc-500 hover:text-amber-300"
-        title="Rename display name (stable ID is preserved)"
+        disabled={!isEditor}
+        className="text-zinc-500 hover:text-amber-300 disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:text-zinc-500"
+        title={isEditor ? 'Rename display name (stable ID is preserved)' : 'Log in to rename this item'}
         onClick={(event) => {
           event.stopPropagation();
           promptRename();
@@ -76,8 +80,9 @@ function TreeEntityActions({ type, id }: { type: Extract<EntityType, 'enclosure'
         ✎
       </button>
       <button
-        className="text-zinc-600 hover:text-red-400"
-        title="Delete entity and references"
+        disabled={!isEditor}
+        className="text-zinc-600 hover:text-red-400 disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:text-zinc-600"
+        title={isEditor ? 'Delete entity and references' : 'Log in to delete this item'}
         onClick={(event) => {
           event.stopPropagation();
           confirmDelete();
@@ -125,9 +130,18 @@ function ConnectorRow({ connector, depth }: { connector: Connector; depth: numbe
   const selectedItem = useHarnessStore((s) => s.selectedItem);
   const selectItem = useHarnessStore((s) => s.selectItem);
   const harness = useHarnessStore((s) => s.harness);
+  const connectorLibrary = useHarnessStore((s) => s.connectorLibrary);
   const isSelected =
     selectedItem?.type === 'connector' && selectedItem.id === connector.id;
   const occupancy = harness ? getConnectorOccupancy(harness, connector.id) : [];
+  const connectorType = connectorLibrary?.connector_types.find(
+    (type) => type.id === connector.connector_type,
+  );
+  const occupancySummary = formatConnectorOccupancySummary(
+    occupancy.length,
+    connector,
+    connectorType,
+  );
 
   return (
     <>
@@ -151,7 +165,7 @@ function ConnectorRow({ connector, depth }: { connector: Connector; depth: numbe
         </button>
         <span className="font-medium truncate">{connector.name}</span>
         <span className="text-zinc-500 text-[10px] shrink-0">
-          ({occupancy.length} used)
+          ({occupancySummary})
         </span>
         <TreeEntityActions type="connector" id={connector.id} />
       </div>
@@ -197,6 +211,8 @@ function EnclosureRow({
   depth = 0,
   query,
   visibleIds,
+  expandedIds,
+  toggleExpanded,
 }: {
   enclosure: Enclosure;
   allEnclosures: Enclosure[];
@@ -205,8 +221,9 @@ function EnclosureRow({
   depth?: number;
   query: string;
   visibleIds: Set<string>;
+  expandedIds: Set<string>;
+  toggleExpanded: (id: string) => void;
 }) {
-  const [expanded, setExpanded] = useState(false);
   const selectedItem = useHarnessStore((s) => s.selectedItem);
   const selectItem = useHarnessStore((s) => s.selectItem);
   const setDrillDown = useHarnessStore((s) => s.setDrillDown);
@@ -224,7 +241,7 @@ function EnclosureRow({
   );
 
   const isContainer = enclosure.container;
-  const isExpanded = !!query || expanded;
+  const isExpanded = !!query || expandedIds.has(enclosure.id);
 
   const icon = isContainer ? (
     <svg className="w-3.5 h-3.5 text-zinc-500 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -261,7 +278,7 @@ function EnclosureRow({
           className="text-zinc-600 hover:text-zinc-400 text-[9px] w-4 shrink-0"
           onClick={(e) => {
             e.stopPropagation();
-            setExpanded(!isExpanded);
+            toggleExpanded(enclosure.id);
           }}
         >
           {isExpanded ? '▼' : '▶'}
@@ -282,6 +299,8 @@ function EnclosureRow({
               depth={depth + 1}
               query={query}
               visibleIds={visibleIds}
+              expandedIds={expandedIds}
+              toggleExpanded={toggleExpanded}
             />
           ))}
           {directConnectors.map((c) => (
@@ -335,7 +354,10 @@ function buildVisibleIds(
 
 export function TreeView() {
   const harness = useHarnessStore((s) => s.harness);
+  const isEditor = useHarnessStore((s) => s.session.isEditor);
   const [search, setSearch] = useState('');
+  const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(() => new Set());
 
   const query = search.trim().toLowerCase();
 
@@ -357,17 +379,48 @@ export function TreeView() {
   );
 
   const empty = query && rootEnclosures.length === 0 && rootConnectors.length === 0 && rootMergePoints.length === 0;
+  const toggleExpanded = (id: string) => {
+    setExpandedIds((current) => {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+  const revealCreatedParent = (parentId: string | null) => {
+    setSearch('');
+    if (!parentId) return;
+    setExpandedIds((current) => {
+      const next = new Set(current);
+      let currentId: string | null = parentId;
+      while (currentId) {
+        next.add(currentId);
+        currentId = harness.enclosures.find((item) => item.id === currentId)?.parent ?? null;
+      }
+      return next;
+    });
+  };
 
   return (
     <div className="flex flex-col h-full select-none">
-      <div className="px-2 py-1.5 border-b border-zinc-800 shrink-0">
+      <div className="flex items-center gap-1.5 px-2 py-1.5 border-b border-zinc-800 shrink-0">
         <input
           type="search"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Search hierarchy…"
-          className="w-full bg-zinc-950 border border-zinc-700 rounded px-2 py-1 text-[11px] text-zinc-200 placeholder:text-zinc-600 outline-none focus:border-zinc-500"
+          className="min-w-0 flex-1 bg-zinc-950 border border-zinc-700 rounded px-2 py-1 text-[11px] text-zinc-200 placeholder:text-zinc-600 outline-none focus:border-zinc-500"
         />
+        <button
+          type="button"
+          disabled={!isEditor}
+          onClick={() => setCreateModalOpen(true)}
+          title={isEditor ? 'Add a device or enclosure' : 'Log in to add a device or enclosure'}
+          aria-label="Add a device or enclosure"
+          className="flex h-[26px] w-[26px] shrink-0 items-center justify-center rounded border border-zinc-700 bg-zinc-800 text-base leading-none text-zinc-300 transition-colors hover:border-amber-600 hover:bg-amber-950/40 hover:text-amber-300 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-zinc-700 disabled:hover:bg-zinc-800 disabled:hover:text-zinc-300"
+        >
+          +
+        </button>
       </div>
       <div className="flex-1 overflow-y-auto py-1">
         {empty ? (
@@ -383,6 +436,8 @@ export function TreeView() {
                 allMergePoints={harness.mergePoints}
                 query={query}
                 visibleIds={visibleIds}
+                expandedIds={expandedIds}
+                toggleExpanded={toggleExpanded}
               />
             ))}
             {rootMergePoints.map((mergePoint) => (
@@ -401,6 +456,12 @@ export function TreeView() {
           </>
         )}
       </div>
+      {createModalOpen && (
+        <CreateHierarchyEntityModal
+          onClose={() => setCreateModalOpen(false)}
+          onCreated={revealCreatedParent}
+        />
+      )}
     </div>
   );
 }

@@ -15,6 +15,7 @@ export const MergePointNode = memo(function MergePointNode({
   selected,
 }: NodeProps<MergePointNodeType>) {
   const selectItem = useHarnessStore((state) => state.selectItem);
+  const isEditor = useHarnessStore((state) => state.session.isEditor);
 
   return (
     <div
@@ -30,11 +31,13 @@ export const MergePointNode = memo(function MergePointNode({
       <Handle
         type="target"
         position={Position.Left}
+        isConnectable={isEditor}
         className="!w-2 !h-2 !bg-cyan-400 !border-cyan-700"
       />
       <Handle
         type="source"
         position={Position.Right}
+        isConnectable={isEditor}
         className="!w-2 !h-2 !bg-cyan-400 !border-cyan-700"
       />
       <span className="pointer-events-none whitespace-nowrap">{data.label}</span>

@@ -14,6 +14,183 @@ export function linePath(points: Point[]): string {
     .join(' ');
 }
 
+type CornerFillet = {
+  curr: Point;
+  ux1: number;
+  uy1: number;
+  ux2: number;
+  uy2: number;
+  /** +1 when the left side of travel is inside the turn (CCW on screen). */
+  leftIsInside: number;
+  /** Centerline fillet radius actually used. */
+  radius: number;
+  trim: number;
+  /** SVG sweep-flag for the centerline turn. */
+  sweep: 0 | 1;
+};
+
+function cornerFillet(
+  prev: Point,
+  curr: Point,
+  next: Point,
+  desiredRadius: number,
+  /** Half-width that must remain on the inside of the turn. */
+  clearInside = 0,
+): CornerFillet | null {
+  const dx1 = curr.x - prev.x;
+  const dy1 = curr.y - prev.y;
+  const dx2 = next.x - curr.x;
+  const dy2 = next.y - curr.y;
+  const len1 = Math.hypot(dx1, dy1);
+  const len2 = Math.hypot(dx2, dy2);
+  if (len1 < 0.001 || len2 < 0.001) return null;
+
+  const ux1 = dx1 / len1;
+  const uy1 = dy1 / len1;
+  const ux2 = dx2 / len2;
+  const uy2 = dy2 / len2;
+  const cross = ux1 * uy2 - uy1 * ux2;
+  const dot = Math.max(-1, Math.min(1, ux1 * ux2 + uy1 * uy2));
+  const turn = Math.atan2(cross, dot);
+  if (Math.abs(turn) < 0.02) return null;
+
+  const half = Math.abs(turn) / 2;
+  const tanHalf = Math.tan(half);
+  if (tanHalf < 1e-6) return null;
+
+  // Consecutive corners share a segment — leave a little straight run.
+  const maxTrim = Math.min(len1, len2) * 0.42;
+  const maxRadius = maxTrim / tanHalf;
+  if (maxRadius < 0.5) return null;
+
+  // Compact professional bend: prefer the desired radius, but keep enough
+  // clearance for the innermost wire and never exceed what the segments allow.
+  const minRadius = Math.min(maxRadius, clearInside + 3);
+  const radius = Math.min(maxRadius, Math.max(desiredRadius, minRadius));
+  const trim = radius * tanHalf;
+
+  return {
+    curr,
+    ux1,
+    uy1,
+    ux2,
+    uy2,
+    // With Y-down screen coords, (-uy,ux) points inside a positive-cross turn.
+    leftIsInside: cross > 0 ? 1 : -1,
+    radius,
+    trim,
+    // Positive cross ⇒ clockwise screen turn ⇒ SVG sweep-flag 1.
+    sweep: cross > 0 ? 1 : 0,
+  };
+}
+
+function offsetPoint(point: Point, ux: number, uy: number, offset: number): Point {
+  // Left-hand normal of travel direction (ux, uy).
+  return { x: point.x + (-uy) * offset, y: point.y + ux * offset };
+}
+
+/**
+ * Polyline path with circular corner fillets, optionally offset as a
+ * concentric parallel (wires in a bundle stay evenly spaced through bends).
+ */
+export function filletedPolylinePath(
+  points: Point[],
+  radius: number,
+  offset = 0,
+  clearInside = 0,
+): string {
+  if (points.length < 2) return '';
+
+  if (points.length === 2 || radius <= 0) {
+    const dx = points[1].x - points[0].x;
+    const dy = points[1].y - points[0].y;
+    const len = Math.hypot(dx, dy) || 1;
+    const ux = dx / len;
+    const uy = dy / len;
+    const a = offsetPoint(points[0], ux, uy, offset);
+    const b = offsetPoint(points[points.length - 1], ux, uy, offset);
+    return `M ${a.x} ${a.y} L ${b.x} ${b.y}`;
+  }
+
+  const fillets: Array<CornerFillet | null> = new Array(points.length).fill(null);
+  for (let i = 1; i < points.length - 1; i++) {
+    fillets[i] = cornerFillet(points[i - 1], points[i], points[i + 1], radius, clearInside);
+  }
+
+  const startDirLen = Math.hypot(points[1].x - points[0].x, points[1].y - points[0].y) || 1;
+  const start = offsetPoint(
+    points[0],
+    (points[1].x - points[0].x) / startDirLen,
+    (points[1].y - points[0].y) / startDirLen,
+    offset,
+  );
+  let d = `M ${start.x} ${start.y}`;
+
+  for (let i = 1; i < points.length - 1; i++) {
+    const f = fillets[i];
+    if (!f) {
+      // Collinear / degenerate: offset using the local segment direction.
+      const dx = points[i + 1].x - points[i - 1].x;
+      const dy = points[i + 1].y - points[i - 1].y;
+      const len = Math.hypot(dx, dy) || 1;
+      const p = offsetPoint(points[i], dx / len, dy / len, offset);
+      d += ` L ${p.x} ${p.y}`;
+      continue;
+    }
+
+    const arcStartCenter = {
+      x: f.curr.x - f.ux1 * f.trim,
+      y: f.curr.y - f.uy1 * f.trim,
+    };
+    const arcEndCenter = {
+      x: f.curr.x + f.ux2 * f.trim,
+      y: f.curr.y + f.uy2 * f.trim,
+    };
+
+    // Inward unit normal from the incoming tangent.
+    const nix = -f.uy1 * f.leftIsInside;
+    const niy = f.ux1 * f.leftIsInside;
+    const center = {
+      x: arcStartCenter.x + nix * f.radius,
+      y: arcStartCenter.y + niy * f.radius,
+    };
+
+    // Positive offset is left of travel; convert to signed distance from center.
+    // Inside the turn is toward the center, so radius shrinks there.
+    const arcRadius = Math.max(0.75, f.radius - offset * f.leftIsInside);
+
+    const fromCenterStartX = arcStartCenter.x - center.x;
+    const fromCenterStartY = arcStartCenter.y - center.y;
+    const fromCenterEndX = arcEndCenter.x - center.x;
+    const fromCenterEndY = arcEndCenter.y - center.y;
+    const startScale = arcRadius / f.radius;
+    const endScale = arcRadius / f.radius;
+    const a0 = {
+      x: center.x + fromCenterStartX * startScale,
+      y: center.y + fromCenterStartY * startScale,
+    };
+    const a1 = {
+      x: center.x + fromCenterEndX * endScale,
+      y: center.y + fromCenterEndY * endScale,
+    };
+
+    d += ` L ${a0.x} ${a0.y}`;
+    d += ` A ${arcRadius} ${arcRadius} 0 0 ${f.sweep} ${a1.x} ${a1.y}`;
+  }
+
+  const end = points[points.length - 1];
+  const prev = points[points.length - 2];
+  const endLen = Math.hypot(end.x - prev.x, end.y - prev.y) || 1;
+  const endPt = offsetPoint(end, (end.x - prev.x) / endLen, (end.y - prev.y) / endLen, offset);
+  d += ` L ${endPt.x} ${endPt.y}`;
+  return d;
+}
+
+/** Centerline convenience wrapper (no parallel offset). */
+export function roundedPolylinePath(points: Point[], radius: number): string {
+  return filletedPolylinePath(points, radius, 0);
+}
+
 /**
  * Build a smooth SVG path through a sequence of points using Catmull-Rom
  * interpolation converted to cubic Bezier segments. The tension parameter

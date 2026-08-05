@@ -31,6 +31,8 @@ export const EnclosureNode = memo(function EnclosureNode({
   const selectItem = useHarnessStore((s) => s.selectItem);
   const setDrillDown = useHarnessStore((s) => s.setDrillDown);
   const pushUndoSnapshot = useHarnessStore((s) => s.pushUndoSnapshot);
+  const commitUndoSnapshot = useHarnessStore((s) => s.commitUndoSnapshot);
+  const isEditor = useHarnessStore((s) => s.session.isEditor);
   const rotation = useHarnessStore((s) => s.rotationLayouts[data.enclosureId] ?? 0);
   const subsystem = useHarnessStore((s) => s.activeSubsystemId ? s.subsystems[s.activeSubsystemId] : undefined);
   const resizeSubsystemEntityLayout = useHarnessStore((s) => s.resizeSubsystemEntityLayout);
@@ -70,10 +72,10 @@ export const EnclosureNode = memo(function EnclosureNode({
       <NodeResizer
         minWidth={180}
         minHeight={120}
-        isVisible={!!selected}
+        isVisible={!!selected && isEditor}
         lineClassName="!border-amber-500/50"
         handleClassName="!w-2 !h-2 !bg-amber-400 !border-amber-600"
-        onResizeStart={() => pushUndoSnapshot()}
+        onResizeStart={() => pushUndoSnapshot(`enclosure:${data.enclosureId}:resize`)}
         onResizeEnd={(_, params) => {
           if (data.subsystemFrame) {
             const previous = subsystem?.enclosures[data.enclosureId];
@@ -97,6 +99,7 @@ export const EnclosureNode = memo(function EnclosureNode({
             updateNodeSize(data.enclosureId, params.width, params.height);
             updateNodePosition(data.enclosureId, params.x, params.y);
           }
+          commitUndoSnapshot();
         }}
       />
 

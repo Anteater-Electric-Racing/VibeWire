@@ -1,0 +1,1609 @@
+# Harness Gigadoc
+
+LLM-ready consolidation of the uploaded Excel workbooks.
+
+Conventions:
+- Each workbook becomes one section.
+- Repeated workbook metadata is listed once per workbook instead of repeated on every sheet.
+- Tables are flattened into TSV blocks for compactness and easy copy/paste into LLMs.
+- Entirely empty columns are removed from each table.
+- Zero-row sheets are preserved in the index and omitted from detailed sections.
+
+## Index
+
+| Workbook | Part Number | Description | Revision | BOM | Wiring | Cutlist | Labels | Connections | Source file |
+|---|---|---|---:|---:|---:|---:|---:|---:|---|
+| Accu Internal Harness | Accu Internal Harness |  | Accu Internal Harness | 10 | 36 | 36 | 0 | 36 | Accu Internal Harness(1).xlsx |
+| EXT 1 - MZ | EXT 1 - MZ | FOC to ACCU/INV/MOT (FOC-C1, ACCU-C1, INV-C1, BBC-C1, TSL-C1, MOT-C1) | 1.0 | 21 | 29 | 29 | 0 | 29 | EXT 1 - MZ(1).xlsx |
+| EXT H2 | EXT H2 | Footwell Harness | 1.4 | 27 | 48 | 24 | 0 | 24 | EXT H2(1).xlsx |
+| EXT H3 | EXT H3 | FOC/ACCU to Tractive System Lights (FOC-C3/C9, TSL-C1/C2, ACCU-C1) | 1.4 | 10 | 7 | 7 | 0 | 7 | EXT H3(1).xlsx |
+| EXT H4 | EXT H4 | Safety Daisty Chain/Footwell Harness | 3.0 | 14 | 14 | 5 | 0 | 7 | EXT H4(1).xlsx |
+| EXT H5 | EXT H5 | Cooling Hanress | 1.0 | 0 | 0 | 0 | 0 | 0 | EXT H5(1).xlsx |
+| EXT H6 | EXT H6 | Wheel Sensor | Force Version - Gabe Schoene | 7 | 12 | 12 | 0 | 12 | EXT H6(1).xlsx |
+| EXT H7 | EXT H7 | Saftey Board to Current Sensor | Force Version - Gabe Schoene | 5 | 3 | 3 | 0 | 3 | EXT H7(1).xlsx |
+| EXT H8 | EXT H8 | ROC to LV Battery | v1.1 | 4 | 2 | 2 | 0 | 2 | EXT H8(1).xlsx |
+| EXT ROC H1 | EXT ROC H1 | ROC to FOC | v5.1 | 10 | 12 | 12 | 0 | 12 | EXT ROC H1(1).xlsx |
+| EXT ROC H2 | EXT ROC H2 | ROC to Estop, ACCU, LV batt | v3.1 | 13 | 6 | 6 | 0 | 6 | EXT ROC H2(1).xlsx |
+| FOC H1 | FOC H1 | FOC to HV Battery/Inverter | 1.1 | 9 | 6 | 6 | 0 | 6 | FOC H1(1).xlsx |
+| FOC H2_ Footwell | FOC H2: Footwell | FOC to Brake Sensors and Throttle Sensors | 1.7 | 25 | 14 | 14 | 0 | 14 | FOC H2_ Footwell (1).xlsx |
+| FOC H3 | FOC H3 | TSSI/RTM/CCM to TSSI | 2.1 | 9 | 5 | 5 | 0 | 5 | FOC H3(1).xlsx |
+| FOC H5 | FOC H5 | Cooling Harness | 1.0 | 0 | 0 | 0 | 0 | 0 | FOC H5(1).xlsx |
+| FOC H7 | FOC H7 | Safety Board to Current Sensor | 1.3 | 5 | 3 | 3 | 0 | 3 | FOC H7(1).xlsx |
+| FOC H8 | FOC H8 | ROC | v4.2 | 10 | 12 | 12 | 0 | 12 | FOC H8(1).xlsx |
+| FOC H9 | FOC H9 | Dashboard | v3 | 12 | 21 | 17 | 0 | 21 | FOC H9(1).xlsx |
+| Inside ROC | Inside ROC |  | v5 | 13 | 18 | 18 | 0 | 18 | Inside ROC(1).xlsx |
+
+---
+
+## 1. Accu Internal Harness
+
+- Source file: `Accu Internal Harness(1).xlsx`
+
+### Metadata
+
+```yaml
+Type: Harness
+Part Number: Accu Internal Harness
+Revision: Accu Internal Harness
+```
+
+### Bill of Materials (10 rows)
+
+```tsv
+Id	Type	Manufacturer	Part Number	Description	Quantity	Usage
+2	Wire	Milspec	M22759/32-18-0-100M22759/32-18-9-100	White 18 AWG	≥ 0 in	W1, W17, W18, W19, W20, W21, W22, W23
+5	Connector		Battery		2	Maintance Plug_1, Maintenance Plug_5
+6	Connector		Rincon B-/B+ Air		1	Contactor_B-
+8	Wire	Milspec	M22759/32-18-0-100M22759/32-18-3-100	Orange 18 AWG		W2, W3, W4, W5, W6, W7, W14, W15, W16, W24, W25, W26, W27, W28, W29, W31, W32, W38, W39, W40, W41
+9	Connector	TE Connectivity / DEUTSCH	DT04-4P	DEUTSCH DT 4 Way Gray Receptacle Connector	2	BMS Satellite_1, BMS Satellite_2
+10	Connector	TE Connectivity / DEUTSCH	DT04-3P	DEUTSCH DT 3 Way Gray Receptacle Connector	1	Energy Meter
+11	Connector	TE Connectivity / DEUTSCH	DT06-08SA	DEUTSCH DT 8 Way Gray Plug Connector, A Key	3	DCDC, IMD, RTM
+12	Wire	Milspec	M22759/32-18-0-100M22759/32-18-0-100	Black 18 AWG	0 in	W8, W9, W10, W11, W12
+13	Wire	Milspec	M22759/32-18-0-100M22759/32-18-6-100	Blue 18 AWG		W13, W30, W33, W34, W35, W36, W37, W42, W43
+14	Splice		SPLICE		5	S2, S3, S4, S5, S6
+```
+
+### Wiring Table (36 rows)
+
+```tsv
+From	To	Conductor	Conductor PN	Size	Notes
+C11.1	S6	W27.Orange	M22759/32-18-0-100M22759/32-18-3-100	18 AWG	
+C11.3	Precharge/Discharge.1	W13.Blue	M22759/32-18-0-100M22759/32-18-6-100	18 AWG	
+C11.4	Voltage Indicator.1	W30.Blue	M22759/32-18-0-100M22759/32-18-6-100	18 AWG	
+Contactor_B+.1	C11.2	W29.Orange	M22759/32-18-0-100M22759/32-18-3-100	18 AWG	TS+
+Contactor_B+.1	Maintenance Plug_5.6	W6.Orange	M22759/32-18-0-100M22759/32-18-3-100	18 AWG	TS+
+Contactor_B+.Switch	C11.pin2	W28.Orange	M22759/32-18-0-100M22759/32-18-3-100	18 AWG	TS+
+Contactor_B-.2	DCDC.1	W20.White	M22759/32-18-0-100M22759/32-18-9-100	18 AWG	TS-
+Contactor_B-.2	DCDC.2	W21.White	M22759/32-18-0-100M22759/32-18-9-100	18 AWG	TS-
+Contactor_B-.2	IMD.7	W22.White	M22759/32-18-0-100M22759/32-18-9-100	18 AWG	TS-
+Contactor_B-.2	RTM.1	W18.White	M22759/32-18-0-100M22759/32-18-9-100	18 AWG	TS-
+Contactor_B-.2	RTM.2	W19.White	M22759/32-18-0-100M22759/32-18-9-100	18 AWG	TS-
+Contactor_B-.HV-	Energy Meter.HV-	W25.Orange	M22759/32-18-0-100M22759/32-18-3-100	18 AWG	TS-
+DCDC.4	S4	W34.Blue	M22759/32-18-0-100M22759/32-18-6-100	18 AWG	Fault
+Energy Meter.HV+	S5	W36.Blue	M22759/32-18-0-100M22759/32-18-6-100	18 AWG	Fault
+Energy Meter.HV-	HV Out Connector.1	W26.Orange	M22759/32-18-0-100M22759/32-18-3-100	18 AWG	Accumulator HV out
+HV Out Connector.2	Precharge/Discharge.3	W31.Orange	M22759/32-18-0-100M22759/32-18-3-100	18 AWG	
+HV Out Connector.3	S5	W32.Orange	M22759/32-18-0-100M22759/32-18-3-100	18 AWG	
+IMD.1	S2	W33.Blue	M22759/32-18-0-100M22759/32-18-6-100	18 AWG	Fault
+Maintance Plug_1.1	Maintenance Plug_5.1	W1.White	M22759/32-18-0-100M22759/32-18-9-100	18 AWG	Showing only 1 connection between these modules but there are actually 5 of these modules and they have their own connections.
+Maintance Plug_1.2	BMS Satellite_1.1	W24.Orange	M22759/32-18-0-100M22759/32-18-3-100	18 AWG	
+Maintance Plug_1.3	BMS Satellite_1.2	W3.Orange	M22759/32-18-0-100M22759/32-18-3-100	18 AWG	
+Maintance Plug_1.4	BMS Satellite_1.3	W4.Orange	M22759/32-18-0-100M22759/32-18-3-100	18 AWG	
+Maintance Plug_1.5	BMS Satellite_1.4	W5.Orange	M22759/32-18-0-100M22759/32-18-3-100	18 AWG	
+Maintance Plug_1.6	Contactor_B-.1	W2.Orange	M22759/32-18-0-100M22759/32-18-3-100	18 AWG	
+Maintenance Plug_5.2	BMS Satellite_2.1	W16.Orange	M22759/32-18-0-100M22759/32-18-3-100	18 AWG	
+Maintenance Plug_5.3	BMS Satellite_2.2	W7.Orange	M22759/32-18-0-100M22759/32-18-3-100	18 AWG	
+Maintenance Plug_5.4	BMS Satellite_2.3	W14.Orange	M22759/32-18-0-100M22759/32-18-3-100	18 AWG	
+Maintenance Plug_5.5	BMS Satellite_2.4	W15.Orange	M22759/32-18-0-100M22759/32-18-3-100	18 AWG	
+Precharge/Discharge.2	Voltage Indicator.3	W37.Blue	M22759/32-18-0-100M22759/32-18-6-100	18 AWG	
+Precharge/Discharge.4	TSMP Connector.1	W42.Blue	M22759/32-18-0-100M22759/32-18-6-100	18 AWG	HV-
+RTM.3	S3	W35.Blue	M22759/32-18-0-100M22759/32-18-6-100	18 AWG	TS+
+S2	S4	W40.Orange	M22759/32-18-0-100M22759/32-18-3-100	18 AWG	
+S2	S6	W41.Orange	M22759/32-18-0-100M22759/32-18-3-100	18 AWG	
+S3	S4	W39.Orange	M22759/32-18-0-100M22759/32-18-3-100	18 AWG	
+S5	S3	W38.Orange	M22759/32-18-0-100M22759/32-18-3-100	18 AWG	
+TSMP Connector.5	C11.2	W43.Blue	M22759/32-18-0-100M22759/32-18-6-100	18 AWG	HV+
+```
+
+### Cutlist (36 rows)
+
+```tsv
+#	Type	Reference Designator	Manufacturer	Part Number	Color	Size	Notes
+1	Wire	W1	Milspec	M22759/32-18-0-100M22759/32-18-9-100	White	18 AWG	Showing only 1 connection between these modules but there are actually 5 of these modules and they have their own connections.
+2	Wire	W2	Milspec	M22759/32-18-0-100M22759/32-18-3-100	Orange	18 AWG	
+3	Wire	W3	Milspec	M22759/32-18-0-100M22759/32-18-3-100	Orange	18 AWG	
+4	Wire	W4	Milspec	M22759/32-18-0-100M22759/32-18-3-100	Orange	18 AWG	
+5	Wire	W5	Milspec	M22759/32-18-0-100M22759/32-18-3-100	Orange	18 AWG	
+6	Wire	W6	Milspec	M22759/32-18-0-100M22759/32-18-3-100	Orange	18 AWG	TS+
+7	Wire	W7	Milspec	M22759/32-18-0-100M22759/32-18-3-100	Orange	18 AWG	
+8	Wire	W13	Milspec	M22759/32-18-0-100M22759/32-18-6-100	Blue	18 AWG	
+9	Wire	W14	Milspec	M22759/32-18-0-100M22759/32-18-3-100	Orange	18 AWG	
+10	Wire	W15	Milspec	M22759/32-18-0-100M22759/32-18-3-100	Orange	18 AWG	
+11	Wire	W16	Milspec	M22759/32-18-0-100M22759/32-18-3-100	Orange	18 AWG	
+12	Wire	W18	Milspec	M22759/32-18-0-100M22759/32-18-9-100	White	18 AWG	TS-
+13	Wire	W19	Milspec	M22759/32-18-0-100M22759/32-18-9-100	White	18 AWG	TS-
+14	Wire	W20	Milspec	M22759/32-18-0-100M22759/32-18-9-100	White	18 AWG	TS-
+15	Wire	W21	Milspec	M22759/32-18-0-100M22759/32-18-9-100	White	18 AWG	TS-
+16	Wire	W22	Milspec	M22759/32-18-0-100M22759/32-18-9-100	White	18 AWG	TS-
+17	Wire	W24	Milspec	M22759/32-18-0-100M22759/32-18-3-100	Orange	18 AWG	
+18	Wire	W25	Milspec	M22759/32-18-0-100M22759/32-18-3-100	Orange	18 AWG	TS-
+19	Wire	W26	Milspec	M22759/32-18-0-100M22759/32-18-3-100	Orange	18 AWG	Accumulator HV out
+20	Wire	W27	Milspec	M22759/32-18-0-100M22759/32-18-3-100	Orange	18 AWG	
+21	Wire	W28	Milspec	M22759/32-18-0-100M22759/32-18-3-100	Orange	18 AWG	TS+
+22	Wire	W29	Milspec	M22759/32-18-0-100M22759/32-18-3-100	Orange	18 AWG	TS+
+23	Wire	W30	Milspec	M22759/32-18-0-100M22759/32-18-6-100	Blue	18 AWG	
+24	Wire	W31	Milspec	M22759/32-18-0-100M22759/32-18-3-100	Orange	18 AWG	
+25	Wire	W32	Milspec	M22759/32-18-0-100M22759/32-18-3-100	Orange	18 AWG	
+26	Wire	W33	Milspec	M22759/32-18-0-100M22759/32-18-6-100	Blue	18 AWG	Fault
+27	Wire	W34	Milspec	M22759/32-18-0-100M22759/32-18-6-100	Blue	18 AWG	Fault
+28	Wire	W35	Milspec	M22759/32-18-0-100M22759/32-18-6-100	Blue	18 AWG	TS+
+29	Wire	W36	Milspec	M22759/32-18-0-100M22759/32-18-6-100	Blue	18 AWG	Fault
+30	Wire	W37	Milspec	M22759/32-18-0-100M22759/32-18-6-100	Blue	18 AWG	
+31	Wire	W38	Milspec	M22759/32-18-0-100M22759/32-18-3-100	Orange	18 AWG	
+32	Wire	W39	Milspec	M22759/32-18-0-100M22759/32-18-3-100	Orange	18 AWG	
+33	Wire	W40	Milspec	M22759/32-18-0-100M22759/32-18-3-100	Orange	18 AWG	
+34	Wire	W41	Milspec	M22759/32-18-0-100M22759/32-18-3-100	Orange	18 AWG	
+35	Wire	W42	Milspec	M22759/32-18-0-100M22759/32-18-6-100	Blue	18 AWG	HV-
+36	Wire	W43	Milspec	M22759/32-18-0-100M22759/32-18-6-100	Blue	18 AWG	HV+
+```
+
+### Connections (36 rows)
+
+```tsv
+#	From	To	Conductor	Conductor PN	Size	From PN	To PN	Notes
+1	C11.1	S6	W27.Orange	M22759/32-18-0-100M22759/32-18-3-100	18 AWG		SPLICE	
+2	C11.3	Precharge/Discharge.1	W13.Blue	M22759/32-18-0-100M22759/32-18-6-100	18 AWG			
+3	C11.4	Voltage Indicator.1	W30.Blue	M22759/32-18-0-100M22759/32-18-6-100	18 AWG			
+4	Contactor_B+.1	C11.2	W29.Orange	M22759/32-18-0-100M22759/32-18-3-100	18 AWG			TS+
+5	Contactor_B+.1	Maintenance Plug_5.6	W6.Orange	M22759/32-18-0-100M22759/32-18-3-100	18 AWG		Battery	TS+
+6	Contactor_B+.Switch	C11.pin2	W28.Orange	M22759/32-18-0-100M22759/32-18-3-100	18 AWG			TS+
+7	Contactor_B-.2	DCDC.1	W20.White	M22759/32-18-0-100M22759/32-18-9-100	18 AWG	Rincon B-/B+ Air	DT06-08SA	TS-
+8	Contactor_B-.2	DCDC.2	W21.White	M22759/32-18-0-100M22759/32-18-9-100	18 AWG	Rincon B-/B+ Air	DT06-08SA	TS-
+9	Contactor_B-.2	IMD.7	W22.White	M22759/32-18-0-100M22759/32-18-9-100	18 AWG	Rincon B-/B+ Air	DT06-08SA	TS-
+10	Contactor_B-.2	RTM.1	W18.White	M22759/32-18-0-100M22759/32-18-9-100	18 AWG	Rincon B-/B+ Air	DT06-08SA	TS-
+11	Contactor_B-.2	RTM.2	W19.White	M22759/32-18-0-100M22759/32-18-9-100	18 AWG	Rincon B-/B+ Air	DT06-08SA	TS-
+12	Contactor_B-.HV-	Energy Meter.HV-	W25.Orange	M22759/32-18-0-100M22759/32-18-3-100	18 AWG	Rincon B-/B+ Air	DT04-3P	TS-
+13	DCDC.4	S4	W34.Blue	M22759/32-18-0-100M22759/32-18-6-100	18 AWG	DT06-08SA	SPLICE	Fault
+14	Energy Meter.HV+	S5	W36.Blue	M22759/32-18-0-100M22759/32-18-6-100	18 AWG	DT04-3P	SPLICE	Fault
+15	Energy Meter.HV-	HV Out Connector.1	W26.Orange	M22759/32-18-0-100M22759/32-18-3-100	18 AWG	DT04-3P		Accumulator HV out
+16	HV Out Connector.2	Precharge/Discharge.3	W31.Orange	M22759/32-18-0-100M22759/32-18-3-100	18 AWG			
+17	HV Out Connector.3	S5	W32.Orange	M22759/32-18-0-100M22759/32-18-3-100	18 AWG		SPLICE	
+18	IMD.1	S2	W33.Blue	M22759/32-18-0-100M22759/32-18-6-100	18 AWG	DT06-08SA	SPLICE	Fault
+19	Maintance Plug_1.1	Maintenance Plug_5.1	W1.White	M22759/32-18-0-100M22759/32-18-9-100	18 AWG	Battery	Battery	Showing only 1 connection between these modules but there are actually 5 of these modules and they have their own connections.
+20	Maintance Plug_1.2	BMS Satellite_1.1	W24.Orange	M22759/32-18-0-100M22759/32-18-3-100	18 AWG	Battery	DT04-4P	
+21	Maintance Plug_1.3	BMS Satellite_1.2	W3.Orange	M22759/32-18-0-100M22759/32-18-3-100	18 AWG	Battery	DT04-4P	
+22	Maintance Plug_1.4	BMS Satellite_1.3	W4.Orange	M22759/32-18-0-100M22759/32-18-3-100	18 AWG	Battery	DT04-4P	
+23	Maintance Plug_1.5	BMS Satellite_1.4	W5.Orange	M22759/32-18-0-100M22759/32-18-3-100	18 AWG	Battery	DT04-4P	
+24	Maintance Plug_1.6	Contactor_B-.1	W2.Orange	M22759/32-18-0-100M22759/32-18-3-100	18 AWG	Battery	Rincon B-/B+ Air	
+25	Maintenance Plug_5.2	BMS Satellite_2.1	W16.Orange	M22759/32-18-0-100M22759/32-18-3-100	18 AWG	Battery	DT04-4P	
+26	Maintenance Plug_5.3	BMS Satellite_2.2	W7.Orange	M22759/32-18-0-100M22759/32-18-3-100	18 AWG	Battery	DT04-4P	
+27	Maintenance Plug_5.4	BMS Satellite_2.3	W14.Orange	M22759/32-18-0-100M22759/32-18-3-100	18 AWG	Battery	DT04-4P	
+28	Maintenance Plug_5.5	BMS Satellite_2.4	W15.Orange	M22759/32-18-0-100M22759/32-18-3-100	18 AWG	Battery	DT04-4P	
+29	Precharge/Discharge.2	Voltage Indicator.3	W37.Blue	M22759/32-18-0-100M22759/32-18-6-100	18 AWG			
+30	Precharge/Discharge.4	TSMP Connector.1	W42.Blue	M22759/32-18-0-100M22759/32-18-6-100	18 AWG			HV-
+31	RTM.3	S3	W35.Blue	M22759/32-18-0-100M22759/32-18-6-100	18 AWG	DT06-08SA	SPLICE	TS+
+32	S2	S4	W40.Orange	M22759/32-18-0-100M22759/32-18-3-100	18 AWG	SPLICE	SPLICE	
+33	S2	S6	W41.Orange	M22759/32-18-0-100M22759/32-18-3-100	18 AWG	SPLICE	SPLICE	
+34	S3	S4	W39.Orange	M22759/32-18-0-100M22759/32-18-3-100	18 AWG	SPLICE	SPLICE	
+35	S5	S3	W38.Orange	M22759/32-18-0-100M22759/32-18-3-100	18 AWG	SPLICE	SPLICE	
+36	TSMP Connector.5	C11.2	W43.Blue	M22759/32-18-0-100M22759/32-18-6-100	18 AWG			HV+
+```
+
+---
+
+## 2. EXT 1 - MZ
+
+- Source file: `EXT 1 - MZ(1).xlsx`
+
+### Metadata
+
+```yaml
+Type: Harness
+Part Number: EXT 1 - MZ
+Description: "FOC to ACCU/INV/MOT (FOC-C1, ACCU-C1, INV-C1, BBC-C1, TSL-C1, MOT-C1)"
+Revision: 1.0
+```
+
+### Bill of Materials (21 rows)
+
+```tsv
+Id	Type	Manufacturer	Part Number	Description	Quantity	Usage
+5	Connector	TE Connectivity / DEUTSCH	DT06-12SA	Automotive DC Connector 12 PIN FEMALE CONNECTOR, DT Series | TE Connectivity DT06-12SA	2	ACCU-C1, FOC-C1
+6	Wire	Milspec	M22759/32-18-0-100M22759/32-18-5-100	Green 18 AWG	≥ 114 in	W1, W4, W5, W16, W26, W37
+7	Wire	Milspec	M22759/32-18-0-100M22759/32-18-4-100	Yellow 18 AWG	≥ 38 in	W2, W17, W18, W19, W20, W33
+8	Wire	Milspec	M22759/32-18-0-100M22759/32-18-2-100	Red 18 AWG	≥ 76 in	W3, W7, W8, W9, W10, W11, W12, W23
+9	Wire	Milspec	M22759/32-18-0-100M22759/32-18-0-100	Black 18 AWG	≥ 76 in	W6, W13, W14, W15, W24, W38, W39
+10	Splice	TE Connectivity / Raychem	ATUM-24/6-0-STK	ATUM-24/6-0-STK Heat Shrink Tubing ST Polyolefin Black Medium Stick	3	12V_ACCU, 12V_INV, GND_INV
+12	Wire	Milspec	M22759/32-18-0-100M22759/32-18-6-100	Blue 18 AWG	≥ 0 in	W21, W22, W27, W30, W34
+13	Wire	Milspec	M22759/32-18-0-100M22759/32-18-9-100	White 18 AWG		W25
+14	Wire		18 AWG Pink	Generic Wire	≥ 0 in	W28, W31, W32
+15	Wire		16 AWG Black	Generic Wire	0 in	W29, W36
+16	Wire		16 AWG Red	Generic Wire		W35
+17	Connector	TE Connectivity / DEUTSCH	DT06-6S	DEUTSCH DT 6 Way Gray Plug Connector	1	BBC-C1
+18	Connector	TE Connectivity / DEUTSCH	DT06-4S	4 Position Housing, Housing for Female Terminals, Wire-to-Wire, 4.44 mm [.175 in] Centerline, Sealable	1	TSL-C1
+21	Connector	TE Connectivity	770680-1	TE CONNECTIVITY 770680-1 Socket Square AMPSEAL 23p Crimp without contacts	1	INV LV
+22	Connector		RLS RM44SI		1	RLS_ENCODER
+23	Connector	Souriau	UTS6JC12E14PW	Plastic plug, with cable gland backshell, with 14 male solder contacts, IP68/69K in unmated conditions, keying W	1	MOT_SENS
+24	Wire	Milspec	M22759/32-18-0-100M22759/32-18-8-100	Grey 18 AWG		W40
+25	Wire	Milspec	M22759/32-18-0-100M22759/32-18-1-100	Brown 18 AWG		W41
+26	Wire		18 AWG LIGHT BLUE			W42
+27	Wire	Milspec	M22759/32-18-0-100M22759/32-18-3-100	Orange 18 AWG		W43
+28	Wire		18 AWG White-Blue-Red	Generic Wire	0 in	W44
+```
+
+### Wiring Table (29 rows)
+
+```tsv
+From	To	Conductor	Conductor PN	Size	Length	Notes
+12V_ACCU	ACCU-C1.6	W8.Red	M22759/32-18-0-100M22759/32-18-2-100	18 AWG		Ready Power
+12V_ACCU	ACCU-C1.7	W7.Red	M22759/32-18-0-100M22759/32-18-2-100	18 AWG		12V BUS
+12V_INV	INV LV.1	W9.Red	M22759/32-18-0-100M22759/32-18-2-100	18 AWG		12V_INV
+12V_INV	INV LV.9	W12.Red	M22759/32-18-0-100M22759/32-18-2-100	18 AWG		12V_INV
+ACCU-C1.5	TSL-C1.4	W24.Black	M22759/32-18-0-100M22759/32-18-0-100	18 AWG		RTM_OUT
+BBC-C1.3	ACCU-C1.4	W37.Green	M22759/32-18-0-100M22759/32-18-5-100	18 AWG		MS HV-
+FOC-C1.1	INV LV.6	W35.Red	16 AWG Red	16 AWG		D_INPUT_1_12V_KS
+FOC-C1.5	ACCU-C1.8	W6.Black	M22759/32-18-0-100M22759/32-18-0-100	18 AWG	≥ 38 in	GND_INV
+FOC-C1.6	12V_INV	W10.Red	M22759/32-18-0-100M22759/32-18-2-100	18 AWG	≥ 38 in	12V_INV
+FOC-C1.7	12V_ACCU	W3.Red	M22759/32-18-0-100M22759/32-18-2-100	18 AWG	≥ 38 in	12V_ACCU
+FOC-C1.8	GND_INV	W13.Black	M22759/32-18-0-100M22759/32-18-0-100	18 AWG	≥ 38 in	GND_ACCU
+FOC-C1.9	ACCU-C1.9	W5.Green	M22759/32-18-0-100M22759/32-18-5-100	18 AWG	≥ 38 in	BMS Fault
+FOC-C1.10	ACCU-C1.10	W4.Green	M22759/32-18-0-100M22759/32-18-5-100	18 AWG	≥ 38 in	IMD_FAULT
+FOC-C1.11	ACCU-C1.11	W2.Yellow	M22759/32-18-0-100M22759/32-18-4-100	18 AWG	≥ 38 in	CAN_ACC high
+FOC-C1.12	ACCU-C1.12	W1.Green	M22759/32-18-0-100M22759/32-18-5-100	18 AWG	≥ 38 in	CAN_ACC low
+GND_INV	INV LV.16	W14.Black	M22759/32-18-0-100M22759/32-18-0-100	18 AWG		GND_INV
+GND_INV	INV LV.17	W15.Black	M22759/32-18-0-100M22759/32-18-0-100	18 AWG		GND_INV
+INV LV.3	FOC-C1.3	W18.Yellow	M22759/32-18-0-100M22759/32-18-4-100	18 AWG		CAN1_INV_H
+INV LV.11	FOC-C1.4	W26.Green	M22759/32-18-0-100M22759/32-18-5-100	18 AWG		CAN1_INV_L
+MOT_SENS.A	RLS_ENCODER.A	W16.Green	M22759/32-18-0-100M22759/32-18-5-100	18 AWG		ABI B diff. signal +
+MOT_SENS.B	RLS_ENCODER.B	W17.Yellow	M22759/32-18-0-100M22759/32-18-4-100	18 AWG		ABI B diff. signal -
+MOT_SENS.C	RLS_ENCODER.C	W40.Gray	M22759/32-18-0-100M22759/32-18-8-100	18 AWG		ABI A diff. signal +
+MOT_SENS.D	RLS_ENCODER.D	W41.Brown	M22759/32-18-0-100M22759/32-18-1-100	18 AWG		ABI Z diff. signal -
+MOT_SENS.E	RLS_ENCODER.E	W42.Blue	18 AWG LIGHT BLUE	18 AWG		Temperature sensor pin 1
+MOT_SENS.F	RLS_ENCODER.F	W43.Orange	M22759/32-18-0-100M22759/32-18-3-100	18 AWG		Temperature sensor pin 2
+MOT_SENS.H	RLS_ENCODER.H	W28.Pink	18 AWG Pink	18 AWG		ABI A diff. signal -
+MOT_SENS.J	RLS_ENCODER.J	W25.White	M22759/32-18-0-100M22759/32-18-9-100	18 AWG		ABI Z diff. signal +
+MOT_SENS.K	RLS_ENCODER.K	W23.Red	M22759/32-18-0-100M22759/32-18-2-100	18 AWG		Sensor supply V+ (+5VDC)
+MOT_SENS.L	RLS_ENCODER.L	W27.Blue	M22759/32-18-0-100M22759/32-18-6-100	18 AWG		Sensor supply GND
+```
+
+### Cutlist (29 rows)
+
+```tsv
+#	Type	Reference Designator	Manufacturer	Part Number	Color	Size	Length	Notes
+1	Wire	W1	Milspec	M22759/32-18-0-100M22759/32-18-5-100	Green	18 AWG	≥ 38 in	CAN_ACC low
+2	Wire	W2	Milspec	M22759/32-18-0-100M22759/32-18-4-100	Yellow	18 AWG	≥ 38 in	CAN_ACC high
+3	Wire	W3	Milspec	M22759/32-18-0-100M22759/32-18-2-100	Red	18 AWG	≥ 38 in	12V_ACCU
+4	Wire	W4	Milspec	M22759/32-18-0-100M22759/32-18-5-100	Green	18 AWG	≥ 38 in	IMD_FAULT
+5	Wire	W5	Milspec	M22759/32-18-0-100M22759/32-18-5-100	Green	18 AWG	≥ 38 in	BMS Fault
+6	Wire	W6	Milspec	M22759/32-18-0-100M22759/32-18-0-100	Black	18 AWG	≥ 38 in	GND_INV
+7	Wire	W7	Milspec	M22759/32-18-0-100M22759/32-18-2-100	Red	18 AWG		12V BUS
+8	Wire	W8	Milspec	M22759/32-18-0-100M22759/32-18-2-100	Red	18 AWG		Ready Power
+9	Wire	W9	Milspec	M22759/32-18-0-100M22759/32-18-2-100	Red	18 AWG		12V_INV
+10	Wire	W10	Milspec	M22759/32-18-0-100M22759/32-18-2-100	Red	18 AWG	≥ 38 in	12V_INV
+11	Wire	W12	Milspec	M22759/32-18-0-100M22759/32-18-2-100	Red	18 AWG		12V_INV
+12	Wire	W13	Milspec	M22759/32-18-0-100M22759/32-18-0-100	Black	18 AWG	≥ 38 in	GND_ACCU
+13	Wire	W14	Milspec	M22759/32-18-0-100M22759/32-18-0-100	Black	18 AWG		GND_INV
+14	Wire	W15	Milspec	M22759/32-18-0-100M22759/32-18-0-100	Black	18 AWG		GND_INV
+15	Wire	W16	Milspec	M22759/32-18-0-100M22759/32-18-5-100	Green	18 AWG		ABI B diff. signal +
+16	Wire	W17	Milspec	M22759/32-18-0-100M22759/32-18-4-100	Yellow	18 AWG		ABI B diff. signal -
+17	Wire	W18	Milspec	M22759/32-18-0-100M22759/32-18-4-100	Yellow	18 AWG		CAN1_INV_H
+18	Wire	W23	Milspec	M22759/32-18-0-100M22759/32-18-2-100	Red	18 AWG		Sensor supply V+ (+5VDC)
+19	Wire	W24	Milspec	M22759/32-18-0-100M22759/32-18-0-100	Black	18 AWG		RTM_OUT
+20	Wire	W25	Milspec	M22759/32-18-0-100M22759/32-18-9-100	White	18 AWG		ABI Z diff. signal +
+21	Wire	W26	Milspec	M22759/32-18-0-100M22759/32-18-5-100	Green	18 AWG		CAN1_INV_L
+22	Wire	W27	Milspec	M22759/32-18-0-100M22759/32-18-6-100	Blue	18 AWG		Sensor supply GND
+23	Wire	W28		18 AWG Pink	Pink	18 AWG		ABI A diff. signal -
+24	Wire	W35		16 AWG Red	Red	16 AWG		D_INPUT_1_12V_KS
+25	Wire	W37	Milspec	M22759/32-18-0-100M22759/32-18-5-100	Green	18 AWG		MS HV-
+26	Wire	W40	Milspec	M22759/32-18-0-100M22759/32-18-8-100	Gray	18 AWG		ABI A diff. signal +
+27	Wire	W41	Milspec	M22759/32-18-0-100M22759/32-18-1-100	Brown	18 AWG		ABI Z diff. signal -
+28	Wire	W42		18 AWG LIGHT BLUE	Blue	18 AWG		Temperature sensor pin 1
+29	Wire	W43	Milspec	M22759/32-18-0-100M22759/32-18-3-100	Orange	18 AWG		Temperature sensor pin 2
+```
+
+### Connections (29 rows)
+
+```tsv
+#	From	To	Conductor	Conductor PN	Size	Length	From PN	To PN	Notes
+1	12V_ACCU	ACCU-C1.6	W8.Red	M22759/32-18-0-100M22759/32-18-2-100	18 AWG		ATUM-24/6-0-STK	DT06-12SA	Ready Power
+2	12V_ACCU	ACCU-C1.7	W7.Red	M22759/32-18-0-100M22759/32-18-2-100	18 AWG		ATUM-24/6-0-STK	DT06-12SA	12V BUS
+3	12V_INV	INV LV.1	W9.Red	M22759/32-18-0-100M22759/32-18-2-100	18 AWG		ATUM-24/6-0-STK	770680-1	12V_INV
+4	12V_INV	INV LV.9	W12.Red	M22759/32-18-0-100M22759/32-18-2-100	18 AWG		ATUM-24/6-0-STK	770680-1	12V_INV
+5	ACCU-C1.5	TSL-C1.4	W24.Black	M22759/32-18-0-100M22759/32-18-0-100	18 AWG		DT06-12SA	DT06-4S	RTM_OUT
+6	BBC-C1.3	ACCU-C1.4	W37.Green	M22759/32-18-0-100M22759/32-18-5-100	18 AWG		DT06-6S	DT06-12SA	MS HV-
+7	FOC-C1.1	INV LV.6	W35.Red	16 AWG Red	16 AWG		DT06-12SA	770680-1	D_INPUT_1_12V_KS
+8	FOC-C1.5	ACCU-C1.8	W6.Black	M22759/32-18-0-100M22759/32-18-0-100	18 AWG	≥ 38 in	DT06-12SA	DT06-12SA	GND_INV
+9	FOC-C1.6	12V_INV	W10.Red	M22759/32-18-0-100M22759/32-18-2-100	18 AWG	≥ 38 in	DT06-12SA	ATUM-24/6-0-STK	12V_INV
+10	FOC-C1.7	12V_ACCU	W3.Red	M22759/32-18-0-100M22759/32-18-2-100	18 AWG	≥ 38 in	DT06-12SA	ATUM-24/6-0-STK	12V_ACCU
+11	FOC-C1.8	GND_INV	W13.Black	M22759/32-18-0-100M22759/32-18-0-100	18 AWG	≥ 38 in	DT06-12SA	ATUM-24/6-0-STK	GND_ACCU
+12	FOC-C1.9	ACCU-C1.9	W5.Green	M22759/32-18-0-100M22759/32-18-5-100	18 AWG	≥ 38 in	DT06-12SA	DT06-12SA	BMS Fault
+13	FOC-C1.10	ACCU-C1.10	W4.Green	M22759/32-18-0-100M22759/32-18-5-100	18 AWG	≥ 38 in	DT06-12SA	DT06-12SA	IMD_FAULT
+14	FOC-C1.11	ACCU-C1.11	W2.Yellow	M22759/32-18-0-100M22759/32-18-4-100	18 AWG	≥ 38 in	DT06-12SA	DT06-12SA	CAN_ACC high
+15	FOC-C1.12	ACCU-C1.12	W1.Green	M22759/32-18-0-100M22759/32-18-5-100	18 AWG	≥ 38 in	DT06-12SA	DT06-12SA	CAN_ACC low
+16	GND_INV	INV LV.16	W14.Black	M22759/32-18-0-100M22759/32-18-0-100	18 AWG		ATUM-24/6-0-STK	770680-1	GND_INV
+17	GND_INV	INV LV.17	W15.Black	M22759/32-18-0-100M22759/32-18-0-100	18 AWG		ATUM-24/6-0-STK	770680-1	GND_INV
+18	INV LV.3	FOC-C1.3	W18.Yellow	M22759/32-18-0-100M22759/32-18-4-100	18 AWG		770680-1	DT06-12SA	CAN1_INV_H
+19	INV LV.11	FOC-C1.4	W26.Green	M22759/32-18-0-100M22759/32-18-5-100	18 AWG		770680-1	DT06-12SA	CAN1_INV_L
+20	MOT_SENS.A	RLS_ENCODER.A	W16.Green	M22759/32-18-0-100M22759/32-18-5-100	18 AWG		UTS6JC12E14PW	RLS RM44SI	ABI B diff. signal +
+21	MOT_SENS.B	RLS_ENCODER.B	W17.Yellow	M22759/32-18-0-100M22759/32-18-4-100	18 AWG		UTS6JC12E14PW	RLS RM44SI	ABI B diff. signal -
+22	MOT_SENS.C	RLS_ENCODER.C	W40.Gray	M22759/32-18-0-100M22759/32-18-8-100	18 AWG		UTS6JC12E14PW	RLS RM44SI	ABI A diff. signal +
+23	MOT_SENS.D	RLS_ENCODER.D	W41.Brown	M22759/32-18-0-100M22759/32-18-1-100	18 AWG		UTS6JC12E14PW	RLS RM44SI	ABI Z diff. signal -
+24	MOT_SENS.E	RLS_ENCODER.E	W42.Blue	18 AWG LIGHT BLUE	18 AWG		UTS6JC12E14PW	RLS RM44SI	Temperature sensor pin 1
+25	MOT_SENS.F	RLS_ENCODER.F	W43.Orange	M22759/32-18-0-100M22759/32-18-3-100	18 AWG		UTS6JC12E14PW	RLS RM44SI	Temperature sensor pin 2
+26	MOT_SENS.H	RLS_ENCODER.H	W28.Pink	18 AWG Pink	18 AWG		UTS6JC12E14PW	RLS RM44SI	ABI A diff. signal -
+27	MOT_SENS.J	RLS_ENCODER.J	W25.White	M22759/32-18-0-100M22759/32-18-9-100	18 AWG		UTS6JC12E14PW	RLS RM44SI	ABI Z diff. signal +
+28	MOT_SENS.K	RLS_ENCODER.K	W23.Red	M22759/32-18-0-100M22759/32-18-2-100	18 AWG		UTS6JC12E14PW	RLS RM44SI	Sensor supply V+ (+5VDC)
+29	MOT_SENS.L	RLS_ENCODER.L	W27.Blue	M22759/32-18-0-100M22759/32-18-6-100	18 AWG		UTS6JC12E14PW	RLS RM44SI	Sensor supply GND
+```
+
+---
+
+## 3. EXT H2
+
+- Source file: `EXT H2(1).xlsx`
+
+### Metadata
+
+```yaml
+Type: Harness
+Part Number: EXT H2
+Description: Footwell Harness
+Revision: 1.4
+```
+
+### Bill of Materials (27 rows)
+
+```tsv
+Id	Type	Manufacturer	Part Number	Description	Quantity	Usage
+2	Connector	Aptiv	12162260	Delphi Metri-Pack 150.2 Black 6 Way Sealed Female Distributor Module Connector	1	APPS
+4	Connector	TE Connectivity / DEUTSCH	DT06-12SA	Automotive DC Connector 12 PIN FEMALE CONNECTOR, DT Series | TE Connectivity DT06-12SA	1	FOC-C2
+13	Wire	Milspec	M22759/32-18-0-100M22759/32-18-5-100	Green 18 AWG	0 in	W1, W2, W3, W4, W5, W6, W7
+14	Wire	Milspec	M22759/32-18-0-100M22759/32-18-4-100	Yellow 18 AWG	≥ 0 in	W8, W9, W10, W25, W74
+15	Wire	Milspec	M22759/32-18-0-100M22759/32-18-0-100	Black 18 AWG	0 in	W11, W12, W13, W14, W30, W31
+16	Wire		18 AWG White wire with black stripes		0 in	W15, W27
+17	Wire		18 awg black wire with violet stripes		0 in	W16, W29, W32
+18	Wire		18 AWG White-Blue	Generic Wire	0 in	W17
+19	Wire		18 AWG White-Brown	Generic Wire	0 in	W18
+20	Wire	Milspec	M22759/32-18-0-100M22759/32-18-6-100	Blue 18 AWG	0 in	W19, W20
+21	Wire		18 AWG LIGHT BLUE		0 in	W21, W22, W26, W55, W58, W61
+22	Wire		18AWG White with gray stripes		0 in	W23, W24, W28
+23	Connector	TE Connectivity / DEUTSCH	DT06-6S	DEUTSCH DT 6 Way Gray Plug Connector	1	BPS-FEM
+26	Connector	TE Connectivity / DEUTSCH	DT06-3S	3 Position Housing, Housing for Female Terminals, Wire-to-Wire, 8.66 mm [.341 in] Centerline, Sealable	2	THRS1-FEM, THRS2-FEM
+28	Wire		ad		0 in	W33, W34, W35, W44
+29	Wire		ad		0 in	W36, W37, W38
+30	Wire		ad		0 in	W39, W40
+31	Wire	Milspec	M22759/32-18-0-100M22759/32-18-3-100	Orange 18 AWG	0 in	W41
+32	Wire		add		≥ 0 in	W42, W43, W53, W54, W56, W60, W63
+33	Wire	Milspec	M22759/32-18-0-100M22759/32-18-2-100	Red 18 AWG	0 in	W45, W46, W47, W48
+34	Wire	Milspec	M22759/32-18-0-100M22759/32-18-9-100	White 18 AWG		W49, W50, W51, W57, W59, W62, W72, W73
+35	Wire				0 in	W52
+36	Connector	SSI Technologies, LLC	P51 Pressure Sensor	Brake Pressure Sensor	2	P51-BPS1, P51-BPS2
+37	Connector	TE Connectivity / DEUTSCH	DT04-3P	DEUTSCH DT 3 Way Gray Receptacle Connector	2	THRS1-MALE, THRS2-MALE
+38	Connector	TE Connectivity / DEUTSCH	DT04-6P	DEUTSCH DT 6 Way Gray Receptacle Connector	1	BPS-MALE
+39	Wire	Milspec	M22759/32-18-0-100M22759/32-18-1-100	Brown 18 AWG	≥ 0 in	W64, W65, W66, W67, W68, W69
+40	Wire		white wire with blue stripes			W70, W71
+```
+
+### Wiring Table (48 rows)
+
+```tsv
+From	To	Size	Notes
+APPS.1	THRS1-MALE.1	18 AWG	THRS1_3.3V
+APPS.2	THRS1-MALE.3	20 AWG	THRS1_OUT
+APPS.3	THRS1-MALE.2	18 AWG	THRS1_GND
+APPS.4	THRS2-MALE.1	18 AWG	THRS2_3.3V
+APPS.5	THRS2-MALE.3	20 AWG	THRS2_OUT
+APPS.6	THRS2-MALE.2	18 AWG	THRS2_GND
+BPS-FEM.1	FOC-C2.2	20 AWG	BPS1_OUT
+BPS-FEM.2	FOC-C2.1	18 AWG	BSP1_GND
+BPS-FEM.3	FOC-C2.3	18 AWG	BPS1_5V
+BPS-FEM.4	FOC-C2.10	18 AWG	BPS2_5V
+BPS-FEM.5	FOC-C2.12	18 AWG	BPS2_GND
+BPS-FEM.6	FOC-C2.11	20 AWG	BPS2_OUT
+BPS-MALE.1	P51-BPS1.3	18 AWG	BPS1_OUT
+BPS-MALE.2	P51-BPS1.2	18 AWG	BPS1_GND
+BPS-MALE.3	P51-BPS1.1	18 AWG	BPS1_5V
+BPS-MALE.4	P51-BPS2.1	18 AWG	BPS2_5V
+BPS-MALE.5	P51-BPS2.2	18 AWG	BPS2_GND
+BPS-MALE.6	P51-BPS2.3	18 AWG	BPS2_OUT
+FOC-C2.1	BPS-FEM.2	18 AWG	BSP1_GND
+FOC-C2.2	BPS-FEM.1	20 AWG	BPS1_OUT
+FOC-C2.3	BPS-FEM.3	18 AWG	BPS1_5V
+FOC-C2.4	THRS1-FEM.1	18 AWG	THRS1_3.3V
+FOC-C2.5	THRS2-FEM.3	20 AWG	THRS2_OUT
+FOC-C2.6	THRS1-FEM.2	18 AWG	THRS1_GND
+FOC-C2.7	THRS2-FEM.2	18 AWG	THRS2_GND
+FOC-C2.8	THRS1-FEM.3	20 AWG	THRS1_OUT
+FOC-C2.9	THRS2-FEM.1	18 AWG	THRS2_3.3V
+FOC-C2.10	BPS-FEM.4	18 AWG	BPS2_5V
+FOC-C2.11	BPS-FEM.6	20 AWG	BPS2_OUT
+FOC-C2.12	BPS-FEM.5	18 AWG	BPS2_GND
+P51-BPS1.1	BPS-MALE.3	18 AWG	BPS1_5V
+P51-BPS1.2	BPS-MALE.2	18 AWG	BPS1_GND
+P51-BPS1.3	BPS-MALE.1	18 AWG	BPS1_OUT
+P51-BPS2.1	BPS-MALE.4	18 AWG	BPS2_5V
+P51-BPS2.2	BPS-MALE.5	18 AWG	BPS2_GND
+P51-BPS2.3	BPS-MALE.6	18 AWG	BPS2_OUT
+THRS1-FEM.1	FOC-C2.4	18 AWG	THRS1_3.3V
+THRS1-FEM.2	FOC-C2.6	18 AWG	THRS1_GND
+THRS1-FEM.3	FOC-C2.8	20 AWG	THRS1_OUT
+THRS1-MALE.1	APPS.1	18 AWG	THRS1_3.3V
+THRS1-MALE.2	APPS.3	18 AWG	THRS1_GND
+THRS1-MALE.3	APPS.2	20 AWG	THRS1_OUT
+THRS2-FEM.1	FOC-C2.9	18 AWG	THRS2_3.3V
+THRS2-FEM.2	FOC-C2.7	18 AWG	THRS2_GND
+THRS2-FEM.3	FOC-C2.5	20 AWG	THRS2_OUT
+THRS2-MALE.1	APPS.4	18 AWG	THRS2_3.3V
+THRS2-MALE.2	APPS.6	18 AWG	THRS2_GND
+THRS2-MALE.3	APPS.5	20 AWG	THRS2_OUT
+```
+
+### Cutlist (24 rows)
+
+```tsv
+#	Type	Reference Designator	Manufacturer	Part Number	Color	Size	Twisted With	Notes
+1	Wire	W8	Milspec	M22759/32-18-0-100M22759/32-18-4-100	Yellow	18 AWG		BPS1_5V
+2	Wire	W9	Milspec	M22759/32-18-0-100M22759/32-18-4-100	Yellow	18 AWG		BPS2_5V
+3	Wire	W10	Milspec	M22759/32-18-0-100M22759/32-18-4-100	Yellow	18 AWG		BPS2_5V
+4	Wire	W43		add	White-Blue	20 AWG		BPS1_OUT
+5	Wire	W49	Milspec	M22759/32-18-0-100M22759/32-18-9-100	White	18 AWG		BSP1_GND
+6	Wire	W50	Milspec	M22759/32-18-0-100M22759/32-18-9-100	White	18 AWG	W53	THRS1_GND
+7	Wire	W51	Milspec	M22759/32-18-0-100M22759/32-18-9-100	White	18 AWG	W54	THRS2_GND
+8	Wire	W53		add	White-Blue	20 AWG	W50	THRS1_OUT
+9	Wire	W54		add	White-Blue	20 AWG	W51	THRS2_OUT
+10	Wire	W56		add	White-Blue	20 AWG	W57	BPS2_OUT
+11	Wire	W57	Milspec	M22759/32-18-0-100M22759/32-18-9-100	White	18 AWG	W56	BPS2_GND
+12	Wire	W59	Milspec	M22759/32-18-0-100M22759/32-18-9-100	White	18 AWG	W60	THRS1_GND
+13	Wire	W60		add	White-Blue	20 AWG	W59	THRS1_OUT
+14	Wire	W62	Milspec	M22759/32-18-0-100M22759/32-18-9-100	White	18 AWG	W63	THRS2_GND
+15	Wire	W63		add	White-Blue	20 AWG	W62	THRS2_OUT
+16	Wire	W64	Milspec	M22759/32-18-0-100M22759/32-18-1-100	Brown	18 AWG		THRS1_3.3V
+17	Wire	W65	Milspec	M22759/32-18-0-100M22759/32-18-1-100	Brown	18 AWG		THRS2_3.3V
+18	Wire	W66	Milspec	M22759/32-18-0-100M22759/32-18-1-100	Brown	18 AWG		THRS2_3.3V
+19	Wire	W67	Milspec	M22759/32-18-0-100M22759/32-18-1-100	Brown	18 AWG		THRS1_3.3V
+20	Wire	W70		white wire with blue stripes	White-Blue	18 AWG	W72	BPS1_OUT
+21	Wire	W71		white wire with blue stripes	White-Blue	18 AWG	W73	BPS2_OUT
+22	Wire	W72	Milspec	M22759/32-18-0-100M22759/32-18-9-100	White	18 AWG	W70	BPS1_GND
+23	Wire	W73	Milspec	M22759/32-18-0-100M22759/32-18-9-100	White	18 AWG	W71	BPS2_GND
+24	Wire	W74	Milspec	M22759/32-18-0-100M22759/32-18-4-100	Yellow	18 AWG		BPS1_5V
+```
+
+### Connections (24 rows)
+
+```tsv
+#	From	To	Conductor	Conductor PN	Twisted With	Size	From PN	To PN	Notes
+1	BPS-MALE.1	P51-BPS1.3	W70.White-Blue	white wire with blue stripes	W72	18 AWG	DT04-6P	P51 Pressure Sensor	BPS1_OUT
+2	BPS-MALE.2	P51-BPS1.2	W72.White	M22759/32-18-0-100M22759/32-18-9-100	W70	18 AWG	DT04-6P	P51 Pressure Sensor	BPS1_GND
+3	BPS-MALE.3	P51-BPS1.1	W74.Yellow	M22759/32-18-0-100M22759/32-18-4-100		18 AWG	DT04-6P	P51 Pressure Sensor	BPS1_5V
+4	BPS-MALE.4	P51-BPS2.1	W9.Yellow	M22759/32-18-0-100M22759/32-18-4-100		18 AWG	DT04-6P	P51 Pressure Sensor	BPS2_5V
+5	BPS-MALE.5	P51-BPS2.2	W73.White	M22759/32-18-0-100M22759/32-18-9-100	W71	18 AWG	DT04-6P	P51 Pressure Sensor	BPS2_GND
+6	BPS-MALE.6	P51-BPS2.3	W71.White-Blue	white wire with blue stripes	W73	18 AWG	DT04-6P	P51 Pressure Sensor	BPS2_OUT
+7	FOC-C2.1	BPS-FEM.2	W49.White	M22759/32-18-0-100M22759/32-18-9-100		18 AWG	DT06-12SA	DT06-6S	BSP1_GND
+8	FOC-C2.2	BPS-FEM.1	W43.White-Blue	add		20 AWG	DT06-12SA	DT06-6S	BPS1_OUT
+9	FOC-C2.3	BPS-FEM.3	W8.Yellow	M22759/32-18-0-100M22759/32-18-4-100		18 AWG	DT06-12SA	DT06-6S	BPS1_5V
+10	FOC-C2.4	THRS1-FEM.1	W64.Brown	M22759/32-18-0-100M22759/32-18-1-100		18 AWG	DT06-12SA	DT06-3S	THRS1_3.3V
+11	FOC-C2.5	THRS2-FEM.3	W54.White-Blue	add	W51	20 AWG	DT06-12SA	DT06-3S	THRS2_OUT
+12	FOC-C2.6	THRS1-FEM.2	W50.White	M22759/32-18-0-100M22759/32-18-9-100	W53	18 AWG	DT06-12SA	DT06-3S	THRS1_GND
+13	FOC-C2.7	THRS2-FEM.2	W51.White	M22759/32-18-0-100M22759/32-18-9-100	W54	18 AWG	DT06-12SA	DT06-3S	THRS2_GND
+14	FOC-C2.8	THRS1-FEM.3	W53.White-Blue	add	W50	20 AWG	DT06-12SA	DT06-3S	THRS1_OUT
+15	FOC-C2.9	THRS2-FEM.1	W65.Brown	M22759/32-18-0-100M22759/32-18-1-100		18 AWG	DT06-12SA	DT06-3S	THRS2_3.3V
+16	FOC-C2.10	BPS-FEM.4	W10.Yellow	M22759/32-18-0-100M22759/32-18-4-100		18 AWG	DT06-12SA	DT06-6S	BPS2_5V
+17	FOC-C2.11	BPS-FEM.6	W56.White-Blue	add	W57	20 AWG	DT06-12SA	DT06-6S	BPS2_OUT
+18	FOC-C2.12	BPS-FEM.5	W57.White	M22759/32-18-0-100M22759/32-18-9-100	W56	18 AWG	DT06-12SA	DT06-6S	BPS2_GND
+19	THRS1-MALE.1	APPS.1	W67.Brown	M22759/32-18-0-100M22759/32-18-1-100		18 AWG	DT04-3P	12162260	THRS1_3.3V
+20	THRS1-MALE.2	APPS.3	W59.White	M22759/32-18-0-100M22759/32-18-9-100	W60	18 AWG	DT04-3P	12162260	THRS1_GND
+21	THRS1-MALE.3	APPS.2	W60.White-Blue	add	W59	20 AWG	DT04-3P	12162260	THRS1_OUT
+22	THRS2-MALE.1	APPS.4	W66.Brown	M22759/32-18-0-100M22759/32-18-1-100		18 AWG	DT04-3P	12162260	THRS2_3.3V
+23	THRS2-MALE.2	APPS.6	W62.White	M22759/32-18-0-100M22759/32-18-9-100	W63	18 AWG	DT04-3P	12162260	THRS2_GND
+24	THRS2-MALE.3	APPS.5	W63.White-Blue	add	W62	20 AWG	DT04-3P	12162260	THRS2_OUT
+```
+
+---
+
+## 4. EXT H3
+
+- Source file: `EXT H3(1).xlsx`
+
+### Metadata
+
+```yaml
+Type: Harness
+Part Number: EXT H3
+Description: "FOC/ACCU to Tractive System Lights (FOC-C3/C9, TSL-C1/C2, ACCU-C1)"
+Revision: 1.4
+```
+
+### Bill of Materials (10 rows)
+
+```tsv
+Id	Type	Manufacturer	Part Number	Description	Quantity	Usage
+3	Connector	TE Connectivity / DEUTSCH	DT06-4S	4 Position Housing, Housing for Female Terminals, Wire-to-Wire, 4.44 mm [.175 in] Centerline, Sealable	1	TS_LT
+5	Wire	Milspec	M22759/32-18-0-100M22759/32-18-2-100	Red 18 AWG	≥ 153 in	W1, W2
+6	Wire	Milspec	M22759/32-18-0-100M22759/32-18-0-100	Black 18 AWG	78 in	W3, W4, W5, W8
+8	Wire		black and red		≥ 75 in	W6
+9	Connector	TE Connectivity / DEUTSCH	DT06-12SA	Automotive DC Connector 12 PIN FEMALE CONNECTOR, DT Series | TE Connectivity DT06-12SA	1	HV-BATT
+10	Connector	TE Connectivity / DEUTSCH	DT06-3S	3 Position Housing, Housing for Female Terminals, Wire-to-Wire, 8.66 mm [.341 in] Centerline, Sealable	1	BRK_LT
+12	Wire	Milspec	M22759/32-18-0-100M22759/32-18-7-100	Violet 18 AWG	78 in	W7
+13	Wire		18 awg Black wires with green stripes		≥ 75 in	W9
+14	Wire		18 awg Black wire with orange stripes		27 in	W10
+15	Connector	TE Connectivity / DEUTSCH	DT06-6S	DEUTSCH DT 6 Way Gray Plug Connector	1	FOC-H03-A
+```
+
+### Wiring Table (7 rows)
+
+```tsv
+From	To	Conductor	Conductor PN	Size	Length	Notes
+FOC-H03-A.1	TS_LT.4	W1.Red	M22759/32-18-0-100M22759/32-18-2-100	18 AWG	≥ 75 in	12V_TSL
+FOC-H03-A.2	TS_LT.2	W6.Black-Red	black and red	18 AWG	≥ 75 in	TSSI_RED-LT
+FOC-H03-A.3	TS_LT.3	W9.Black-Green	18 awg Black wires with green stripes	18 AWG	≥ 75 in	TSSI_GRN-LT
+FOC-H03-A.4	BRK_LT.1	W2.Red	M22759/32-18-0-100M22759/32-18-2-100	18 AWG	78 in	12V_BRK-LT
+FOC-H03-A.5	BRK_LT.2	W8.Black	M22759/32-18-0-100M22759/32-18-0-100	18 AWG	78 in	GND_BRK-LT
+FOC-H03-A.6	BRK_LT.3	W7.Violet	M22759/32-18-0-100M22759/32-18-7-100	18 AWG	78 in	BRK-LT
+HV-BATT.4	TS_LT.1	W10.Black-Orange	18 awg Black wire with orange stripes	18 AWG	27 in	RTM-LT
+```
+
+### Cutlist (7 rows)
+
+```tsv
+#	Type	Reference Designator	Manufacturer	Part Number	Color	Size	Length	Notes
+1	Wire	W1	Milspec	M22759/32-18-0-100M22759/32-18-2-100	Red	18 AWG	≥ 75 in	12V_TSL
+2	Wire	W2	Milspec	M22759/32-18-0-100M22759/32-18-2-100	Red	18 AWG	78 in	12V_BRK-LT
+3	Wire	W6		black and red	Black-Red	18 AWG	≥ 75 in	TSSI_RED-LT
+4	Wire	W7	Milspec	M22759/32-18-0-100M22759/32-18-7-100	Violet	18 AWG	78 in	BRK-LT
+5	Wire	W8	Milspec	M22759/32-18-0-100M22759/32-18-0-100	Black	18 AWG	78 in	GND_BRK-LT
+6	Wire	W9		18 awg Black wires with green stripes	Black-Green	18 AWG	≥ 75 in	TSSI_GRN-LT
+7	Wire	W10		18 awg Black wire with orange stripes	Black-Orange	18 AWG	27 in	RTM-LT
+```
+
+### Connections (7 rows)
+
+```tsv
+#	From	To	Conductor	Conductor PN	Size	Length	From PN	To PN	Notes
+1	FOC-H03-A.1	TS_LT.4	W1.Red	M22759/32-18-0-100M22759/32-18-2-100	18 AWG	≥ 75 in	DT06-6S	DT06-4S	12V_TSL
+2	FOC-H03-A.2	TS_LT.2	W6.Black-Red	black and red	18 AWG	≥ 75 in	DT06-6S	DT06-4S	TSSI_RED-LT
+3	FOC-H03-A.3	TS_LT.3	W9.Black-Green	18 awg Black wires with green stripes	18 AWG	≥ 75 in	DT06-6S	DT06-4S	TSSI_GRN-LT
+4	FOC-H03-A.4	BRK_LT.1	W2.Red	M22759/32-18-0-100M22759/32-18-2-100	18 AWG	78 in	DT06-6S	DT06-3S	12V_BRK-LT
+5	FOC-H03-A.5	BRK_LT.2	W8.Black	M22759/32-18-0-100M22759/32-18-0-100	18 AWG	78 in	DT06-6S	DT06-3S	GND_BRK-LT
+6	FOC-H03-A.6	BRK_LT.3	W7.Violet	M22759/32-18-0-100M22759/32-18-7-100	18 AWG	78 in	DT06-6S	DT06-3S	BRK-LT
+7	HV-BATT.4	TS_LT.1	W10.Black-Orange	18 awg Black wire with orange stripes	18 AWG	27 in	DT06-12SA	DT06-4S	RTM-LT
+```
+
+---
+
+## 5. EXT H4
+
+- Source file: `EXT H4(1).xlsx`
+
+### Metadata
+
+```yaml
+Type: Harness
+Part Number: EXT H4
+Description: Safety Daisty Chain/Footwell Harness
+Revision: 3.0
+```
+
+### Bill of Materials (14 rows)
+
+```tsv
+Id	Type	Manufacturer	Part Number	Description	Quantity	Usage
+6	Connector	TE Connectivity / DEUTSCH	DT04-6P	DEUTSCH DT 6 Way Gray Receptacle Connector	1	BBC-C1
+7	Connector	TE Connectivity / DEUTSCH	DT06-2S	2 Position Housing, Housing for Female Terminals, Wire-to-Wire, 5.46 mm [.215 in] Centerline, Sealable	5	ES-CKP, ES-LT, ES-RT, FOC-C8, RTD-C1
+11	Connector	TE Connectivity / DEUTSCH	DT04-2P	DEUTSCH DT 2 Way Gray Receptacle Connector	1	BOTS-C1
+12	Connector		INERTIA SWITCH CNT	1x Connector 3-way 3 pin	1	INTS-C1
+13	Wire	Milspec	M22759/32-18-0-100M22759/32-18-5-100	Green 18 AWG	152 in	W1, W2, W3, W4, W5, W6, W7
+14	Wire	Milspec	M22759/32-18-0-100M22759/32-18-4-100	Yellow 18 AWG	0 in	W8, W9, W10, W25
+15	Wire	Milspec	M22759/32-18-0-100M22759/32-18-0-100	Black 18 AWG	0 in	W11, W12, W13, W14, W30, W31
+16	Wire		18 AWG White wire with black stripes		0 in	W15, W27
+17	Wire		18 awg black wire with violet stripes		0 in	W16, W29, W32
+18	Wire		18 AWG White-Blue	Generic Wire	0 in	W17
+19	Wire		18 AWG White-Brown	Generic Wire	0 in	W18
+20	Wire	Milspec	M22759/32-18-0-100M22759/32-18-6-100	Blue 18 AWG	0 in	W19, W20
+21	Wire		18 AWG LIGHT BLUE		0 in	W21, W22, W26
+22	Wire		18AWG White with gray stripes		0 in	W23, W24, W28
+```
+
+### Wiring Table (14 rows)
+
+```tsv
+From	To	Size	Notes
+BBC-C1.2	ES-RT.2	18 AWG	HV MS+
+BOTS-C1.1	RTD-C1.1	18 AWG	RTD_IN (BOTS_OUT)
+BOTS-C1.2	FOC-C8.1	18 AWG	SDC IN (BOTS_IN)
+ES-CKP.1	RTD-C1.2	18 AWG	ES-CKP_IN (RTD_OUT)
+ES-CKP.2	INTS-C1.1	18 AWG	INT_IN (ES-CKP_OUT)
+ES-LT.1	INTS-C1.3	18 AWG	ES-LT_IN (INT_OUT)
+ES-LT.2	ES-RT.1	18 AWG	ES-RT_IN (ES-LT_OUT)
+ES-RT.1	ES-LT.2	18 AWG	ES-RT_IN (ES-LT_OUT)
+ES-RT.2	BBC-C1.2	18 AWG	HV MS+
+FOC-C8.1	BOTS-C1.2	18 AWG	SDC IN (BOTS_IN)
+INTS-C1.1	ES-CKP.2	18 AWG	INT_IN (ES-CKP_OUT)
+INTS-C1.3	ES-LT.1	18 AWG	ES-LT_IN (INT_OUT)
+RTD-C1.1	BOTS-C1.1	18 AWG	RTD_IN (BOTS_OUT)
+RTD-C1.2	ES-CKP.1	18 AWG	ES-CKP_IN (RTD_OUT)
+```
+
+### Cutlist (5 rows)
+
+```tsv
+#	Type	Reference Designator	Manufacturer	Part Number	Color	Size	Length	Notes
+1	Wire	W1	Milspec	M22759/32-18-0-100M22759/32-18-5-100	Green	18 AWG	41 in	SDC IN (BOTS_IN)
+2	Wire	W2	Milspec	M22759/32-18-0-100M22759/32-18-5-100	Green	18 AWG	60 in	RTD_IN (BOTS_OUT)
+3	Wire	W3	Milspec	M22759/32-18-0-100M22759/32-18-5-100	Green	18 AWG	5 in	ES-CKP_IN (RTD_OUT)
+4	Wire	W4	Milspec	M22759/32-18-0-100M22759/32-18-5-100	Green	18 AWG	16 in	HV MS+
+5	Wire	W5	Milspec	M22759/32-18-0-100M22759/32-18-5-100	Green	18 AWG	30 in	ES-RT_IN (ES-LT_OUT)
+```
+
+### Connections (7 rows)
+
+```tsv
+#	From	To	Conductor	Conductor PN	Twisted With	Size	To Strip	Length	From PN	To PN	To Contact PN	Notes
+1	ES-CKP.2	INTS-C1.1	INTS-C1.Green	N/A	N/A	18 AWG	N/A		DT06-2S	INERTIA SWITCH CNT	N/A	INT_IN (ES-CKP_OUT)
+2	ES-LT.1	INTS-C1.3	INTS-C1.Blue	N/A	N/A	18 AWG	N/A		DT06-2S	INERTIA SWITCH CNT	N/A	ES-LT_IN (INT_OUT)
+3	ES-LT.2	ES-RT.1	W5.Green	M22759/32-18-0-100M22759/32-18-5-100		18 AWG		30 in	DT06-2S	DT06-2S		ES-RT_IN (ES-LT_OUT)
+4	ES-RT.2	BBC-C1.2	W4.Green	M22759/32-18-0-100M22759/32-18-5-100		18 AWG		16 in	DT06-2S	DT04-6P		HV MS+
+5	FOC-C8.1	BOTS-C1.2	W1.Green	M22759/32-18-0-100M22759/32-18-5-100		18 AWG		41 in	DT06-2S	DT04-2P		SDC IN (BOTS_IN)
+6	RTD-C1.1	BOTS-C1.1	W2.Green	M22759/32-18-0-100M22759/32-18-5-100		18 AWG		60 in	DT06-2S	DT04-2P		RTD_IN (BOTS_OUT)
+7	RTD-C1.2	ES-CKP.1	W3.Green	M22759/32-18-0-100M22759/32-18-5-100		18 AWG		5 in	DT06-2S	DT06-2S		ES-CKP_IN (RTD_OUT)
+```
+
+---
+
+## 6. EXT H5
+
+- Source file: `EXT H5(1).xlsx`
+
+### Metadata
+
+```yaml
+Type: Harness
+Part Number: EXT H5
+Description: Cooling Hanress
+Revision: 1.0
+```
+
+All sheets in this workbook are empty after flattening.
+
+---
+
+## 7. EXT H6
+
+- Source file: `EXT H6(1).xlsx`
+
+### Metadata
+
+```yaml
+Type: Harness
+Part Number: EXT H6
+Description: Wheel Sensor
+Revision: Force Version - Gabe Schoene
+```
+
+### Bill of Materials (7 rows)
+
+```tsv
+Id	Type	Manufacturer	Part Number	Description	Quantity	Usage
+1	Connector		Molex 12 Pin		1	C1
+2	Connector	TE Connectivity / DEUTSCH	DT06-12SA	Automotive DC Connector 12 PIN FEMALE CONNECTOR, DT Series | TE Connectivity DT06-12SA	1	C2
+3	Wire	Milspec	M22759/32-18-0-100M22759/32-18-9-100	White 18 AWG	0 in	W1, W2, W7, W12
+4	Wire	Milspec	M22759/32-18-0-100M22759/32-18-0-100	Black 18 AWG		W3, W4, W5, W6
+5	Wire	Milspec	M22759/32-18-0-100M22759/32-18-4-100	Yellow 18 AWG		W8, W9, W10, W11
+6	Wire		white brown stripe 18AWG wire		0 in	W13
+7	Wire		18 AWG White-Brown	Generic Wire		W14, W15, W16, W17
+```
+
+### Wiring Table (12 rows)
+
+```tsv
+From	To	Conductor	Conductor PN	Size	Notes
+C1.1	C2.3	W11.Yellow	M22759/32-18-0-100M22759/32-18-4-100	18 AWG	WS2_5V
+C1.2	C2.5	W10.Yellow	M22759/32-18-0-100M22759/32-18-4-100	18 AWG	WS4_5V
+C1.3	C2.12	W3.Black	M22759/32-18-0-100M22759/32-18-0-100	18 AWG	WS1_GND
+C1.4	C2.11	W4.Black	M22759/32-18-0-100M22759/32-18-0-100	18 AWG	WS2_GND
+C1.5	C2.8	W5.Black	M22759/32-18-0-100M22759/32-18-0-100	18 AWG	WS3_GND
+C1.6	C2.7	W6.Black	M22759/32-18-0-100M22759/32-18-0-100	18 AWG	WS4_GND
+C1.7	C2.1	W9.Yellow	M22759/32-18-0-100M22759/32-18-4-100	18 AWG	WS1_5V
+C1.8	C2.4	W8.Yellow	M22759/32-18-0-100M22759/32-18-4-100	18 AWG	WS3_5V
+C1.9	C2.2	W14.White-Brown	18 AWG White-Brown	18 AWG	WS1_IN
+C1.10	C2.10	W15.White-Brown	18 AWG White-Brown	18 AWG	WS2_IN
+C1.11	C2.9	W16.White-Brown	18 AWG White-Brown	18 AWG	WS3_IN
+C1.12	C2.6	W17.White-Brown	18 AWG White-Brown	18 AWG	WS4_IN
+```
+
+### Cutlist (12 rows)
+
+```tsv
+#	Type	Reference Designator	Manufacturer	Part Number	Color	Size	Notes
+1	Wire	W3	Milspec	M22759/32-18-0-100M22759/32-18-0-100	Black	18 AWG	WS1_GND
+2	Wire	W4	Milspec	M22759/32-18-0-100M22759/32-18-0-100	Black	18 AWG	WS2_GND
+3	Wire	W5	Milspec	M22759/32-18-0-100M22759/32-18-0-100	Black	18 AWG	WS3_GND
+4	Wire	W6	Milspec	M22759/32-18-0-100M22759/32-18-0-100	Black	18 AWG	WS4_GND
+5	Wire	W8	Milspec	M22759/32-18-0-100M22759/32-18-4-100	Yellow	18 AWG	WS3_5V
+6	Wire	W9	Milspec	M22759/32-18-0-100M22759/32-18-4-100	Yellow	18 AWG	WS1_5V
+7	Wire	W10	Milspec	M22759/32-18-0-100M22759/32-18-4-100	Yellow	18 AWG	WS4_5V
+8	Wire	W11	Milspec	M22759/32-18-0-100M22759/32-18-4-100	Yellow	18 AWG	WS2_5V
+9	Wire	W14		18 AWG White-Brown	White-Brown	18 AWG	WS1_IN
+10	Wire	W15		18 AWG White-Brown	White-Brown	18 AWG	WS2_IN
+11	Wire	W16		18 AWG White-Brown	White-Brown	18 AWG	WS3_IN
+12	Wire	W17		18 AWG White-Brown	White-Brown	18 AWG	WS4_IN
+```
+
+### Connections (12 rows)
+
+```tsv
+#	From	To	Conductor	Conductor PN	Size	From PN	To PN	Notes
+1	C1.1	C2.3	W11.Yellow	M22759/32-18-0-100M22759/32-18-4-100	18 AWG	Molex 12 Pin	DT06-12SA	WS2_5V
+2	C1.2	C2.5	W10.Yellow	M22759/32-18-0-100M22759/32-18-4-100	18 AWG	Molex 12 Pin	DT06-12SA	WS4_5V
+3	C1.3	C2.12	W3.Black	M22759/32-18-0-100M22759/32-18-0-100	18 AWG	Molex 12 Pin	DT06-12SA	WS1_GND
+4	C1.4	C2.11	W4.Black	M22759/32-18-0-100M22759/32-18-0-100	18 AWG	Molex 12 Pin	DT06-12SA	WS2_GND
+5	C1.5	C2.8	W5.Black	M22759/32-18-0-100M22759/32-18-0-100	18 AWG	Molex 12 Pin	DT06-12SA	WS3_GND
+6	C1.6	C2.7	W6.Black	M22759/32-18-0-100M22759/32-18-0-100	18 AWG	Molex 12 Pin	DT06-12SA	WS4_GND
+7	C1.7	C2.1	W9.Yellow	M22759/32-18-0-100M22759/32-18-4-100	18 AWG	Molex 12 Pin	DT06-12SA	WS1_5V
+8	C1.8	C2.4	W8.Yellow	M22759/32-18-0-100M22759/32-18-4-100	18 AWG	Molex 12 Pin	DT06-12SA	WS3_5V
+9	C1.9	C2.2	W14.White-Brown	18 AWG White-Brown	18 AWG	Molex 12 Pin	DT06-12SA	WS1_IN
+10	C1.10	C2.10	W15.White-Brown	18 AWG White-Brown	18 AWG	Molex 12 Pin	DT06-12SA	WS2_IN
+11	C1.11	C2.9	W16.White-Brown	18 AWG White-Brown	18 AWG	Molex 12 Pin	DT06-12SA	WS3_IN
+12	C1.12	C2.6	W17.White-Brown	18 AWG White-Brown	18 AWG	Molex 12 Pin	DT06-12SA	WS4_IN
+```
+
+---
+
+## 8. EXT H7
+
+- Source file: `EXT H7(1).xlsx`
+
+### Metadata
+
+```yaml
+Type: Harness
+Part Number: EXT H7
+Description: Saftey Board to Current Sensor
+Revision: Force Version - Gabe Schoene
+```
+
+### Bill of Materials (5 rows)
+
+```tsv
+Id	Type	Manufacturer	Part Number	Description	Quantity	Usage
+1	Connector	TE Connectivity / DEUTSCH	DT04-3P	DEUTSCH DT 3 Way Gray Receptacle Connector	1	FOC H7
+2	Connector	TE Connectivity / DEUTSCH	DT06-3S	3 Position Housing, Housing for Female Terminals, Wire-to-Wire, 8.66 mm [.341 in] Centerline, Sealable	1	HVB C2
+3	Wire	Milspec	M22759/32-18-0-100M22759/32-18-4-100	Yellow 18 AWG		W1
+4	Wire		18 AWG White wire with black stripes			W2
+5	Wire	Milspec	M22759/32-18-0-100M22759/32-18-0-100	Black 18 AWG		W3
+```
+
+### Wiring Table (3 rows)
+
+```tsv
+From	To	Conductor	Conductor PN	Size	Notes
+FOC H7.1	HVB C2.1	W1.Yellow	M22759/32-18-0-100M22759/32-18-4-100	18 AWG	CURR_5V
+FOC H7.2	HVB C2.2	W2.White-Black	18 AWG White wire with black stripes	18 AWG	CURR__IN
+FOC H7.3	HVB C2.3	W3.Black	M22759/32-18-0-100M22759/32-18-0-100	18 AWG	CURR__GND
+```
+
+### Cutlist (3 rows)
+
+```tsv
+#	Type	Reference Designator	Manufacturer	Part Number	Color	Size	Notes
+1	Wire	W1	Milspec	M22759/32-18-0-100M22759/32-18-4-100	Yellow	18 AWG	CURR_5V
+2	Wire	W2		18 AWG White wire with black stripes	White-Black	18 AWG	CURR__IN
+3	Wire	W3	Milspec	M22759/32-18-0-100M22759/32-18-0-100	Black	18 AWG	CURR__GND
+```
+
+### Connections (3 rows)
+
+```tsv
+#	From	To	Conductor	Conductor PN	Size	From PN	To PN	Notes
+1	FOC H7.1	HVB C2.1	W1.Yellow	M22759/32-18-0-100M22759/32-18-4-100	18 AWG	DT04-3P	DT06-3S	CURR_5V
+2	FOC H7.2	HVB C2.2	W2.White-Black	18 AWG White wire with black stripes	18 AWG	DT04-3P	DT06-3S	CURR__IN
+3	FOC H7.3	HVB C2.3	W3.Black	M22759/32-18-0-100M22759/32-18-0-100	18 AWG	DT04-3P	DT06-3S	CURR__GND
+```
+
+---
+
+## 9. EXT H8
+
+- Source file: `EXT H8(1).xlsx`
+
+### Metadata
+
+```yaml
+Type: Harness
+Part Number: EXT H8
+Description: ROC to LV Battery
+Revision: v1.1
+```
+
+### Bill of Materials (4 rows)
+
+```tsv
+Id	Type	Manufacturer	Part Number	Description	Quantity	Usage
+1	Connector	TE Connectivity / DEUTSCH	DT04-2P	DEUTSCH DT 2 Way Gray Receptacle Connector	1	LV_Batt-C1
+2	Ring Terminal	TE Connectivity / AMP	342184-1	12-10 F.e.p.g. Ring Terminal Rohs Compliant: Yes |Amp Te Connectivity 342184-1	2	LV_Batt+, LV_Batt-
+3	Wire	Milspec	M22759/32-18-0-100M22759/32-18-0-100	Black 18 AWG		W1
+4	Wire	Milspec	M22759/32-18-0-100M22759/32-18-6-100	Blue 18 AWG		W2
+```
+
+### Wiring Table (2 rows)
+
+```tsv
+From	To	Conductor	Conductor PN	Size	Notes
+LV_Batt-C1.1	LV_Batt+	W2.Blue	M22759/32-18-0-100M22759/32-18-6-100	18 AWG	24V LV Batt +
+LV_Batt-C1.2	LV_Batt-	W1.Black	M22759/32-18-0-100M22759/32-18-0-100	18 AWG	24V LV Batt -
+```
+
+### Cutlist (2 rows)
+
+```tsv
+#	Type	Reference Designator	Manufacturer	Part Number	Color	Size	Notes
+1	Wire	W1	Milspec	M22759/32-18-0-100M22759/32-18-0-100	Black	18 AWG	24V LV Batt -
+2	Wire	W2	Milspec	M22759/32-18-0-100M22759/32-18-6-100	Blue	18 AWG	24V LV Batt +
+```
+
+### Connections (2 rows)
+
+```tsv
+#	From	To	Conductor	Conductor PN	Size	From PN	To PN	Notes
+1	LV_Batt-C1.1	LV_Batt+	W2.Blue	M22759/32-18-0-100M22759/32-18-6-100	18 AWG	DT04-2P	342184-1	24V LV Batt +
+2	LV_Batt-C1.2	LV_Batt-	W1.Black	M22759/32-18-0-100M22759/32-18-0-100	18 AWG	DT04-2P	342184-1	24V LV Batt -
+```
+
+---
+
+## 10. EXT ROC H1
+
+- Source file: `EXT ROC H1(1).xlsx`
+
+### Metadata
+
+```yaml
+Type: Harness
+Part Number: EXT ROC H1
+Description: ROC to FOC
+Revision: v5.1
+```
+
+### Bill of Materials (10 rows)
+
+```tsv
+Id	Type	Manufacturer	Part Number	Description	Quantity	Usage
+1	Connector	TE Connectivity / DEUTSCH	DT06-12SA	Automotive DC Connector 12 PIN FEMALE CONNECTOR, DT Series | TE Connectivity DT06-12SA	2	FOC-C1, ROC-C1
+5	Wire	Milspec	M22759/32-18-0-100M22759/32-18-2-100	Red 18 AWG		W1
+6	Wire	Milspec	M22759/32-18-0-100M22759/32-18-0-100	Black 18 AWG	≥ 0 in	W2, W19, W20
+7	Wire	Milspec	M22759/32-18-0-100M22759/32-18-8-100	Grey 18 AWG		W3, W4, W5, W15, W16
+8	Wire	Milspec	M22759/32-18-0-100M22759/32-18-7-100	Violet 18 AWG		W6, W7, W8, W9
+9	Wire	Milspec	M22759/32-18-0-100M22759/32-18-3-100	Orange 18 AWG	0 in	W10, W14
+10	Wire	Milspec	M22759/32-18-0-100M22759/32-18-1-100	Brown 18 AWG	0 in	W11
+11	Wire	Milspec	M22759/32-18-0-100M22759/32-18-9-100	White 18 AWG	0 in	W12
+12	Wire		18 AWG LIGHT BLUE		0 in	W13
+13	Wire	Milspec	M22759/32-18-0-100M22759/32-18-6-100	Blue 18 AWG	≥ 0 in	W17, W18
+```
+
+### Wiring Table (12 rows)
+
+```tsv
+From	To	Conductor	Conductor PN	Size	Notes
+ROC-C1.1	FOC-C1.1	W1.Red	M22759/32-18-0-100M22759/32-18-2-100	18 AWG	12V
+ROC-C1.2	FOC-C1.2	W2.Black	M22759/32-18-0-100M22759/32-18-0-100	18 AWG	GND_GLVMP
+ROC-C1.3	FOC-C1.3	W6.Violet	M22759/32-18-0-100M22759/32-18-7-100	18 AWG	BMS Reset-
+ROC-C1.4	FOC-C1.4	W3.Gray	M22759/32-18-0-100M22759/32-18-8-100	18 AWG	BMS LED+
+ROC-C1.5	FOC-C1.5	W7.Violet	M22759/32-18-0-100M22759/32-18-7-100	18 AWG	BSPD Reset-
+ROC-C1.6	FOC-C1.6	W4.Gray	M22759/32-18-0-100M22759/32-18-8-100	18 AWG	BSPD LED+
+ROC-C1.7	FOC-C1.7	W9.Violet	M22759/32-18-0-100M22759/32-18-7-100	18 AWG	IMD Reset+
+ROC-C1.8	FOC-C1.8	W8.Violet	M22759/32-18-0-100M22759/32-18-7-100	18 AWG	IMD Reset-
+ROC-C1.9	FOC-C1.9	W5.Gray	M22759/32-18-0-100M22759/32-18-8-100	18 AWG	IMD LED+
+ROC-C1.10	FOC-C1.10	W17.Blue	M22759/32-18-0-100M22759/32-18-6-100	18 AWG	LV MS-
+ROC-C1.11	FOC-C1.11	W15.Gray	M22759/32-18-0-100M22759/32-18-8-100	18 AWG	Speaker+
+ROC-C1.12	FOC-C1.12	W16.Gray	M22759/32-18-0-100M22759/32-18-8-100	18 AWG	Speaker-
+```
+
+### Cutlist (12 rows)
+
+```tsv
+#	Type	Reference Designator	Manufacturer	Part Number	Color	Size	Notes
+1	Wire	W1	Milspec	M22759/32-18-0-100M22759/32-18-2-100	Red	18 AWG	12V
+2	Wire	W2	Milspec	M22759/32-18-0-100M22759/32-18-0-100	Black	18 AWG	GND_GLVMP
+3	Wire	W3	Milspec	M22759/32-18-0-100M22759/32-18-8-100	Gray	18 AWG	BMS LED+
+4	Wire	W4	Milspec	M22759/32-18-0-100M22759/32-18-8-100	Gray	18 AWG	BSPD LED+
+5	Wire	W5	Milspec	M22759/32-18-0-100M22759/32-18-8-100	Gray	18 AWG	IMD LED+
+6	Wire	W6	Milspec	M22759/32-18-0-100M22759/32-18-7-100	Violet	18 AWG	BMS Reset-
+7	Wire	W7	Milspec	M22759/32-18-0-100M22759/32-18-7-100	Violet	18 AWG	BSPD Reset-
+8	Wire	W8	Milspec	M22759/32-18-0-100M22759/32-18-7-100	Violet	18 AWG	IMD Reset-
+9	Wire	W9	Milspec	M22759/32-18-0-100M22759/32-18-7-100	Violet	18 AWG	IMD Reset+
+10	Wire	W15	Milspec	M22759/32-18-0-100M22759/32-18-8-100	Gray	18 AWG	Speaker+
+11	Wire	W16	Milspec	M22759/32-18-0-100M22759/32-18-8-100	Gray	18 AWG	Speaker-
+12	Wire	W17	Milspec	M22759/32-18-0-100M22759/32-18-6-100	Blue	18 AWG	LV MS-
+```
+
+### Connections (12 rows)
+
+```tsv
+#	From	To	Conductor	Conductor PN	Size	From PN	To PN	Notes
+1	ROC-C1.1	FOC-C1.1	W1.Red	M22759/32-18-0-100M22759/32-18-2-100	18 AWG	DT06-12SA	DT06-12SA	12V
+2	ROC-C1.2	FOC-C1.2	W2.Black	M22759/32-18-0-100M22759/32-18-0-100	18 AWG	DT06-12SA	DT06-12SA	GND_GLVMP
+3	ROC-C1.3	FOC-C1.3	W6.Violet	M22759/32-18-0-100M22759/32-18-7-100	18 AWG	DT06-12SA	DT06-12SA	BMS Reset-
+4	ROC-C1.4	FOC-C1.4	W3.Gray	M22759/32-18-0-100M22759/32-18-8-100	18 AWG	DT06-12SA	DT06-12SA	BMS LED+
+5	ROC-C1.5	FOC-C1.5	W7.Violet	M22759/32-18-0-100M22759/32-18-7-100	18 AWG	DT06-12SA	DT06-12SA	BSPD Reset-
+6	ROC-C1.6	FOC-C1.6	W4.Gray	M22759/32-18-0-100M22759/32-18-8-100	18 AWG	DT06-12SA	DT06-12SA	BSPD LED+
+7	ROC-C1.7	FOC-C1.7	W9.Violet	M22759/32-18-0-100M22759/32-18-7-100	18 AWG	DT06-12SA	DT06-12SA	IMD Reset+
+8	ROC-C1.8	FOC-C1.8	W8.Violet	M22759/32-18-0-100M22759/32-18-7-100	18 AWG	DT06-12SA	DT06-12SA	IMD Reset-
+9	ROC-C1.9	FOC-C1.9	W5.Gray	M22759/32-18-0-100M22759/32-18-8-100	18 AWG	DT06-12SA	DT06-12SA	IMD LED+
+10	ROC-C1.10	FOC-C1.10	W17.Blue	M22759/32-18-0-100M22759/32-18-6-100	18 AWG	DT06-12SA	DT06-12SA	LV MS-
+11	ROC-C1.11	FOC-C1.11	W15.Gray	M22759/32-18-0-100M22759/32-18-8-100	18 AWG	DT06-12SA	DT06-12SA	Speaker+
+12	ROC-C1.12	FOC-C1.12	W16.Gray	M22759/32-18-0-100M22759/32-18-8-100	18 AWG	DT06-12SA	DT06-12SA	Speaker-
+```
+
+---
+
+## 11. EXT ROC H2
+
+- Source file: `EXT ROC H2(1).xlsx`
+
+### Metadata
+
+```yaml
+Type: Harness
+Part Number: EXT ROC H2
+Description: "ROC to Estop, ACCU, LV batt"
+Revision: v3.1
+```
+
+### Bill of Materials (13 rows)
+
+```tsv
+Id	Type	Manufacturer	Part Number	Description	Quantity	Usage
+1	Connector	TE Connectivity / DEUTSCH	DT06-12SA	Automotive DC Connector 12 PIN FEMALE CONNECTOR, DT Series | TE Connectivity DT06-12SA	1	ACCU-C1
+3	Connector	TE Connectivity / DEUTSCH	DT06-2S	2 Position Housing, Housing for Female Terminals, Wire-to-Wire, 5.46 mm [.215 in] Centerline, Sealable	3	Charging-C1, ES-RT, LV_Batt-C1
+5	Wire	Milspec	M22759/32-18-0-100M22759/32-18-2-100	Red 18 AWG	0 in	W1
+6	Wire	Milspec	M22759/32-18-0-100M22759/32-18-0-100	Black 18 AWG	≥ 0 in	W2, W19, W20
+7	Wire	Milspec	M22759/32-18-0-100M22759/32-18-8-100	Grey 18 AWG	0 in	W3, W4, W5, W15, W16
+8	Wire	Milspec	M22759/32-18-0-100M22759/32-18-7-100	Violet 18 AWG	0 in	W6, W7, W8, W9
+9	Wire	Milspec	M22759/32-18-0-100M22759/32-18-3-100	Orange 18 AWG	0 in	W10, W14
+10	Wire	Milspec	M22759/32-18-0-100M22759/32-18-1-100	Brown 18 AWG	0 in	W11
+11	Wire	Milspec	M22759/32-18-0-100M22759/32-18-9-100	White 18 AWG	0 in	W12
+12	Wire		18 AWG LIGHT BLUE		0 in	W13
+13	Wire	Milspec	M22759/32-18-0-100M22759/32-18-6-100	Blue 18 AWG		W17, W18
+14	Connector	TE Connectivity / DEUTSCH	DT06-6S	DEUTSCH DT 6 Way Gray Plug Connector	1	ROC-C2
+15	Wire	Milspec	M22759/32-18-0-100M22759/32-18-5-100	Green 18 AWG	≥ 0 in	W21, W22, W23, W24
+```
+
+### Wiring Table (6 rows)
+
+```tsv
+From	To	Conductor	Conductor PN	Size	Notes
+ROC-C2.1	ES-RT.2	W21.Green	M22759/32-18-0-100M22759/32-18-5-100	18 AWG	HV MS+
+ROC-C2.2	ACCU-C1.4	W22.Green	M22759/32-18-0-100M22759/32-18-5-100	18 AWG	HV MS-
+ROC-C2.3	LV_Batt-C1.1	W18.Blue	M22759/32-18-0-100M22759/32-18-6-100	18 AWG	LV MS pre
+ROC-C2.4	LV_Batt-C1.2	W2.Black	M22759/32-18-0-100M22759/32-18-0-100	18 AWG	LV_Batt_GND
+ROC-C2.5	Charging-C1.1	W17.Blue	M22759/32-18-0-100M22759/32-18-6-100	18 AWG	LV MS Charging +
+ROC-C2.6	Charging-C1.2	W19.Black	M22759/32-18-0-100M22759/32-18-0-100	18 AWG	LV MS Charging -
+```
+
+### Cutlist (6 rows)
+
+```tsv
+#	Type	Reference Designator	Manufacturer	Part Number	Color	Size	Notes
+1	Wire	W2	Milspec	M22759/32-18-0-100M22759/32-18-0-100	Black	18 AWG	LV_Batt_GND
+2	Wire	W17	Milspec	M22759/32-18-0-100M22759/32-18-6-100	Blue	18 AWG	LV MS Charging +
+3	Wire	W18	Milspec	M22759/32-18-0-100M22759/32-18-6-100	Blue	18 AWG	LV MS pre
+4	Wire	W19	Milspec	M22759/32-18-0-100M22759/32-18-0-100	Black	18 AWG	LV MS Charging -
+5	Wire	W21	Milspec	M22759/32-18-0-100M22759/32-18-5-100	Green	18 AWG	HV MS+
+6	Wire	W22	Milspec	M22759/32-18-0-100M22759/32-18-5-100	Green	18 AWG	HV MS-
+```
+
+### Connections (6 rows)
+
+```tsv
+#	From	To	Conductor	Conductor PN	Size	From PN	To PN	Notes
+1	ROC-C2.1	ES-RT.2	W21.Green	M22759/32-18-0-100M22759/32-18-5-100	18 AWG	DT06-6S	DT06-2S	HV MS+
+2	ROC-C2.2	ACCU-C1.4	W22.Green	M22759/32-18-0-100M22759/32-18-5-100	18 AWG	DT06-6S	DT06-12SA	HV MS-
+3	ROC-C2.3	LV_Batt-C1.1	W18.Blue	M22759/32-18-0-100M22759/32-18-6-100	18 AWG	DT06-6S	DT06-2S	LV MS pre
+4	ROC-C2.4	LV_Batt-C1.2	W2.Black	M22759/32-18-0-100M22759/32-18-0-100	18 AWG	DT06-6S	DT06-2S	LV_Batt_GND
+5	ROC-C2.5	Charging-C1.1	W17.Blue	M22759/32-18-0-100M22759/32-18-6-100	18 AWG	DT06-6S	DT06-2S	LV MS Charging +
+6	ROC-C2.6	Charging-C1.2	W19.Black	M22759/32-18-0-100M22759/32-18-0-100	18 AWG	DT06-6S	DT06-2S	LV MS Charging -
+```
+
+---
+
+## 12. FOC H1
+
+- Source file: `FOC H1(1).xlsx`
+
+### Metadata
+
+```yaml
+Type: Harness
+Part Number: FOC H1
+Description: FOC to HV Battery/Inverter
+Revision: 1.1
+```
+
+### Bill of Materials (9 rows)
+
+```tsv
+Id	Type	Manufacturer	Part Number	Description	Quantity	Usage
+2	Wire	Milspec	M22759/32-18-0-100M22759/32-18-4-100	Yellow 18 AWG		W1
+3	Wire	Milspec	M22759/32-18-0-100M22759/32-18-5-100	Green 18 AWG		W2
+4	Connector	TE Connectivity / DEUTSCH	DT04-6P	DEUTSCH DT 6 Way Gray Receptacle Connector	1	FOC C1
+5	Wire	Milspec	M22759/32-18-0-100M22759/32-18-2-100	Red 18 AWG		W3
+6	Wire	Milspec	M22759/32-18-0-100M22759/32-18-0-100	Black 18 AWG	≥ 0 in	W4, W5
+7	Wire	Milspec	M22759/32-18-0-100M22759/32-18-8-100	Grey 18 AWG	0 in	W6, W7
+8	Connector	Molex	172708-1004	Mini-Fit Sigma Receptacle Housing, 4.20mm Pitch, Dual Row, Glow-Wire Capable, 4 Circuits	1	J4 HVB [SB]
+9	Wire		18 AWG White-Green	Generic Wire		W8
+10	Wire		18 AWG White-Yellow	Generic Wire		W9
+```
+
+### Wiring Table (6 rows)
+
+```tsv
+From	To	Conductor	Conductor PN	Size	Notes
+FOC C1.1	J4 HVB [SB].4	W9.White-Yellow	18 AWG White-Yellow	18 AWG	BMS_RESET
+FOC C1.2	J4 HVB [SB].3	W8.White-Green	18 AWG White-Green	18 AWG	IMD_FAULT
+FOC C1.3	CCM.N/C	W1.Yellow	M22759/32-18-0-100M22759/32-18-4-100	18 AWG	CAN_L
+FOC C1.4	CCM.N/C	W2.Green	M22759/32-18-0-100M22759/32-18-5-100	18 AWG	CAN_H
+FOC C1.5	J4 HVB [SB].1	W3.Red	M22759/32-18-0-100M22759/32-18-2-100	18 AWG	HVB_12V
+FOC C1.6	J4 HVB [SB].2	W4.Black	M22759/32-18-0-100M22759/32-18-0-100	18 AWG	HVB_GND
+```
+
+### Cutlist (6 rows)
+
+```tsv
+#	Type	Reference Designator	Manufacturer	Part Number	Color	Size	Notes
+1	Wire	W1	Milspec	M22759/32-18-0-100M22759/32-18-4-100	Yellow	18 AWG	CAN_L
+2	Wire	W2	Milspec	M22759/32-18-0-100M22759/32-18-5-100	Green	18 AWG	CAN_H
+3	Wire	W3	Milspec	M22759/32-18-0-100M22759/32-18-2-100	Red	18 AWG	HVB_12V
+4	Wire	W4	Milspec	M22759/32-18-0-100M22759/32-18-0-100	Black	18 AWG	HVB_GND
+5	Wire	W8		18 AWG White-Green	White-Green	18 AWG	IMD_FAULT
+6	Wire	W9		18 AWG White-Yellow	White-Yellow	18 AWG	BMS_RESET
+```
+
+### Connections (6 rows)
+
+```tsv
+#	From	To	Conductor	Conductor PN	Size	From PN	To PN	Notes
+1	FOC C1.1	J4 HVB [SB].4	W9.White-Yellow	18 AWG White-Yellow	18 AWG	DT04-6P	172708-1004	BMS_RESET
+2	FOC C1.2	J4 HVB [SB].3	W8.White-Green	18 AWG White-Green	18 AWG	DT04-6P	172708-1004	IMD_FAULT
+3	FOC C1.3	CCM.N/C	W1.Yellow	M22759/32-18-0-100M22759/32-18-4-100	18 AWG	DT04-6P		CAN_L
+4	FOC C1.4	CCM.N/C	W2.Green	M22759/32-18-0-100M22759/32-18-5-100	18 AWG	DT04-6P		CAN_H
+5	FOC C1.5	J4 HVB [SB].1	W3.Red	M22759/32-18-0-100M22759/32-18-2-100	18 AWG	DT04-6P	172708-1004	HVB_12V
+6	FOC C1.6	J4 HVB [SB].2	W4.Black	M22759/32-18-0-100M22759/32-18-0-100	18 AWG	DT04-6P	172708-1004	HVB_GND
+```
+
+---
+
+## 13. FOC H2_ Footwell
+
+- Source file: `FOC H2_ Footwell (1).xlsx`
+
+### Metadata
+
+```yaml
+Type: Harness
+Part Number: "FOC H2: Footwell"
+Description: FOC to Brake Sensors and Throttle Sensors
+Revision: 1.7
+```
+
+### Bill of Materials (25 rows)
+
+```tsv
+Id	Type	Manufacturer	Part Number	Description	Quantity	Usage
+4	Wire	Milspec	M22759/32-18-0-100M22759/32-18-0-100	Black 18 AWG	0 in	W1, W2, W17, W18
+5	Wire	Milspec	M22759/32-18-0-100M22759/32-18-4-100	Yellow 18 AWG	28 in	W3, W4, W10
+6	Wire		18 AWG White wire with black stripes		0 in	W5
+7	Wire				0 in	W6, W7
+8	Wire				0 in	W8, W9
+9	Wire				0 in	W11, W12
+10	Wire				0 in	W13, W14
+11	Wire				0 in	W15, W16
+13	Wire	Milspec	M22759/32-18-0-100M22759/32-18-5-100	Green 18 AWG	0 in	W19
+14	Wire		shielding wire white with blue stripes		56 in	W20, W43, W44, W45
+15	Wire	Milspec	M22759/32-18-0-100M22759/32-18-2-100	Red 18 AWG	0 in	W21, W23
+16	Wire		shielding white wire with gray stripes		0 in	W22
+17	Wire		shielding black wire with purple stripes		0 in	W24
+18	Wire		shielding wire white with brown stripes		0 in	W25
+20	Connector	TE Connectivity / DEUTSCH	DT04-12PA-L012	DEUTSCH DT 12 Way Gray Receptacle Connector with Flange Mount, A Key	1	FOC-C2
+21	Wire		18 AWG LIGHT BLUE		0 in	W26
+22	Wire		white wire with blue stripes		0 in	W27
+23	Wire		18AWG White with gray stripes		0 in	W28
+24	Wire		18 awg black wire with violet stripes		0 in	W29
+25	Wire				0 in	W30, W31, W38
+26	Wire				0 in	W32, W33, W34
+27	Wire				0 in	W35, W36, W37
+28	Wire	Milspec	M22759/32-18-0-100M22759/32-18-9-100	White 18 AWG	56 in	W39, W40, W41, W42
+29	Connector		Molex 14 Pin		1	Footwell [SB]
+30	Wire	Milspec	M22759/32-18-0-100M22759/32-18-1-100	Brown 18 AWG	28 in	W46, W47
+```
+
+### Wiring Table (14 rows)
+
+```tsv
+From	To	Conductor	Conductor PN	Size	Length	Notes
+FOC-C2.1	Footwell [SB].6	W42.White	M22759/32-18-0-100M22759/32-18-9-100	18 AWG	14 in	BPS1_GND
+FOC-C2.2	Footwell [SB].13	W20.White-Blue	shielding wire white with blue stripes	20 AWG	14 in	BPS1_IN
+FOC-C2.3	Footwell [SB].7	W3.Yellow	M22759/32-18-0-100M22759/32-18-4-100	18 AWG	14 in	BPS1_5V
+FOC-C2.4	Footwell [SB].4	W47.Brown	M22759/32-18-0-100M22759/32-18-1-100	18 AWG	14 in	THRS1_3.3V
+FOC-C2.5	Footwell [SB].10	W43.White-Blue	shielding wire white with blue stripes	20 AWG	14 in	THRS1_IN
+FOC-C2.6	Footwell [SB].3	W41.White	M22759/32-18-0-100M22759/32-18-9-100	18 AWG	14 in	THRS1_GND
+FOC-C2.7	Footwell [SB].2	W40.White	M22759/32-18-0-100M22759/32-18-9-100	18 AWG	14 in	THRS2_GND
+FOC-C2.8	Footwell [SB].9	W44.White-Blue	shielding wire white with blue stripes	20 AWG	14 in	THRS2_IN
+FOC-C2.9	Footwell [SB].11	W46.Brown	M22759/32-18-0-100M22759/32-18-1-100	18 AWG	14 in	THRS2_3.3V
+FOC-C2.10	Footwell [SB].14	W4.Yellow	M22759/32-18-0-100M22759/32-18-4-100	18 AWG	14 in	BPS2_5V
+FOC-C2.11	Footwell [SB].12	W45.White-Blue	shielding wire white with blue stripes	20 AWG	14 in	BPS2_IN
+FOC-C2.12	Footwell [SB].5	W39.White	M22759/32-18-0-100M22759/32-18-9-100	18 AWG	14 in	BPS2_GND
+Footwell [SB].1	Footwell [SB].N/C				0 in	
+Footwell [SB].8	Footwell [SB].N/C				0 in	
+```
+
+### Cutlist (14 rows)
+
+```tsv
+#	Type	Reference Designator	Manufacturer	Part Number	Color	Size	Length	Notes
+1	Wire	W3	Milspec	M22759/32-18-0-100M22759/32-18-4-100	Yellow	18 AWG	14 in	BPS1_5V
+2	Wire	W4	Milspec	M22759/32-18-0-100M22759/32-18-4-100	Yellow	18 AWG	14 in	BPS2_5V
+3	Wire	W20		shielding wire white with blue stripes	White-Blue	20 AWG	14 in	BPS1_IN
+4	Wire	W39	Milspec	M22759/32-18-0-100M22759/32-18-9-100	White	18 AWG	14 in	BPS2_GND
+5	Wire	W40	Milspec	M22759/32-18-0-100M22759/32-18-9-100	White	18 AWG	14 in	THRS2_GND
+6	Wire	W41	Milspec	M22759/32-18-0-100M22759/32-18-9-100	White	18 AWG	14 in	THRS1_GND
+7	Wire	W42	Milspec	M22759/32-18-0-100M22759/32-18-9-100	White	18 AWG	14 in	BPS1_GND
+8	Wire	W43		shielding wire white with blue stripes	White-Blue	20 AWG	14 in	THRS1_IN
+9	Wire	W44		shielding wire white with blue stripes	White-Blue	20 AWG	14 in	THRS2_IN
+10	Wire	W45		shielding wire white with blue stripes	White-Blue	20 AWG	14 in	BPS2_IN
+11	Wire	W46	Milspec	M22759/32-18-0-100M22759/32-18-1-100	Brown	18 AWG	14 in	THRS2_3.3V
+12	Wire	W47	Milspec	M22759/32-18-0-100M22759/32-18-1-100	Brown	18 AWG	14 in	THRS1_3.3V
+13		Footwell [SB].1 - Footwell [SB].N/C					0 in	
+14		Footwell [SB].8 - Footwell [SB].N/C					0 in	
+```
+
+### Connections (14 rows)
+
+```tsv
+#	From	To	Conductor	Conductor PN	Size	Length	From PN	To PN	Notes
+1	FOC-C2.1	Footwell [SB].6	W42.White	M22759/32-18-0-100M22759/32-18-9-100	18 AWG	14 in	DT04-12PA-L012	Molex 14 Pin	BPS1_GND
+2	FOC-C2.2	Footwell [SB].13	W20.White-Blue	shielding wire white with blue stripes	20 AWG	14 in	DT04-12PA-L012	Molex 14 Pin	BPS1_IN
+3	FOC-C2.3	Footwell [SB].7	W3.Yellow	M22759/32-18-0-100M22759/32-18-4-100	18 AWG	14 in	DT04-12PA-L012	Molex 14 Pin	BPS1_5V
+4	FOC-C2.4	Footwell [SB].4	W47.Brown	M22759/32-18-0-100M22759/32-18-1-100	18 AWG	14 in	DT04-12PA-L012	Molex 14 Pin	THRS1_3.3V
+5	FOC-C2.5	Footwell [SB].10	W43.White-Blue	shielding wire white with blue stripes	20 AWG	14 in	DT04-12PA-L012	Molex 14 Pin	THRS1_IN
+6	FOC-C2.6	Footwell [SB].3	W41.White	M22759/32-18-0-100M22759/32-18-9-100	18 AWG	14 in	DT04-12PA-L012	Molex 14 Pin	THRS1_GND
+7	FOC-C2.7	Footwell [SB].2	W40.White	M22759/32-18-0-100M22759/32-18-9-100	18 AWG	14 in	DT04-12PA-L012	Molex 14 Pin	THRS2_GND
+8	FOC-C2.8	Footwell [SB].9	W44.White-Blue	shielding wire white with blue stripes	20 AWG	14 in	DT04-12PA-L012	Molex 14 Pin	THRS2_IN
+9	FOC-C2.9	Footwell [SB].11	W46.Brown	M22759/32-18-0-100M22759/32-18-1-100	18 AWG	14 in	DT04-12PA-L012	Molex 14 Pin	THRS2_3.3V
+10	FOC-C2.10	Footwell [SB].14	W4.Yellow	M22759/32-18-0-100M22759/32-18-4-100	18 AWG	14 in	DT04-12PA-L012	Molex 14 Pin	BPS2_5V
+11	FOC-C2.11	Footwell [SB].12	W45.White-Blue	shielding wire white with blue stripes	20 AWG	14 in	DT04-12PA-L012	Molex 14 Pin	BPS2_IN
+12	FOC-C2.12	Footwell [SB].5	W39.White	M22759/32-18-0-100M22759/32-18-9-100	18 AWG	14 in	DT04-12PA-L012	Molex 14 Pin	BPS2_GND
+13	Footwell [SB].1	Footwell [SB].N/C				0 in	Molex 14 Pin	Molex 14 Pin	
+14	Footwell [SB].8	Footwell [SB].N/C				0 in	Molex 14 Pin	Molex 14 Pin	
+```
+
+---
+
+## 14. FOC H3
+
+- Source file: `FOC H3(1).xlsx`
+
+### Metadata
+
+```yaml
+Type: Harness
+Part Number: FOC H3
+Description: TSSI/RTM/CCM to TSSI
+Revision: 2.1
+```
+
+### Bill of Materials (9 rows)
+
+```tsv
+Id	Type	Manufacturer	Part Number	Description	Quantity	Usage
+3	Connector	Molex	150178-1020	Molex 150178-1020 Standard .062"+ Recepte Housing, Single Row, 2 Circuits	1	J16 BRK-LT [SB]
+4	Wire	Milspec	M22759/32-18-0-100M22759/32-18-2-100	Red 18 AWG	≥ 0 in	W1, W2, W7, W8, W14
+5	Wire	Milspec	M22759/32-18-0-100M22759/32-18-0-100	Black 18 AWG	0 in	W3, W4, W5, W12, W15
+10	Wire		18 awg Black wires with green stripes			W9
+11	Wire		black and red		≥ 0 in	W6, W13
+12	Wire		18 awg Black wire with orange stripes		0 in	W10
+13	Wire	Milspec	M22759/32-18-0-100M22759/32-18-7-100	Violet 18 AWG		W11
+14	Connector	Molex	172708-1004	Mini-Fit Sigma Receptacle Housing, 4.20mm Pitch, Dual Row, Glow-Wire Capable, 4 Circuits	1	J19 TSSI [SB]
+15	Connector	TE Connectivity / DEUTSCH	DT04-6P-L012	DT 6 Way Gray Flanged Male Connector	1	FOC-C3
+```
+
+### Wiring Table (5 rows)
+
+```tsv
+From	To	Conductor	Conductor PN	Size	Notes
+J16 BRK-LT [SB].1	FOC-C3.4	W8.Red	M22759/32-18-0-100M22759/32-18-2-100	18 AWG	BRK-LT_12V
+J16 BRK-LT [SB].2	FOC-C3.5	W11.Violet	M22759/32-18-0-100M22759/32-18-7-100	18 AWG	BRK-LT
+J19 TSSI [SB].1	FOC-C3.1	W1.Red	M22759/32-18-0-100M22759/32-18-2-100	18 AWG	TSSI_12V
+J19 TSSI [SB].3	FOC-C3.2	W9.Black-Green	18 awg Black wires with green stripes	18 AWG	TSSI_Green
+J19 TSSI [SB].4	FOC-C3.3	W13.Black-Red	black and red	18 AWG	TSSI_Red
+```
+
+### Cutlist (5 rows)
+
+```tsv
+#	Type	Reference Designator	Manufacturer	Part Number	Color	Size	Notes
+1	Wire	W1	Milspec	M22759/32-18-0-100M22759/32-18-2-100	Red	18 AWG	TSSI_12V
+2	Wire	W8	Milspec	M22759/32-18-0-100M22759/32-18-2-100	Red	18 AWG	BRK-LT_12V
+3	Wire	W9		18 awg Black wires with green stripes	Black-Green	18 AWG	TSSI_Green
+4	Wire	W11	Milspec	M22759/32-18-0-100M22759/32-18-7-100	Violet	18 AWG	BRK-LT
+5	Wire	W13		black and red	Black-Red	18 AWG	TSSI_Red
+```
+
+### Connections (5 rows)
+
+```tsv
+#	From	To	Conductor	Conductor PN	Size	From PN	To PN	Notes
+1	J16 BRK-LT [SB].1	FOC-C3.4	W8.Red	M22759/32-18-0-100M22759/32-18-2-100	18 AWG	150178-1020	DT04-6P-L012	BRK-LT_12V
+2	J16 BRK-LT [SB].2	FOC-C3.5	W11.Violet	M22759/32-18-0-100M22759/32-18-7-100	18 AWG	150178-1020	DT04-6P-L012	BRK-LT
+3	J19 TSSI [SB].1	FOC-C3.1	W1.Red	M22759/32-18-0-100M22759/32-18-2-100	18 AWG	172708-1004	DT04-6P-L012	TSSI_12V
+4	J19 TSSI [SB].3	FOC-C3.2	W9.Black-Green	18 awg Black wires with green stripes	18 AWG	172708-1004	DT04-6P-L012	TSSI_Green
+5	J19 TSSI [SB].4	FOC-C3.3	W13.Black-Red	black and red	18 AWG	172708-1004	DT04-6P-L012	TSSI_Red
+```
+
+---
+
+## 15. FOC H5
+
+- Source file: `FOC H5(1).xlsx`
+
+### Metadata
+
+```yaml
+Type: Harness
+Part Number: FOC H5
+Description: Cooling Harness
+Revision: 1.0
+```
+
+All sheets in this workbook are empty after flattening.
+
+---
+
+## 16. FOC H7
+
+- Source file: `FOC H7(1).xlsx`
+
+### Metadata
+
+```yaml
+Type: Harness
+Part Number: FOC H7
+Description: Safety Board to Current Sensor
+Revision: 1.3
+```
+
+### Bill of Materials (5 rows)
+
+```tsv
+Id	Type	Manufacturer	Part Number	Description	Quantity	Usage
+1	Connector	Molex	172708-1004	Mini-Fit Sigma Receptacle Housing, 4.20mm Pitch, Dual Row, Glow-Wire Capable, 4 Circuits	1	J9
+2	Connector	TE Connectivity / DEUTSCH	DT04-3P	DEUTSCH DT 3 Way Gray Receptacle Connector	1	CURR_SENS
+3	Wire	Milspec	M22759/32-18-0-100M22759/32-18-4-100	Yellow 18 AWG		W1
+4	Wire		18 AWG White wire with black stripes			W2
+5	Wire	Milspec	M22759/32-18-0-100M22759/32-18-0-100	Black 18 AWG		W3
+```
+
+### Wiring Table (3 rows)
+
+```tsv
+From	To	Conductor	Conductor PN	Size	Notes
+J9.1	CURR_SENS.1	W1.Yellow	M22759/32-18-0-100M22759/32-18-4-100	18 AWG	CURR_5V
+J9.2	CURR_SENS.2	W2.White-Black	18 AWG White wire with black stripes	18 AWG	CURR_IN
+J9.4	CURR_SENS.3	W3.Black	M22759/32-18-0-100M22759/32-18-0-100	18 AWG	CURR_GND
+```
+
+### Cutlist (3 rows)
+
+```tsv
+#	Type	Reference Designator	Manufacturer	Part Number	Color	Size	Notes
+1	Wire	W1	Milspec	M22759/32-18-0-100M22759/32-18-4-100	Yellow	18 AWG	CURR_5V
+2	Wire	W2		18 AWG White wire with black stripes	White-Black	18 AWG	CURR_IN
+3	Wire	W3	Milspec	M22759/32-18-0-100M22759/32-18-0-100	Black	18 AWG	CURR_GND
+```
+
+### Connections (3 rows)
+
+```tsv
+#	From	To	Conductor	Conductor PN	Size	From PN	To PN	Notes
+1	J9.1	CURR_SENS.1	W1.Yellow	M22759/32-18-0-100M22759/32-18-4-100	18 AWG	172708-1004	DT04-3P	CURR_5V
+2	J9.2	CURR_SENS.2	W2.White-Black	18 AWG White wire with black stripes	18 AWG	172708-1004	DT04-3P	CURR_IN
+3	J9.4	CURR_SENS.3	W3.Black	M22759/32-18-0-100M22759/32-18-0-100	18 AWG	172708-1004	DT04-3P	CURR_GND
+```
+
+---
+
+## 17. FOC H8
+
+- Source file: `FOC H8(1).xlsx`
+
+### Metadata
+
+```yaml
+Type: Harness
+Part Number: FOC H8
+Description: ROC
+Revision: v4.2
+```
+
+### Bill of Materials (10 rows)
+
+```tsv
+Id	Type	Manufacturer	Part Number	Description	Quantity	Usage
+1	Connector	TE Connectivity / DEUTSCH	DT04-12PA-L012	DEUTSCH DT 12 Way Gray Receptacle Connector with Flange Mount, A Key	1	FOC-ROC1
+2	Connector		Molex 12 Pin		1	Latch-J1
+3	Connector	Molex	150178-1020	Molex 150178-1020 Standard .062"+ Recepte Housing, Single Row, 2 Circuits	2	CCM-J10, PDB-J10
+4	Wire	Milspec	M22759/32-18-0-100M22759/32-18-2-100	Red 18 AWG		W1
+5	Wire	Milspec	M22759/32-18-0-100M22759/32-18-0-100	Black 18 AWG		W2
+6	Wire	Milspec	M22759/32-18-0-100M22759/32-18-7-100	Violet 18 AWG		W3, W4, W5, W6
+7	Wire	Milspec	M22759/32-18-0-100M22759/32-18-8-100	Grey 18 AWG		W7, W8, W9, W12, W13
+8	Wire	Milspec	M22759/32-18-0-100M22759/32-18-9-100	White 18 AWG	0 in	W10
+9	Wire		18 AWG LIGHT BLUE		0 in	W11
+10	Wire	Milspec	M22759/32-18-0-100M22759/32-18-6-100	Blue 18 AWG		W14
+```
+
+### Wiring Table (12 rows)
+
+```tsv
+From	To	Conductor	Conductor PN	Size	Notes
+CCM-J10.1	FOC-ROC1.11	W12.Gray	M22759/32-18-0-100M22759/32-18-8-100	18 AWG	Speaker+
+CCM-J10.2	FOC-ROC1.12	W13.Gray	M22759/32-18-0-100M22759/32-18-8-100	18 AWG	Speaker-
+FOC-ROC1.10	PDB-J10.1	W14.Blue	M22759/32-18-0-100M22759/32-18-6-100	18 AWG	LV MS-
+Latch-J1.1	FOC-ROC1.1	W1.Red	M22759/32-18-0-100M22759/32-18-2-100	18 AWG	12V+
+Latch-J1.2	FOC-ROC1.7	W5.Violet	M22759/32-18-0-100M22759/32-18-7-100	18 AWG	IMD_Reset+
+Latch-J1.4	FOC-ROC1.2	W2.Black	M22759/32-18-0-100M22759/32-18-0-100	18 AWG	GND_GLVMP
+Latch-J1.7	FOC-ROC1.5	W4.Violet	M22759/32-18-0-100M22759/32-18-7-100	18 AWG	BSPD_Reset-
+Latch-J1.8	FOC-ROC1.8	W6.Violet	M22759/32-18-0-100M22759/32-18-7-100	18 AWG	IMD_Reset-
+Latch-J1.9	FOC-ROC1.3	W3.Violet	M22759/32-18-0-100M22759/32-18-7-100	18 AWG	BMS_Reset-
+Latch-J1.10	FOC-ROC1.4	W7.Gray	M22759/32-18-0-100M22759/32-18-8-100	18 AWG	BMS_LED+
+Latch-J1.11	FOC-ROC1.9	W9.Gray	M22759/32-18-0-100M22759/32-18-8-100	18 AWG	IMD_LED+
+Latch-J1.12	FOC-ROC1.6	W8.Gray	M22759/32-18-0-100M22759/32-18-8-100	18 AWG	BSPD_LED+
+```
+
+### Cutlist (12 rows)
+
+```tsv
+#	Type	Reference Designator	Manufacturer	Part Number	Color	Size	Notes
+1	Wire	W1	Milspec	M22759/32-18-0-100M22759/32-18-2-100	Red	18 AWG	12V+
+2	Wire	W2	Milspec	M22759/32-18-0-100M22759/32-18-0-100	Black	18 AWG	GND_GLVMP
+3	Wire	W3	Milspec	M22759/32-18-0-100M22759/32-18-7-100	Violet	18 AWG	BMS_Reset-
+4	Wire	W4	Milspec	M22759/32-18-0-100M22759/32-18-7-100	Violet	18 AWG	BSPD_Reset-
+5	Wire	W5	Milspec	M22759/32-18-0-100M22759/32-18-7-100	Violet	18 AWG	IMD_Reset+
+6	Wire	W6	Milspec	M22759/32-18-0-100M22759/32-18-7-100	Violet	18 AWG	IMD_Reset-
+7	Wire	W7	Milspec	M22759/32-18-0-100M22759/32-18-8-100	Gray	18 AWG	BMS_LED+
+8	Wire	W8	Milspec	M22759/32-18-0-100M22759/32-18-8-100	Gray	18 AWG	BSPD_LED+
+9	Wire	W9	Milspec	M22759/32-18-0-100M22759/32-18-8-100	Gray	18 AWG	IMD_LED+
+10	Wire	W12	Milspec	M22759/32-18-0-100M22759/32-18-8-100	Gray	18 AWG	Speaker+
+11	Wire	W13	Milspec	M22759/32-18-0-100M22759/32-18-8-100	Gray	18 AWG	Speaker-
+12	Wire	W14	Milspec	M22759/32-18-0-100M22759/32-18-6-100	Blue	18 AWG	LV MS-
+```
+
+### Connections (12 rows)
+
+```tsv
+#	From	To	Conductor	Conductor PN	Size	From PN	To PN	Notes
+1	CCM-J10.1	FOC-ROC1.11	W12.Gray	M22759/32-18-0-100M22759/32-18-8-100	18 AWG	150178-1020	DT04-12PA-L012	Speaker+
+2	CCM-J10.2	FOC-ROC1.12	W13.Gray	M22759/32-18-0-100M22759/32-18-8-100	18 AWG	150178-1020	DT04-12PA-L012	Speaker-
+3	FOC-ROC1.10	PDB-J10.1	W14.Blue	M22759/32-18-0-100M22759/32-18-6-100	18 AWG	DT04-12PA-L012	150178-1020	LV MS-
+4	Latch-J1.1	FOC-ROC1.1	W1.Red	M22759/32-18-0-100M22759/32-18-2-100	18 AWG	Molex 12 Pin	DT04-12PA-L012	12V+
+5	Latch-J1.2	FOC-ROC1.7	W5.Violet	M22759/32-18-0-100M22759/32-18-7-100	18 AWG	Molex 12 Pin	DT04-12PA-L012	IMD_Reset+
+6	Latch-J1.4	FOC-ROC1.2	W2.Black	M22759/32-18-0-100M22759/32-18-0-100	18 AWG	Molex 12 Pin	DT04-12PA-L012	GND_GLVMP
+7	Latch-J1.7	FOC-ROC1.5	W4.Violet	M22759/32-18-0-100M22759/32-18-7-100	18 AWG	Molex 12 Pin	DT04-12PA-L012	BSPD_Reset-
+8	Latch-J1.8	FOC-ROC1.8	W6.Violet	M22759/32-18-0-100M22759/32-18-7-100	18 AWG	Molex 12 Pin	DT04-12PA-L012	IMD_Reset-
+9	Latch-J1.9	FOC-ROC1.3	W3.Violet	M22759/32-18-0-100M22759/32-18-7-100	18 AWG	Molex 12 Pin	DT04-12PA-L012	BMS_Reset-
+10	Latch-J1.10	FOC-ROC1.4	W7.Gray	M22759/32-18-0-100M22759/32-18-8-100	18 AWG	Molex 12 Pin	DT04-12PA-L012	BMS_LED+
+11	Latch-J1.11	FOC-ROC1.9	W9.Gray	M22759/32-18-0-100M22759/32-18-8-100	18 AWG	Molex 12 Pin	DT04-12PA-L012	IMD_LED+
+12	Latch-J1.12	FOC-ROC1.6	W8.Gray	M22759/32-18-0-100M22759/32-18-8-100	18 AWG	Molex 12 Pin	DT04-12PA-L012	BSPD_LED+
+```
+
+---
+
+## 18. FOC H9
+
+- Source file: `FOC H9(1).xlsx`
+
+### Metadata
+
+```yaml
+Type: Harness
+Part Number: FOC H9
+Description: Dashboard
+Revision: v3
+```
+
+### Bill of Materials (12 rows)
+
+```tsv
+Id	Type	Manufacturer	Part Number	Description	Quantity	Usage
+1	Connector		24 to 12 DCDC Converter		1	24V to 12V Converter
+3	Connector	Molex	150178-1020	Molex 150178-1020 Standard .062"+ Recepte Housing, Single Row, 2 Circuits	4	3_3V Safety Board, F10 EXP_5V, J25 KS, J35 EXP_24V
+4	Ring Terminal	TE Connectivity / AMP	2-34852-1	Ring Tongue Terminal 10-12 AWG 24.21mm 7.14mm Tin Tape Mounted	2	12V, GND
+5	Wire	Milspec	M22759/32-18-0-100M22759/32-18-4-100	Yellow 18 AWG		W1, W7
+6	Wire	Milspec	M22759/32-18-0-100M22759/32-18-8-100	Grey 18 AWG	≥ 0 in	W2, W8, W9, W10, W11, W12, W13, W16
+7	Wire	Milspec	M22759/32-18-0-100M22759/32-18-2-100	Red 18 AWG		W3, W5
+8	Wire	Milspec	M22759/32-18-0-100M22759/32-18-0-100	Black 18 AWG		W4, W6, W15
+9	Wire	Milspec	M22759/32-18-0-100M22759/32-18-6-100	Blue 18 AWG		W14, W17
+10	Connector	Molex	39-28-1043	4 Pin Vertical Header MINI FIT JR MOLEX PN 39281043 WITHOUT PEGS * Disc by Waytek	2	ROC PCB J1, Safety Board J11
+11	Wire	Milspec	M22759/32-18-0-100M22759/32-18-3-100	Orange 18 AWG		W18
+12	Wire	Milspec	M22759/32-18-0-100M22759/32-18-5-100	Green 18 AWG		W19
+13	Wire	Milspec	M22759/32-18-0-100M22759/32-18-9-100	White 18 AWG		W20
+```
+
+### Wiring Table (21 rows)
+
+```tsv
+From	To	Conductor	Conductor PN	Twisted With	Size	From Contact PN	Notes
+3_3V Safety Board.1	EXT DASH-C1.Housing	W16.Gray	M22759/32-18-0-100M22759/32-18-8-100		18 AWG		3.3V_Ready to Drive Button
+12V	EXT DASH-C1.Housing	W3.Red	M22759/32-18-0-100M22759/32-18-2-100		18 AWG		12V Switch
+24V to 12V Converter.1	12V	24V to 12V Converter.Yellow	N/A	N/A	18 AWG	N/A	Battery_12V
+24V to 12V Converter.2	GND	24V to 12V Converter.Black	N/A	N/A	18 AWG	N/A	Battery_GND
+24V to 12V Converter.3	J35 EXP_24V.2	24V to 12V Converter.Black	N/A	N/A	18 AWG	N/A	24V-
+24V to 12V Converter.4	J35 EXP_24V.1	24V to 12V Converter.Red	N/A	N/A	18 AWG	N/A	24V+
+F10 EXP_5V.1	RASPi.5	W1.Yellow	M22759/32-18-0-100M22759/32-18-4-100		18 AWG		5V for GPIO pin 5
+F10 EXP_5V.2	RASPi.6	W4.Black	M22759/32-18-0-100M22759/32-18-0-100		18 AWG		GND at GPIO 6
+J25 KS.1	EXT DASH-C1.7	W14.Blue	M22759/32-18-0-100M22759/32-18-6-100		18 AWG		RTMB_5V
+J25 KS.2	EXT DASH-C1.8	W15.Black	M22759/32-18-0-100M22759/32-18-0-100		18 AWG		RTMB_out
+RASPi.1	Raspi Screen.1	W5.Red	M22759/32-18-0-100M22759/32-18-2-100		18 AWG		3.3V
+RASPi.9	Raspi Screen.9	W6.Black	M22759/32-18-0-100M22759/32-18-0-100		18 AWG		Screen_GND
+RASPi.13	Raspi Screen.13	W20.White	M22759/32-18-0-100M22759/32-18-9-100		18 AWG		Screen_RST
+RASPi.19	Raspi Screen.19	W17.Blue	M22759/32-18-0-100M22759/32-18-6-100		18 AWG		Screen_DIN
+RASPi.22	Raspi Screen.22	W19.Green	M22759/32-18-0-100M22759/32-18-5-100		18 AWG		Screen_DC
+RASPi.23	Raspi Screen.23	W7.Yellow	M22759/32-18-0-100M22759/32-18-4-100		18 AWG		Screen_CLK
+RASPi.24	Raspi Screen.24	W18.Orange	M22759/32-18-0-100M22759/32-18-3-100		18 AWG		Screen_CS
+Safety Board J11.1	ROC PCB J1.1	W8.Gray	M22759/32-18-0-100M22759/32-18-8-100		18 AWG		LED_GND
+Safety Board J11.2	ROC PCB J1.2	W9.Gray	M22759/32-18-0-100M22759/32-18-8-100		18 AWG		BSPD_LED+
+Safety Board J11.3	ROC PCB J1.3	W10.Gray	M22759/32-18-0-100M22759/32-18-8-100		18 AWG		BMS_LED+
+Safety Board J11.4	ROC PCB J1.4	W11.Gray	M22759/32-18-0-100M22759/32-18-8-100		18 AWG		IMD_LED+
+```
+
+### Cutlist (17 rows)
+
+```tsv
+#	Type	Reference Designator	Manufacturer	Part Number	Color	Size	Notes
+1	Wire	W1	Milspec	M22759/32-18-0-100M22759/32-18-4-100	Yellow	18 AWG	5V for GPIO pin 5
+2	Wire	W3	Milspec	M22759/32-18-0-100M22759/32-18-2-100	Red	18 AWG	12V Switch
+3	Wire	W4	Milspec	M22759/32-18-0-100M22759/32-18-0-100	Black	18 AWG	GND at GPIO 6
+4	Wire	W5	Milspec	M22759/32-18-0-100M22759/32-18-2-100	Red	18 AWG	3.3V
+5	Wire	W6	Milspec	M22759/32-18-0-100M22759/32-18-0-100	Black	18 AWG	Screen_GND
+6	Wire	W7	Milspec	M22759/32-18-0-100M22759/32-18-4-100	Yellow	18 AWG	Screen_CLK
+7	Wire	W8	Milspec	M22759/32-18-0-100M22759/32-18-8-100	Gray	18 AWG	LED_GND
+8	Wire	W9	Milspec	M22759/32-18-0-100M22759/32-18-8-100	Gray	18 AWG	BSPD_LED+
+9	Wire	W10	Milspec	M22759/32-18-0-100M22759/32-18-8-100	Gray	18 AWG	BMS_LED+
+10	Wire	W11	Milspec	M22759/32-18-0-100M22759/32-18-8-100	Gray	18 AWG	IMD_LED+
+11	Wire	W14	Milspec	M22759/32-18-0-100M22759/32-18-6-100	Blue	18 AWG	RTMB_5V
+12	Wire	W15	Milspec	M22759/32-18-0-100M22759/32-18-0-100	Black	18 AWG	RTMB_out
+13	Wire	W16	Milspec	M22759/32-18-0-100M22759/32-18-8-100	Gray	18 AWG	3.3V_Ready to Drive Button
+14	Wire	W17	Milspec	M22759/32-18-0-100M22759/32-18-6-100	Blue	18 AWG	Screen_DIN
+15	Wire	W18	Milspec	M22759/32-18-0-100M22759/32-18-3-100	Orange	18 AWG	Screen_CS
+16	Wire	W19	Milspec	M22759/32-18-0-100M22759/32-18-5-100	Green	18 AWG	Screen_DC
+17	Wire	W20	Milspec	M22759/32-18-0-100M22759/32-18-9-100	White	18 AWG	Screen_RST
+```
+
+### Connections (21 rows)
+
+```tsv
+#	From	To	Conductor	Conductor PN	Twisted With	Size	From Strip	From PN	From Contact PN	To PN	Notes
+1	3_3V Safety Board.1	EXT DASH-C1.Housing	W16.Gray	M22759/32-18-0-100M22759/32-18-8-100		18 AWG		150178-1020			3.3V_Ready to Drive Button
+2	12V	EXT DASH-C1.Housing	W3.Red	M22759/32-18-0-100M22759/32-18-2-100		18 AWG		2-34852-1			12V Switch
+3	24V to 12V Converter.1	12V	24V to 12V Converter.Yellow	N/A	N/A	18 AWG	N/A	24 to 12 DCDC Converter	N/A	2-34852-1	Battery_12V
+4	24V to 12V Converter.2	GND	24V to 12V Converter.Black	N/A	N/A	18 AWG	N/A	24 to 12 DCDC Converter	N/A	2-34852-1	Battery_GND
+5	24V to 12V Converter.3	J35 EXP_24V.2	24V to 12V Converter.Black	N/A	N/A	18 AWG	N/A	24 to 12 DCDC Converter	N/A	150178-1020	24V-
+6	24V to 12V Converter.4	J35 EXP_24V.1	24V to 12V Converter.Red	N/A	N/A	18 AWG	N/A	24 to 12 DCDC Converter	N/A	150178-1020	24V+
+7	F10 EXP_5V.1	RASPi.5	W1.Yellow	M22759/32-18-0-100M22759/32-18-4-100		18 AWG		150178-1020			5V for GPIO pin 5
+8	F10 EXP_5V.2	RASPi.6	W4.Black	M22759/32-18-0-100M22759/32-18-0-100		18 AWG		150178-1020			GND at GPIO 6
+9	J25 KS.1	EXT DASH-C1.7	W14.Blue	M22759/32-18-0-100M22759/32-18-6-100		18 AWG		150178-1020			RTMB_5V
+10	J25 KS.2	EXT DASH-C1.8	W15.Black	M22759/32-18-0-100M22759/32-18-0-100		18 AWG		150178-1020			RTMB_out
+11	RASPi.1	Raspi Screen.1	W5.Red	M22759/32-18-0-100M22759/32-18-2-100		18 AWG					3.3V
+12	RASPi.9	Raspi Screen.9	W6.Black	M22759/32-18-0-100M22759/32-18-0-100		18 AWG					Screen_GND
+13	RASPi.13	Raspi Screen.13	W20.White	M22759/32-18-0-100M22759/32-18-9-100		18 AWG					Screen_RST
+14	RASPi.19	Raspi Screen.19	W17.Blue	M22759/32-18-0-100M22759/32-18-6-100		18 AWG					Screen_DIN
+15	RASPi.22	Raspi Screen.22	W19.Green	M22759/32-18-0-100M22759/32-18-5-100		18 AWG					Screen_DC
+16	RASPi.23	Raspi Screen.23	W7.Yellow	M22759/32-18-0-100M22759/32-18-4-100		18 AWG					Screen_CLK
+17	RASPi.24	Raspi Screen.24	W18.Orange	M22759/32-18-0-100M22759/32-18-3-100		18 AWG					Screen_CS
+18	Safety Board J11.1	ROC PCB J1.1	W8.Gray	M22759/32-18-0-100M22759/32-18-8-100		18 AWG		39-28-1043		39-28-1043	LED_GND
+19	Safety Board J11.2	ROC PCB J1.2	W9.Gray	M22759/32-18-0-100M22759/32-18-8-100		18 AWG		39-28-1043		39-28-1043	BSPD_LED+
+20	Safety Board J11.3	ROC PCB J1.3	W10.Gray	M22759/32-18-0-100M22759/32-18-8-100		18 AWG		39-28-1043		39-28-1043	BMS_LED+
+21	Safety Board J11.4	ROC PCB J1.4	W11.Gray	M22759/32-18-0-100M22759/32-18-8-100		18 AWG		39-28-1043		39-28-1043	IMD_LED+
+```
+
+---
+
+## 19. Inside ROC
+
+- Source file: `Inside ROC(1).xlsx`
+
+### Metadata
+
+```yaml
+Type: Harness
+Part Number: Inside ROC
+Revision: v5
+```
+
+### Bill of Materials (13 rows)
+
+```tsv
+Id	Type	Manufacturer	Part Number	Description	Quantity	Usage
+1	Connector	Molex	172708-1006	Mini-Fit Sigma Receptacle Housing, 4.20mm Pitch, Dual Row, Glow-Wire Capable, 6 Circuits	1	HI-J2
+3	Wire	Milspec	M22759/32-18-0-100M22759/32-18-2-100	Red 18 AWG	≥ 0 in	W1, W10
+4	Wire	Milspec	M22759/32-18-0-100M22759/32-18-0-100	Black 18 AWG	≥ 0 in	W2, W11, W18
+5	Wire	Milspec	M22759/32-18-0-100M22759/32-18-7-100	Violet 18 AWG		W3, W4, W5, W6
+6	Wire	Milspec	M22759/32-18-0-100M22759/32-18-8-100	Grey 18 AWG		W7, W8, W9, W12, W13
+8	Connector	TE Connectivity / DEUTSCH	DT04-12PA-L012	DEUTSCH DT 12 Way Gray Receptacle Connector with Flange Mount, A Key	1	ROC-C1
+9	Connector		Master Switch		2	HV MS, LV MS
+11	Connector	TE Connectivity / DEUTSCH	DT04-6P	DEUTSCH DT 6 Way Gray Receptacle Connector	1	ROC-C2
+12	Wire	Milspec	M22759/32-18-0-100M22759/32-18-3-100	Orange 18 AWG	0 in	W14, W15
+13	Wire	Milspec	M22759/32-18-0-100M22759/32-18-6-100	Blue 18 AWG		W16, W17, W23, W24
+14	Wire	Milspec	M22759/32-18-0-100M22759/32-18-5-100	Green 18 AWG	≥ 0 in	W19, W20, W21, W22
+15	Connector	Molex	172708-1004	Mini-Fit Sigma Receptacle Housing, 4.20mm Pitch, Dual Row, Glow-Wire Capable, 4 Circuits	1	HI-J1
+16	Ring Terminal	TE Connectivity / AMP	342184-1	12-10 F.e.p.g. Ring Terminal Rohs Compliant: Yes |Amp Te Connectivity 342184-1	2	Speaker+, Speaker-
+```
+
+### Wiring Table (18 rows)
+
+```tsv
+From	To	Conductor	Conductor PN	Size	Notes
+HI-J1.1	ROC-C1.5	W4.Violet	M22759/32-18-0-100M22759/32-18-7-100	18 AWG	BSPD Reset-
+HI-J1.2	ROC-C1.7	W5.Violet	M22759/32-18-0-100M22759/32-18-7-100	18 AWG	IMD Reset in
+HI-J1.3	ROC-C1.3	W3.Violet	M22759/32-18-0-100M22759/32-18-7-100	18 AWG	BMS Reset-
+HI-J1.4	ROC-C1.8	W6.Violet	M22759/32-18-0-100M22759/32-18-7-100	18 AWG	IMD Reset out
+HI-J2.1	ROC-C1.2	W2.Black	M22759/32-18-0-100M22759/32-18-0-100	18 AWG	GND GLVMP
+HI-J2.3	ROC-C1.1	W1.Red	M22759/32-18-0-100M22759/32-18-2-100	18 AWG	12V
+HI-J2.4	ROC-C1.4	W7.Gray	M22759/32-18-0-100M22759/32-18-8-100	18 AWG	BMS LED+
+HI-J2.5	ROC-C1.9	W9.Gray	M22759/32-18-0-100M22759/32-18-8-100	18 AWG	IMD LED+
+HI-J2.6	ROC-C1.6	W8.Gray	M22759/32-18-0-100M22759/32-18-8-100	18 AWG	BSPD LED+
+ROC-C1.10	LV MS.2	W17.Blue	M22759/32-18-0-100M22759/32-18-6-100	18 AWG	LV MS post
+ROC-C1.11	Speaker+	W12.Gray	M22759/32-18-0-100M22759/32-18-8-100	18 AWG	Speaker+
+ROC-C1.12	Speaker-	W13.Gray	M22759/32-18-0-100M22759/32-18-8-100	18 AWG	Speaker-
+ROC-C2.1	HV MS.1	W19.Green	M22759/32-18-0-100M22759/32-18-5-100	18 AWG	HV MS+
+ROC-C2.2	HV MS.2	W20.Green	M22759/32-18-0-100M22759/32-18-5-100	18 AWG	HV MS-
+ROC-C2.3	LV MS.1	W16.Blue	M22759/32-18-0-100M22759/32-18-6-100	18 AWG	LV MS pre
+ROC-C2.4	HI-J2.2	W11.Black	M22759/32-18-0-100M22759/32-18-0-100	18 AWG	LV Battery GND
+ROC-C2.5	LV MS.1	W23.Blue	M22759/32-18-0-100M22759/32-18-6-100	18 AWG	LV MS Charging +
+ROC-C2.6	LV MS.2	W24.Blue	M22759/32-18-0-100M22759/32-18-6-100	18 AWG	LV MS Charging -
+```
+
+### Cutlist (18 rows)
+
+```tsv
+#	Type	Reference Designator	Manufacturer	Part Number	Color	Size	Notes
+1	Wire	W1	Milspec	M22759/32-18-0-100M22759/32-18-2-100	Red	18 AWG	12V
+2	Wire	W2	Milspec	M22759/32-18-0-100M22759/32-18-0-100	Black	18 AWG	GND GLVMP
+3	Wire	W3	Milspec	M22759/32-18-0-100M22759/32-18-7-100	Violet	18 AWG	BMS Reset-
+4	Wire	W4	Milspec	M22759/32-18-0-100M22759/32-18-7-100	Violet	18 AWG	BSPD Reset-
+5	Wire	W5	Milspec	M22759/32-18-0-100M22759/32-18-7-100	Violet	18 AWG	IMD Reset in
+6	Wire	W6	Milspec	M22759/32-18-0-100M22759/32-18-7-100	Violet	18 AWG	IMD Reset out
+7	Wire	W7	Milspec	M22759/32-18-0-100M22759/32-18-8-100	Gray	18 AWG	BMS LED+
+8	Wire	W8	Milspec	M22759/32-18-0-100M22759/32-18-8-100	Gray	18 AWG	BSPD LED+
+9	Wire	W9	Milspec	M22759/32-18-0-100M22759/32-18-8-100	Gray	18 AWG	IMD LED+
+10	Wire	W11	Milspec	M22759/32-18-0-100M22759/32-18-0-100	Black	18 AWG	LV Battery GND
+11	Wire	W12	Milspec	M22759/32-18-0-100M22759/32-18-8-100	Gray	18 AWG	Speaker+
+12	Wire	W13	Milspec	M22759/32-18-0-100M22759/32-18-8-100	Gray	18 AWG	Speaker-
+13	Wire	W16	Milspec	M22759/32-18-0-100M22759/32-18-6-100	Blue	18 AWG	LV MS pre
+14	Wire	W17	Milspec	M22759/32-18-0-100M22759/32-18-6-100	Blue	18 AWG	LV MS post
+15	Wire	W19	Milspec	M22759/32-18-0-100M22759/32-18-5-100	Green	18 AWG	HV MS+
+16	Wire	W20	Milspec	M22759/32-18-0-100M22759/32-18-5-100	Green	18 AWG	HV MS-
+17	Wire	W23	Milspec	M22759/32-18-0-100M22759/32-18-6-100	Blue	18 AWG	LV MS Charging +
+18	Wire	W24	Milspec	M22759/32-18-0-100M22759/32-18-6-100	Blue	18 AWG	LV MS Charging -
+```
+
+### Connections (18 rows)
+
+```tsv
+#	From	To	Conductor	Conductor PN	Size	From PN	To PN	Notes
+1	HI-J1.1	ROC-C1.5	W4.Violet	M22759/32-18-0-100M22759/32-18-7-100	18 AWG	172708-1004	DT04-12PA-L012	BSPD Reset-
+2	HI-J1.2	ROC-C1.7	W5.Violet	M22759/32-18-0-100M22759/32-18-7-100	18 AWG	172708-1004	DT04-12PA-L012	IMD Reset in
+3	HI-J1.3	ROC-C1.3	W3.Violet	M22759/32-18-0-100M22759/32-18-7-100	18 AWG	172708-1004	DT04-12PA-L012	BMS Reset-
+4	HI-J1.4	ROC-C1.8	W6.Violet	M22759/32-18-0-100M22759/32-18-7-100	18 AWG	172708-1004	DT04-12PA-L012	IMD Reset out
+5	HI-J2.1	ROC-C1.2	W2.Black	M22759/32-18-0-100M22759/32-18-0-100	18 AWG	172708-1006	DT04-12PA-L012	GND GLVMP
+6	HI-J2.3	ROC-C1.1	W1.Red	M22759/32-18-0-100M22759/32-18-2-100	18 AWG	172708-1006	DT04-12PA-L012	12V
+7	HI-J2.4	ROC-C1.4	W7.Gray	M22759/32-18-0-100M22759/32-18-8-100	18 AWG	172708-1006	DT04-12PA-L012	BMS LED+
+8	HI-J2.5	ROC-C1.9	W9.Gray	M22759/32-18-0-100M22759/32-18-8-100	18 AWG	172708-1006	DT04-12PA-L012	IMD LED+
+9	HI-J2.6	ROC-C1.6	W8.Gray	M22759/32-18-0-100M22759/32-18-8-100	18 AWG	172708-1006	DT04-12PA-L012	BSPD LED+
+10	ROC-C1.10	LV MS.2	W17.Blue	M22759/32-18-0-100M22759/32-18-6-100	18 AWG	DT04-12PA-L012	Master Switch	LV MS post
+11	ROC-C1.11	Speaker+	W12.Gray	M22759/32-18-0-100M22759/32-18-8-100	18 AWG	DT04-12PA-L012	342184-1	Speaker+
+12	ROC-C1.12	Speaker-	W13.Gray	M22759/32-18-0-100M22759/32-18-8-100	18 AWG	DT04-12PA-L012	342184-1	Speaker-
+13	ROC-C2.1	HV MS.1	W19.Green	M22759/32-18-0-100M22759/32-18-5-100	18 AWG	DT04-6P	Master Switch	HV MS+
+14	ROC-C2.2	HV MS.2	W20.Green	M22759/32-18-0-100M22759/32-18-5-100	18 AWG	DT04-6P	Master Switch	HV MS-
+15	ROC-C2.3	LV MS.1	W16.Blue	M22759/32-18-0-100M22759/32-18-6-100	18 AWG	DT04-6P	Master Switch	LV MS pre
+16	ROC-C2.4	HI-J2.2	W11.Black	M22759/32-18-0-100M22759/32-18-0-100	18 AWG	DT04-6P	172708-1006	LV Battery GND
+17	ROC-C2.5	LV MS.1	W23.Blue	M22759/32-18-0-100M22759/32-18-6-100	18 AWG	DT04-6P	Master Switch	LV MS Charging +
+18	ROC-C2.6	LV MS.2	W24.Blue	M22759/32-18-0-100M22759/32-18-6-100	18 AWG	DT04-6P	Master Switch	LV MS Charging -
+```

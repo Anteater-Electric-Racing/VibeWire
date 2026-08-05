@@ -35,6 +35,7 @@ export const TextBoxNode = memo(function TextBoxNode({
   const removeTextBox = useHarnessStore((s) => s.removeTextBox);
   const selectTextBox = useHarnessStore((s) => s.selectTextBox);
   const selectedTextBoxId = useHarnessStore((s) => s.selectedTextBoxId);
+  const isEditor = useHarnessStore((s) => s.session.isEditor);
   const [localText, setLocalText] = useState(data.text);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -42,7 +43,7 @@ export const TextBoxNode = memo(function TextBoxNode({
 
   useEffect(() => {
     setLocalText(data.text);
-  }, [data.text]);
+  }, [data.text, isEditor]);
 
   const border =
     data.borderWidth > 0
@@ -67,7 +68,7 @@ export const TextBoxNode = memo(function TextBoxNode({
       onClick={() => selectTextBox(data.tbId)}
     >
       <NodeResizer
-        isVisible={selected}
+        isVisible={selected && isEditor}
         minWidth={80}
         minHeight={40}
         onResizeEnd={(_, params) =>
@@ -90,6 +91,7 @@ export const TextBoxNode = memo(function TextBoxNode({
             />
             <input
               type="color"
+              disabled={!isEditor}
               value={data.bgColor}
               onChange={(e) => updateTextBox(data.tbId, { bgColor: e.target.value })}
               className="absolute opacity-0 w-4 h-4 cursor-pointer"
@@ -107,6 +109,7 @@ export const TextBoxNode = memo(function TextBoxNode({
             />
             <input
               type="color"
+              disabled={!isEditor}
               value={data.textColor}
               onChange={(e) => updateTextBox(data.tbId, { textColor: e.target.value })}
               className="absolute opacity-0 w-4 h-4 cursor-pointer"
@@ -128,8 +131,9 @@ export const TextBoxNode = memo(function TextBoxNode({
 
           {/* Delete */}
           <button
-            className="text-[10px] text-zinc-400 hover:text-red-400 transition-colors leading-none px-0.5"
-            title="Remove text box"
+            disabled={!isEditor}
+            className="text-[10px] text-zinc-400 hover:text-red-400 transition-colors leading-none px-0.5 disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:text-zinc-400"
+            title={isEditor ? 'Remove text box' : 'Log in to remove the text box'}
             onClick={(e) => { e.stopPropagation(); removeTextBox(data.tbId); }}
           >
             ✕
@@ -140,11 +144,14 @@ export const TextBoxNode = memo(function TextBoxNode({
       {/* Editable textarea */}
       <textarea
         ref={textareaRef}
+        readOnly={!isEditor}
         value={localText}
         onChange={(e) => setLocalText(e.target.value)}
-        onBlur={() => updateTextBox(data.tbId, { text: localText })}
+        onBlur={() => {
+          if (isEditor) updateTextBox(data.tbId, { text: localText });
+        }}
         placeholder="Type here…"
-        className="nodrag nopan w-full h-full bg-transparent resize-none outline-none border-none placeholder-zinc-500/40"
+        className={`nodrag nopan w-full h-full bg-transparent resize-none outline-none border-none placeholder-zinc-500/40 ${isEditor ? '' : 'cursor-default'}`}
         style={{
           color: data.textColor,
           fontSize: data.fontSize,

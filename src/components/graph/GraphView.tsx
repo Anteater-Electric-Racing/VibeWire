@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ReactFlow,
   Background,
+  ConnectionMode,
   Controls,
   Panel,
   SelectionMode,
@@ -14,6 +15,7 @@ import {
   type OnNodesChange,
   type NodeChange,
   type Connection,
+  type ReactFlowInstance,
   BackgroundVariant,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
@@ -54,6 +56,7 @@ import {
 import {
   buildSubsystemGraphModel,
   deriveGraphWireGroups,
+  findOverlappingWallMountedPeer,
   projectNodeToEnclosureWall,
   SUBSYSTEM_CONNECTOR_PREFIX,
   SUBSYSTEM_DEVICE_PREFIX,
@@ -75,20 +78,51 @@ const nodeTypes = {
 };
 const edgeTypes = { bundle: BundleEdge };
 
+function getAbsoluteNodeCenter(nodeId: string, nodes: Node[]): Point | null {
+  const nodesById = new Map(nodes.map((node) => [node.id, node]));
+  const node = nodesById.get(nodeId);
+  if (!node) return null;
+
+  let x = node.position.x;
+  let y = node.position.y;
+  let parentId = node.parentId;
+  const visited = new Set([node.id]);
+  while (parentId && !visited.has(parentId)) {
+    visited.add(parentId);
+    const parent = nodesById.get(parentId);
+    if (!parent) break;
+    x += parent.position.x;
+    y += parent.position.y;
+    parentId = parent.parentId;
+  }
+
+  const style = node.style as { width?: number | string; height?: number | string } | undefined;
+  const width = node.measured?.width
+    ?? node.width
+    ?? (typeof style?.width === 'number' ? style.width : 0);
+  const height = node.measured?.height
+    ?? node.height
+    ?? (typeof style?.height === 'number' ? style.height : 0);
+  return { x: x + width / 2, y: y + height / 2 };
+}
+
 function AddTextBoxButton() {
   const { screenToFlowPosition } = useReactFlow();
   const addTextBox = useHarnessStore((s) => s.addTextBox);
+  const isEditor = useHarnessStore((s) => s.session.isEditor);
 
   const handleAdd = () => {
+    if (!isEditor) return;
     const pos = screenToFlowPosition({ x: window.innerWidth / 2, y: window.innerHeight / 2 });
     addTextBox(pos.x - 110, pos.y - 55);
   };
 
   return (
     <button
-      className="flex items-center gap-1.5 px-2 py-1 text-[11px] bg-zinc-800/90 border border-zinc-600 text-zinc-300 hover:text-zinc-100 hover:bg-zinc-700 rounded shadow transition-colors"
+      disabled={!isEditor}
+      className="flex items-center gap-1.5 px-2 py-1 text-[11px] bg-zinc-800/90 border border-zinc-600 text-zinc-300 hover:text-zinc-100 hover:bg-zinc-700 rounded shadow transition-colors disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-zinc-800/90 disabled:hover:text-zinc-300"
       onClick={handleAdd}
-      title="Add a floating text box"
+      title={isEditor ? 'Add a floating text box' : 'Log in to add a text box'}
     >
       <span className="font-bold text-[12px] leading-none">T</span>
       <span>Text Box</span>
@@ -206,6 +240,7 @@ function EntityRevealController({ nodes, edges }: { nodes: Node[]; edges: Edge[]
 
 export function GraphView() {
   const harness = useHarnessStore((s) => s.harness);
+  const isEditor = useHarnessStore((s) => s.session.isEditor);
   const activeHarnessName = useHarnessStore((s) => s.activeHarnessName);
   const nodeLayouts = useHarnessStore((s) => s.nodeLayouts);
   const sizeLayouts = useHarnessStore((s) => s.sizeLayouts);
@@ -228,11 +263,14 @@ export function GraphView() {
   const updateTextBox = useHarnessStore((s) => s.updateTextBox);
   const selectTextBox = useHarnessStore((s) => s.selectTextBox);
   const waypointLayouts = useHarnessStore((s) => s.waypointLayouts);
+  const setEdgeWaypoints = useHarnessStore((s) => s.setEdgeWaypoints);
   const junctionLayouts = useHarnessStore((s) => s.junctionLayouts);
   const createJunction = useHarnessStore((s) => s.createJunction);
   const linkEdgeToJunction = useHarnessStore((s) => s.linkEdgeToJunction);
   const draggingEdgeInfo = useHarnessStore((s) => s.draggingEdgeInfo);
   const pushUndoSnapshot = useHarnessStore((s) => s.pushUndoSnapshot);
+  const commitUndoSnapshot = useHarnessStore((s) => s.commitUndoSnapshot);
+  const cancelUndoSnapshot = useHarnessStore((s) => s.cancelUndoSnapshot);
   const mergePointLayouts = useHarnessStore((s) => s.mergePointLayouts);
   const updateMergePointLayout = useHarnessStore((s) => s.updateMergePointLayout);
   const expandedNodes = useHarnessStore((s) => s.expandedNodes);
@@ -241,9 +279,11 @@ export function GraphView() {
   const subsystems = useHarnessStore((s) => s.subsystems);
   const updateSubsystemEntityLayout = useHarnessStore((s) => s.updateSubsystemEntityLayout);
   const addEntityToActiveSubsystem = useHarnessStore((s) => s.addEntityToActiveSubsystem);
+  const mergeBulkheadConnectors = useHarnessStore((s) => s.mergeBulkheadConnectors);
   const setMutationError = useHarnessStore((s) => s.setMutationError);
   const mutationError = useHarnessStore((s) => s.mutationError);
   const removeEntityFromActiveSubsystem = useHarnessStore((s) => s.removeEntityFromActiveSubsystem);
+  const openSignalLibrary = useHarnessStore((s) => s.openSignalLibrary);
 
   const spaceId = drillDownEnclosure ?? null;
   const bgKey = spaceId ?? 'graph';
@@ -252,19 +292,39 @@ export function GraphView() {
     : `${activeHarnessName}:hierarchy:${bgKey}`;
 
   const prevDragging = useRef(useHarnessStore.getState().draggingEdgeInfo);
+  const reactFlowInstance = useRef<ReactFlowInstance<Node, Edge> | null>(null);
   const draggingNodes = useRef(new Set<string>());
   const didPushSnapshotForDrag = useRef(false);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [lassoMode, setLassoMode] = useState(false);
+  const [placingRoutePoints, setPlacingRoutePoints] = useState(false);
   const [pendingRoute, setPendingRoute] = useState<{
     from: { connector_id: string; pin_number: number };
     to: { connector_id: string; pin_number: number };
   } | null>(null);
   const [selectedSignalId, setSelectedSignalId] = useState('');
   const [creatingSignal, setCreatingSignal] = useState(false);
-  const [newSignalName, setNewSignalName] = useState('');
-  const [newSignalTags, setNewSignalTags] = useState('');
-  const [newSignalColor, setNewSignalColor] = useState('');
+
+  useEffect(() => {
+    if (isEditor) return;
+    setPickerOpen(false);
+    setPendingRoute(null);
+    setPlacingRoutePoints(false);
+  }, [isEditor]);
+
+  useEffect(() => {
+    if (selectedBundle) return;
+    setPlacingRoutePoints(false);
+  }, [selectedBundle]);
+
+  useEffect(() => {
+    if (!placingRoutePoints) return;
+    const stopPlacing = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setPlacingRoutePoints(false);
+    };
+    window.addEventListener('keydown', stopPlacing);
+    return () => window.removeEventListener('keydown', stopPlacing);
+  }, [placingRoutePoints]);
 
   const breadcrumbs = useMemo(() => {
     if (!harness || !spaceId) return [];
@@ -563,11 +623,7 @@ export function GraphView() {
           : '#666';
 
       const isSelected =
-        (
-          selectedBundle &&
-          bundle.pathIds.every((id) => selectedBundle.includes(id)) &&
-          selectedBundle.every((id) => bundle.pathIds.includes(id))
-        ) ||
+        (selectedBundle != null && selectedBundle.id === bundle.id) ||
         (
           selectedItem?.type === 'path' &&
           bundle.pathIds.includes(selectedItem.id)
@@ -606,6 +662,8 @@ export function GraphView() {
         targetHandle: bundle.targetHandle,
         type: 'bundle',
         selected: !!isSelected,
+        // Keep selected edges (and their bend-point handles) above other harnesses.
+        zIndex: isSelected ? 1000 : 0,
         data: {
           pathIds: bundle.pathIds,
           pathCount: bundle.pathIds.length,
@@ -663,6 +721,7 @@ export function GraphView() {
 
   // Auto-create junction when a waypoint is dropped near another edge
   useEffect(() => {
+    if (!isEditor) return;
     const prev = prevDragging.current;
     prevDragging.current = draggingEdgeInfo;
 
@@ -702,7 +761,7 @@ export function GraphView() {
 
         if (alreadyLinked) break;
 
-        pushUndoSnapshot();
+        pushUndoSnapshot(`junction:${existingJunctionId ?? draggedId}:link:${edge.id}`);
         const insertAfterIndex = Math.max(0, segIndex - 1);
 
         if (existingJunctionId) {
@@ -711,13 +770,20 @@ export function GraphView() {
           const junctionId = createJunction(dropPos, draggedId, wpIdx);
           linkEdgeToJunction(junctionId, edge.id, insertAfterIndex, dropPos);
         }
+        commitUndoSnapshot();
         break;
       }
     }
-  }, [draggingEdgeInfo, graphEdges, graphNodes, sizeLayouts, createJunction, linkEdgeToJunction, pushUndoSnapshot]);
+  }, [draggingEdgeInfo, graphEdges, graphNodes, sizeLayouts, createJunction, isEditor, linkEdgeToJunction, pushUndoSnapshot, commitUndoSnapshot]);
 
   const onNodesChange: OnNodesChange = useCallback(
     (changes: NodeChange[]) => {
+      if (!isEditor) {
+        onNodesChangeBase(changes.filter(
+          (change) => change.type !== 'position' && change.type !== 'dimensions',
+        ));
+        return;
+      }
       const constrainedChanges = changes.map((change) => {
         if (change.type !== 'position' || !change.position) return change;
         const node = nodes.find((candidate) => candidate.id === change.id);
@@ -751,7 +817,7 @@ export function GraphView() {
       );
       if (anyStarting && !didPushSnapshotForDrag.current) {
         didPushSnapshotForDrag.current = true;
-        pushUndoSnapshot();
+        pushUndoSnapshot(`nodes:${positionChanges.map((change) => change.id).sort().join(',')}:drag`);
       }
 
       for (const change of positionChanges) {
@@ -789,6 +855,60 @@ export function GraphView() {
             updateSubsystemEntityLayout('devices', deviceId, { ...previous, x: change.position.x, y: change.position.y });
           } else if (change.id.startsWith(SUBSYSTEM_CONNECTOR_PREFIX)) {
             const connectorId = change.id.slice(SUBSYSTEM_CONNECTOR_PREFIX.length);
+            const draggedNode = nodes.find((candidate) => candidate.id === change.id);
+            if (draggedNode?.data.wallMounted && draggedNode.parentId) {
+              const parent = nodes.find((candidate) => candidate.id === draggedNode.parentId);
+              const parentStyle = parent?.style as { width?: number; height?: number } | undefined;
+              const enclosureSize =
+                typeof parentStyle?.width === 'number' && typeof parentStyle.height === 'number'
+                  ? { w: parentStyle.width, h: parentStyle.height }
+                  : null;
+              if (enclosureSize) {
+                const peerNodeId = findOverlappingWallMountedPeer(
+                  {
+                    id: change.id,
+                    parentId: draggedNode.parentId,
+                    position: change.position,
+                    size: {
+                      w: Number((draggedNode.style as { width?: number } | undefined)?.width ?? 96),
+                      h: Number((draggedNode.style as { height?: number } | undefined)?.height ?? 36),
+                    },
+                    wallMounted: true,
+                  },
+                  nodes.map((candidate) => {
+                    const style = candidate.style as { width?: number; height?: number } | undefined;
+                    return {
+                      id: candidate.id,
+                      parentId: candidate.parentId,
+                      position: candidate.position,
+                      size: {
+                        w: Number(style?.width ?? 96),
+                        h: Number(style?.height ?? 36),
+                      },
+                      wallMounted: !!candidate.data.wallMounted,
+                    };
+                  }),
+                  enclosureSize,
+                );
+                if (peerNodeId?.startsWith(SUBSYSTEM_CONNECTOR_PREFIX)) {
+                  const targetId = peerNodeId.slice(SUBSYSTEM_CONNECTOR_PREFIX.length);
+                  const keptId = mergeBulkheadConnectors(connectorId, targetId);
+                  if (keptId) {
+                    // Surviving connector was the dragged one (e.g. real hardware
+                    // dropped onto a generated placeholder) — persist its drop spot.
+                    if (keptId === connectorId) {
+                      const previous = subsystem?.connectors[connectorId];
+                      updateSubsystemEntityLayout('connectors', connectorId, {
+                        ...previous,
+                        x: change.position.x,
+                        y: change.position.y,
+                      });
+                    }
+                    continue;
+                  }
+                }
+              }
+            }
             const previous = subsystem?.connectors[connectorId];
             updateSubsystemEntityLayout('connectors', connectorId, { ...previous, x: change.position.x, y: change.position.y });
           } else {
@@ -796,20 +916,77 @@ export function GraphView() {
           }
         }
       }
+      if (
+        positionChanges.some((change) => change.dragging === false)
+        && draggingNodes.current.size === 0
+      ) {
+        commitUndoSnapshot();
+      }
     },
-    [onNodesChangeBase, updateNodePosition, updateBackground, updateTextBox,
+    [isEditor, onNodesChangeBase, updateNodePosition, updateBackground, updateTextBox,
      updateFreePortLayout, updatePortLayout, updateMergePointLayout, updateSubsystemEntityLayout,
-     subsystem, bgKey, pushUndoSnapshot, nodes],
+     mergeBulkheadConnectors, subsystem, bgKey, pushUndoSnapshot, commitUndoSnapshot, nodes],
   );
 
-  const onPaneClick = useCallback(() => {
+  const placeRoutePoint = useCallback((event: React.MouseEvent): boolean => {
+    if (!placingRoutePoints || !selectedBundle || !isEditor) return false;
+
+    const instance = reactFlowInstance.current;
+    const edge = edges.find((candidate) => candidate.id === selectedBundle.id);
+    if (!instance || !edge) {
+      setMutationError('The selected bundle is no longer visible.');
+      setPlacingRoutePoints(false);
+      return true;
+    }
+
+    const position = instance.screenToFlowPosition({ x: event.clientX, y: event.clientY });
+    const source = getAbsoluteNodeCenter(edge.source, nodes);
+    const target = getAbsoluteNodeCenter(edge.target, nodes);
+    if (!source || !target) {
+      setMutationError('Could not place a routing point on this bundle.');
+      return true;
+    }
+
+    const resolvedWaypoints =
+      (edge.data?.resolvedWaypoints as Point[] | undefined) ?? [];
+    const { segIndex } = nearestOnPolyline(
+      position,
+      [source, ...resolvedWaypoints, target],
+    );
+    const currentWaypoints = waypointLayouts[edge.id] ?? [];
+    const nextWaypoints = [...currentWaypoints];
+    nextWaypoints.splice(
+      Math.max(0, Math.min(currentWaypoints.length, segIndex)),
+      0,
+      { x: position.x, y: position.y },
+    );
+    pushUndoSnapshot(`edge:${edge.id}:add-waypoint`);
+    setEdgeWaypoints(edge.id, nextWaypoints);
+    commitUndoSnapshot();
+    return true;
+  }, [
+    commitUndoSnapshot,
+    edges,
+    isEditor,
+    nodes,
+    placingRoutePoints,
+    pushUndoSnapshot,
+    selectedBundle,
+    setEdgeWaypoints,
+    setMutationError,
+    waypointLayouts,
+  ]);
+
+  const onPaneClick = useCallback((event: React.MouseEvent) => {
+    if (placeRoutePoint(event)) return;
     selectItem(null);
     selectTextBox(null);
-  }, [selectItem, selectTextBox]);
+  }, [placeRoutePoint, selectItem, selectTextBox]);
 
   const onNodeClick = useCallback(
-    (_: React.MouseEvent, node: Node) => {
+    (event: React.MouseEvent, node: Node) => {
       if (node.id === BG_NODE_ID) {
+        if (placeRoutePoint(event)) return;
         selectItem(null);
         selectTextBox(null);
         return;
@@ -848,15 +1025,24 @@ export function GraphView() {
       }
       selectItem({ type: 'enclosure', id: node.id });
     },
-    [selectItem, selectTextBox],
+    [placeRoutePoint, selectItem, selectTextBox],
   );
 
   const submitRoute = useCallback(async (
     from: { connector_id: string; pin_number: number },
     to: { connector_id: string; pin_number: number },
     signalId: string,
+    properties?: Record<string, string>,
   ) => {
-    if (!signalId) return;
+    if (!isEditor) {
+      setMutationError('Log in to edit');
+      return false;
+    }
+    if (!signalId) return false;
+    pushUndoSnapshot(
+      `route:${from.connector_id}:${from.pin_number}:${to.connector_id}:${to.pin_number}`,
+    );
+    const routeSubsystemId = editingSurface === 'subsystem' ? activeSubsystemId : null;
     const response = await fetch(`/api/paths/route?harness=${encodeURIComponent(useHarnessStore.getState().activeHarnessName)}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -864,26 +1050,40 @@ export function GraphView() {
         from,
         to,
         signal_id: signalId,
-        subsystem_id: activeSubsystemId,
+        subsystem_id: routeSubsystemId,
         request_id: crypto.randomUUID(),
+        properties,
       }),
     });
     const result = await response.json();
     if (!response.ok) {
+      cancelUndoSnapshot();
       setMutationError(result.error ?? 'Wire routing failed');
-      return;
+      return false;
     }
-    useHarnessStore.getState().loadHarness(result.harness);
-    if (editingSurface === 'subsystem') {
+    const store = useHarnessStore.getState();
+    store.loadHarness(result.harness);
+    if (result.subsystem) {
+      store.acceptSavedSubsystem(result.subsystem);
+    } else if (
+      store.editingSurface === 'subsystem'
+      && store.activeSubsystemId === routeSubsystemId
+    ) {
       for (const connectorId of result.generated_connectors ?? []) {
         useHarnessStore.getState().addEntityToActiveSubsystem('connector', connectorId);
       }
     }
+    commitUndoSnapshot();
     setMutationError(null);
     setPendingRoute(null);
-  }, [activeSubsystemId, editingSurface, setMutationError]);
+    return true;
+  }, [activeSubsystemId, editingSurface, isEditor, setMutationError, pushUndoSnapshot, commitUndoSnapshot, cancelUndoSnapshot]);
 
   const onConnect = useCallback((connection: Connection) => {
+    if (!isEditor) {
+      setMutationError('Log in to edit');
+      return;
+    }
     if (!harness) return;
     const parse = (nodeId: string | null, handleId: string | null) => {
       if (!nodeId || !handleId?.startsWith('pin:')) return null;
@@ -906,39 +1106,78 @@ export function GraphView() {
       setMutationError('Choose a cavity handle at both ends.');
       return;
     }
+    if (from.connector_id === to.connector_id) {
+      return;
+    }
+    const existingBulkheadSignalId = [from, to].map((endpoint) => {
+      const connector = harness.connectors.find((item) => item.id === endpoint.connector_id);
+      const parent = connector?.parent
+        ? harness.enclosures.find((item) => item.id === connector.parent)
+        : undefined;
+      if (!connector || !parent?.container) return null;
+      const stub = harness.paths.find((path) => {
+        const nodeIndex = path.nodes.findIndex((node) =>
+          node.kind === 'connector'
+          && node.connector_id === connector.id
+          && node.pin_number === endpoint.pin_number
+        );
+        return nodeIndex === 0 || nodeIndex === path.nodes.length - 1;
+      });
+      return stub ? getPathSignalId(stub) : null;
+    }).find((signalId): signalId is string => !!signalId);
     setPendingRoute({ from, to });
-    setSelectedSignalId(harness.signals[0]?.id ?? '');
-    setCreatingSignal(harness.signals.length === 0);
-  }, [harness, setMutationError]);
+    setSelectedSignalId(existingBulkheadSignalId ?? harness.signals[0]?.id ?? '');
+    setCreatingSignal(false);
+  }, [
+    harness,
+    isEditor,
+    setMutationError,
+  ]);
 
   const createSignalAndRoute = useCallback(async () => {
-    if (!pendingRoute || !newSignalName.trim()) return;
-    const slug = newSignalName.trim().toUpperCase().replace(/[^A-Z0-9]+/g, '_').replace(/^_|_$/g, '');
-    if (!slug) {
-      setMutationError('Signal name must contain at least one letter or number.');
+    if (!isEditor) {
+      setMutationError('Log in to edit');
       return;
     }
-    const signalId = `sig_${slug}`;
-    const response = await fetch(`/api/signals?harness=${encodeURIComponent(useHarnessStore.getState().activeHarnessName)}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        id: signalId,
-        name: newSignalName.trim(),
-        tags: newSignalTags.split(',').map((tag) => tag.trim()).filter(Boolean),
-        properties: newSignalColor.trim() ? { preferred_wire_color: newSignalColor.trim() } : {},
-      }),
-    });
-    if (!response.ok) {
-      const result = await response.json();
-      setMutationError(result.error ?? 'Signal creation failed');
-      return;
+    if (!pendingRoute || creatingSignal) return;
+
+    setCreatingSignal(true);
+    try {
+      const response = await fetch(`/api/signals?harness=${encodeURIComponent(useHarnessStore.getState().activeHarnessName)}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: 'new signal',
+          tags: [],
+          properties: { preferred_wire_color: 'grey' },
+        }),
+      });
+      const result = await response.json() as { id?: string; error?: string };
+      if (!response.ok || !result.id) {
+        setMutationError(result.error ?? 'Signal creation failed');
+        return;
+      }
+
+      const routed = await submitRoute(
+        pendingRoute.from,
+        pendingRoute.to,
+        result.id,
+        { wire_color: 'grey' },
+      );
+      if (routed) openSignalLibrary(result.id);
+    } catch (error) {
+      setMutationError(error instanceof Error ? error.message : 'Signal creation failed');
+    } finally {
+      setCreatingSignal(false);
     }
-    await submitRoute(pendingRoute.from, pendingRoute.to, signalId);
-    setNewSignalName('');
-    setNewSignalTags('');
-    setNewSignalColor('');
-  }, [pendingRoute, newSignalName, newSignalTags, newSignalColor, submitRoute, setMutationError]);
+  }, [
+    creatingSignal,
+    isEditor,
+    openSignalLibrary,
+    pendingRoute,
+    setMutationError,
+    submitRoute,
+  ]);
 
   return (
     <div className="w-full h-full bg-zinc-950">
@@ -949,7 +1188,12 @@ export function GraphView() {
         onNodeClick={onNodeClick}
         onPaneClick={onPaneClick}
         onConnect={onConnect}
-        nodesDraggable
+        onInit={(instance) => {
+          reactFlowInstance.current = instance;
+        }}
+        nodesDraggable={isEditor}
+        nodesConnectable={isEditor}
+        connectionMode={ConnectionMode.Loose}
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
         fitView
@@ -958,6 +1202,7 @@ export function GraphView() {
         maxZoom={3}
         proOptions={{ hideAttribution: true }}
         defaultEdgeOptions={{ animated: false }}
+        elevateEdgesOnSelect
         selectionOnDrag={lassoMode}
         panOnDrag={lassoMode ? false : true}
         selectionMode={SelectionMode.Partial}
@@ -1016,14 +1261,15 @@ export function GraphView() {
               </button>
               <div className="relative">
                 <button
-                  className="flex items-center gap-1.5 px-2 py-1 text-[11px] bg-zinc-800/90 border border-zinc-600 text-zinc-300 hover:text-zinc-100 hover:bg-zinc-700 rounded shadow transition-colors"
+                  disabled={!isEditor}
+                  className="flex items-center gap-1.5 px-2 py-1 text-[11px] bg-zinc-800/90 border border-zinc-600 text-zinc-300 hover:text-zinc-100 hover:bg-zinc-700 rounded shadow transition-colors disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-zinc-800/90 disabled:hover:text-zinc-300"
                   onClick={() => setPickerOpen((p) => !p)}
-                  title="Set background image"
+                  title={isEditor ? 'Set background image' : 'Log in to set a background image'}
                 >
                   <span>🖼</span>
                   <span>Background</span>
                 </button>
-                {pickerOpen && (
+                {pickerOpen && isEditor && (
                   <ImagePickerPanel
                     onPick={(filename) => {
                       const bg = backgroundLayouts[bgKey];
@@ -1046,14 +1292,16 @@ export function GraphView() {
               <div className="flex gap-1">
                 {(selectedItem.type === 'enclosure' || selectedItem.type === 'connector') && (
                   <button
-                    className="px-2 py-1 text-[11px] bg-zinc-800 border border-zinc-600 text-zinc-300 rounded"
+                    disabled={!isEditor}
+                    className="px-2 py-1 text-[11px] bg-zinc-800 border border-zinc-600 text-zinc-300 rounded disabled:cursor-not-allowed disabled:opacity-40"
                     onClick={() => addEntityToActiveSubsystem(selectedItem.type as 'enclosure' | 'connector', selectedItem.id)}
                   >
                     Add selected
                   </button>
                 )}
                 <button
-                  className="px-2 py-1 text-[11px] bg-zinc-800 border border-zinc-600 text-zinc-300 rounded"
+                  disabled={!isEditor}
+                  className="px-2 py-1 text-[11px] bg-zinc-800 border border-zinc-600 text-zinc-300 rounded disabled:cursor-not-allowed disabled:opacity-40"
                   onClick={() => {
                     if (selectedItem.type === 'enclosure' || selectedItem.type === 'connector') {
                       removeEntityFromActiveSubsystem(selectedItem.type, selectedItem.id);
@@ -1067,11 +1315,23 @@ export function GraphView() {
           </div>
         </Panel>
 
-        {selectedBundle && (
+        {selectedBundle && isEditor && (
           <Panel position="bottom-center">
             <div className="flex items-center gap-2 px-3 py-1.5 bg-zinc-800/95 border border-zinc-600 rounded-lg shadow-lg">
+              <button
+                className={`rounded border px-2 py-1 text-[10px] font-medium transition-colors ${
+                  placingRoutePoints
+                    ? 'border-amber-400 bg-amber-500/20 text-amber-200'
+                    : 'border-zinc-600 bg-zinc-900 text-zinc-200 hover:border-amber-500 hover:text-amber-300'
+                }`}
+                onClick={() => setPlacingRoutePoints((active) => !active)}
+              >
+                {placingRoutePoints ? 'Done placing' : '+ Route points'}
+              </button>
               <span className="text-[10px] text-zinc-400">
-                Click edge to add bend points · Drag bend point near another edge to create a junction · Double-click junction to unlink
+                {placingRoutePoints
+                  ? 'Click anywhere on the empty canvas to route this bundle through that point · Esc to finish'
+                  : 'Add free route points, or double-click the edge for a bend · Drag a point near another edge to create a junction'}
               </span>
             </div>
           </Panel>
@@ -1091,36 +1351,35 @@ export function GraphView() {
           <Panel position="top-center">
             <div className="w-72 rounded border border-zinc-600 bg-zinc-900/95 p-3 shadow-xl text-xs">
               <div className="font-semibold text-zinc-100 mb-2">Choose signal</div>
-              {!creatingSignal ? (
-                <>
-                  <select
-                    value={selectedSignalId}
-                    onChange={(event) => setSelectedSignalId(event.target.value)}
-                    className="w-full bg-zinc-800 border border-zinc-700 rounded px-2 py-1 text-zinc-100"
-                  >
-                    {harness?.signals.map((signal) => (
-                      <option key={signal.id} value={signal.id}>{signal.name} · {signal.id}</option>
-                    ))}
-                  </select>
-                  <button className="mt-2 text-amber-400 hover:text-amber-300" onClick={() => setCreatingSignal(true)}>
-                    + Create new signal
-                  </button>
-                </>
-              ) : (
-                <div className="space-y-2">
-                  <input value={newSignalName} onChange={(event) => setNewSignalName(event.target.value)} placeholder="Signal name" className="w-full bg-zinc-800 border border-zinc-700 rounded px-2 py-1" />
-                  <input value={newSignalTags} onChange={(event) => setNewSignalTags(event.target.value)} placeholder="Tags, comma separated" className="w-full bg-zinc-800 border border-zinc-700 rounded px-2 py-1" />
-                  <input value={newSignalColor} onChange={(event) => setNewSignalColor(event.target.value)} placeholder="Preferred wire color" className="w-full bg-zinc-800 border border-zinc-700 rounded px-2 py-1" />
-                </div>
-              )}
+              <select
+                value={selectedSignalId}
+                disabled={creatingSignal}
+                onChange={(event) => setSelectedSignalId(event.target.value)}
+                className="w-full bg-zinc-800 border border-zinc-700 rounded px-2 py-1 text-zinc-100 disabled:opacity-50"
+              >
+                {harness?.signals.map((signal) => (
+                  <option key={signal.id} value={signal.id}>{signal.name} · {signal.id}</option>
+                ))}
+              </select>
+              <button
+                className="mt-2 text-amber-400 hover:text-amber-300 disabled:cursor-wait disabled:opacity-50"
+                disabled={creatingSignal}
+                onClick={() => void createSignalAndRoute()}
+              >
+                {creatingSignal ? 'Creating new signal…' : '+ Create new signal'}
+              </button>
               <div className="mt-3 flex justify-end gap-2">
-                <button className="text-zinc-400" onClick={() => setPendingRoute(null)}>Cancel</button>
+                <button
+                  className="text-zinc-400 disabled:opacity-50"
+                  disabled={creatingSignal}
+                  onClick={() => setPendingRoute(null)}
+                >
+                  Cancel
+                </button>
                 <button
                   className="rounded bg-amber-600 px-2 py-1 text-white disabled:opacity-40"
-                  disabled={creatingSignal ? !newSignalName.trim() : !selectedSignalId}
-                  onClick={() => creatingSignal
-                    ? void createSignalAndRoute()
-                    : void submitRoute(pendingRoute.from, pendingRoute.to, selectedSignalId)}
+                  disabled={creatingSignal || !selectedSignalId}
+                  onClick={() => void submitRoute(pendingRoute.from, pendingRoute.to, selectedSignalId)}
                 >
                   Route wire
                 </button>
