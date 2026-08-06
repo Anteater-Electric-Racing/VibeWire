@@ -19,7 +19,7 @@ import {
   renumberConnectorPins,
   splicePathWithMerge,
 } from '../src/lib/harness.js';
-import { planSheetRoute, routeRequestToken } from '../server/routing.js';
+import { planEnclosureRoute, planSheetRoute, routeRequestToken } from '../server/routing.js';
 import { createApiMiddleware, validateHarnessData } from '../server/api.js';
 import {
   buildSubsystemGraphModel,
@@ -202,6 +202,31 @@ assert.equal(getPathSignalId({ signal_id: undefined, tags: ['signal:LEGACY'] }),
 assert.deepEqual(
   planSheetRoute(harness, sheetIds, harness.connectors[0], harness.connectors[1]).crossedChildScopes,
   ['enc_a1', 'enc_a', 'enc_b'],
+);
+assert.deepEqual(
+  planEnclosureRoute(harness, harness.connectors[0], harness.connectors[1]).crossedChildScopes,
+  ['enc_a1', 'enc_a', 'enc_b'],
+  'enclosure routing must emit a bulkhead for every container wall crossed',
+);
+// Nested box without its own sheet must still get a boundary bulkhead.
+const inlineNestedHarness = structuredClone(harness);
+assert.deepEqual(
+  planEnclosureRoute(
+    inlineNestedHarness,
+    inlineNestedHarness.connectors[0],
+    inlineNestedHarness.connectors[1],
+  ).crossedChildScopes,
+  ['enc_a1', 'enc_a', 'enc_b'],
+);
+assert.deepEqual(
+  planSheetRoute(
+    inlineNestedHarness,
+    new Set(['enc_a', 'enc_b']),
+    inlineNestedHarness.connectors[0],
+    inlineNestedHarness.connectors[1],
+  ).crossedChildScopes,
+  ['enc_a', 'enc_b'],
+  'sheet-only planning skips inlined nested boxes; enclosure planning does not',
 );
 assert.equal(routeRequestToken('same-request'), routeRequestToken('same-request'));
 
@@ -1026,6 +1051,10 @@ useHarnessStore.getState().loadSubsystems([connectorOnlySubsystem]);
 useHarnessStore.getState().addEntityToActiveSubsystem('connector', 'con_a1');
 const connectorOnlyDocument = useHarnessStore.getState().subsystems['connector-only'];
 assert(connectorOnlyDocument.enclosures.enc_a1);
+assert(
+  connectorOnlyDocument.enclosures.enc_a,
+  'adding a nested connector must also spawn every ancestor enclosure frame',
+);
 assert(connectorOnlyDocument.devices.dev_a1);
 assert.equal(
   connectorOnlyDocument.devices.dev_a1.w,
@@ -1050,6 +1079,61 @@ useHarnessStore.getState().updateSubsystemEntityLayout(
 assert(
   !useHarnessStore.getState().subsystems['connector-only'].devices.dev_a1,
   'a stale position event must not restore a removed device',
+);
+
+const nestedSpawnSubsystem: SubsystemDocument = {
+  schema_version: '1.0.0',
+  id: 'nested-spawn',
+  name: 'Nested spawn',
+  tags: [],
+  enclosures: {},
+  devices: {},
+  connectors: {},
+};
+useHarnessStore.getState().loadHarness(placementHarness as never);
+useHarnessStore.getState().loadSubsystems([nestedSpawnSubsystem]);
+useHarnessStore.getState().addEntityToActiveSubsystem('enclosure', 'dev_a1');
+const nestedSpawnDocument = useHarnessStore.getState().subsystems['nested-spawn'];
+assert(nestedSpawnDocument.devices.dev_a1, 'spawned device must be present');
+assert(nestedSpawnDocument.enclosures.enc_a1, 'immediate parent box must spawn');
+assert(nestedSpawnDocument.enclosures.enc_a, 'grandparent box must spawn recursively');
+assert.equal(
+  nestedSpawnDocument.enclosures.enc_a1.w! < nestedSpawnDocument.enclosures.enc_a.w!,
+  true,
+  'nested child frames should be laid out smaller than their parent frame',
+);
+const nestedSpawnGraph = buildSubsystemGraphModel(
+  placementHarness as never,
+  nestedSpawnDocument,
+);
+const outerFrameNode = nestedSpawnGraph.graphNodes.find(
+  (node) => node.id === `${SUBSYSTEM_FRAME_PREFIX}enc_a`,
+);
+const innerFrameNode = nestedSpawnGraph.graphNodes.find(
+  (node) => node.id === `${SUBSYSTEM_FRAME_PREFIX}enc_a1`,
+);
+const nestedDeviceNode = nestedSpawnGraph.graphNodes.find(
+  (node) => node.id === `${SUBSYSTEM_DEVICE_PREFIX}dev_a1`,
+);
+assert(outerFrameNode, 'outer ancestor frame must render');
+assert.equal(
+  innerFrameNode?.parentId,
+  `${SUBSYSTEM_FRAME_PREFIX}enc_a`,
+  'inner box must nest inside its parent frame',
+);
+assert.equal(
+  nestedDeviceNode?.parentId,
+  `${SUBSYSTEM_FRAME_PREFIX}enc_a1`,
+  'device must remain parented to its immediate enclosure frame',
+);
+useHarnessStore.getState().removeEntityFromActiveSubsystem('enclosure', 'enc_a');
+assert(
+  !useHarnessStore.getState().subsystems['nested-spawn'].enclosures.enc_a1,
+  'removing an outer frame must also remove nested descendant frames',
+);
+assert(
+  !useHarnessStore.getState().subsystems['nested-spawn'].devices.dev_a1,
+  'removing an outer frame must also remove nested devices',
 );
 
 const subsystemBeforeDeviceRemoval = structuredClone(subsystem);

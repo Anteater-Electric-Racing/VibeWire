@@ -8,7 +8,6 @@ import {
   readSheetedHarness,
   planSheetedWrite,
   commitSheetedWrite,
-  discoverSheetEnclosureIds,
   type Connector,
   type Enclosure,
   type MergePoint,
@@ -20,7 +19,8 @@ import {
   type Signal,
   type HarnessData,
 } from './sheets.js';
-import { planSheetRoute, routeRequestToken } from './routing.js';
+import { planEnclosureRoute, routeRequestToken } from './routing.js';
+import { ensureSubsystemAncestorFrames } from '../src/lib/subsystem.js';
 import { createAuth, type PublicUser, type User } from './auth.js';
 import {
   LIBRARY_REVISION_KEY,
@@ -2259,12 +2259,8 @@ export function createApiMiddleware(projectRoot: string) {
           const enclosureById = new Map(
             harness.enclosures.map((enclosure) => [enclosure.id, enclosure]),
           );
-          const sheetIds = isSheetedHarness(projectRoot, name)
-            ? discoverSheetEnclosureIds(sheetHarnessDir(projectRoot, name))
-            : new Set<string>();
-          const routePlan = planSheetRoute(
+          const routePlan = planEnclosureRoute(
             harness,
-            sheetIds,
             fromConnector,
             toConnector,
           );
@@ -2343,6 +2339,8 @@ export function createApiMiddleware(projectRoot: string) {
             tags: ['generated', 'unresolved', 'bulkhead'],
             properties: {
               generated_by_route: pathId,
+              boundary_enclosure: childScope,
+              // Legacy key kept for older harnesses / inspectors.
               boundary_sheet: childScope,
             },
           }));
@@ -2451,16 +2449,14 @@ export function createApiMiddleware(projectRoot: string) {
             savedSubsystem = structuredClone(previousSubsystem);
             const systemTag = `system:${requestedSubsystemId}`;
             for (const connector of generated) {
-              const frameId = connector.parent;
-              if (frameId && !savedSubsystem.enclosures[frameId]) {
-                const frameIndex = Object.keys(savedSubsystem.enclosures).length;
-                savedSubsystem.enclosures[frameId] = {
-                  x: 40 + (frameIndex % 3) * 560,
-                  y: 40 + Math.floor(frameIndex / 3) * 400,
-                  w: 520,
-                  h: 360,
-                };
-              }
+              ensureSubsystemAncestorFrames(
+                candidate,
+                savedSubsystem,
+                connector.parent,
+                (frame) => {
+                  if (!frame.tags.includes(systemTag)) frame.tags.push(systemTag);
+                },
+              );
               if (!savedSubsystem.connectors[connector.id]) {
                 const connectorIndex = Object.keys(savedSubsystem.connectors).length;
                 savedSubsystem.connectors[connector.id] = {
@@ -2473,10 +2469,6 @@ export function createApiMiddleware(projectRoot: string) {
               savedSubsystem.hidden_connectors = (savedSubsystem.hidden_connectors ?? [])
                 .filter((connectorId) => connectorId !== connector.id);
               if (!connector.tags.includes(systemTag)) connector.tags.push(systemTag);
-              if (frameId) {
-                const frame = candidate.enclosures.find((enclosure) => enclosure.id === frameId);
-                if (frame && !frame.tags.includes(systemTag)) frame.tags.push(systemTag);
-              }
             }
             const nextSubsystems = {
               ...previousSubsystems,

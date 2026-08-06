@@ -1,0 +1,25 @@
+{
+  "id": "f2f6fb86-d803-4d43-b8d3-8b6c8d2aeeca",
+  "label": "Daily save — August 6, 2026",
+  "createdAt": "2026-08-06T21:20:18.221Z",
+  "createdBy": {
+    "id": "ac89b199-5f27-4cca-b073-03675304a26e",
+    "displayName": "Gabe"
+  },
+  "rev": 1,
+  "auto": true,
+  "counts": {
+    "enclosures": 0,
+    "connectors": 0,
+    "mergePoints": 0,
+    "paths": 0,
+    "signals": 0
+  },
+  "dailyKey": "2026-08-06",
+  "contributors": [
+    {
+      "id": "ac89b199-5f27-4cca-b073-03675304a26e",
+      "displayName": "Gabe"
+    }
+  ]
+}

@@ -439,14 +439,51 @@ export function buildSubsystemGraphModel(
   const nodes: Node[] = [];
   const connectorNodeIds = new Map<string, string>();
   const hiddenConnectorIds = new Set(subsystem.hidden_connectors ?? []);
+  const enclosureById = new Map(harness.enclosures.map((enclosure) => [enclosure.id, enclosure]));
+  const enclosureDepth = (enclosureId: string): number => {
+    let depth = 0;
+    let current: string | null = enclosureId;
+    const visited = new Set<string>();
+    while (current && !visited.has(current)) {
+      visited.add(current);
+      current = enclosureById.get(current)?.parent ?? null;
+      depth += 1;
+    }
+    return depth;
+  };
+  const frameEntries = Object.entries(subsystem.enclosures)
+    .map(([enclosureId, layout]) => ({
+      enclosureId,
+      layout,
+      enclosure: enclosureById.get(enclosureId),
+    }))
+    .filter((entry) => entry.enclosure?.container)
+    .sort((left, right) => enclosureDepth(left.enclosureId) - enclosureDepth(right.enclosureId));
 
-  for (const [enclosureId, layout] of Object.entries(subsystem.enclosures)) {
-    const enclosure = harness.enclosures.find((item) => item.id === enclosureId);
-    if (!enclosure?.container) continue;
+  for (const { enclosureId, layout, enclosure } of frameEntries) {
+    if (!enclosure) continue;
     const frameNodeId = `${SUBSYSTEM_FRAME_PREFIX}${enclosureId}`;
+    const parentFrameId = enclosure.parent
+      && subsystem.enclosures[enclosure.parent]
+      && enclosureById.get(enclosure.parent)?.container
+      ? enclosure.parent
+      : null;
+    const parentFrameNodeId = parentFrameId ? `${SUBSYSTEM_FRAME_PREFIX}${parentFrameId}` : undefined;
+    const frameSize = { w: layout.w ?? 520, h: layout.h ?? 360 };
+    const parentLayout = parentFrameId ? subsystem.enclosures[parentFrameId] : undefined;
+    const framePosition = parentLayout
+      ? clampNodeToParentBounds(
+        { x: layout.x, y: layout.y },
+        frameSize,
+        { w: parentLayout.w ?? 520, h: parentLayout.h ?? 360 },
+      )
+      : { x: layout.x, y: layout.y };
+    const nestedChildFrameCount = frameEntries.filter((entry) =>
+      entry.enclosure?.parent === enclosureId
+    ).length;
     const devices = Object.entries(subsystem.devices)
       .map(([id, deviceLayout]) => ({
-        entity: harness.enclosures.find((item) => item.id === id),
+        entity: enclosureById.get(id),
         layout: deviceLayout,
       }))
       .filter((item) => item.entity?.container === false && item.entity.parent === enclosureId);
@@ -454,8 +491,11 @@ export function buildSubsystemGraphModel(
     nodes.push({
       id: frameNodeId,
       type: 'enclosure',
-      position: { x: layout.x, y: layout.y },
-      style: { width: layout.w ?? 520, height: layout.h ?? 360 },
+      ...(parentFrameNodeId
+        ? { parentId: parentFrameNodeId, extent: 'parent' as const }
+        : {}),
+      position: framePosition,
+      style: { width: frameSize.w, height: frameSize.h },
       zIndex: GRAPH_Z_ENCLOSURE,
       selected: selectedItem?.type === 'enclosure' && selectedItem.id === enclosureId,
       data: {
@@ -466,12 +506,10 @@ export function buildSubsystemGraphModel(
         pathCount: 0,
         isContainer: true,
         image: enclosure.properties?.image,
-        childEnclosureCount: 0,
+        childEnclosureCount: nestedChildFrameCount,
         subsystemFrame: true,
       },
     });
-
-    const frameSize = { w: layout.w ?? 520, h: layout.h ?? 360 };
     for (const { entity: device, layout: deviceLayout } of devices) {
       if (!device) continue;
       const deviceNodeId = `${SUBSYSTEM_DEVICE_PREFIX}${device.id}`;

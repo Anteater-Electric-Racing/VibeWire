@@ -1,0 +1,346 @@
+{
+  "schema_version": "0.1.0",
+  "name": "demo",
+  "enclosures": [
+    {
+      "id": "enc_en1",
+      "name": "en1",
+      "parent": null,
+      "container": true,
+      "tags": [
+        "system:demo"
+      ],
+      "properties": {}
+    },
+    {
+      "id": "enc_en2",
+      "name": "en2",
+      "parent": "enc_en1",
+      "container": true,
+      "tags": [
+        "system:demo"
+      ],
+      "properties": {
+        "image": "SCR-20260410-cknx.png"
+      }
+    },
+    {
+      "id": "dev_dev1",
+      "name": "dev1",
+      "parent": "enc_en2",
+      "container": false,
+      "tags": [
+        "system:demo"
+      ],
+      "properties": {}
+    },
+    {
+      "id": "dev_dev2",
+      "name": "dev2",
+      "parent": null,
+      "container": false,
+      "tags": [
+        "system:demo"
+      ],
+      "properties": {}
+    },
+    {
+      "id": "dev_dev3",
+      "name": "dev3",
+      "parent": "enc_en1",
+      "container": false,
+      "tags": [
+        "system:demo"
+      ],
+      "properties": {
+        "image": "SCR-20260409-ufwb.png"
+      }
+    }
+  ],
+  "connectors": [
+    {
+      "id": "con_001",
+      "name": "New Connector",
+      "parent": "dev_dev1",
+      "connector_type": "molex_minifit_jr",
+      "pin_count": 2,
+      "tags": [
+        "system:demo"
+      ],
+      "properties": {}
+    },
+    {
+      "id": "con_002",
+      "name": "New Connector 2",
+      "parent": "dev_dev1",
+      "connector_type": "molex_minifit_jr",
+      "pin_count": 2,
+      "tags": [
+        "system:demo"
+      ],
+      "properties": {}
+    },
+    {
+      "id": "con_003",
+      "name": "New Connector",
+      "parent": "dev_dev2",
+      "connector_type": "molex_minifit_jr",
+      "pin_count": 2,
+      "tags": [
+        "system:demo"
+      ],
+      "properties": {}
+    },
+    {
+      "id": "con_auto_ada48fc9df29_2",
+      "name": "Unresolved bulkhead — en2",
+      "parent": "enc_en2",
+      "connector_type": "deutsch_dt",
+      "pin_count": 2,
+      "tags": [
+        "generated",
+        "unresolved",
+        "bulkhead",
+        "system:demo"
+      ],
+      "properties": {
+        "generated_by_route": "path_auto_ada48fc9df29",
+        "boundary_enclosure": "enc_en2",
+        "boundary_sheet": "enc_en2"
+      }
+    },
+    {
+      "id": "con_006",
+      "name": "New Connector",
+      "parent": "dev_dev3",
+      "connector_type": "molex_minifit_jr",
+      "pin_count": 4,
+      "tags": [
+        "system:demo"
+      ],
+      "properties": {
+        "image": "IMG_1255.jpg"
+      }
+    },
+    {
+      "id": "con_auto_574cae58f04f_1",
+      "name": "Unresolved bulkhead — en1",
+      "parent": "enc_en1",
+      "connector_type": "deutsch_dt",
+      "pin_count": 2,
+      "tags": [
+        "generated",
+        "unresolved",
+        "bulkhead",
+        "system:demo"
+      ],
+      "properties": {
+        "generated_by_route": "path_auto_574cae58f04f",
+        "boundary_enclosure": "enc_en1",
+        "boundary_sheet": "enc_en1"
+      }
+    }
+  ],
+  "mergePoints": [
+    {
+      "id": "mp_001",
+      "name": "Splice 1",
+      "parent": "enc_en1",
+      "tags": [],
+      "properties": {}
+    }
+  ],
+  "paths": [
+    {
+      "id": "path_auto_ada48fc9df29",
+      "name": "New Connector:1 → New Connector 2:1",
+      "signal_id": "sig_1786051876896_qfe6kr",
+      "tags": [
+        "signal:1786051876896_qfe6kr"
+      ],
+      "properties": {
+        "route_request_id": "e7f6c55c-45b7-423f-9893-161962a74724"
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_003",
+          "pin_number": 1
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_auto_574cae58f04f_1",
+          "pin_number": 2
+        },
+        {
+          "kind": "merge",
+          "merge_point_id": "mp_001"
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_auto_ada48fc9df29_2",
+          "pin_number": 1
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_002",
+          "pin_number": 1
+        }
+      ],
+      "measurements": [
+        {
+          "from": {
+            "kind": "connector",
+            "connector_id": "con_003",
+            "pin_number": 1
+          },
+          "to": {
+            "kind": "connector",
+            "connector_id": "con_auto_574cae58f04f_1",
+            "pin_number": 2
+          },
+          "length_mm": 300
+        },
+        {
+          "from": {
+            "kind": "connector",
+            "connector_id": "con_auto_ada48fc9df29_2",
+            "pin_number": 1
+          },
+          "to": {
+            "kind": "connector",
+            "connector_id": "con_002",
+            "pin_number": 1
+          },
+          "length_mm": 1
+        },
+        {
+          "from": {
+            "kind": "connector",
+            "connector_id": "con_auto_574cae58f04f_1",
+            "pin_number": 2
+          },
+          "to": {
+            "kind": "merge",
+            "merge_point_id": "mp_001"
+          },
+          "length_mm": 1234
+        },
+        {
+          "from": {
+            "kind": "merge",
+            "merge_point_id": "mp_001"
+          },
+          "to": {
+            "kind": "connector",
+            "connector_id": "con_auto_ada48fc9df29_2",
+            "pin_number": 1
+          },
+          "length_mm": 10
+        }
+      ]
+    },
+    {
+      "id": "path_auto_574cae58f04f",
+      "name": "New Connector:1 → New Connector:2",
+      "signal_id": "sig_1786051962639_lfhzli",
+      "tags": [
+        "signal:1786051962639_lfhzli"
+      ],
+      "properties": {
+        "route_request_id": "66de5aea-b2a5-4834-b967-fbd02f0d6636"
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_006",
+          "pin_number": 1
+        },
+        {
+          "kind": "merge",
+          "merge_point_id": "mp_001"
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_auto_574cae58f04f_1",
+          "pin_number": 1
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_003",
+          "pin_number": 2
+        }
+      ],
+      "measurements": [
+        {
+          "from": {
+            "kind": "connector",
+            "connector_id": "con_auto_574cae58f04f_1",
+            "pin_number": 1
+          },
+          "to": {
+            "kind": "connector",
+            "connector_id": "con_003",
+            "pin_number": 2
+          },
+          "length_mm": 300
+        },
+        {
+          "from": {
+            "kind": "connector",
+            "connector_id": "con_006",
+            "pin_number": 1
+          },
+          "to": {
+            "kind": "merge",
+            "merge_point_id": "mp_001"
+          },
+          "length_mm": 100
+        },
+        {
+          "from": {
+            "kind": "merge",
+            "merge_point_id": "mp_001"
+          },
+          "to": {
+            "kind": "connector",
+            "connector_id": "con_auto_574cae58f04f_1",
+            "pin_number": 1
+          },
+          "length_mm": 1234
+        }
+      ]
+    }
+  ],
+  "signals": [
+    {
+      "id": "sig_1786051876896_qfe6kr",
+      "name": "sig1",
+      "tags": [],
+      "properties": {
+        "preferred_wire_color": "black/red",
+        "noise": "low"
+      }
+    },
+    {
+      "id": "sig_1786051962639_lfhzli",
+      "name": "sig2",
+      "tags": [],
+      "properties": {
+        "preferred_wire_color": "orange/pink"
+      }
+    }
+  ],
+  "signalPropertyDefinitions": [
+    {
+      "id": "signal_property_noise",
+      "key": "noise",
+      "name": "noise",
+      "type": "select",
+      "options": [
+        "low",
+        "high"
+      ]
+    }
+  ]
+}

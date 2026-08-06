@@ -96,6 +96,7 @@ import {
   renameSubsystem as renameSubsystemDocument,
   renameSystem as renameSystemDocument,
 } from '../lib/rename';
+import { ensureSubsystemAncestorFrames } from '../lib/subsystem';
 import {
   applyHarnessDiff,
   applyLibraryDiff,
@@ -1812,8 +1813,10 @@ export const useHarnessStore = create<HarnessStore>(readOnlyMiddleware((set, get
     }
 
     let devices = document.devices;
+    let enclosures = document.enclosures;
     if (kind === 'enclosures') {
       devices = { ...devices };
+      enclosures = { ...enclosures, [id]: resolvedLayout };
       const deltaX = resolvedResize.parent.x - previousParent.x;
       const deltaY = resolvedResize.parent.y - previousParent.y;
       for (const [deviceId, deviceLayout] of Object.entries(document.devices)) {
@@ -1832,6 +1835,22 @@ export const useHarnessStore = create<HarnessStore>(readOnlyMiddleware((set, get
           y: Math.min(maxY, Math.max(0, nextY)),
         };
       }
+      for (const [childFrameId, childLayout] of Object.entries(document.enclosures)) {
+        if (childFrameId === id) continue;
+        const childFrame = harness.enclosures.find((entity) => entity.id === childFrameId);
+        if (!childFrame?.container || childFrame.parent !== id) continue;
+        const childW = childLayout.w ?? 520;
+        const childH = childLayout.h ?? 360;
+        const nextX = childLayout.x - deltaX;
+        const nextY = childLayout.y - deltaY;
+        const maxX = Math.max(0, resolvedResize.parent.w - childW);
+        const maxY = Math.max(0, resolvedResize.parent.h - childH);
+        enclosures[childFrameId] = {
+          ...childLayout,
+          x: Math.min(maxX, Math.max(0, nextX)),
+          y: Math.min(maxY, Math.max(0, nextY)),
+        };
+      }
     }
 
     return historyPatch(state, {
@@ -1840,7 +1859,7 @@ export const useHarnessStore = create<HarnessStore>(readOnlyMiddleware((set, get
         [activeId]: {
           ...document,
           enclosures: kind === 'enclosures'
-            ? { ...document.enclosures, [id]: resolvedLayout }
+            ? enclosures
             : document.enclosures,
           devices: kind === 'devices'
             ? { ...devices, [id]: resolvedLayout }
@@ -1856,14 +1875,21 @@ export const useHarnessStore = create<HarnessStore>(readOnlyMiddleware((set, get
     const current = subsystemId ? state.subsystems[subsystemId] : undefined;
     if (!subsystemId || !harness || !current) return state;
     const document = structuredClone(current);
+    const nextHarness = structuredClone(harness);
     const systemTag = `system:${document.id}`;
-    const nextFrameLayout = () => {
-      const index = Object.keys(document.enclosures).length;
-      return { x: 40 + (index % 3) * 560, y: 40 + Math.floor(index / 3) * 400, w: 520, h: 360 };
+    const tagEnclosure = (enclosureId: string | null | undefined) => {
+      if (!enclosureId) return;
+      const mutable = nextHarness.enclosures.find((item) => item.id === enclosureId);
+      if (mutable && !mutable.tags.includes(systemTag)) mutable.tags.push(systemTag);
+    };
+    const ensureFrames = (startId: string | null) => {
+      ensureSubsystemAncestorFrames(nextHarness, document, startId, (frame) => {
+        if (!frame.tags.includes(systemTag)) frame.tags.push(systemTag);
+      });
     };
     const nextDeviceLayout = (_deviceId: string, frameId: string | null) => {
-      const index = Object.keys(document.devices).filter((id) =>
-        harness.enclosures.find((item) => item.id === id)?.parent === frameId,
+      const index = Object.keys(document.devices).filter((deviceKey) =>
+        harness.enclosures.find((item) => item.id === deviceKey)?.parent === frameId,
       ).length;
       // Omit w/h so the subsystem canvas inherits the system device size until locally resized.
       return {
@@ -1888,7 +1914,6 @@ export const useHarnessStore = create<HarnessStore>(readOnlyMiddleware((set, get
         ...(systemSize ? { w: systemSize.w, h: systemSize.h } : { w: 96, h: 36 }),
       };
     };
-    const nextHarness = structuredClone(harness);
     if (type === 'enclosure') {
       const entity = harness.enclosures.find((item) => item.id === id);
       if (!entity) return state;
@@ -1901,13 +1926,8 @@ export const useHarnessStore = create<HarnessStore>(readOnlyMiddleware((set, get
         delete document.devices[id];
         if (document.device_connector_mode) delete document.device_connector_mode[id];
       }
-      if (frameId && !document.enclosures[frameId]) {
-        document.enclosures[frameId] = nextFrameLayout();
-      }
-      if (frameId) {
-        const mutableFrame = nextHarness.enclosures.find((item) => item.id === frameId);
-        if (mutableFrame && !mutableFrame.tags.includes(systemTag)) mutableFrame.tags.push(systemTag);
-      }
+      // Walk every container above the placed entity so nested boxes appear recursively.
+      ensureFrames(isDevice ? entity.parent : entity.id);
       if (isDevice && !document.devices[id]) {
         document.devices[id] = nextDeviceLayout(id, frameId);
       }
@@ -1936,9 +1956,7 @@ export const useHarnessStore = create<HarnessStore>(readOnlyMiddleware((set, get
       : undefined;
     const deviceId = parentEntity && !parentEntity.container ? parentEntity.id : null;
     const frameId = deviceId ? parentEntity?.parent ?? null : connector.parent;
-    if (frameId && !document.enclosures[frameId]) {
-      document.enclosures[frameId] = nextFrameLayout();
-    }
+    ensureFrames(frameId);
     if (deviceId && !document.devices[deviceId]) {
       document.devices[deviceId] = nextDeviceLayout(deviceId, frameId);
       document.device_connector_mode = {
@@ -1952,14 +1970,7 @@ export const useHarnessStore = create<HarnessStore>(readOnlyMiddleware((set, get
     document.hidden_connectors = (document.hidden_connectors ?? []).filter((connectorId) => connectorId !== id);
     const mutableConnector = nextHarness.connectors.find((item) => item.id === id);
     if (mutableConnector && !mutableConnector.tags.includes(systemTag)) mutableConnector.tags.push(systemTag);
-    if (deviceId) {
-      const mutableDevice = nextHarness.enclosures.find((item) => item.id === deviceId);
-      if (mutableDevice && !mutableDevice.tags.includes(systemTag)) mutableDevice.tags.push(systemTag);
-      if (frameId) {
-        const mutableFrame = nextHarness.enclosures.find((item) => item.id === frameId);
-        if (mutableFrame && !mutableFrame.tags.includes(systemTag)) mutableFrame.tags.push(systemTag);
-      }
-    }
+    tagEnclosure(deviceId);
     return historyPatch(state, {
       harness: nextHarness,
       subsystems: { ...state.subsystems, [subsystemId]: document },
@@ -2005,11 +2016,32 @@ export const useHarnessStore = create<HarnessStore>(readOnlyMiddleware((set, get
         }
         document.hidden_connectors = (document.hidden_connectors ?? []).filter((connectorId) => !associatedConnectorIds.has(connectorId));
       } else {
-        delete document.enclosures[id];
+        const frameIdsToRemove = new Set<string>([id]);
+        let grew = true;
+        while (grew) {
+          grew = false;
+          for (const frameId of Object.keys(document.enclosures)) {
+            if (frameIdsToRemove.has(frameId)) continue;
+            const frame = harness.enclosures.find((item) => item.id === frameId);
+            if (frame?.parent && frameIdsToRemove.has(frame.parent)) {
+              frameIdsToRemove.add(frameId);
+              grew = true;
+            }
+          }
+        }
+        for (const frameId of frameIdsToRemove) {
+          delete document.enclosures[frameId];
+          const frame = harness.enclosures.find((item) => item.id === frameId);
+          if (frame) frame.tags = stripTag(frame.tags);
+        }
         delete document.devices[id];
         if (document.device_connector_mode) delete document.device_connector_mode[id];
         const removedDeviceIds = harness.enclosures
-          .filter((item) => item.parent === id && document.devices[item.id])
+          .filter((item) =>
+            item.parent
+            && frameIdsToRemove.has(item.parent)
+            && document.devices[item.id]
+          )
           .map((item) => item.id);
         for (const deviceId of removedDeviceIds) {
           delete document.devices[deviceId];
@@ -2022,7 +2054,7 @@ export const useHarnessStore = create<HarnessStore>(readOnlyMiddleware((set, get
             ? harness.enclosures.find((item) => item.id === connector.parent)
             : undefined;
           const frameId = parent && !parent.container ? parent.parent : connector.parent;
-          if (frameId !== id) continue;
+          if (!frameId || !frameIdsToRemove.has(frameId)) continue;
           delete document.connectors[connector.id];
           connector.tags = stripTag(connector.tags);
         }

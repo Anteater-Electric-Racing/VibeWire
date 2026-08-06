@@ -12,9 +12,14 @@ export function routeRequestToken(requestKey: string): string {
   return createHash('sha256').update(requestKey).digest('hex').slice(0, 12);
 }
 
+/**
+ * Plan a route across an explicit set of boundary enclosure ids (historically
+ * sheet-owning enclosures). Returns the ordered child scopes that must receive
+ * a bulkhead placeholder between the two endpoints.
+ */
 export function planSheetRoute(
   harness: Pick<HarnessData, 'enclosures'>,
-  sheetIds: Set<string>,
+  boundaryIds: Set<string>,
   fromConnector: Pick<Connector, 'parent'>,
   toConnector: Pick<Connector, 'parent'>,
 ): SheetRoutePlan {
@@ -22,12 +27,12 @@ export function planSheetRoute(
   const ownerScope = (parentId: string | null): string | null => {
     let current = parentId;
     while (current) {
-      if (sheetIds.has(current)) return current;
+      if (boundaryIds.has(current)) return current;
       current = enclosureById.get(current)?.parent ?? null;
     }
     return null;
   };
-  const sheetParent = (scope: string | null): string | null | undefined => {
+  const boundaryParent = (scope: string | null): string | null | undefined => {
     if (scope === null) return undefined;
     return ownerScope(enclosureById.get(scope)?.parent ?? null);
   };
@@ -36,7 +41,7 @@ export function planSheetRoute(
     let current: string | null | undefined = scope;
     while (current !== undefined) {
       result.push(current);
-      current = sheetParent(current);
+      current = boundaryParent(current);
     }
     return result;
   };
@@ -56,4 +61,18 @@ export function planSheetRoute(
       ...toChain.slice(0, toChain.indexOf(commonScope)).reverse(),
     ].filter((scope): scope is string => scope !== null),
   };
+}
+
+/** Plan bulkheads for every container enclosure wall crossed between endpoints. */
+export function planEnclosureRoute(
+  harness: Pick<HarnessData, 'enclosures'>,
+  fromConnector: Pick<Connector, 'parent'>,
+  toConnector: Pick<Connector, 'parent'>,
+): SheetRoutePlan {
+  const boundaryIds = new Set(
+    harness.enclosures
+      .filter((enclosure) => enclosure.container)
+      .map((enclosure) => enclosure.id),
+  );
+  return planSheetRoute(harness, boundaryIds, fromConnector, toConnector);
 }

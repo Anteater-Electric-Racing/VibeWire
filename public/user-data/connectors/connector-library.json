@@ -10,7 +10,9 @@
       "notes": "Sealed size-16 contact mating-pair family. Select the physical housing by cavity count.",
       "cavity_variants": [
         {
-          "pin_count": 2
+          "pin_count": 2,
+          "image": "SCR-20260806-naea.png",
+          "side_image": "SCR-20260409-ufwb.png"
         },
         {
           "pin_count": 3
