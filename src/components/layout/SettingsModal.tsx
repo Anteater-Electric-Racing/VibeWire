@@ -110,7 +110,7 @@ export function SettingsModal() {
           </Tip>
           <Tip><span className="text-zinc-100">Checkpoints</span> save and restore full snapshots of the harness — VibeWire also takes one automatically before risky operations.</Tip>
           <Tip><span className="text-zinc-100">Activity</span> lists recent changes and who made them.</Tip>
-          <Tip>Admins get a <span className="text-zinc-100">Manage users</span> icon in the top bar to add people and set roles.</Tip>
+          <Tip>Anyone can create their own account from the <span className="text-zinc-100">Log in</span> panel — pick Editor to make changes or Viewer to just look around.</Tip>
         </ul>
       </Section>
 

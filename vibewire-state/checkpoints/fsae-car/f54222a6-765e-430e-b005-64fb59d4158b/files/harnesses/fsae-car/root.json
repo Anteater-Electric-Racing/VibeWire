@@ -1,0 +1,1615 @@
+{
+  "schema_version": "0.2.0-sheets",
+  "sheet_enclosure_id": null,
+  "enclosures": [
+    {
+      "id": "enc_001",
+      "name": "FOC",
+      "parent": null,
+      "container": true,
+      "tags": [
+        "zone:front",
+        "system:wheelspeed",
+        "system:demo"
+      ],
+      "properties": {
+        "description": "Front of Car enclosure",
+        "image": "image (14).png"
+      }
+    },
+    {
+      "id": "enc_002",
+      "name": "ROC",
+      "parent": null,
+      "container": true,
+      "tags": [
+        "zone:rear",
+        "system:demo"
+      ],
+      "properties": {
+        "description": "Rear of Car enclosure (formerly BBC)"
+      }
+    },
+    {
+      "id": "enc_003",
+      "name": "HVB",
+      "parent": null,
+      "container": true,
+      "tags": [
+        "zone:rear",
+        "system:hv"
+      ],
+      "properties": {
+        "description": "High Voltage Battery enclosure"
+      }
+    },
+    {
+      "id": "enc_019",
+      "name": "Inverter",
+      "parent": null,
+      "container": false,
+      "tags": [
+        "system:hv"
+      ],
+      "properties": {
+        "description": "Motor inverter inside HVB"
+      }
+    },
+    {
+      "id": "enc_020",
+      "name": "LV Battery",
+      "parent": null,
+      "container": false,
+      "tags": [
+        "system:lv"
+      ],
+      "properties": {
+        "description": "Low voltage 24V battery"
+      }
+    },
+    {
+      "id": "enc_021",
+      "name": "Wheel Speed Sensor FL",
+      "parent": null,
+      "container": false,
+      "tags": [
+        "system:sensors",
+        "system:wheelspeed"
+      ],
+      "properties": {
+        "description": "Front Left wheel speed / shock sensor"
+      }
+    },
+    {
+      "id": "enc_022",
+      "name": "Wheel Speed Sensor FR",
+      "parent": null,
+      "container": false,
+      "tags": [
+        "system:sensors",
+        "system:wheelspeed"
+      ],
+      "properties": {
+        "description": "Front Right wheel speed / shock sensor"
+      }
+    },
+    {
+      "id": "enc_023",
+      "name": "Wheel Speed Sensor RL",
+      "parent": null,
+      "container": false,
+      "tags": [
+        "system:sensors",
+        "system:wheelspeed"
+      ],
+      "properties": {
+        "description": "Rear Left wheel speed / shock sensor"
+      }
+    },
+    {
+      "id": "enc_024",
+      "name": "Wheel Speed Sensor RR",
+      "parent": null,
+      "container": false,
+      "tags": [
+        "system:sensors",
+        "system:wheelspeed"
+      ],
+      "properties": {
+        "description": "Rear Right wheel speed / shock sensor"
+      }
+    },
+    {
+      "id": "enc_025",
+      "name": "Motor",
+      "parent": null,
+      "container": false,
+      "tags": [
+        "system:drivetrain"
+      ],
+      "properties": {}
+    },
+    {
+      "id": "enc_026",
+      "name": "TSSI",
+      "parent": null,
+      "container": false,
+      "tags": [],
+      "properties": {
+        "description": "Tractive System Status Indicator — connected to Safety Board inside FOC"
+      }
+    },
+    {
+      "id": "enc_027",
+      "name": "Brake Light",
+      "parent": null,
+      "container": false,
+      "tags": [],
+      "properties": {}
+    },
+    {
+      "id": "enc_028",
+      "name": "BOTS",
+      "parent": null,
+      "container": false,
+      "tags": [
+        "system:safety",
+        "system:sdc",
+        "system:demo"
+      ],
+      "properties": {
+        "description": "Brake Over Travel Switch"
+      }
+    },
+    {
+      "id": "enc_029",
+      "name": "Inertia Switch",
+      "parent": null,
+      "container": false,
+      "tags": [
+        "system:safety",
+        "system:sdc"
+      ],
+      "properties": {}
+    },
+    {
+      "id": "enc_031",
+      "name": "Estop Left",
+      "parent": null,
+      "container": false,
+      "tags": [
+        "system:safety",
+        "system:sdc"
+      ],
+      "properties": {}
+    },
+    {
+      "id": "enc_032",
+      "name": "Estop Right",
+      "parent": null,
+      "container": false,
+      "tags": [
+        "system:safety",
+        "system:sdc"
+      ],
+      "properties": {}
+    },
+    {
+      "id": "enc_034",
+      "name": "BPS1",
+      "parent": null,
+      "container": false,
+      "tags": [
+        "system:sensors"
+      ],
+      "properties": {
+        "description": "Brake Pressure Sensor 1 (P51)"
+      }
+    },
+    {
+      "id": "enc_035",
+      "name": "BPS2",
+      "parent": null,
+      "container": false,
+      "tags": [
+        "system:sensors"
+      ],
+      "properties": {
+        "description": "Brake Pressure Sensor 2 (P51)"
+      }
+    },
+    {
+      "id": "enc_036",
+      "name": "APPS",
+      "parent": null,
+      "container": false,
+      "tags": [
+        "system:sensors"
+      ],
+      "properties": {
+        "description": "Accelerator Pedal Position Sensor (includes throttle sensors)"
+      }
+    },
+    {
+      "id": "enc_039",
+      "name": "Charging Box",
+      "parent": null,
+      "container": true,
+      "tags": [
+        "system:charging"
+      ],
+      "properties": {
+        "description": "Physical enclosure containing all charging hardware"
+      }
+    }
+  ],
+  "connectors": [
+    {
+      "id": "con_060",
+      "name": "INV LV",
+      "parent": "enc_019",
+      "connector_type": "generic_multipin",
+      "tags": [
+        "system:hv"
+      ],
+      "properties": {
+        "description": "Inverter LV interface connector (AMPSEAL 23p)"
+      },
+      "pin_count": 23
+    },
+    {
+      "id": "con_061",
+      "name": "LV Batt+",
+      "parent": "enc_020",
+      "connector_type": "generic_multipin",
+      "tags": [
+        "system:lv",
+        "system:power"
+      ],
+      "properties": {
+        "description": "LV Battery positive ring terminal"
+      },
+      "pin_count": 1
+    },
+    {
+      "id": "con_062",
+      "name": "LV Batt-",
+      "parent": "enc_020",
+      "connector_type": "generic_multipin",
+      "tags": [
+        "system:lv",
+        "system:power"
+      ],
+      "properties": {
+        "description": "LV Battery negative ring terminal"
+      },
+      "pin_count": 1
+    },
+    {
+      "id": "con_063",
+      "name": "WS FL",
+      "parent": "enc_021",
+      "connector_type": "generic_multipin",
+      "tags": [
+        "system:sensors",
+        "system:wheelspeed"
+      ],
+      "properties": {
+        "description": "Wheel speed sensor FL connector"
+      },
+      "pin_count": 2
+    },
+    {
+      "id": "con_064",
+      "name": "WS FR",
+      "parent": "enc_022",
+      "connector_type": "generic_multipin",
+      "tags": [
+        "system:sensors",
+        "system:wheelspeed"
+      ],
+      "properties": {},
+      "pin_count": 2
+    },
+    {
+      "id": "con_065",
+      "name": "WS RL",
+      "parent": "enc_023",
+      "connector_type": "generic_multipin",
+      "tags": [
+        "system:sensors",
+        "system:wheelspeed"
+      ],
+      "properties": {},
+      "pin_count": 2
+    },
+    {
+      "id": "con_066",
+      "name": "WS RR",
+      "parent": "enc_024",
+      "connector_type": "generic_multipin",
+      "tags": [
+        "system:sensors",
+        "system:wheelspeed"
+      ],
+      "properties": {},
+      "pin_count": 2
+    },
+    {
+      "id": "con_067",
+      "name": "MOT-SENS",
+      "parent": "enc_025",
+      "connector_type": "generic_multipin",
+      "tags": [
+        "system:drivetrain"
+      ],
+      "properties": {
+        "description": "Motor sensor connector (Souriau UTS6JC12E14PW). Lettered pins A-L."
+      },
+      "pin_count": 14
+    },
+    {
+      "id": "con_068",
+      "name": "RLS Encoder",
+      "parent": "enc_025",
+      "connector_type": "generic_multipin",
+      "tags": [
+        "system:drivetrain"
+      ],
+      "properties": {
+        "description": "RLS RM44SI encoder connector on motor. Lettered pins A-L."
+      },
+      "pin_count": 12
+    },
+    {
+      "id": "con_069",
+      "name": "TSSI Conn",
+      "parent": "enc_026",
+      "connector_type": "deutsch_dt",
+      "tags": [],
+      "properties": {
+        "description": "4p Deutsch on TSSI/light tree device"
+      },
+      "pin_count": 4
+    },
+    {
+      "id": "con_070",
+      "name": "BRK LT Conn",
+      "parent": "enc_027",
+      "connector_type": "deutsch_dt",
+      "tags": [],
+      "properties": {
+        "description": "3p Deutsch on brake light device"
+      },
+      "pin_count": 3
+    },
+    {
+      "id": "con_071",
+      "name": "BOTS-C1",
+      "parent": "enc_028",
+      "connector_type": "deutsch_dt",
+      "tags": [
+        "system:sdc",
+        "system:demo"
+      ],
+      "properties": {
+        "description": "BOTS SDC connector. Pin 1 = SDC in (BOTS out to next), Pin 2 = SDC in (BOTS in from prev)"
+      },
+      "pin_count": 2
+    },
+    {
+      "id": "con_072",
+      "name": "INTS-C1",
+      "parent": "enc_029",
+      "connector_type": "generic_multipin",
+      "tags": [
+        "system:sdc"
+      ],
+      "properties": {
+        "description": "Inertia Switch 3-pin connector"
+      },
+      "pin_count": 3
+    },
+    {
+      "id": "con_074",
+      "name": "ES-LT",
+      "parent": "enc_031",
+      "connector_type": "deutsch_dt",
+      "tags": [
+        "system:sdc"
+      ],
+      "properties": {
+        "description": "Estop Left SDC connector. Pin 1 = in, Pin 2 = out"
+      },
+      "pin_count": 2
+    },
+    {
+      "id": "con_075",
+      "name": "ES-RT",
+      "parent": "enc_032",
+      "connector_type": "deutsch_dt",
+      "tags": [
+        "system:sdc"
+      ],
+      "properties": {
+        "description": "Estop Right SDC connector. Pin 1 = in, Pin 2 = out"
+      },
+      "pin_count": 2
+    },
+    {
+      "id": "con_077",
+      "name": "BPS1 Conn",
+      "parent": "enc_034",
+      "connector_type": "generic_multipin",
+      "tags": [
+        "system:sensors"
+      ],
+      "properties": {
+        "description": "P51 BPS1 sensor connector. Pin 1 = 5V, Pin 2 = GND, Pin 3 = Signal"
+      },
+      "pin_count": 3
+    },
+    {
+      "id": "con_078",
+      "name": "BPS2 Conn",
+      "parent": "enc_035",
+      "connector_type": "generic_multipin",
+      "tags": [
+        "system:sensors"
+      ],
+      "properties": {
+        "description": "P51 BPS2 sensor connector. Pin 1 = 5V, Pin 2 = GND, Pin 3 = Signal"
+      },
+      "pin_count": 3
+    },
+    {
+      "id": "con_079",
+      "name": "APPS Conn",
+      "parent": "enc_036",
+      "connector_type": "generic_multipin",
+      "tags": [
+        "system:sensors"
+      ],
+      "properties": {
+        "description": "APPS 6p Metri-Pack connector (12162260)"
+      },
+      "pin_count": 6
+    },
+    {
+      "id": "con_081",
+      "name": "TSL-C1",
+      "parent": "enc_026",
+      "connector_type": "deutsch_dt",
+      "tags": [],
+      "properties": {
+        "description": "Tractive System Light connector 1 — from HVB/FOC"
+      },
+      "pin_count": 4
+    }
+  ],
+  "mergePoints": [
+    {
+      "id": "mp_004",
+      "name": "Splice 4",
+      "parent": null,
+      "tags": [],
+      "properties": {}
+    },
+    {
+      "id": "mp_006",
+      "name": "Splice 3",
+      "parent": null,
+      "tags": [],
+      "properties": {}
+    }
+  ],
+  "paths": [
+    {
+      "id": "path_011",
+      "name": "LV Batt Power",
+      "tags": [
+        "signal:PWR_24V"
+      ],
+      "properties": {
+        "source_file": "EXT_ROC_H1"
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_061",
+          "pin_number": 1
+        },
+        {
+          "kind": "port",
+          "port_id": "port_con_011",
+          "pin_number": 1
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_012",
+      "name": "LV Batt GND",
+      "tags": [
+        "signal:GND"
+      ],
+      "properties": {
+        "source_file": "EXT_ROC_H1"
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_062",
+          "pin_number": 1
+        },
+        {
+          "kind": "port",
+          "port_id": "port_con_011",
+          "pin_number": 2
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_013",
+      "name": "CAN1 SB-HVB-H",
+      "tags": [
+        "signal:CAN_ACC_H"
+      ],
+      "properties": {
+        "source_file": "EXT_ROC_H1"
+      },
+      "nodes": [
+        {
+          "kind": "port",
+          "port_id": "port_con_001",
+          "pin_number": 11
+        },
+        {
+          "kind": "port",
+          "port_id": "port_con_009",
+          "pin_number": 11
+        }
+      ],
+      "measurements": [
+        {
+          "from": {
+            "kind": "port",
+            "port_id": "port_con_001",
+            "pin_number": 11
+          },
+          "to": {
+            "kind": "port",
+            "port_id": "port_con_009",
+            "pin_number": 11
+          },
+          "length_mm": 20
+        }
+      ]
+    },
+    {
+      "id": "path_013",
+      "name": "CAN1 SB-HVB-H",
+      "tags": [
+        "signal:CAN_ACC_H"
+      ],
+      "properties": {
+        "source_file": "EXT_ROC_H1"
+      },
+      "nodes": [
+        {
+          "kind": "port",
+          "port_id": "port_con_009",
+          "pin_number": 11
+        },
+        {
+          "kind": "port",
+          "port_id": "port_con_012",
+          "pin_number": 11
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_014",
+      "name": "CAN1 SB-HVB-L",
+      "tags": [
+        "signal:CAN_ACC_L"
+      ],
+      "properties": {
+        "source_file": "EXT_ROC_H1"
+      },
+      "nodes": [
+        {
+          "kind": "port",
+          "port_id": "port_con_001",
+          "pin_number": 12
+        },
+        {
+          "kind": "port",
+          "port_id": "port_con_009",
+          "pin_number": 12
+        }
+      ],
+      "measurements": [
+        {
+          "from": {
+            "kind": "port",
+            "port_id": "port_con_001",
+            "pin_number": 12
+          },
+          "to": {
+            "kind": "port",
+            "port_id": "port_con_009",
+            "pin_number": 12
+          },
+          "length_mm": 20
+        }
+      ]
+    },
+    {
+      "id": "path_014",
+      "name": "CAN1 SB-HVB-L",
+      "tags": [
+        "signal:CAN_ACC_L"
+      ],
+      "properties": {
+        "source_file": "EXT_ROC_H1"
+      },
+      "nodes": [
+        {
+          "kind": "port",
+          "port_id": "port_con_009",
+          "pin_number": 12
+        },
+        {
+          "kind": "port",
+          "port_id": "port_con_012",
+          "pin_number": 12
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_015",
+      "name": "ACCU SDC Out",
+      "tags": [
+        "signal:SDC"
+      ],
+      "properties": {
+        "source_file": "EXT_ROC_H1"
+      },
+      "nodes": [
+        {
+          "kind": "port",
+          "port_id": "port_con_001",
+          "pin_number": 7
+        },
+        {
+          "kind": "port",
+          "port_id": "port_con_009",
+          "pin_number": 9
+        }
+      ],
+      "measurements": [
+        {
+          "from": {
+            "kind": "port",
+            "port_id": "port_con_001",
+            "pin_number": 7
+          },
+          "to": {
+            "kind": "port",
+            "port_id": "port_con_009",
+            "pin_number": 9
+          },
+          "length_mm": 20
+        }
+      ]
+    },
+    {
+      "id": "path_015",
+      "name": "ACCU SDC Out",
+      "tags": [
+        "signal:SDC"
+      ],
+      "properties": {
+        "source_file": "EXT_ROC_H1"
+      },
+      "nodes": [
+        {
+          "kind": "port",
+          "port_id": "port_con_009",
+          "pin_number": 9
+        },
+        {
+          "kind": "port",
+          "port_id": "port_con_012",
+          "pin_number": 9
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_016",
+      "name": "IMD Fault",
+      "tags": [
+        "signal:IMD_FAULT"
+      ],
+      "properties": {
+        "source_file": "EXT_ROC_H1"
+      },
+      "nodes": [
+        {
+          "kind": "port",
+          "port_id": "port_con_001",
+          "pin_number": 8
+        },
+        {
+          "kind": "port",
+          "port_id": "port_con_009",
+          "pin_number": 7
+        }
+      ],
+      "measurements": [
+        {
+          "from": {
+            "kind": "port",
+            "port_id": "port_con_001",
+            "pin_number": 8
+          },
+          "to": {
+            "kind": "port",
+            "port_id": "port_con_009",
+            "pin_number": 7
+          },
+          "length_mm": 20
+        }
+      ]
+    },
+    {
+      "id": "path_016",
+      "name": "IMD Fault",
+      "tags": [
+        "signal:IMD_FAULT"
+      ],
+      "properties": {
+        "source_file": "EXT_ROC_H1"
+      },
+      "nodes": [
+        {
+          "kind": "port",
+          "port_id": "port_con_009",
+          "pin_number": 7
+        },
+        {
+          "kind": "port",
+          "port_id": "port_con_012",
+          "pin_number": 7
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_017",
+      "name": "BMS Fault",
+      "tags": [
+        "signal:BMS_FAULT"
+      ],
+      "properties": {
+        "source_file": "EXT_ROC_H1"
+      },
+      "nodes": [
+        {
+          "kind": "port",
+          "port_id": "port_con_001",
+          "pin_number": 9
+        },
+        {
+          "kind": "port",
+          "port_id": "port_con_009",
+          "pin_number": 8
+        }
+      ],
+      "measurements": [
+        {
+          "from": {
+            "kind": "port",
+            "port_id": "port_con_001",
+            "pin_number": 9
+          },
+          "to": {
+            "kind": "port",
+            "port_id": "port_con_009",
+            "pin_number": 8
+          },
+          "length_mm": 20
+        }
+      ]
+    },
+    {
+      "id": "path_017",
+      "name": "BMS Fault",
+      "tags": [
+        "signal:BMS_FAULT"
+      ],
+      "properties": {
+        "source_file": "EXT_ROC_H1"
+      },
+      "nodes": [
+        {
+          "kind": "port",
+          "port_id": "port_con_009",
+          "pin_number": 8
+        },
+        {
+          "kind": "port",
+          "port_id": "port_con_012",
+          "pin_number": 8
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_018",
+      "name": "HVB 12V Power",
+      "tags": [
+        "signal:PWR_12V"
+      ],
+      "properties": {
+        "source_file": "EXT_ROC_H1"
+      },
+      "nodes": [
+        {
+          "kind": "port",
+          "port_id": "port_con_001",
+          "pin_number": 1
+        },
+        {
+          "kind": "port",
+          "port_id": "port_con_009",
+          "pin_number": 1
+        }
+      ],
+      "measurements": [
+        {
+          "from": {
+            "kind": "port",
+            "port_id": "port_con_001",
+            "pin_number": 1
+          },
+          "to": {
+            "kind": "port",
+            "port_id": "port_con_009",
+            "pin_number": 1
+          },
+          "length_mm": 20
+        }
+      ]
+    },
+    {
+      "id": "path_018",
+      "name": "HVB 12V Power",
+      "tags": [
+        "signal:PWR_12V"
+      ],
+      "properties": {
+        "source_file": "EXT_ROC_H1"
+      },
+      "nodes": [
+        {
+          "kind": "port",
+          "port_id": "port_con_009",
+          "pin_number": 1
+        },
+        {
+          "kind": "port",
+          "port_id": "port_con_012",
+          "pin_number": 1
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_019",
+      "name": "HVB GND",
+      "tags": [
+        "signal:GND"
+      ],
+      "properties": {
+        "source_file": "EXT_ROC_H1"
+      },
+      "nodes": [
+        {
+          "kind": "port",
+          "port_id": "port_con_001",
+          "pin_number": 2
+        },
+        {
+          "kind": "port",
+          "port_id": "port_con_009",
+          "pin_number": 2
+        }
+      ],
+      "measurements": [
+        {
+          "from": {
+            "kind": "port",
+            "port_id": "port_con_001",
+            "pin_number": 2
+          },
+          "to": {
+            "kind": "port",
+            "port_id": "port_con_009",
+            "pin_number": 2
+          },
+          "length_mm": 20
+        }
+      ]
+    },
+    {
+      "id": "path_019",
+      "name": "HVB GND",
+      "tags": [
+        "signal:GND"
+      ],
+      "properties": {
+        "source_file": "EXT_ROC_H1"
+      },
+      "nodes": [
+        {
+          "kind": "port",
+          "port_id": "port_con_009",
+          "pin_number": 2
+        },
+        {
+          "kind": "port",
+          "port_id": "port_con_012",
+          "pin_number": 2
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_020",
+      "name": "IMD Reset-",
+      "tags": [
+        "signal:IMD_RESET_NEG"
+      ],
+      "properties": {
+        "source_file": "EXT_ROC_H1"
+      },
+      "nodes": [
+        {
+          "kind": "port",
+          "port_id": "port_con_001",
+          "pin_number": 3
+        },
+        {
+          "kind": "port",
+          "port_id": "port_con_009",
+          "pin_number": 3
+        }
+      ],
+      "measurements": [
+        {
+          "from": {
+            "kind": "port",
+            "port_id": "port_con_001",
+            "pin_number": 3
+          },
+          "to": {
+            "kind": "port",
+            "port_id": "port_con_009",
+            "pin_number": 3
+          },
+          "length_mm": 20
+        }
+      ]
+    },
+    {
+      "id": "path_020",
+      "name": "IMD Reset-",
+      "tags": [
+        "signal:IMD_RESET_NEG"
+      ],
+      "properties": {
+        "source_file": "EXT_ROC_H1"
+      },
+      "nodes": [
+        {
+          "kind": "port",
+          "port_id": "port_con_009",
+          "pin_number": 3
+        },
+        {
+          "kind": "port",
+          "port_id": "port_con_012",
+          "pin_number": 3
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_021",
+      "name": "BMS Reset-",
+      "tags": [
+        "signal:BMS_RESET"
+      ],
+      "properties": {
+        "source_file": "EXT_ROC_H1"
+      },
+      "nodes": [
+        {
+          "kind": "port",
+          "port_id": "port_con_001",
+          "pin_number": 4
+        },
+        {
+          "kind": "port",
+          "port_id": "port_con_009",
+          "pin_number": 4
+        }
+      ],
+      "measurements": [
+        {
+          "from": {
+            "kind": "port",
+            "port_id": "port_con_001",
+            "pin_number": 4
+          },
+          "to": {
+            "kind": "port",
+            "port_id": "port_con_009",
+            "pin_number": 4
+          },
+          "length_mm": 20
+        }
+      ]
+    },
+    {
+      "id": "path_021",
+      "name": "BMS Reset-",
+      "tags": [
+        "signal:BMS_RESET"
+      ],
+      "properties": {
+        "source_file": "EXT_ROC_H1"
+      },
+      "nodes": [
+        {
+          "kind": "port",
+          "port_id": "port_con_009",
+          "pin_number": 4
+        },
+        {
+          "kind": "port",
+          "port_id": "port_con_012",
+          "pin_number": 4
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_106",
+      "name": "BPS1 5V",
+      "tags": [
+        "signal:PWR_5V"
+      ],
+      "properties": {
+        "source_file": "MAIN_H1"
+      },
+      "nodes": [
+        {
+          "kind": "port",
+          "port_id": "port_con_002",
+          "pin_number": 3
+        },
+        {
+          "kind": "merge",
+          "merge_point_id": "mp_006"
+        },
+        {
+          "kind": "merge",
+          "merge_point_id": "mp_004"
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_077",
+          "pin_number": 1
+        }
+      ],
+      "measurements": [
+        {
+          "from": {
+            "kind": "port",
+            "port_id": "port_con_002",
+            "pin_number": 3
+          },
+          "to": {
+            "kind": "merge",
+            "merge_point_id": "mp_006"
+          },
+          "length_mm": 20
+        },
+        {
+          "from": {
+            "kind": "merge",
+            "merge_point_id": "mp_006"
+          },
+          "to": {
+            "kind": "merge",
+            "merge_point_id": "mp_004"
+          },
+          "length_mm": 30
+        },
+        {
+          "from": {
+            "kind": "merge",
+            "merge_point_id": "mp_004"
+          },
+          "to": {
+            "kind": "connector",
+            "connector_id": "con_077",
+            "pin_number": 1
+          },
+          "length_mm": 45
+        }
+      ]
+    },
+    {
+      "id": "path_107",
+      "name": "BPS1 GND",
+      "tags": [
+        "signal:GND"
+      ],
+      "properties": {
+        "source_file": "MAIN_H1"
+      },
+      "nodes": [
+        {
+          "kind": "port",
+          "port_id": "port_con_002",
+          "pin_number": 1
+        },
+        {
+          "kind": "merge",
+          "merge_point_id": "mp_006"
+        },
+        {
+          "kind": "merge",
+          "merge_point_id": "mp_004"
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_077",
+          "pin_number": 2
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_108",
+      "name": "BPS1 Signal",
+      "tags": [
+        "signal:BPS1"
+      ],
+      "properties": {
+        "source_file": "MAIN_H1"
+      },
+      "nodes": [
+        {
+          "kind": "port",
+          "port_id": "port_con_002",
+          "pin_number": 2
+        },
+        {
+          "kind": "merge",
+          "merge_point_id": "mp_006"
+        },
+        {
+          "kind": "merge",
+          "merge_point_id": "mp_004"
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_077",
+          "pin_number": 3
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_115",
+      "name": "BPS2 5V",
+      "tags": [
+        "signal:PWR_5V"
+      ],
+      "properties": {
+        "source_file": "MAIN_H1"
+      },
+      "nodes": [
+        {
+          "kind": "port",
+          "port_id": "port_con_002",
+          "pin_number": 10
+        },
+        {
+          "kind": "merge",
+          "merge_point_id": "mp_006"
+        },
+        {
+          "kind": "merge",
+          "merge_point_id": "mp_004"
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_078",
+          "pin_number": 1
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_116",
+      "name": "BPS2 GND",
+      "tags": [
+        "signal:GND"
+      ],
+      "properties": {
+        "source_file": "MAIN_H1"
+      },
+      "nodes": [
+        {
+          "kind": "port",
+          "port_id": "port_con_002",
+          "pin_number": 12
+        },
+        {
+          "kind": "merge",
+          "merge_point_id": "mp_006"
+        },
+        {
+          "kind": "merge",
+          "merge_point_id": "mp_004"
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_078",
+          "pin_number": 2
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_117",
+      "name": "BPS2 Signal",
+      "tags": [
+        "signal:BPS2"
+      ],
+      "properties": {
+        "source_file": "MAIN_H1"
+      },
+      "nodes": [
+        {
+          "kind": "port",
+          "port_id": "port_con_002",
+          "pin_number": 11
+        },
+        {
+          "kind": "merge",
+          "merge_point_id": "mp_006"
+        },
+        {
+          "kind": "merge",
+          "merge_point_id": "mp_004"
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_078",
+          "pin_number": 3
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_136",
+      "name": "APPS1 VCC Link",
+      "tags": [
+        "signal:PWR_3V3"
+      ],
+      "properties": {},
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_079",
+          "pin_number": 1
+        },
+        {
+          "kind": "merge",
+          "merge_point_id": "mp_006"
+        },
+        {
+          "kind": "port",
+          "port_id": "port_con_002",
+          "pin_number": 4
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_137",
+      "name": "APPS1 GND Link",
+      "tags": [
+        "signal:GND"
+      ],
+      "properties": {
+        "wire_color": "black"
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_079",
+          "pin_number": 3
+        },
+        {
+          "kind": "merge",
+          "merge_point_id": "mp_006"
+        },
+        {
+          "kind": "port",
+          "port_id": "port_con_002",
+          "pin_number": 6
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_138",
+      "name": "APPS1 SIG Link",
+      "tags": [
+        "signal:APPS1"
+      ],
+      "properties": {},
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_079",
+          "pin_number": 2
+        },
+        {
+          "kind": "merge",
+          "merge_point_id": "mp_006"
+        },
+        {
+          "kind": "port",
+          "port_id": "port_con_002",
+          "pin_number": 8
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_139",
+      "name": "APPS2 VCC Link",
+      "tags": [
+        "signal:PWR_3V3"
+      ],
+      "properties": {},
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_079",
+          "pin_number": 4
+        },
+        {
+          "kind": "merge",
+          "merge_point_id": "mp_006"
+        },
+        {
+          "kind": "port",
+          "port_id": "port_con_002",
+          "pin_number": 9
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_140",
+      "name": "APPS2 GND Link",
+      "tags": [
+        "signal:GND"
+      ],
+      "properties": {},
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_079",
+          "pin_number": 6
+        },
+        {
+          "kind": "merge",
+          "merge_point_id": "mp_006"
+        },
+        {
+          "kind": "port",
+          "port_id": "port_con_002",
+          "pin_number": 7
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_141",
+      "name": "APPS2 SIG Link",
+      "tags": [
+        "signal:APPS2"
+      ],
+      "properties": {},
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_079",
+          "pin_number": 5
+        },
+        {
+          "kind": "merge",
+          "merge_point_id": "mp_006"
+        },
+        {
+          "kind": "port",
+          "port_id": "port_con_002",
+          "pin_number": 5
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_auto_85f658b3eda2",
+      "name": "24V Power In:1 → BOTS-C1:1",
+      "signal_id": "sig_SDC",
+      "tags": [
+        "signal:SDC"
+      ],
+      "properties": {
+        "route_request_id": "ac5b4ffa-5599-438f-80b0-5c1fe40fabbc"
+      },
+      "nodes": [
+        {
+          "kind": "port",
+          "port_id": "port_con_auto_85f658b3eda2_1",
+          "pin_number": 2
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_071",
+          "pin_number": 1
+        }
+      ],
+      "measurements": [
+        {
+          "from": {
+            "kind": "port",
+            "port_id": "port_con_auto_85f658b3eda2_1",
+            "pin_number": 2
+          },
+          "to": {
+            "kind": "connector",
+            "connector_id": "con_071",
+            "pin_number": 1
+          },
+          "length_mm": 40
+        }
+      ]
+    }
+  ],
+  "ports": [
+    {
+      "id": "port_con_011",
+      "name": "LV Batt C1",
+      "target_child_id": "enc_002",
+      "entity_parent": "enc_002",
+      "entity_kind": "connector",
+      "connector_id": "con_011",
+      "connector_type": "deutsch_dt",
+      "pin_count": 2,
+      "tags": [
+        "zone:bulkhead",
+        "system:lv",
+        "system:demo"
+      ],
+      "properties": {
+        "description": "ROC bulkhead 2p — LV battery connector"
+      }
+    },
+    {
+      "id": "port_con_001",
+      "name": "FOC-C1",
+      "target_child_id": "enc_001",
+      "entity_parent": "enc_001",
+      "entity_kind": "connector",
+      "connector_id": "con_001",
+      "connector_type": "deutsch_dt",
+      "pin_count": 12,
+      "tags": [
+        "zone:bulkhead"
+      ],
+      "properties": {
+        "description": "FOC bulkhead 12p — ROC link. Internal: DT04-12PA-L012, External: DT06-12SA"
+      }
+    },
+    {
+      "id": "port_con_009",
+      "name": "ROC-C1",
+      "target_child_id": "enc_002",
+      "entity_parent": "enc_002",
+      "entity_kind": "connector",
+      "connector_id": "con_009",
+      "connector_type": "deutsch_dt",
+      "pin_count": 12,
+      "tags": [
+        "zone:bulkhead",
+        "system:demo"
+      ],
+      "properties": {
+        "description": "ROC bulkhead 12p — FOC link. Internal: DT04-12PA-L012, External: DT06-12SA"
+      }
+    },
+    {
+      "id": "port_con_012",
+      "name": "HVB-C1",
+      "target_child_id": "enc_003",
+      "entity_parent": "enc_003",
+      "entity_kind": "connector",
+      "connector_id": "con_012",
+      "connector_type": "deutsch_dt",
+      "pin_count": 12,
+      "tags": [
+        "zone:bulkhead",
+        "system:hv"
+      ],
+      "properties": {
+        "description": "HVB bulkhead 12p — main signal interface (formerly ACCU-C1)",
+        "image": "SCR-20260727-muwm.png"
+      }
+    },
+    {
+      "id": "port_con_002",
+      "name": "FOC-C2",
+      "target_child_id": "enc_001",
+      "entity_parent": "enc_001",
+      "entity_kind": "connector",
+      "connector_id": "con_002",
+      "connector_type": "deutsch_dt",
+      "pin_count": 12,
+      "tags": [
+        "zone:bulkhead"
+      ],
+      "properties": {
+        "description": "FOC bulkhead 12p — footwell sensors (BPS + APPS). Internal: DT04-12PA-L012, External: DT06-12SA"
+      }
+    },
+    {
+      "id": "port_con_auto_85f658b3eda2_1",
+      "name": "Unresolved bulkhead — FOC",
+      "target_child_id": "enc_001",
+      "entity_parent": "enc_001",
+      "entity_kind": "connector",
+      "connector_id": "con_auto_85f658b3eda2_1",
+      "connector_type": "deutsch_dtm",
+      "pin_count": 2,
+      "tags": [
+        "generated",
+        "unresolved",
+        "bulkhead",
+        "system:demo"
+      ],
+      "properties": {
+        "generated_by_route": "path_auto_85f658b3eda2",
+        "boundary_sheet": "enc_001",
+        "image": "SCR-20260410-cknx.png"
+      }
+    }
+  ],
+  "name": "Fsae Car (working)"
+}

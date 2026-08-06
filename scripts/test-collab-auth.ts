@@ -73,7 +73,6 @@ const server = http.createServer((req, res) => {
     ['POST /api/auth/login', auth.handlers.login],
     ['POST /api/auth/logout', auth.handlers.logout],
     ['GET /api/auth/me', auth.handlers.me],
-    ['GET /api/users', auth.handlers.listUsers],
     ['POST /api/users', auth.handlers.createUser],
     ['POST /api/presence', presenceHandler],
   ]);
@@ -83,39 +82,8 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  const userMatch = url.pathname.match(/^\/api\/users\/([^/]+)$/);
-  if (userMatch && method === 'PATCH') {
-    invoke(
-      auth.handlers.updateUser,
-      req,
-      res,
-      { id: decodeURIComponent(userMatch[1]) },
-      url.searchParams,
-    );
-    return;
-  }
-  if (userMatch && method === 'DELETE') {
-    invoke(
-      auth.handlers.deleteUser,
-      req,
-      res,
-      { id: decodeURIComponent(userMatch[1]) },
-      url.searchParams,
-    );
-    return;
-  }
-
   if (url.pathname === '/api/guard/editor') {
-    if (!auth.requireRole(req, 'editor')) {
-      sendJson(res, 403, { error: 'Forbidden' });
-      return;
-    }
-    res.statusCode = 204;
-    res.end();
-    return;
-  }
-  if (url.pathname === '/api/guard/admin') {
-    if (!auth.requireRole(req, 'admin')) {
+    if (!auth.requireEditor(req)) {
       sendJson(res, 403, { error: 'Forbidden' });
       return;
     }
@@ -211,30 +179,28 @@ async function api(
   };
 }
 
-let adminCookie = '';
-let adminId = '';
+let joeCookie = '';
+let joeId = '';
 let editorCookie = '';
 let viewerCookie = '';
 
 try {
-  await check('bootstrap creates first administrator', async () => {
-    const result = await api('/api/auth/login', {
+  await check('signing up creates an account and logs the user in', async () => {
+    const result = await api('/api/users', {
       method: 'POST',
-      body: { login: 'Joe' },
+      body: { login: 'Joe', displayName: 'Joe', role: 'editor' },
       ip: 'bootstrap',
     });
-    assert.equal(result.status, 200);
-    const body = result.body as { user: { id: string; role: string; login?: string } };
-    assert.equal(body.user.role, 'admin');
-    // The login is the only credential, so it must never travel back to a client.
-    assert.equal(body.user.login, undefined);
-    adminId = body.user.id;
-    adminCookie = cookieFrom(result);
+    assert.equal(result.status, 201);
+    const body = result.body as { user: { id: string; role: string } };
+    assert.equal(body.user.role, 'editor');
+    joeId = body.user.id;
+    joeCookie = cookieFrom(result);
 
     const users = JSON.parse(
       fs.readFileSync(path.join(temporaryRoot, 'vibewire-state', 'users.json'), 'utf8'),
     ) as Array<{ login: string; role: string }>;
-    assert.deepEqual(users.map((user) => [user.login, user.role]), [['Joe', 'admin']]);
+    assert.deepEqual(users.map((user) => [user.login, user.role]), [['Joe', 'editor']]);
     const secretMode = fs.statSync(
       path.join(temporaryRoot, 'vibewire-state', 'secret.txt'),
     ).mode & 0o777;
@@ -262,9 +228,9 @@ try {
   });
 
   await check('/api/auth/me never returns the login credential', async () => {
-    const result = await api('/api/auth/me', { cookie: adminCookie });
+    const result = await api('/api/auth/me', { cookie: joeCookie });
     const body = result.body as { user: { id: string; login?: string } | null };
-    assert.equal(body.user?.id, adminId);
+    assert.equal(body.user?.id, joeId);
     assert.equal(body.user?.login, undefined);
   });
 
@@ -303,10 +269,10 @@ try {
   });
 
   await check('signed cookie accepts valid and rejects tampered values', async () => {
-    assert.match(cookieValue(adminCookie), /^[A-Za-z0-9_.%-]+$/);
-    const valid = await api('/api/auth/me', { cookie: adminCookie });
-    assert.equal((valid.body as { user: { id: string } | null }).user?.id, adminId);
-    const invalid = await api('/api/auth/me', { cookie: tamper(adminCookie) });
+    assert.match(cookieValue(joeCookie), /^[A-Za-z0-9_.%-]+$/);
+    const valid = await api('/api/auth/me', { cookie: joeCookie });
+    assert.equal((valid.body as { user: { id: string } | null }).user?.id, joeId);
+    const invalid = await api('/api/auth/me', { cookie: tamper(joeCookie) });
     assert.equal((invalid.body as { user: unknown }).user, null);
   });
 
@@ -334,17 +300,17 @@ try {
     assert.equal(afterWindow.status, 401);
   });
 
-  await check('admin can create editor and viewer accounts', async () => {
+  await check('anyone can create editor and viewer accounts without signing in first', async () => {
     const editor = await api('/api/users', {
       method: 'POST',
-      cookie: adminCookie,
       body: { login: 'EditorSecret', displayName: 'Ed', role: 'editor' },
+      ip: 'signup-editor',
     });
     assert.equal(editor.status, 201);
     const viewer = await api('/api/users', {
       method: 'POST',
-      cookie: adminCookie,
       body: { login: 'ViewerSecret', displayName: 'Vi', role: 'viewer' },
+      ip: 'signup-viewer',
     });
     assert.equal(viewer.status, 201);
     assert.notEqual(
@@ -352,68 +318,54 @@ try {
       (viewer.body as { user: { color: string } }).user.color,
     );
 
+    // Signing up logs you straight in — no separate login step needed.
+    editorCookie = cookieFrom(editor);
+    viewerCookie = cookieFrom(viewer);
+
+    // The same login also works for a fresh session later.
     const editorLogin = await api('/api/auth/login', {
       method: 'POST',
       body: { login: 'EditorSecret' },
       ip: 'editor-login',
     });
-    const viewerLogin = await api('/api/auth/login', {
-      method: 'POST',
-      body: { login: 'ViewerSecret' },
-      ip: 'viewer-login',
-    });
-    editorCookie = cookieFrom(editorLogin);
-    viewerCookie = cookieFrom(viewerLogin);
+    assert.equal(editorLogin.status, 200);
   });
 
   await check('role gating rejects viewers and permits editors', async () => {
     assert.equal((await api('/api/guard/editor', { cookie: viewerCookie })).status, 403);
     assert.equal((await api('/api/guard/editor', { cookie: editorCookie })).status, 204);
-    assert.equal((await api('/api/guard/admin', { cookie: editorCookie })).status, 403);
-    assert.equal((await api('/api/guard/admin', { cookie: adminCookie })).status, 204);
   });
 
-  await check('signed-in teammates can invite editors but not create admins', async () => {
-    const invited = await api('/api/users', {
+  await check('signup rejects duplicate logins and invalid roles', async () => {
+    const duplicate = await api('/api/users', {
       method: 'POST',
-      cookie: editorCookie,
-      body: { login: 'InviteSecret', displayName: 'Invitee', role: 'editor' },
+      body: { login: 'EditorSecret', displayName: 'Copycat', role: 'editor' },
+      ip: 'signup-duplicate',
     });
-    assert.equal(invited.status, 201);
-    const escalate = await api('/api/users', {
+    assert.equal(duplicate.status, 409);
+    const badRole = await api('/api/users', {
       method: 'POST',
-      cookie: editorCookie,
-      body: { login: 'EscalationSecret', displayName: 'Escalator', role: 'admin' },
+      body: { login: 'BadRoleSecret', displayName: 'Bad', role: 'owner' },
+      ip: 'signup-bad-role',
     });
-    assert.equal(escalate.status, 403);
-    const anonymous = await api('/api/users', {
-      method: 'POST',
-      body: { login: 'AnonSecret', displayName: 'Anon', role: 'editor' },
-    });
-    assert.equal(anonymous.status, 403);
+    assert.equal(badRole.status, 400);
   });
 
-  await check('last administrator cannot be demoted or deleted', async () => {
-    const demote = await api(`/api/users/${encodeURIComponent(adminId)}`, {
-      method: 'PATCH',
-      cookie: adminCookie,
-      body: { role: 'editor' },
+  await check('account creation is rate limited per IP', async () => {
+    for (let attempt = 0; attempt < 10; attempt += 1) {
+      const result = await api('/api/users', {
+        method: 'POST',
+        body: { login: `RateLimited${attempt}`, displayName: `Rate ${attempt}`, role: 'viewer' },
+        ip: 'signup-rate-limited',
+      });
+      assert.equal(result.status, 201);
+    }
+    const blocked = await api('/api/users', {
+      method: 'POST',
+      body: { login: 'RateLimitedOverflow', displayName: 'Overflow', role: 'viewer' },
+      ip: 'signup-rate-limited',
     });
-    assert.equal(demote.status, 409);
-    const remove = await api(`/api/users/${encodeURIComponent(adminId)}`, {
-      method: 'DELETE',
-      cookie: adminCookie,
-    });
-    assert.equal(remove.status, 409);
-  });
-
-  await check('user listing never leaks login values', async () => {
-    const result = await api('/api/users', { cookie: adminCookie });
-    assert.equal(result.status, 200);
-    const users = result.body as Array<Record<string, unknown>>;
-    assert(users.length >= 3);
-    assert(users.every((user) => !Object.hasOwn(user, 'login')));
-    assert.equal((await api('/api/users', { cookie: viewerCookie })).status, 403);
+    assert.equal(blocked.status, 429);
   });
 
   await check('trusted identity header bypasses cookie identity', async () => {
@@ -421,7 +373,7 @@ try {
     process.env.TRUST_IDENTITY_HEADER = '1';
     try {
       const result = await api('/api/auth/me', {
-        cookie: tamper(adminCookie),
+        cookie: tamper(joeCookie),
         headers: { 'Cf-Access-Authenticated-User-Email': 'EditorSecret' },
       });
       assert.equal((result.body as { user: { role: string } | null }).user?.role, 'editor');

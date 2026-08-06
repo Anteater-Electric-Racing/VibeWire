@@ -1,0 +1,278 @@
+[
+  {
+    "id": "sig_PWR_24V",
+    "name": "24V Power",
+    "tags": [
+      "system:power",
+      "system:lv"
+    ],
+    "properties": {
+      "preferred_wire_color": "blue/light blue"
+    }
+  },
+  {
+    "id": "sig_PWR_12V",
+    "name": "12V Power",
+    "tags": [
+      "system:power",
+      "system:lv"
+    ],
+    "properties": {}
+  },
+  {
+    "id": "sig_PWR_5V",
+    "name": "5V Power",
+    "tags": [
+      "system:power",
+      "system:lv"
+    ],
+    "properties": {}
+  },
+  {
+    "id": "sig_PWR_3V3",
+    "name": "3V3 Power",
+    "tags": [
+      "system:power",
+      "system:lv"
+    ],
+    "properties": {}
+  },
+  {
+    "id": "sig_GND",
+    "name": "Ground",
+    "tags": [
+      "system:power",
+      "system:lv"
+    ],
+    "properties": {}
+  },
+  {
+    "id": "sig_CAN_H",
+    "name": "CAN H",
+    "tags": [
+      "system:can"
+    ],
+    "properties": {}
+  },
+  {
+    "id": "sig_CAN_L",
+    "name": "CAN L",
+    "tags": [
+      "system:can"
+    ],
+    "properties": {}
+  },
+  {
+    "id": "sig_CAN_ACC_H",
+    "name": "CAN ACC H",
+    "tags": [
+      "system:can"
+    ],
+    "properties": {}
+  },
+  {
+    "id": "sig_CAN_ACC_L",
+    "name": "CAN ACC L",
+    "tags": [
+      "system:can"
+    ],
+    "properties": {
+      "preferred_wire_color": "green"
+    }
+  },
+  {
+    "id": "sig_CAN1_INV_H",
+    "name": "CAN1 INV H",
+    "tags": [
+      "system:can"
+    ],
+    "properties": {}
+  },
+  {
+    "id": "sig_CAN1_INV_L",
+    "name": "CAN1 INV L",
+    "tags": [
+      "system:can"
+    ],
+    "properties": {}
+  },
+  {
+    "id": "sig_BMS_FAULT",
+    "name": "BMS Fault",
+    "tags": [
+      "system:safety"
+    ],
+    "properties": {}
+  },
+  {
+    "id": "sig_IMD_FAULT",
+    "name": "IMD Fault",
+    "tags": [
+      "system:safety"
+    ],
+    "properties": {}
+  },
+  {
+    "id": "sig_BMS_RESET",
+    "name": "BMS Reset-",
+    "tags": [
+      "system:safety"
+    ],
+    "properties": {}
+  },
+  {
+    "id": "sig_IMD_RESET_POS",
+    "name": "IMD Reset+",
+    "tags": [
+      "system:safety"
+    ],
+    "properties": {}
+  },
+  {
+    "id": "sig_IMD_RESET_NEG",
+    "name": "IMD Reset-",
+    "tags": [
+      "system:safety"
+    ],
+    "properties": {}
+  },
+  {
+    "id": "sig_BSPD_RESET",
+    "name": "BSPD Reset-",
+    "tags": [
+      "system:safety"
+    ],
+    "properties": {}
+  },
+  {
+    "id": "sig_BMS_LED",
+    "name": "BMS LED+",
+    "tags": [
+      "system:safety"
+    ],
+    "properties": {}
+  },
+  {
+    "id": "sig_IMD_LED",
+    "name": "IMD LED+",
+    "tags": [
+      "system:safety"
+    ],
+    "properties": {}
+  },
+  {
+    "id": "sig_BSPD_LED",
+    "name": "BSPD LED+",
+    "tags": [
+      "system:safety"
+    ],
+    "properties": {}
+  },
+  {
+    "id": "sig_SDC",
+    "name": "SDC",
+    "tags": [
+      "system:sdc",
+      "system:safety"
+    ],
+    "properties": {
+      "description": "Shutdown Circuit signal"
+    }
+  },
+  {
+    "id": "sig_HV_MS_POS",
+    "name": "HV MS+",
+    "tags": [
+      "system:hv"
+    ],
+    "properties": {}
+  },
+  {
+    "id": "sig_HV_MS_NEG",
+    "name": "HV MS-",
+    "tags": [
+      "system:hv"
+    ],
+    "properties": {}
+  },
+  {
+    "id": "sig_LV_MS_PRE",
+    "name": "LV MS pre",
+    "tags": [],
+    "properties": {}
+  },
+  {
+    "id": "sig_LV_MS_POST",
+    "name": "LV MS post",
+    "tags": [],
+    "properties": {}
+  },
+  {
+    "id": "sig_BPS1",
+    "name": "BPS1",
+    "tags": [
+      "system:sensors"
+    ],
+    "properties": {}
+  },
+  {
+    "id": "sig_BPS2",
+    "name": "BPS2",
+    "tags": [
+      "system:sensors"
+    ],
+    "properties": {}
+  },
+  {
+    "id": "sig_APPS1",
+    "name": "APPS1",
+    "tags": [
+      "system:sensors"
+    ],
+    "properties": {}
+  },
+  {
+    "id": "sig_APPS2",
+    "name": "APPS2",
+    "tags": [
+      "system:sensors"
+    ],
+    "properties": {}
+  },
+  {
+    "id": "sig_CURR",
+    "name": "Current Sense",
+    "tags": [
+      "system:sensors"
+    ],
+    "properties": {}
+  },
+  {
+    "id": "sig_RTDB",
+    "name": "RTDB",
+    "tags": [],
+    "properties": {
+      "description": "Ready to Drive Button signal"
+    }
+  },
+  {
+    "id": "sig_SPEAKER_POS",
+    "name": "Speaker+",
+    "tags": [],
+    "properties": {}
+  },
+  {
+    "id": "sig_SPEAKER_NEG",
+    "name": "Speaker-",
+    "tags": [],
+    "properties": {}
+  },
+  {
+    "id": "sig_RTM_LT",
+    "name": "RTM-LT",
+    "tags": [],
+    "properties": {
+      "description": "Ready to Move Light signal"
+    }
+  }
+]

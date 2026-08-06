@@ -35,6 +35,7 @@ import {
 import {
   checkpointPayloadDir,
   createCheckpoint,
+  ensureDailyCheckpoint,
   getCheckpoint,
   listCheckpoints,
   pruneHistory,
@@ -702,7 +703,7 @@ export function createApiMiddleware(projectRoot: string) {
 
   function editorOnly(handler: Handler): Handler {
     return (req, res, params, query) => {
-      if (!auth.requireRole(req, 'editor')) {
+      if (!auth.requireEditor(req)) {
         json(res, { error: 'Forbidden' }, 403);
         return;
       }
@@ -1128,7 +1129,7 @@ export function createApiMiddleware(projectRoot: string) {
   }
 
   function writerFor(req: IncomingMessage): RevisionWriter {
-    const user = auth.requireRole(req, 'editor');
+    const user = auth.requireEditor(req);
     if (!user) throw new ApiWriteError(403, { error: 'Forbidden' });
     return { id: user.id, displayName: user.displayName };
   }
@@ -1264,6 +1265,13 @@ export function createApiMiddleware(projectRoot: string) {
       entityIds,
     });
     await pruneHistory(harness);
+    try {
+      await ensureDailyCheckpoint(harness, writer);
+    } catch (error) {
+      // Best-effort: a failure here must never take down the write it rode
+      // in on. It will simply retry on the next edit to this harness.
+      console.error(`Daily checkpoint failed for '${harness}':`, error);
+    }
     broadcast(harness, 'rev', {
       rev,
       kind,
@@ -1866,10 +1874,7 @@ export function createApiMiddleware(projectRoot: string) {
   addRoute('POST', '/api/auth/login', auth.handlers.login);
   addRoute('POST', '/api/auth/logout', auth.handlers.logout);
   addRoute('GET', '/api/auth/me', auth.handlers.me);
-  addRoute('GET', '/api/users', auth.handlers.listUsers);
   addRoute('POST', '/api/users', hideLoginInUserResponse(auth.handlers.createUser));
-  addRoute('PATCH', '/api/users/:id', hideLoginInUserResponse(auth.handlers.updateUser));
-  addRoute('DELETE', '/api/users/:id', auth.handlers.deleteUser);
 
   addRoute('GET', '/api/state', (_req, res, _params, query) => {
     const name = sanitizeName(harnessName(query) ?? 'fsae-car');

@@ -230,29 +230,17 @@ async function openSse(cookie: string): Promise<SseConnection> {
   });
 }
 
-let adminCookie = '';
 let editorCookie = '';
 let viewerCookie = '';
 
 try {
-  await check('login, roles, and credential-safe user responses', async () => {
-    const bootstrap = await api<{ user: Record<string, unknown> }>('/api/auth/login', {
-      method: 'POST',
-      body: { login: 'AdminSecret', displayName: 'Admin' },
-    });
-    assert.equal(bootstrap.status, 200);
-    assert.equal(bootstrap.body.user.role, 'admin');
-    assert.equal(bootstrap.body.user.login, undefined);
-    adminCookie = cookieFrom(bootstrap);
-
+  await check('signup, roles, and credential-safe user responses', async () => {
     const editor = await api<{ user: Record<string, unknown> }>('/api/users', {
       method: 'POST',
-      cookie: adminCookie,
       body: { login: 'EditorSecret', displayName: 'Editor', role: 'editor' },
     });
     const viewer = await api<{ user: Record<string, unknown> }>('/api/users', {
       method: 'POST',
-      cookie: adminCookie,
       body: { login: 'ViewerSecret', displayName: 'Viewer', role: 'viewer' },
     });
     assert.equal(editor.status, 201);
@@ -260,14 +248,9 @@ try {
     assert.equal(editor.body.user.login, undefined);
     assert.equal(viewer.body.user.login, undefined);
 
-    editorCookie = cookieFrom(await api('/api/auth/login', {
-      method: 'POST',
-      body: { login: 'EditorSecret' },
-    }));
-    viewerCookie = cookieFrom(await api('/api/auth/login', {
-      method: 'POST',
-      body: { login: 'ViewerSecret' },
-    }));
+    // Signing up logs the account straight in — no separate login step needed.
+    editorCookie = cookieFrom(editor);
+    viewerCookie = cookieFrom(viewer);
 
     const openRead = await api(`/api/state?harness=${harnessName}`);
     assert.equal(openRead.status, 200);

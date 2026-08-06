@@ -6,7 +6,7 @@
  */
 import fs from 'node:fs';
 import path from 'node:path';
-import { getCollaborationPaths } from './revisions.js';
+import { getCollaborationPaths, type RevisionWriter } from './revisions.js';
 
 export type EditKind =
   | 'harness'
@@ -170,4 +170,56 @@ export function aggregateActivity(harness: string, days: number): ActivitySummar
         ),
       ]),
   );
+}
+
+/**
+ * Everyone who successfully wrote to this harness after `sinceIso` (exclusive),
+ * in first-seen order. `sinceIso === null` means "since the beginning of the
+ * log" — used when no prior daily checkpoint exists yet. Backs the daily
+ * checkpoint's contributor list.
+ */
+export function listContributorsSince(
+  harness: string,
+  sinceIso: string | null,
+): RevisionWriter[] {
+  const filePath = editLogFile(harness);
+  if (!fs.existsSync(filePath)) return [];
+
+  let raw: string;
+  try {
+    raw = fs.readFileSync(filePath, 'utf8');
+  } catch (error) {
+    throw new Error(
+      `Cannot read edit log for '${harness}': ${
+        error instanceof Error ? error.message : String(error)
+      }`,
+    );
+  }
+
+  const sinceMs = sinceIso !== null ? Date.parse(sinceIso) : Number.NEGATIVE_INFINITY;
+  const contributors = new Map<string, RevisionWriter>();
+  const lines = raw.split('\n');
+  for (let index = 0; index < lines.length; index += 1) {
+    if (!lines[index]) continue;
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(lines[index]);
+    } catch (error) {
+      throw new Error(
+        `Cannot parse edit log '${filePath}' at line ${index + 1}: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+    }
+    const entry = validateEntry(parsed, `Invalid edit log '${filePath}' at line ${index + 1}`);
+    if (entry.harness !== harness) {
+      throw new Error(
+        `Invalid edit log '${filePath}' at line ${index + 1}: harness is '${entry.harness}'.`,
+      );
+    }
+    if (Date.parse(entry.ts) <= sinceMs) continue;
+    contributors.set(entry.user, { id: entry.user, displayName: entry.displayName });
+  }
+
+  return [...contributors.values()];
 }

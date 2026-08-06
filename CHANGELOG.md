@@ -7,6 +7,27 @@ API endpoints, and source files they mention have since been removed.
 
 ---
 
+## 2026-08-06 — Self-service accounts, no more admin role
+
+- Removed the `admin` role entirely. Roles are now just `editor` and `viewer`; the activity log
+  covers accountability, so there's no separate gate for managing the user roster.
+- `POST /api/users` is now unauthenticated self-service signup: anyone can create their own
+  account (login, display name, role) from the Log in panel, visible without signing in first, and
+  it logs them straight in. Added a per-IP rate limit since the endpoint no longer requires a
+  session to call.
+- Removed the bootstrap-first-login-becomes-admin behavior, and the admin-only `GET /api/users`,
+  `PATCH /api/users/:id`, and `DELETE /api/users/:id` endpoints along with the "Manage users" panel.
+
+---
+
+## 2026-08-06 — Daily checkpoints with contributor attribution
+
+- Added an automatic "daily save" checkpoint: the first successful write to a harness on a UTC calendar day now creates a full checkpoint (`Daily save — <date>`), separate from named checkpoints and the pre-restore safety copy. Days with no edits get no checkpoint.
+- The checkpoint records `contributors` — everyone who wrote to the harness since the previous daily checkpoint, sourced from the edit log — so it marks who made the edits since the last daily save, not just whoever's write happened to trigger it.
+- `CheckpointPanel` shows a distinct "Daily" badge and lists the contributors instead of a single author for these checkpoints.
+
+---
+
 ## 2026-08-05 — Crossing-free manufacturing harness diagram
 
 - Rebuilt the manufacturing visualizer layout around the harness tree instead of per-bundle bands. Every wire gets one global lane ordered by the branch it ends in, and each node fans its wires in that same order, so wires sharing a run stay parallel and never cross.

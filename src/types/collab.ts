@@ -18,7 +18,7 @@ import type {
   WaypointLayouts,
 } from './index';
 
-export type UserRole = 'admin' | 'editor' | 'viewer';
+export type UserRole = 'editor' | 'viewer';
 
 export interface SessionUser {
   id: string;
@@ -34,8 +34,12 @@ export interface SessionUser {
  * retrying a name that was correct all along.
  */
 export type LoginOutcome =
-  | { ok: true; bootstrapAdmin: boolean }
+  | { ok: true }
   | { ok: false; reason: 'unknown' | 'rateLimited' | 'unavailable' | 'error' };
+
+export type CreateAccountOutcome =
+  | { ok: true }
+  | { ok: false; reason: 'taken' | 'rateLimited' | 'unavailable' | 'invalid' | 'error' };
 
 export interface CollaborationSession {
   /** Who the session cookie says you are. Known on boot, before you can edit. */
@@ -47,7 +51,6 @@ export interface CollaborationSession {
    */
   editSessionActive: boolean;
   isEditor: boolean;
-  isAdmin: boolean;
 }
 
 export type PresenceTargetKind =

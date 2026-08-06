@@ -1,0 +1,18 @@
+{
+  "id": "a115eb6c-d2d2-4713-a2b1-07ea2005beac",
+  "label": "test1",
+  "createdAt": "2026-08-04T22:19:44.610Z",
+  "createdBy": {
+    "id": "ac89b199-5f27-4cca-b073-03675304a26e",
+    "displayName": "Gabe"
+  },
+  "rev": 205,
+  "auto": false,
+  "counts": {
+    "enclosures": 48,
+    "connectors": 126,
+    "mergePoints": 2,
+    "paths": 32,
+    "signals": 34
+  }
+}

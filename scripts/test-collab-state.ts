@@ -21,6 +21,7 @@ import {
 import {
   checkpointPayloadDir,
   createCheckpoint,
+  ensureDailyCheckpoint,
   getCheckpoint,
   listCheckpoints,
   pruneHistory,
@@ -409,6 +410,78 @@ try {
         [user.displayName]: 2,
       },
     });
+  });
+
+  const thirdUser: RevisionWriter = { id: 'u_third', displayName: 'Third Editor' };
+
+  await test('daily checkpoint marks contributors since last daily save', async () => {
+    // The edit-log test above already logged `user` and `secondUser` writes to
+    // `harness`, and no daily checkpoint exists yet, so the first save of the
+    // (real) day should capture both as contributors.
+    const first = await ensureDailyCheckpoint(harness, user);
+    assert.ok(first, 'first write of the day must create a daily checkpoint');
+    const todayKey = new Date().toISOString().slice(0, 10);
+    assert.equal(first?.dailyKey, todayKey);
+    assert.equal(first?.auto, true);
+    assert.deepEqual(
+      new Set(first?.contributors?.map((contributor) => contributor.id)),
+      new Set([user.id, secondUser.id]),
+      'daily checkpoint must list everyone who edited since the (nonexistent) previous one',
+    );
+
+    // A second write later the same day must not create a second daily
+    // checkpoint — only the first write of a day that has one does.
+    appendEditLog(harness, {
+      user: secondUser.id,
+      displayName: secondUser.displayName,
+      kind: 'harness',
+      rev: getRev(harness),
+      added: 0,
+      modified: 1,
+      removed: 0,
+      entityIds: ['con_changed'],
+    });
+    const sameDay = await ensureDailyCheckpoint(harness, secondUser);
+    assert.equal(sameDay, null, 'same-day write must not create a second daily checkpoint');
+
+    // Simulate the calendar day having rolled over onto `first` without
+    // rewriting its real creation time — it already happened after the
+    // `user`/`secondUser` edits above, which is what makes the next window
+    // correctly exclude them. Only its `dailyKey` needs to move off today.
+    const metaFile = path.join(
+      temporaryRoot,
+      'vibewire-state',
+      'checkpoints',
+      harness,
+      first!.id,
+      'meta.json',
+    );
+    const yesterdayKey = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    const backdated = { ...JSON.parse(fs.readFileSync(metaFile, 'utf8')) as Record<string, unknown> };
+    backdated.dailyKey = yesterdayKey;
+    fs.writeFileSync(metaFile, `${JSON.stringify(backdated, null, 2)}\n`, 'utf8');
+
+    appendEditLog(harness, {
+      user: thirdUser.id,
+      displayName: thirdUser.displayName,
+      kind: 'harness',
+      rev: getRev(harness),
+      added: 0,
+      modified: 1,
+      removed: 0,
+      entityIds: ['con_changed'],
+    });
+    const nextDay = await ensureDailyCheckpoint(harness, thirdUser);
+    assert.ok(nextDay, 'a write after the backdated checkpoint must create a new daily checkpoint');
+    assert.equal(nextDay?.dailyKey, todayKey);
+    // Covers everyone who wrote after `first` was actually created: the
+    // same-day `secondUser` write above plus `thirdUser`'s — but not `user`,
+    // whose only writes predate `first` and so belong to the prior window.
+    assert.deepEqual(
+      nextDay?.contributors?.map((contributor) => contributor.id),
+      [secondUser.id, thirdUser.id],
+      'contributors must only cover writes since the previous daily checkpoint',
+    );
   });
 
   await test('attribution update, lookup, and pruning', async () => {

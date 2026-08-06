@@ -122,6 +122,7 @@ import type {
   CollaborationDocumentState,
   CollaborationLayouts,
   CollaborationSession,
+  CreateAccountOutcome,
   LoginOutcome,
   MapPatch,
   PeerPresence,
@@ -134,6 +135,7 @@ import type {
   SyncPayload,
   SyncStatus,
   UndoStaleness,
+  UserRole,
 } from '../types/collab';
 
 interface UndoSnapshot {
@@ -338,6 +340,7 @@ export interface HarnessStore {
   setMutationError: (message: string | null) => void;
   resetForHarnessSwitch: () => void;
   login: (login: string) => Promise<LoginOutcome>;
+  createAccount: (login: string, displayName: string, role: UserRole) => Promise<CreateAccountOutcome>;
   logout: () => Promise<void>;
   refreshSession: () => Promise<void>;
   /** Arms editing for a remembered identity. Requires an explicit user action. */
@@ -1255,7 +1258,7 @@ export const useHarnessStore = create<HarnessStore>(readOnlyMiddleware((set, get
   subsystems: {},
   activeSubsystemId: null,
   mutationError: null,
-  session: { user: null, editSessionActive: false, isEditor: false, isAdmin: false },
+  session: { user: null, editSessionActive: false, isEditor: false },
   peers: {},
   serverRev: 0,
   libraryRev: 0,
@@ -1295,7 +1298,7 @@ export const useHarnessStore = create<HarnessStore>(readOnlyMiddleware((set, get
       if (response.status === 429) return { ok: false, reason: 'rateLimited' };
       if (response.status === 401) return { ok: false, reason: 'unknown' };
       if (!response.ok) return { ok: false, reason: 'error' };
-      const body = await response.json() as { user: SessionUser; bootstrap?: boolean };
+      const body = await response.json() as { user: SessionUser };
       const user: SessionUser = {
         id: body.user.id,
         displayName: body.user.displayName,
@@ -1307,14 +1310,52 @@ export const useHarnessStore = create<HarnessStore>(readOnlyMiddleware((set, get
           user,
           // Typing your name IS the explicit activation.
           editSessionActive: true,
-          isEditor: user.role === 'editor' || user.role === 'admin',
-          isAdmin: user.role === 'admin',
+          isEditor: user.role === 'editor',
         },
         collabAvailable: true,
         mutationError: null,
       });
       queuePresencePublish({});
-      return { ok: true, bootstrapAdmin: body.bootstrap === true };
+      return { ok: true };
+    } catch {
+      return { ok: false, reason: 'error' };
+    }
+  },
+  createAccount: async (login, displayName, role) => {
+    try {
+      const response = await fetch('/api/users', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ login, displayName, role }),
+      });
+      if (response.status === 404) {
+        set({ collabAvailable: false });
+        return { ok: false, reason: 'unavailable' };
+      }
+      if (response.status === 429) return { ok: false, reason: 'rateLimited' };
+      if (response.status === 409) return { ok: false, reason: 'taken' };
+      if (response.status === 400) return { ok: false, reason: 'invalid' };
+      if (!response.ok) return { ok: false, reason: 'error' };
+      const body = await response.json() as { user: SessionUser };
+      const user: SessionUser = {
+        id: body.user.id,
+        displayName: body.user.displayName,
+        role: body.user.role,
+        color: body.user.color,
+      };
+      set({
+        session: {
+          user,
+          // Creating your own account IS the explicit activation.
+          editSessionActive: true,
+          isEditor: user.role === 'editor',
+        },
+        collabAvailable: true,
+        mutationError: null,
+      });
+      queuePresencePublish({});
+      return { ok: true };
     } catch {
       return { ok: false, reason: 'error' };
     }
@@ -1330,7 +1371,7 @@ export const useHarnessStore = create<HarnessStore>(readOnlyMiddleware((set, get
     } finally {
       resetPresencePublisher();
       set({
-        session: { user: null, editSessionActive: false, isEditor: false, isAdmin: false },
+        session: { user: null, editSessionActive: false, isEditor: false },
         peers: {},
       });
     }
@@ -1343,7 +1384,7 @@ export const useHarnessStore = create<HarnessStore>(readOnlyMiddleware((set, get
       });
       if (response.status === 404) {
         set({
-          session: { user: null, editSessionActive: false, isEditor: false, isAdmin: false },
+          session: { user: null, editSessionActive: false, isEditor: false },
           collabAvailable: false,
         });
         return;
@@ -1367,14 +1408,13 @@ export const useHarnessStore = create<HarnessStore>(readOnlyMiddleware((set, get
         session: {
           user,
           editSessionActive,
-          isEditor: editSessionActive && (user.role === 'editor' || user.role === 'admin'),
-          isAdmin: editSessionActive && user.role === 'admin',
+          isEditor: editSessionActive && user?.role === 'editor',
         },
         collabAvailable: true,
       });
     } catch {
       set({
-        session: { user: null, editSessionActive: false, isEditor: false, isAdmin: false },
+        session: { user: null, editSessionActive: false, isEditor: false },
       });
     }
   },
@@ -1385,8 +1425,7 @@ export const useHarnessStore = create<HarnessStore>(readOnlyMiddleware((set, get
       session: {
         user,
         editSessionActive: true,
-        isEditor: user.role === 'editor' || user.role === 'admin',
-        isAdmin: user.role === 'admin',
+        isEditor: user.role === 'editor',
       },
       mutationError: null,
     });

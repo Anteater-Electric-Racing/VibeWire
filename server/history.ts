@@ -12,6 +12,7 @@ import {
   assembleHarnessFromDisk,
   type HarnessData,
 } from './sheets.js';
+import { listContributorsSince } from './editlog.js';
 import {
   getCollaborationPaths,
   getRev,
@@ -35,6 +36,17 @@ export interface CheckpointMeta {
   rev: number;
   auto: boolean;
   counts: EntityCounts;
+  /**
+   * UTC date (`YYYY-MM-DD`) this checkpoint covers. Present only on the
+   * automatic once-per-day save `ensureDailyCheckpoint` creates.
+   */
+  dailyKey?: string;
+  /**
+   * Everyone who wrote to this harness since the previous daily checkpoint
+   * (or, for the first one, since the edit log began). Present only on daily
+   * checkpoints — this is the "who edited since last daily save" record.
+   */
+  contributors?: RevisionWriter[];
 }
 
 export interface CheckpointDetails extends CheckpointMeta {
@@ -270,10 +282,26 @@ function parseCheckpointMeta(filePath: string): CheckpointMeta {
     || !Number.isSafeInteger(counts.mergePoints)
     || !Number.isSafeInteger(counts.paths)
     || !Number.isSafeInteger(counts.signals)
+    || (meta.dailyKey !== undefined && !/^\d{4}-\d{2}-\d{2}$/.test(meta.dailyKey))
+    || (meta.contributors !== undefined && !isRevisionWriterArray(meta.contributors))
   ) {
     throw new Error(`Invalid checkpoint metadata '${filePath}'.`);
   }
   return meta as CheckpointMeta;
+}
+
+function isRevisionWriterArray(value: unknown): value is RevisionWriter[] {
+  return (
+    Array.isArray(value)
+    && value.every((entry) =>
+      !!entry
+      && typeof entry === 'object'
+      && typeof (entry as Partial<RevisionWriter>).id === 'string'
+      && !!(entry as Partial<RevisionWriter>).id
+      && typeof (entry as Partial<RevisionWriter>).displayName === 'string'
+      && !!(entry as Partial<RevisionWriter>).displayName,
+    )
+  );
 }
 
 function readCheckpointMeta(harness: string, id: string): CheckpointMeta {
@@ -306,11 +334,17 @@ function checkpointCounts(harness: string, id: string): EntityCounts {
   );
 }
 
+interface DailyCheckpointContext {
+  dailyKey: string;
+  contributors: RevisionWriter[];
+}
+
 function createCheckpointLocked(
   harness: string,
   label: string,
   user: RevisionWriter,
   auto: boolean,
+  daily?: DailyCheckpointContext,
 ): CheckpointMeta {
   const cleanLabel = label.trim();
   if (!cleanLabel) throw new Error(`Cannot checkpoint '${harness}': label is required.`);
@@ -330,6 +364,12 @@ function createCheckpointLocked(
     rev: getRev(harness),
     auto,
     counts: currentCounts(harness),
+    ...(daily
+      ? {
+        dailyKey: daily.dailyKey,
+        contributors: daily.contributors.map((contributor) => ({ ...contributor })),
+      }
+      : {}),
   };
 
   try {
@@ -487,6 +527,56 @@ export async function createCheckpoint(
   return await withHarnessLock(harness, () =>
     createCheckpointLocked(harness, label, user, auto),
   );
+}
+
+function utcDateKey(date: Date): string {
+  return date.toISOString().slice(0, 10);
+}
+
+const MONTH_NAMES = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December',
+];
+
+function formatDailyLabel(dailyKey: string): string {
+  const [year, month, day] = dailyKey.split('-').map(Number);
+  return `Daily save — ${MONTH_NAMES[month - 1]} ${day}, ${year}`;
+}
+
+function latestDailyCheckpoint(harness: string): CheckpointMeta | null {
+  return listCheckpoints(harness).find((checkpoint) => checkpoint.dailyKey !== undefined) ?? null;
+}
+
+/**
+ * Creates the first checkpoint of the day for `harness`, the moment someone
+ * edits it, tagged with everyone who wrote to it since the previous daily
+ * checkpoint. A no-op (returns `null`) if today's daily checkpoint already
+ * exists — so calling this after every write is safe and cheap; only the
+ * first write of a given UTC day actually creates one.
+ *
+ * "Day" is a UTC calendar date, matching `aggregateActivity`'s bucketing, so
+ * the daily checkpoint and the activity panel never disagree about which day
+ * an edit belongs to.
+ */
+export async function ensureDailyCheckpoint(
+  harness: string,
+  writer: RevisionWriter,
+): Promise<CheckpointMeta | null> {
+  return await withHarnessLock(harness, () => {
+    const cleanWriter = validateUser(writer, `Cannot save daily checkpoint for '${harness}'`);
+    const todayKey = utcDateKey(new Date());
+    const previousDaily = latestDailyCheckpoint(harness);
+    if (previousDaily?.dailyKey === todayKey) return null;
+
+    const contributors = listContributorsSince(harness, previousDaily?.createdAt ?? null);
+    return createCheckpointLocked(
+      harness,
+      formatDailyLabel(todayKey),
+      cleanWriter,
+      true,
+      { dailyKey: todayKey, contributors: contributors.length > 0 ? contributors : [cleanWriter] },
+    );
+  });
 }
 
 export function getCheckpoint(harness: string, id: string): CheckpointDetails {

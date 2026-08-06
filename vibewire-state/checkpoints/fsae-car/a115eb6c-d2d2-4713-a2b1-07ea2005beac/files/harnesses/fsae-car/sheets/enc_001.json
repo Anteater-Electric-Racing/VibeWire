@@ -1,0 +1,1149 @@
+{
+  "schema_version": "0.2.0-sheets",
+  "sheet_enclosure_id": "enc_001",
+  "enclosures": [
+    {
+      "id": "enc_004",
+      "name": "Safety Board",
+      "parent": "enc_001",
+      "container": false,
+      "tags": [
+        "system:safety",
+        "system:wheelspeed",
+        "system:demo"
+      ],
+      "properties": {
+        "description": "Safety Board PCB inside FOC",
+        "image": "SCR-20260409-ufwb.png"
+      }
+    },
+    {
+      "id": "enc_005",
+      "name": "CCM",
+      "parent": "enc_001",
+      "container": false,
+      "tags": [
+        "system:wheelspeed",
+        "system:demo"
+      ],
+      "properties": {
+        "description": "Central Compute Module PCB inside FOC",
+        "image": "SCR-20260410-bfpr.png"
+      }
+    },
+    {
+      "id": "enc_006",
+      "name": "Raspberry Pi",
+      "parent": "enc_001",
+      "container": false,
+      "tags": [],
+      "properties": {
+        "description": "Raspberry Pi inside FOC"
+      }
+    },
+    {
+      "id": "enc_007",
+      "name": "Raspberry Pi Screen",
+      "parent": "enc_001",
+      "container": false,
+      "tags": [],
+      "properties": {}
+    },
+    {
+      "id": "enc_008",
+      "name": "CAN Transceiver",
+      "parent": "enc_001",
+      "container": false,
+      "tags": [
+        "system:can"
+      ],
+      "properties": {
+        "notes": "Has one unconnected CAN port"
+      }
+    },
+    {
+      "id": "enc_009",
+      "name": "Cell Box",
+      "parent": "enc_001",
+      "container": false,
+      "tags": [],
+      "properties": {}
+    },
+    {
+      "id": "enc_010",
+      "name": "RTDB Switch",
+      "parent": "enc_001",
+      "container": false,
+      "tags": [
+        "system:safety"
+      ],
+      "properties": {
+        "description": "Ready to Drive Button switch on dashboard"
+      }
+    },
+    {
+      "id": "enc_011",
+      "name": "SDC Switch",
+      "parent": "enc_001",
+      "container": false,
+      "tags": [
+        "system:safety",
+        "system:sdc"
+      ],
+      "properties": {
+        "description": "Shutdown Circuit switch on dashboard",
+        "image": "SCR-20260804-nfcd.png"
+      }
+    },
+    {
+      "id": "enc_012",
+      "name": "Dashboard Estop",
+      "parent": "enc_001",
+      "container": false,
+      "tags": [
+        "system:safety",
+        "system:sdc"
+      ],
+      "properties": {
+        "description": "Dashboard emergency stop button"
+      }
+    },
+    {
+      "id": "enc_013",
+      "name": "Dash LEDs",
+      "parent": "enc_001",
+      "container": false,
+      "tags": [],
+      "properties": {
+        "description": "Dashboard LED indicator PCB inside FOC"
+      }
+    },
+    {
+      "id": "enc_014",
+      "name": "HI Board FOC",
+      "parent": "enc_001",
+      "container": false,
+      "tags": [],
+      "properties": {
+        "description": "Human Interface board inside FOC (6p only)"
+      }
+    },
+    {
+      "id": "enc_030",
+      "name": "RTD",
+      "parent": "enc_001",
+      "container": false,
+      "tags": [
+        "system:safety",
+        "system:sdc"
+      ],
+      "properties": {
+        "description": "Ready to Drive device in SDC chain (inside FOC)"
+      }
+    },
+    {
+      "id": "enc_033",
+      "name": "Estop Cockpit",
+      "parent": "enc_001",
+      "container": false,
+      "tags": [
+        "system:safety",
+        "system:sdc"
+      ],
+      "properties": {}
+    }
+  ],
+  "connectors": [
+    {
+      "id": "con_046",
+      "name": "PDB-J10",
+      "parent": "enc_005",
+      "connector_type": "molex_minifit_jr",
+      "pin_count": 2,
+      "tags": [
+        "system:wheelspeed",
+        "system:demo"
+      ],
+      "properties": {
+        "description": "PDB header. Pin 1 = LV MS-"
+      }
+    },
+    {
+      "id": "con_003",
+      "name": "FOC-C3",
+      "parent": "enc_001",
+      "connector_type": "deutsch_dt",
+      "tags": [
+        "zone:bulkhead"
+      ],
+      "properties": {
+        "description": "FOC bulkhead 6p — TSSI and Brake Light. Internal: DT04-6P-L012, External: DT06-6S"
+      },
+      "pin_count": 6
+    },
+    {
+      "id": "con_004",
+      "name": "FOC-C6",
+      "parent": "enc_001",
+      "connector_type": "deutsch_dt",
+      "tags": [
+        "zone:bulkhead"
+      ],
+      "properties": {
+        "description": "FOC bulkhead 12p — wheel/shock sensors. External: DT06-12SA"
+      },
+      "pin_count": 12
+    },
+    {
+      "id": "con_005",
+      "name": "FOC-C7",
+      "parent": "enc_001",
+      "connector_type": "deutsch_dt",
+      "tags": [
+        "zone:bulkhead"
+      ],
+      "properties": {
+        "description": "FOC bulkhead 3p — current sensor chain to HVB"
+      },
+      "pin_count": 12
+    },
+    {
+      "id": "con_006",
+      "name": "FOC-C8",
+      "parent": "enc_001",
+      "connector_type": "deutsch_dt",
+      "tags": [
+        "zone:bulkhead",
+        "system:sdc"
+      ],
+      "properties": {
+        "description": "FOC bulkhead 2p — SDC out to BOTS"
+      },
+      "pin_count": 2
+    },
+    {
+      "id": "con_008",
+      "name": "EXT-DASH-C1",
+      "parent": "enc_001",
+      "connector_type": "generic_multipin",
+      "tags": [
+        "zone:bulkhead"
+      ],
+      "properties": {
+        "description": "Dashboard connector on FOC face"
+      }
+    },
+    {
+      "id": "con_014",
+      "name": "SDC Out",
+      "parent": "enc_004",
+      "connector_type": "molex_minifit_jr",
+      "tags": [
+        "system:sdc",
+        "system:safety",
+        "system:wheelspeed",
+        "system:demo"
+      ],
+      "properties": {
+        "description": "Safety Board SDC output header. Pin 1 = DNP (requires dummy pin). Pin 2 = SDC out"
+      },
+      "pin_count": 2
+    },
+    {
+      "id": "con_015",
+      "name": "E-stop",
+      "parent": "enc_004",
+      "connector_type": "molex_minifit_jr",
+      "tags": [
+        "system:sdc",
+        "system:safety",
+        "system:wheelspeed",
+        "system:demo"
+      ],
+      "properties": {
+        "description": "Safety Board estop header. Pin 1 = Estop In, Pin 2 = Estop Out"
+      },
+      "pin_count": 2
+    },
+    {
+      "id": "con_016",
+      "name": "TS On SW",
+      "parent": "enc_004",
+      "connector_type": "molex_minifit_jr",
+      "tags": [
+        "system:safety",
+        "system:wheelspeed",
+        "system:demo"
+      ],
+      "properties": {
+        "description": "Tractive System On switch header. Reversible pinout."
+      },
+      "pin_count": 2
+    },
+    {
+      "id": "con_017",
+      "name": "ACCU",
+      "parent": "enc_004",
+      "connector_type": "molex_minifit_jr",
+      "tags": [
+        "system:safety",
+        "system:hv",
+        "system:wheelspeed",
+        "system:demo"
+      ],
+      "properties": {
+        "description": "Safety Board ACCU header. Pin 1 = SDC Out (to HVB), Pin 2 = GND, Pin 3 = IMD Fault, Pin 4 = BMS Fault"
+      },
+      "pin_count": 4
+    },
+    {
+      "id": "con_018",
+      "name": "Current Sensor",
+      "parent": "enc_004",
+      "connector_type": "molex_minifit_jr",
+      "tags": [
+        "system:sensors",
+        "system:wheelspeed",
+        "system:demo"
+      ],
+      "properties": {
+        "description": "Pin 1 = 5V, Pin 2 = Current Sense Signal, Pin 3 = DNP, Pin 4 = GND"
+      },
+      "pin_count": 4
+    },
+    {
+      "id": "con_019",
+      "name": "Brake Light SB",
+      "parent": "enc_004",
+      "connector_type": "molex_minifit_jr",
+      "tags": [
+        "system:wheelspeed",
+        "system:demo"
+      ],
+      "properties": {
+        "description": "Pin 1 = 12V, Pin 2 = GND (low side switching)"
+      },
+      "pin_count": 4
+    },
+    {
+      "id": "con_020",
+      "name": "TSSI SB",
+      "parent": "enc_004",
+      "connector_type": "molex_minifit_jr",
+      "tags": [
+        "system:wheelspeed",
+        "system:demo"
+      ],
+      "properties": {
+        "description": "Pin 1 = 12V, Pin 2 = 12V, Pin 3 = Green LED, Pin 4 = Red LED"
+      },
+      "pin_count": 4
+    },
+    {
+      "id": "con_021",
+      "name": "24V Power In",
+      "parent": "enc_004",
+      "connector_type": "molex_minifit_jr",
+      "tags": [
+        "system:power",
+        "system:wheelspeed",
+        "system:demo"
+      ],
+      "properties": {
+        "description": "Pin 1 = 24V, Pin 2 = GND"
+      },
+      "pin_count": 2
+    },
+    {
+      "id": "con_022",
+      "name": "24V Expansion",
+      "parent": "enc_004",
+      "connector_type": "molex_minifit_jr",
+      "tags": [
+        "system:power",
+        "system:wheelspeed",
+        "system:demo"
+      ],
+      "properties": {
+        "description": "Pin 1 = 24V, Pin 2 = GND"
+      },
+      "pin_count": 2
+    },
+    {
+      "id": "con_023",
+      "name": "Dash LEDs SB",
+      "parent": "enc_004",
+      "connector_type": "molex_minifit_jr",
+      "tags": [
+        "system:wheelspeed",
+        "system:demo"
+      ],
+      "properties": {
+        "description": "Pin 1 = GND, Pin 2 = BSPD Fault LED, Pin 3 = BMS Fault LED, Pin 4 = IMD Fault LED"
+      },
+      "pin_count": 4
+    },
+    {
+      "id": "con_024",
+      "name": "J25 RTDB",
+      "parent": "enc_004",
+      "connector_type": "molex_minifit_jr",
+      "tags": [
+        "system:wheelspeed",
+        "system:demo"
+      ],
+      "properties": {
+        "description": "Ready to Drive Button header on Safety Board. Pin 1 = RTDB 5V, Pin 2 = RTDB Out"
+      },
+      "pin_count": 2
+    },
+    {
+      "id": "con_025",
+      "name": "J35 EXP 24V",
+      "parent": "enc_004",
+      "connector_type": "molex_minifit_jr",
+      "tags": [
+        "system:power",
+        "system:wheelspeed",
+        "system:demo"
+      ],
+      "properties": {
+        "description": "24V expansion header. Pin 1 = 24V, Pin 2 = GND"
+      },
+      "pin_count": 2
+    },
+    {
+      "id": "con_026",
+      "name": "F10 EXP 5V",
+      "parent": "enc_004",
+      "connector_type": "molex_minifit_jr",
+      "tags": [
+        "system:power",
+        "system:wheelspeed",
+        "system:demo"
+      ],
+      "properties": {
+        "description": "5V expansion header. Pin 1 = 5V, Pin 2 = GND"
+      },
+      "pin_count": 2
+    },
+    {
+      "id": "con_027",
+      "name": "Safety Board J11",
+      "parent": "enc_004",
+      "connector_type": "molex_minifit_jr",
+      "tags": [
+        "system:wheelspeed",
+        "system:demo"
+      ],
+      "properties": {
+        "description": "Pin 1 = LED GND, Pin 2 = BSPD LED+, Pin 3 = BMS LED+, Pin 4 = IMD LED+"
+      },
+      "pin_count": 4
+    },
+    {
+      "id": "con_094",
+      "name": "RTD SDC",
+      "parent": "enc_004",
+      "connector_type": "molex_minifit_jr",
+      "tags": [
+        "system:safety",
+        "system:sdc",
+        "system:wheelspeed",
+        "system:demo"
+      ],
+      "properties": {
+        "description": "Safety Board RTD SDC header (inside FOC). Pin 1 = RTD In, Pin 2 = RTD Out"
+      },
+      "pin_count": 2
+    },
+    {
+      "id": "con_029",
+      "name": "CCM Power In",
+      "parent": "enc_005",
+      "connector_type": "molex_minifit_jr",
+      "tags": [
+        "system:power",
+        "system:wheelspeed",
+        "system:demo"
+      ],
+      "properties": {
+        "description": "Pin 1 = 12V, Pin 2 = GND"
+      },
+      "pin_count": 2
+    },
+    {
+      "id": "con_030",
+      "name": "Accel/Brake Pedal",
+      "parent": "enc_005",
+      "connector_type": "molex_minifit_jr",
+      "tags": [
+        "system:sensors",
+        "system:wheelspeed",
+        "system:demo"
+      ],
+      "properties": {
+        "description": "Pin 1 = BPS1, Pin 2 = APPS2, Pin 3 = BPS2, Pin 4 = APPS1"
+      },
+      "pin_count": 4
+    },
+    {
+      "id": "con_031",
+      "name": "Linear Pots",
+      "parent": "enc_005",
+      "connector_type": "molex_minifit_jr",
+      "tags": [
+        "system:sensors",
+        "system:wheelspeed",
+        "system:demo"
+      ],
+      "properties": {
+        "description": "Pin 1 = LIN-POT4, Pin 2 = LIN-POT3, Pin 3 = LIN-POT2, Pin 4 = LIN-POT1"
+      },
+      "pin_count": 4
+    },
+    {
+      "id": "con_032",
+      "name": "Thermistors 1/2",
+      "parent": "enc_005",
+      "connector_type": "molex_minifit_jr",
+      "tags": [
+        "system:sensors",
+        "system:wheelspeed",
+        "system:demo"
+      ],
+      "properties": {
+        "description": "Pin 1 = Thermistor 2, Pin 2 = Thermistor 1, Pin 3 = GND, Pin 4 = GND"
+      },
+      "pin_count": 4
+    },
+    {
+      "id": "con_033",
+      "name": "Thermistors 3/4",
+      "parent": "enc_005",
+      "connector_type": "molex_minifit_jr",
+      "tags": [
+        "system:sensors",
+        "system:wheelspeed",
+        "system:demo"
+      ],
+      "properties": {
+        "description": "Pin 1 = Thermistor 4, Pin 2 = Thermistor 3, Pin 3 = GND, Pin 4 = GND"
+      },
+      "pin_count": 4
+    },
+    {
+      "id": "con_034",
+      "name": "GPIO 1/2",
+      "parent": "enc_005",
+      "connector_type": "molex_minifit_jr",
+      "tags": [
+        "system:wheelspeed",
+        "system:demo"
+      ],
+      "properties": {
+        "description": "Pin 1 = GPIO2, Pin 2 = GPIO1, Pin 3 = GND, Pin 4 = GND"
+      },
+      "pin_count": 4
+    },
+    {
+      "id": "con_035",
+      "name": "GPIO 3/4",
+      "parent": "enc_005",
+      "connector_type": "molex_minifit_jr",
+      "tags": [
+        "system:wheelspeed",
+        "system:demo"
+      ],
+      "properties": {
+        "description": "Pin 1 = GPIO4, Pin 2 = GPIO3, Pin 3 = GND, Pin 4 = GND"
+      },
+      "pin_count": 4
+    },
+    {
+      "id": "con_036",
+      "name": "Brake Light/RTM",
+      "parent": "enc_005",
+      "connector_type": "molex_minifit_jr",
+      "tags": [
+        "system:wheelspeed",
+        "system:demo"
+      ],
+      "properties": {
+        "description": "Pin 1 = Ready to Drive Button, Pin 2 = Brake Light"
+      },
+      "pin_count": 2
+    },
+    {
+      "id": "con_037",
+      "name": "Pump 1",
+      "parent": "enc_005",
+      "connector_type": "molex_minifit_jr",
+      "tags": [
+        "system:wheelspeed",
+        "system:demo"
+      ],
+      "properties": {
+        "description": "Pin 1 = 24V, Pin 2 = Pump 1"
+      },
+      "pin_count": 2
+    },
+    {
+      "id": "con_038",
+      "name": "Pump 2",
+      "parent": "enc_005",
+      "connector_type": "molex_minifit_jr",
+      "tags": [
+        "system:wheelspeed",
+        "system:demo"
+      ],
+      "properties": {
+        "description": "Pin 1 = 24V, Pin 2 = Pump 2"
+      },
+      "pin_count": 2
+    },
+    {
+      "id": "con_039",
+      "name": "Fans",
+      "parent": "enc_005",
+      "connector_type": "molex_minifit_jr",
+      "tags": [
+        "system:wheelspeed",
+        "system:demo"
+      ],
+      "properties": {
+        "description": "Pin 1 = 24V, Pin 2 = Fan PWM, Pin 3 = GND, Pin 4 = DNP"
+      },
+      "pin_count": 4
+    },
+    {
+      "id": "con_040",
+      "name": "CCM 24V In",
+      "parent": "enc_005",
+      "connector_type": "molex_minifit_jr",
+      "tags": [
+        "system:power",
+        "system:wheelspeed",
+        "system:demo"
+      ],
+      "properties": {
+        "description": "Pin 1 = 24V, Pin 2 = GND"
+      },
+      "pin_count": 2
+    },
+    {
+      "id": "con_041",
+      "name": "CAN 1",
+      "parent": "enc_005",
+      "connector_type": "molex_minifit_jr",
+      "tags": [
+        "system:can",
+        "system:wheelspeed",
+        "system:demo"
+      ],
+      "properties": {
+        "description": "Pin 1 = CAN L, Pin 2 = CAN H"
+      },
+      "pin_count": 2
+    },
+    {
+      "id": "con_042",
+      "name": "CAN 2",
+      "parent": "enc_005",
+      "connector_type": "molex_minifit_jr",
+      "tags": [
+        "system:can",
+        "system:wheelspeed",
+        "system:demo"
+      ],
+      "properties": {
+        "description": "Pin 1 = CAN L, Pin 2 = CAN H"
+      },
+      "pin_count": 2
+    },
+    {
+      "id": "con_043",
+      "name": "CCM-J10",
+      "parent": "enc_005",
+      "connector_type": "molex_minifit_jr",
+      "tags": [
+        "system:wheelspeed",
+        "system:demo"
+      ],
+      "properties": {
+        "description": "CCM speaker output header. Pin 1 = Speaker+, Pin 2 = Speaker-"
+      },
+      "pin_count": 2
+    },
+    {
+      "id": "con_044",
+      "name": "CCM Footwell",
+      "parent": "enc_005",
+      "connector_type": "molex_minifit_jr",
+      "tags": [
+        "system:sensors",
+        "system:wheelspeed",
+        "system:demo"
+      ],
+      "properties": {
+        "description": "CCM 20p footwell header. Pin 1=TSSI bypass, Pin 2=Latch/TSSI status feedback, Pin 3=Speaker, Pin 4=GND, Pin 5=BPS1 post-LPF, Pin 6=BPS2 post-LPF, Pin 7=3V3, Pin 8=APPS1 post-LPF, Pin 9=APPS2 post-LPF, Pin 10=24V, Pin 11=RTDB, Pin 12=GND, Pin 13=5V, Pin 14=WS/Shock 1, Pin 15=WS/Shock 2, Pin 16=WS/Shock 3, Pin 17=WS/Shock 4, Pin 18=DNP, Pin 19=Brake Light, Pin 20=12V"
+      },
+      "pin_count": 20
+    },
+    {
+      "id": "con_045",
+      "name": "Latch-J1",
+      "parent": "enc_005",
+      "connector_type": "molex_minifit_jr",
+      "tags": [
+        "system:safety",
+        "system:wheelspeed",
+        "system:demo"
+      ],
+      "properties": {
+        "description": "CCM latch/reset header. Pin 1=12V, Pin 2=IMD Reset+, Pin 4=GND, Pin 7=BSPD Reset-, Pin 8=IMD Reset-, Pin 9=BMS Reset-, Pin 10=BMS LED+, Pin 11=IMD LED+, Pin 12=BSPD LED+"
+      },
+      "pin_count": 12
+    },
+    {
+      "id": "con_047",
+      "name": "RPi USB In",
+      "parent": "enc_006",
+      "connector_type": "generic_multipin",
+      "tags": [],
+      "properties": {
+        "description": "Raspberry Pi power input (micro USB)"
+      },
+      "pin_count": 5
+    },
+    {
+      "id": "con_048",
+      "name": "RPi USB A 1",
+      "parent": "enc_006",
+      "connector_type": "generic_multipin",
+      "tags": [],
+      "properties": {
+        "description": "Raspberry Pi USB A port 1 — to CAN Transceiver"
+      },
+      "pin_count": 4
+    },
+    {
+      "id": "con_049",
+      "name": "RPi USB A 2",
+      "parent": "enc_006",
+      "connector_type": "generic_multipin",
+      "tags": [],
+      "properties": {
+        "description": "Raspberry Pi USB A port 2 — to Cell Box"
+      },
+      "pin_count": 4
+    },
+    {
+      "id": "con_050",
+      "name": "CAN Transceiver USB",
+      "parent": "enc_008",
+      "connector_type": "generic_multipin",
+      "tags": [
+        "system:can"
+      ],
+      "properties": {
+        "description": "USB connection from RPi"
+      },
+      "pin_count": 4
+    },
+    {
+      "id": "con_051",
+      "name": "CAN Transceiver Port",
+      "parent": "enc_008",
+      "connector_type": "generic_multipin",
+      "tags": [
+        "system:can"
+      ],
+      "properties": {
+        "description": "PLACEHOLDER — unconnected CAN port on transceiver"
+      },
+      "pin_count": 2
+    },
+    {
+      "id": "con_052",
+      "name": "Cell Box USB",
+      "parent": "enc_009",
+      "connector_type": "generic_multipin",
+      "tags": [],
+      "properties": {
+        "description": "USB connection from RPi"
+      },
+      "pin_count": 4
+    },
+    {
+      "id": "con_053",
+      "name": "Screen Connector",
+      "parent": "enc_007",
+      "connector_type": "generic_multipin",
+      "tags": [],
+      "properties": {}
+    },
+    {
+      "id": "con_054",
+      "name": "HI FOC 6p",
+      "parent": "enc_014",
+      "connector_type": "molex_minifit_jr",
+      "tags": [],
+      "properties": {
+        "description": "Pin 1 = GND, Pin 2 = GND, Pin 3 = 12V, Pin 4 = BSPD LED, Pin 5 = IMD LED, Pin 6 = BMS LED"
+      },
+      "pin_count": 6
+    },
+    {
+      "id": "con_073",
+      "name": "RTD-C1",
+      "parent": "enc_030",
+      "connector_type": "deutsch_dt",
+      "tags": [],
+      "properties": {
+        "description": "Ready to Drive SDC connector. Pin 1 = RTD in (BOTS out), Pin 2 = RTD out (to ES-CKP)"
+      },
+      "pin_count": 2
+    },
+    {
+      "id": "con_076",
+      "name": "ES-CKP",
+      "parent": "enc_033",
+      "connector_type": "deutsch_dt",
+      "tags": [
+        "system:sdc"
+      ],
+      "properties": {
+        "description": "Estop Cockpit SDC connector. Pin 1 = in, Pin 2 = out"
+      },
+      "pin_count": 2
+    },
+    {
+      "id": "con_088",
+      "name": "Footwell SB",
+      "parent": "enc_005",
+      "connector_type": "molex_minifit_jr",
+      "tags": [
+        "system:wheelspeed",
+        "system:demo"
+      ],
+      "properties": {
+        "description": "CCM 14p Molex service break to footwell sensors. Pin 2=THRS2 GND, Pin 3=THRS1 GND, Pin 4=THRS1 3V3, Pin 5=BPS2 GND, Pin 6=BPS1 GND, Pin 7=BPS1 5V, Pin 9=THRS2 OUT, Pin 10=THRS1 OUT, Pin 11=THRS2 3V3, Pin 12=BPS2 OUT, Pin 13=BPS1 OUT, Pin 14=BPS2 5V"
+      },
+      "pin_count": 14
+    },
+    {
+      "id": "con_089",
+      "name": "J9",
+      "parent": "enc_004",
+      "connector_type": "molex_minifit_jr",
+      "tags": [
+        "system:sensors",
+        "system:wheelspeed",
+        "system:demo"
+      ],
+      "properties": {
+        "description": "Safety Board current sensor header. Pin 1=5V, Pin 2=Current Signal, Pin 3=DNP, Pin 4=GND"
+      },
+      "pin_count": 4
+    },
+    {
+      "id": "con_127",
+      "name": "SB AMP Out",
+      "parent": "enc_004",
+      "connector_type": "molex_minifit_jr",
+      "tags": [
+        "system:audio",
+        "system:wheelspeed",
+        "system:demo"
+      ],
+      "properties": {
+        "description": "Safety Board amplifier output. Speaker+ and Speaker- (J19 is a 4-pin header but modeled as 2-pin for signal purposes)."
+      },
+      "pin_count": 2
+    },
+    {
+      "id": "con_128",
+      "name": "bigass embeded doodad",
+      "parent": "enc_004",
+      "connector_type": "generic_multipin",
+      "tags": [
+        "system:wheelspeed",
+        "system:demo"
+      ],
+      "properties": {},
+      "pin_count": 2
+    },
+    {
+      "id": "con_129",
+      "name": "wheelspeeds",
+      "parent": "enc_004",
+      "connector_type": "generic_multipin",
+      "pin_count": 2,
+      "tags": [
+        "system:wheelspeed",
+        "system:demo"
+      ],
+      "properties": {}
+    },
+    {
+      "id": "con_132",
+      "name": "New Bulkhead 10",
+      "parent": "enc_001",
+      "connector_type": "generic_multipin",
+      "pin_count": 12,
+      "tags": [
+        "zone:bulkhead"
+      ],
+      "properties": {}
+    }
+  ],
+  "mergePoints": [],
+  "paths": [
+    {
+      "id": "path_auto_85f658b3eda2",
+      "name": "24V Power In:1 → BOTS-C1:1",
+      "signal_id": "sig_SDC",
+      "tags": [
+        "signal:SDC"
+      ],
+      "properties": {
+        "route_request_id": "ac5b4ffa-5599-438f-80b0-5c1fe40fabbc"
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_021",
+          "pin_number": 1
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_auto_85f658b3eda2_1",
+          "pin_number": 2
+        }
+      ],
+      "measurements": [
+        {
+          "from": {
+            "kind": "connector",
+            "connector_id": "con_021",
+            "pin_number": 1
+          },
+          "to": {
+            "kind": "connector",
+            "connector_id": "con_auto_85f658b3eda2_1",
+            "pin_number": 2
+          },
+          "length_mm": 20
+        }
+      ]
+    },
+    {
+      "id": "path_auto_8beb28152493",
+      "name": "Latch-J1:1 → LV MS:1",
+      "signal_id": "sig_IMD_RESET_NEG",
+      "tags": [
+        "signal:IMD_RESET_NEG"
+      ],
+      "properties": {
+        "route_request_id": "a0cddf3e-b36f-45ff-ade0-442095f81dea"
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_045",
+          "pin_number": 1
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_auto_85f658b3eda2_1",
+          "pin_number": 1
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_auto_04deb795fefb",
+      "name": "SB AMP Out:1 → Accel/Brake Pedal:1",
+      "signal_id": "sig_PWR_12V",
+      "tags": [
+        "signal:PWR_12V"
+      ],
+      "properties": {
+        "route_request_id": "dcf6248c-462b-477e-8b0d-7540a7e8dc1a"
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_127",
+          "pin_number": 1
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_030",
+          "pin_number": 1
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_auto_738aa24a1b9d",
+      "name": "SB AMP Out:2 → Accel/Brake Pedal:2",
+      "signal_id": "sig_GND",
+      "tags": [
+        "signal:GND"
+      ],
+      "properties": {
+        "route_request_id": "1297b64a-cb6a-4f29-b2db-adc03d025632"
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_127",
+          "pin_number": 2
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_030",
+          "pin_number": 2
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_auto_3f6534800841",
+      "name": "J35 EXP 24V:1 → CCM Power In:1",
+      "signal_id": "sig_PWR_24V",
+      "tags": [
+        "signal:PWR_24V"
+      ],
+      "properties": {
+        "route_request_id": "5ec4fd50-8986-4e04-93c4-0aa92e5f3f07"
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_025",
+          "pin_number": 1
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_029",
+          "pin_number": 1
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_auto_8ec01bfe2d23",
+      "name": "J35 EXP 24V:2 → CCM Power In:2",
+      "signal_id": "sig_GND",
+      "tags": [
+        "signal:GND"
+      ],
+      "properties": {
+        "route_request_id": "466cf7aa-417f-47e5-a9eb-61f0fcbe425f"
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_025",
+          "pin_number": 2
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_029",
+          "pin_number": 2
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_auto_8e79295c3ed2",
+      "name": "ACCU:2 → Accel/Brake Pedal:3",
+      "signal_id": "sig_PWR_24V",
+      "tags": [
+        "signal:PWR_24V"
+      ],
+      "properties": {
+        "route_request_id": "dea0751c-781c-4730-8f5b-197e675d8cb9"
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_017",
+          "pin_number": 2
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_030",
+          "pin_number": 3
+        }
+      ],
+      "measurements": [
+        {
+          "from": {
+            "kind": "connector",
+            "connector_id": "con_017",
+            "pin_number": 2
+          },
+          "to": {
+            "kind": "connector",
+            "connector_id": "con_030",
+            "pin_number": 3
+          },
+          "length_mm": 20
+        }
+      ]
+    },
+    {
+      "id": "path_auto_d9d4f91af264",
+      "name": "GPIO 1/2:1 → bigass embeded doodad:1",
+      "signal_id": "sig_CAN_H",
+      "tags": [
+        "signal:CAN_H"
+      ],
+      "properties": {
+        "route_request_id": "21818b5a-58db-469d-9d46-f061ef11ae40"
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_034",
+          "pin_number": 1
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_128",
+          "pin_number": 1
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_auto_e9f47a037378",
+      "name": "GPIO 1/2:2 → bigass embeded doodad:2",
+      "signal_id": "sig_CAN_ACC_L",
+      "tags": [
+        "signal:CAN_ACC_L"
+      ],
+      "properties": {
+        "route_request_id": "cf0b9652-907a-4d18-94f9-b9577c2ea07f"
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_034",
+          "pin_number": 2
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_128",
+          "pin_number": 2
+        }
+      ],
+      "measurements": []
+    }
+  ],
+  "ports": []
+}

@@ -1,0 +1,20 @@
+[
+  {
+    "id": "ac89b199-5f27-4cca-b073-03675304a26e",
+    "login": "gabriel",
+    "displayName": "Gabe",
+    "role": "editor",
+    "color": "#e11d48",
+    "createdAt": "2026-08-04T21:22:27.000Z",
+    "createdBy": "ac89b199-5f27-4cca-b073-03675304a26e"
+  },
+  {
+    "id": "23adb305-787d-424c-bba3-df53ed494c98",
+    "login": "avi",
+    "displayName": "Avadi",
+    "role": "editor",
+    "color": "#2563eb",
+    "createdAt": "2026-08-04T22:08:54.648Z",
+    "createdBy": "ac89b199-5f27-4cca-b073-03675304a26e"
+  }
+]

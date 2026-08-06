@@ -3,8 +3,7 @@ import fs from 'node:fs';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import path from 'node:path';
 
-export type Role = 'admin' | 'editor' | 'viewer';
-export type RequiredRole = 'editor' | 'admin';
+export type Role = 'editor' | 'viewer';
 
 export interface User {
   id: string;
@@ -42,14 +41,11 @@ export interface AuthService {
     login: RouteHandler;
     logout: RouteHandler;
     me: RouteHandler;
-    listUsers: RouteHandler;
     createUser: RouteHandler;
-    updateUser: RouteHandler;
-    deleteUser: RouteHandler;
   };
   resolveIdentity(req: IncomingMessage): ResolvedIdentity | null;
   resolveUser(req: IncomingMessage): User | null;
-  requireRole(req: IncomingMessage, role: RequiredRole): User | null;
+  requireEditor(req: IncomingMessage): User | null;
 }
 
 const COOKIE_NAME = 'vibewire_session';
@@ -63,6 +59,8 @@ const MAX_FAILED_LOGINS = 5;
  * still stops someone walking the namespace.
  */
 const MAX_FAILED_LOGINS_PER_IP = 30;
+/** Account creation is unauthenticated now that anyone can add themselves, so it needs its own cap. */
+const MAX_SIGNUPS_PER_IP = 10;
 const MAX_BODY_BYTES = 64 * 1_024;
 const COLOR_PALETTE = [
   '#e11d48',
@@ -148,7 +146,7 @@ function isObject(value: unknown): value is Record<string, unknown> {
 }
 
 function isRole(value: unknown): value is Role {
-  return value === 'admin' || value === 'editor' || value === 'viewer';
+  return value === 'editor' || value === 'viewer';
 }
 
 function isNonemptyString(value: unknown, maxLength = 200): value is string {
@@ -376,11 +374,10 @@ export function createAuth(projectRoot: string, options: AuthOptions = {}): Auth
     return resolveIdentity(req)?.user ?? null;
   }
 
-  function requireRole(req: IncomingMessage, role: RequiredRole): User | null {
+  function requireEditor(req: IncomingMessage): User | null {
     const user = resolveUser(req);
     if (!user) return null;
-    if (role === 'admin') return user.role === 'admin' ? user : null;
-    return user.role === 'admin' || user.role === 'editor' ? user : null;
+    return user.role === 'editor' ? user : null;
   }
 
   function recentFailures(key: string): number[] {
@@ -413,9 +410,6 @@ export function createAuth(projectRoot: string, options: AuthOptions = {}): Auth
     }
 
     const loginValue = body.login;
-    const requestedDisplayName = isNonemptyString(body.displayName)
-      ? body.displayName
-      : null;
     const ip = getClientIp(req);
     const loginKey = `${ip}\u0000${loginValue}`;
     if (
@@ -428,31 +422,7 @@ export function createAuth(projectRoot: string, options: AuthOptions = {}): Auth
 
     try {
       const users = readUsers();
-      let user = users.find((candidate) => candidate.login === loginValue);
-      let bootstrapped = false;
-
-      // An empty roster is as unusable as a missing file, so both bootstrap.
-      if (users.length === 0) {
-        bootstrapped = true;
-        const id = randomUUID();
-        user = {
-          id,
-          login: loginValue,
-          displayName: requestedDisplayName ?? 'Administrator',
-          role: 'admin',
-          color: nextColor(users),
-          createdAt: new Date(now()).toISOString(),
-          createdBy: id,
-        };
-        writeUsers([user]);
-        console.warn(
-          '\n'
-          + '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n'
-          + 'VIBEWIRE AUTH BOOTSTRAP: the first administrator was created.\n'
-          + 'Create named team accounts and protect the state directory.\n'
-          + '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n',
-        );
-      }
+      const user = users.find((candidate) => candidate.login === loginValue);
 
       if (!user) {
         recordFailure(loginKey, ip);
@@ -463,7 +433,7 @@ export function createAuth(projectRoot: string, options: AuthOptions = {}): Auth
       failedLogins.delete(loginKey);
       failedLogins.delete(ip);
       setSessionCookie(req, res, user);
-      json(res, { user: withoutLogin(user), bootstrap: bootstrapped });
+      json(res, { user: withoutLogin(user) });
     } catch {
       errorResponse(res, 'Authentication unavailable', 500);
     }
@@ -479,27 +449,14 @@ export function createAuth(projectRoot: string, options: AuthOptions = {}): Auth
     json(res, { user: user ? withoutLogin(user) : null });
   }
 
-  function requireAdmin(req: IncomingMessage, res: ServerResponse): User | null {
-    const user = requireRole(req, 'admin');
-    if (!user) errorResponse(res, 'Forbidden', 403);
-    return user;
-  }
-
-  function listUsersHandler(req: IncomingMessage, res: ServerResponse): void {
-    if (!requireAdmin(req, res)) return;
-    try {
-      json(res, readUsers().map(withoutLogin));
-    } catch {
-      errorResponse(res, 'User data unavailable', 500);
-    }
-  }
-
   async function createUserHandler(req: IncomingMessage, res: ServerResponse): Promise<void> {
-    // Any signed-in teammate can invite members. Creating admins stays
-    // administrator-only so a viewer cannot escalate the roster.
-    const actor = resolveUser(req);
-    if (!actor) {
-      errorResponse(res, 'Forbidden', 403);
+    // Anyone can add themselves — there's no admin gate anymore, the activity
+    // log is what keeps the roster accountable. This is the signup endpoint,
+    // so it logs the new account straight in, same as a login would.
+    const ip = getClientIp(req);
+    const signupKey = `signup\u0000${ip}`;
+    if (recentFailures(signupKey).length >= MAX_SIGNUPS_PER_IP) {
+      errorResponse(res, 'Too many accounts created from this connection', 429);
       return;
     }
 
@@ -519,10 +476,6 @@ export function createAuth(projectRoot: string, options: AuthOptions = {}): Auth
       errorResponse(res, 'Invalid user data', 400);
       return;
     }
-    if (body.role === 'admin' && actor.role !== 'admin') {
-      errorResponse(res, 'Forbidden', 403);
-      return;
-    }
 
     try {
       const users = readUsers();
@@ -530,117 +483,20 @@ export function createAuth(projectRoot: string, options: AuthOptions = {}): Auth
         errorResponse(res, 'Login already exists', 409);
         return;
       }
+      recordFailure(signupKey);
+      const id = randomUUID();
       const user: User = {
-        id: randomUUID(),
+        id,
         login: body.login,
         displayName: body.displayName,
         role: body.role,
         color: nextColor(users),
         createdAt: new Date(now()).toISOString(),
-        createdBy: actor.id,
+        createdBy: id,
       };
       writeUsers([...users, user]);
+      setSessionCookie(req, res, user);
       json(res, { user }, 201);
-    } catch {
-      errorResponse(res, 'User data unavailable', 500);
-    }
-  }
-
-  async function updateUserHandler(
-    req: IncomingMessage,
-    res: ServerResponse,
-    params: RouteParams,
-  ): Promise<void> {
-    if (!requireAdmin(req, res)) return;
-
-    let body: unknown;
-    try {
-      body = await parseBody(req);
-    } catch {
-      errorResponse(res, 'Invalid request body', 400);
-      return;
-    }
-    if (!isObject(body)) {
-      errorResponse(res, 'Invalid user data', 400);
-      return;
-    }
-    if (
-      (body.login !== undefined && !isNonemptyString(body.login))
-      || (body.displayName !== undefined && !isNonemptyString(body.displayName))
-      || (body.role !== undefined && !isRole(body.role))
-      || (
-        body.login === undefined
-        && body.displayName === undefined
-        && body.role === undefined
-      )
-    ) {
-      errorResponse(res, 'Invalid user data', 400);
-      return;
-    }
-
-    try {
-      const users = readUsers();
-      const index = users.findIndex((user) => user.id === params.id);
-      if (index === -1) {
-        errorResponse(res, 'User not found', 404);
-        return;
-      }
-      if (
-        typeof body.login === 'string'
-        && users.some((user, candidateIndex) =>
-          candidateIndex !== index && user.login === body.login
-        )
-      ) {
-        errorResponse(res, 'Login already exists', 409);
-        return;
-      }
-      if (
-        users[index].role === 'admin'
-        && body.role !== undefined
-        && body.role !== 'admin'
-        && users.filter((user) => user.role === 'admin').length === 1
-      ) {
-        errorResponse(res, 'Cannot demote the last administrator', 409);
-        return;
-      }
-
-      const user: User = {
-        ...users[index],
-        ...(typeof body.login === 'string' ? { login: body.login } : {}),
-        ...(typeof body.displayName === 'string' ? { displayName: body.displayName } : {}),
-        ...(isRole(body.role) ? { role: body.role } : {}),
-      };
-      users[index] = user;
-      writeUsers(users);
-      json(res, { user });
-    } catch {
-      errorResponse(res, 'User data unavailable', 500);
-    }
-  }
-
-  function deleteUserHandler(
-    req: IncomingMessage,
-    res: ServerResponse,
-    params: RouteParams,
-  ): void {
-    if (!requireAdmin(req, res)) return;
-    try {
-      const users = readUsers();
-      const index = users.findIndex((user) => user.id === params.id);
-      if (index === -1) {
-        errorResponse(res, 'User not found', 404);
-        return;
-      }
-      if (
-        users[index].role === 'admin'
-        && users.filter((user) => user.role === 'admin').length === 1
-      ) {
-        errorResponse(res, 'Cannot delete the last administrator', 409);
-        return;
-      }
-      users.splice(index, 1);
-      writeUsers(users);
-      noContent(res);
     } catch {
       errorResponse(res, 'User data unavailable', 500);
     }
@@ -651,13 +507,10 @@ export function createAuth(projectRoot: string, options: AuthOptions = {}): Auth
       login: loginHandler,
       logout: logoutHandler,
       me: meHandler,
-      listUsers: listUsersHandler,
       createUser: createUserHandler,
-      updateUser: updateUserHandler,
-      deleteUser: deleteUserHandler,
     },
     resolveIdentity,
     resolveUser,
-    requireRole,
+    requireEditor,
   };
 }

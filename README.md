@@ -46,10 +46,11 @@ second after you stop interacting. There is no Save button.
 VibeWire has named accounts so that edits can be attributed and so several people can work on the
 same harness at once.
 
-- Anyone can browse without signing in, but editing requires an **editor** or **admin** account.
-- The very first login you submit creates the first administrator account and logs you in. The
-  server prints a notice when this happens. After that, create real named accounts for your
-  teammates from the user admin panel in the top bar.
+- Anyone can browse without signing in, but editing requires an **editor** account.
+- There's no admin gate — anyone can create their own account from the **Log in** panel in the top
+  bar. Pick a private login name, a public display name, and a role (**editor** to make changes,
+  **viewer** to just look around). The activity log tracks who did what, so there's no separate
+  user-management step.
 - Accounts, sessions, revision history, and checkpoints live in `vibewire-state/` at the repo root.
   That directory is gitignored — it is local runtime state, not source. Deleting it resets
   collaboration state, including all accounts.

@@ -1,0 +1,186 @@
+{
+  "schema_version": "0.2.0-sheets",
+  "sheet_enclosure_id": "enc_002",
+  "enclosures": [
+    {
+      "id": "enc_015",
+      "name": "HI Board ROC",
+      "parent": "enc_002",
+      "container": false,
+      "tags": [],
+      "properties": {
+        "description": "Human Interface board inside ROC (4p + 6p)"
+      }
+    },
+    {
+      "id": "enc_016",
+      "name": "HV Master Switch",
+      "parent": "enc_002",
+      "container": false,
+      "tags": [
+        "system:hv"
+      ],
+      "properties": {}
+    },
+    {
+      "id": "enc_017",
+      "name": "LV Master Switch",
+      "parent": "enc_002",
+      "container": false,
+      "tags": [
+        "system:demo"
+      ],
+      "properties": {
+        "description": "2-post LV master switch. Pin 1 = pre (power in), pin 2 = post (switched out)"
+      }
+    },
+    {
+      "id": "enc_018",
+      "name": "Speaker",
+      "parent": "enc_002",
+      "container": false,
+      "tags": [],
+      "properties": {
+        "description": "Soldered speaker in ROC"
+      }
+    }
+  ],
+  "connectors": [
+    {
+      "id": "con_058",
+      "name": "LV MS",
+      "parent": "enc_017",
+      "connector_type": "generic_multipin",
+      "pin_count": 2,
+      "tags": [
+        "system:demo"
+      ],
+      "properties": {
+        "description": "Pin 1 = LV MS pre (power in), Pin 2 = LV MS post (switched out)"
+      }
+    },
+    {
+      "id": "con_010",
+      "name": "ROC-C2",
+      "parent": "enc_002",
+      "connector_type": "deutsch_dt",
+      "tags": [
+        "zone:bulkhead"
+      ],
+      "properties": {
+        "description": "ROC bulkhead 6p — Estop/LV batt/ACCU. Internal: DT04-6P, External: DT06-6S"
+      },
+      "pin_count": 6
+    },
+    {
+      "id": "con_055",
+      "name": "HI ROC 4p",
+      "parent": "enc_015",
+      "connector_type": "molex_minifit_jr",
+      "tags": [],
+      "properties": {
+        "description": "Pin 1 = BSPD Reset, Pin 2 = IMD Reset, Pin 3 = BMS Reset, Pin 4 = IMD Reset"
+      },
+      "pin_count": 4
+    },
+    {
+      "id": "con_056",
+      "name": "HI ROC 6p",
+      "parent": "enc_015",
+      "connector_type": "molex_minifit_jr",
+      "tags": [],
+      "properties": {
+        "description": "Pin 1 = GND, Pin 2 = GND, Pin 3 = 12V, Pin 4 = BSPD LED, Pin 5 = IMD LED, Pin 6 = BMS LED"
+      },
+      "pin_count": 6
+    },
+    {
+      "id": "con_057",
+      "name": "HV MS",
+      "parent": "enc_016",
+      "connector_type": "generic_multipin",
+      "tags": [
+        "system:hv"
+      ],
+      "properties": {
+        "description": "Pin 1 = HV MS+, Pin 2 = HV MS-"
+      },
+      "pin_count": 2
+    },
+    {
+      "id": "con_059",
+      "name": "Speaker Conn",
+      "parent": "enc_018",
+      "connector_type": "generic_multipin",
+      "tags": [],
+      "properties": {
+        "description": "Pin 1 = Speaker+, Pin 2 = Speaker-"
+      },
+      "pin_count": 2
+    },
+    {
+      "id": "con_080",
+      "name": "BBC-C1",
+      "parent": "enc_002",
+      "connector_type": "deutsch_dt",
+      "tags": [
+        "zone:bulkhead",
+        "system:sdc"
+      ],
+      "properties": {
+        "description": "ROC bulkhead 6p — SDC chain interface (formerly BBC-C1)"
+      },
+      "pin_count": 6
+    },
+    {
+      "id": "con_091",
+      "name": "ROC PCB J1",
+      "parent": "enc_015",
+      "connector_type": "molex_minifit_jr",
+      "tags": [],
+      "properties": {
+        "description": "HI Board ROC — LED signals. Pin 1=LED GND, Pin 2=BSPD LED+, Pin 3=BMS LED+, Pin 4=IMD LED+"
+      },
+      "pin_count": 4
+    },
+    {
+      "id": "con_133",
+      "name": "New Connector 2",
+      "parent": "enc_017",
+      "connector_type": "generic_multipin",
+      "pin_count": 1,
+      "tags": [
+        "system:demo"
+      ],
+      "properties": {}
+    }
+  ],
+  "mergePoints": [],
+  "paths": [
+    {
+      "id": "path_auto_8beb28152493",
+      "name": "Latch-J1:1 → LV MS:1",
+      "signal_id": "sig_IMD_RESET_NEG",
+      "tags": [
+        "signal:IMD_RESET_NEG"
+      ],
+      "properties": {
+        "route_request_id": "a0cddf3e-b36f-45ff-ade0-442095f81dea"
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_auto_8beb28152493_2",
+          "pin_number": 1
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_058",
+          "pin_number": 1
+        }
+      ],
+      "measurements": []
+    }
+  ],
+  "ports": []
+}

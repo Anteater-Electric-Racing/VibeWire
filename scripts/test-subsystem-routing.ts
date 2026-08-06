@@ -1082,13 +1082,17 @@ async function testRouteEndpoint() {
     request_id: 'integration-route',
   };
   try {
-    const login = await fetch(`${base}/api/auth/login`, {
+    const signup = await fetch(`${base}/api/users`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ login: 'RoutingTestAdmin', displayName: 'Routing Test Admin' }),
+      body: JSON.stringify({
+        login: 'RoutingTestEditor',
+        displayName: 'Routing Test Editor',
+        role: 'editor',
+      }),
     });
-    assert.equal(login.status, 200);
-    const cookie = login.headers.get('set-cookie')?.split(';', 1)[0];
+    assert.equal(signup.status, 201);
+    const cookie = signup.headers.get('set-cookie')?.split(';', 1)[0];
     assert(cookie);
 
     const response = await fetch(`${base}/api/paths/route?harness=test`, {

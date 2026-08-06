@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { useHarnessStore } from '../../store';
 import { LoginPanel } from '../auth/LoginPanel';
-import { UserAdminPanel } from '../auth/UserAdminPanel';
 import { ActivityPanel } from '../history/ActivityPanel';
 import { CheckpointPanel } from '../history/CheckpointPanel';
 import { ConflictBanner } from './ConflictBanner';
@@ -32,7 +31,6 @@ export function CollaborationControls({ harness }: CollaborationControlsProps) {
   const activateEditSession = useHarnessStore((state) => state.activateEditSession);
   const logout = useHarnessStore((state) => state.logout);
   const [loginOpen, setLoginOpen] = useState(false);
-  const [userAdminOpen, setUserAdminOpen] = useState(false);
   const [checkpointOpen, setCheckpointOpen] = useState(false);
   const [activityOpen, setActivityOpen] = useState(false);
   const assignedColor = session.user?.color ?? '#a1a1aa';
@@ -65,22 +63,6 @@ export function CollaborationControls({ harness }: CollaborationControlsProps) {
           >
             <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
               <path d="M5 20V10M12 20V4M19 20v-7" />
-            </svg>
-          </button>
-        )}
-
-        {session.isAdmin && (
-          <button
-            type="button"
-            onClick={() => setUserAdminOpen(true)}
-            className="p-1 text-zinc-400 transition-colors hover:text-zinc-100"
-            title="Manage users"
-            aria-label="Manage users"
-          >
-            <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-              <circle cx="9" cy="7" r="4" />
-              <path d="M19 8v6M22 11h-6" />
             </svg>
           </button>
         )}
@@ -137,9 +119,6 @@ export function CollaborationControls({ harness }: CollaborationControlsProps) {
       </div>
 
       {loginOpen && <LoginPanel onClose={() => setLoginOpen(false)} />}
-      {userAdminOpen && session.isAdmin && (
-        <UserAdminPanel onClose={() => setUserAdminOpen(false)} />
-      )}
       {checkpointOpen && (
         <CheckpointPanel
           harness={harness}

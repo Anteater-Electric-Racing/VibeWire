@@ -90,7 +90,7 @@ vibewire-state/
   revisions/<harness>.json          # { rev, lastWriter, lastWriteAt }
   revisions/_library.json           # connector library rev
   history/<harness>/<rev>/          # byte-exact auto-snapshot per write
-  checkpoints/<harness>/<id>/       # byte-exact named checkpoint + meta.json
+  checkpoints/<harness>/<id>/       # byte-exact checkpoint + meta.json (named, restore-safety, or daily)
   edit-log/<harness>.jsonl          # one line per successful write
   attribution/<harness>.json        # entityId -> { by, at, rev }
 ```
@@ -113,9 +113,9 @@ mistakes**, not attackers. It must be trivially upgradeable later.
 ```ts
 interface User {
   id: string;           // stable uuid, never reused
-  login: string;        // secret-ish. CASE SENSITIVE. Plaintext. Never listed to non-admins.
+  login: string;        // secret-ish. CASE SENSITIVE. Plaintext. Never returned to any client.
   displayName: string;  // shown in presence, edit log, attribution
-  role: 'admin' | 'editor' | 'viewer';
+  role: 'editor' | 'viewer';
   color: string;        // stable hex for presence dots, assigned at creation
   createdAt: string;
   createdBy: string;
@@ -128,8 +128,11 @@ be handing out credentials.
 
 ### Rules
 
-- Login is a **plaintext free-text field**. No dropdown, no autocomplete, no
-  endpoint that enumerates users for non-admins. You have to know the name.
+- **There is no admin role.** Account creation is self-service and there is no
+  endpoint that lists or enumerates users. Accountability comes from the
+  activity log (who changed what), not from gating who can manage the roster.
+- Login is a **plaintext free-text field**. No dropdown, no autocomplete. You
+  have to know the name to log in with it.
 - Matching is **case sensitive** and exact.
 - Failed logins are rate limited per `(ip, login)` at 5/min, with a looser 30/min
   per-IP ceiling. A single per-IP limit is wrong here: behind a tunnel the whole
@@ -148,21 +151,23 @@ be handing out credentials.
     returns `displayName`, which is all the UI needs to offer "Continue as Joe".
   - *Edit activation* is a client-side boolean (`session.editSessionActive`)
     that starts `false` on every cold boot and is only flipped by an explicit
-    click (`activateEditSession()`) or a fresh login. `isEditor` requires both
-    an editor/admin role **and** an armed edit session.
+    click (`activateEditSession()`), a fresh login, or creating an account.
+    `isEditor` requires both an editor role **and** an armed edit session.
 
   No server endpoint is needed for activation — the guard exists to prevent
   accidental edits from a UI, and accidents come from the UI. The server-side
   role check is a separate concern and stays as it is.
-- Roles: `viewer` reads everything. `editor` reads and writes. `admin` also
-  manages users.
+- Roles: `viewer` reads everything. `editor` reads and writes. That's the whole
+  set — there is no elevated role.
 - Pluggable identity: if the request carries a trusted header
   (`Cf-Access-Authenticated-User-Email`) and `TRUST_IDENTITY_HEADER=1` is set,
   use it to resolve the user instead of the cookie. This is the upgrade path to
   real SSO without touching anything else.
-- **Bootstrap:** if `users.json` does not exist, the first `POST /api/auth/login`
-  creates that login as an `admin`, and logs a loud warning. Otherwise a fresh
-  install is unusable.
+- **Signup:** `POST /api/users` is unauthenticated — anyone can create their
+  own account by choosing a login, a display name, and a role, and the
+  response logs them straight in (same cookie the login endpoint sets). It is
+  rate limited per IP (separately from the login rate limiter) since it no
+  longer requires a session to call.
 
 ### Enforcement
 
@@ -180,10 +185,7 @@ must never be the sole check. Non-editors receive **403**.
 | POST | `/api/auth/login` | `{ login }` | `{ user }`, sets cookie. 401 unknown, 429 rate limited |
 | POST | `/api/auth/logout` | — | `204`, clears cookie |
 | GET | `/api/auth/me` | — | `{ user }` or `{ user: null }` |
-| GET | `/api/users` | admin only | `User[]` (without `login`) |
-| POST | `/api/users` | `{ login, displayName, role }`, admin | `{ user }`, 409 if login taken |
-| PATCH | `/api/users/:id` | `{ displayName?, role?, login? }`, admin | `{ user }` |
-| DELETE | `/api/users/:id` | admin | `204`. Refuse deleting the last admin |
+| POST | `/api/users` | `{ login, displayName, role }`, no auth needed | `{ user }`, sets cookie. 409 if login taken, 429 rate limited |
 
 ### Document state
 
@@ -258,6 +260,19 @@ that automatic checkpoint — no special mechanism.
 
 Restore requires `editor`, bumps the rev, and broadcasts `kind: "restore"` so
 every connected client hard-reloads its state.
+
+**Daily checkpoints.** The first successful write to a harness on a given UTC
+calendar day creates an automatic checkpoint labelled `Daily save — <date>`,
+tagged `dailyKey: "YYYY-MM-DD"`. Subsequent writes that same day are no-ops for
+this purpose — quiet days get no checkpoint at all, matching "every day *someone
+edited*", not every day. Its `contributors` field lists everyone who wrote to
+the harness since the *previous* daily checkpoint (which may span several quiet
+days), sourced from the edit log — this is the "who edited since last daily
+save" record. `createdBy` stays the single writer whose edit happened to trigger
+it; `contributors` is the complete roster. This piggybacks on the same
+per-harness write path as history pruning (`recordHarnessWrite`), not a
+background timer, so it needs no scheduler and never fires while the process is
+idle.
 
 ---
 

@@ -650,7 +650,7 @@ needs" — see "What This Project Is". Routes are registered through `addRoute` 
 ### Current surface
 
 **Auth and users** — `POST /api/auth/login`, `POST /api/auth/logout`, `GET /api/auth/me`,
-`GET /api/users`, `POST /api/users`, `PATCH /api/users/:id`, `DELETE /api/users/:id`
+`POST /api/users` (self-service signup, no auth required)
 
 **Collaboration** — `GET /api/state` (whole-app bootstrap), `GET /api/sync` (delta since a
 revision), `GET /api/events` (SSE), `POST /api/presence`

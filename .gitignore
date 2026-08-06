@@ -28,6 +28,11 @@ dist-ssr
 # Scratch project roots created by the test scripts
 .tmp-*
 
-# VibeWire local identity and runtime collaboration state (do not sync to GitHub)
+# Per-machine local identity (do not sync)
 .vibewire-user
-vibewire-state/
+
+# Collaboration state is tracked (activity, users, checkpoints, etc.),
+# except the session signing secret and bulky byte-history snapshots.
+vibewire-state/secret.txt
+vibewire-state/history/
+vibewire-state/rollback-staging/

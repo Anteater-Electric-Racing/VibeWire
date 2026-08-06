@@ -9,17 +9,21 @@ interface EntityCounts {
   signals: number;
 }
 
+interface Contributor {
+  id: string;
+  displayName: string;
+}
+
 interface CheckpointMeta {
   id: string;
   label: string;
   createdAt: string;
-  createdBy: {
-    id: string;
-    displayName: string;
-  };
+  createdBy: Contributor;
   rev: number;
   auto: boolean;
   counts: EntityCounts;
+  dailyKey?: string;
+  contributors?: Contributor[];
 }
 
 interface CheckpointDetails extends CheckpointMeta {
@@ -48,6 +52,16 @@ const COUNT_LABELS: Array<[keyof EntityCounts, string]> = [
 
 function isAutomatic(checkpoint: CheckpointMeta): boolean {
   return checkpoint.auto;
+}
+
+function isDaily(checkpoint: CheckpointMeta): boolean {
+  return checkpoint.dailyKey !== undefined;
+}
+
+function contributorNames(checkpoint: CheckpointMeta): string {
+  const contributors = checkpoint.contributors;
+  if (!contributors || contributors.length === 0) return checkpoint.createdBy.displayName;
+  return contributors.map((contributor) => contributor.displayName).join(', ');
 }
 
 function relativeTime(value: string): string {
@@ -288,6 +302,7 @@ export function CheckpointPanel({ harness, isEditor, onClose }: CheckpointPanelP
           ) : (
             <div className="space-y-2">
               {checkpoints.map((checkpoint) => {
+                const daily = isDaily(checkpoint);
                 const automatic = isAutomatic(checkpoint);
                 return (
                   <button
@@ -307,15 +322,18 @@ export function CheckpointPanel({ harness, isEditor, onClose }: CheckpointPanelP
                         {checkpoint.label}
                       </span>
                       <span className={`shrink-0 rounded px-1.5 py-0.5 text-[9px] uppercase tracking-wide ${
-                        automatic
-                          ? 'bg-amber-950 text-amber-400'
-                          : 'bg-zinc-800 text-zinc-500'
+                        daily
+                          ? 'bg-sky-950 text-sky-400'
+                          : automatic
+                            ? 'bg-amber-950 text-amber-400'
+                            : 'bg-zinc-800 text-zinc-500'
                       }`}>
-                        {automatic ? 'Automatic' : 'Named'}
+                        {daily ? 'Daily' : automatic ? 'Automatic' : 'Named'}
                       </span>
                     </div>
-                    <p className="mt-1 text-[10px] text-zinc-500">
-                      {checkpoint.createdBy.displayName} · {relativeTime(checkpoint.createdAt)} · rev {checkpoint.rev}
+                    <p className="mt-1 truncate text-[10px] text-zinc-500">
+                      {daily ? `Edited by ${contributorNames(checkpoint)}` : checkpoint.createdBy.displayName}
+                      {' · '}{relativeTime(checkpoint.createdAt)} · rev {checkpoint.rev}
                     </p>
                     <p className="mt-1 truncate text-[10px] text-zinc-600">
                       {countsSummary(checkpoint.counts)}
@@ -340,14 +358,20 @@ export function CheckpointPanel({ harness, isEditor, onClose }: CheckpointPanelP
                 <h3 className="min-w-0 flex-1 truncate text-sm font-semibold text-zinc-100">
                   {details.label}
                 </h3>
-                {isAutomatic(details) && (
+                {isDaily(details) ? (
+                  <span className="rounded bg-sky-950 px-1.5 py-0.5 text-[9px] uppercase tracking-wide text-sky-400">
+                    Daily
+                  </span>
+                ) : isAutomatic(details) && (
                   <span className="rounded bg-amber-950 px-1.5 py-0.5 text-[9px] uppercase tracking-wide text-amber-400">
                     Automatic
                   </span>
                 )}
               </div>
               <p className="mt-1 text-[10px] text-zinc-500">
-                Saved by {details.createdBy.displayName} {relativeTime(details.createdAt)}
+                {isDaily(details)
+                  ? `Edited by ${contributorNames(details)} · ${relativeTime(details.createdAt)}`
+                  : `Saved by ${details.createdBy.displayName} ${relativeTime(details.createdAt)}`}
               </p>
 
               <h4 className="mt-5 text-[10px] font-semibold uppercase tracking-wide text-zinc-500">
