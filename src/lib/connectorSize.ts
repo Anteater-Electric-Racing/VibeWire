@@ -6,6 +6,18 @@ export const MAX_AUTO_EXPAND_PINS = 12;
 export const CONNECTOR_HEADER_HEIGHT = 36;
 export const CONNECTOR_PIN_ROW_HEIGHT = 26;
 export const AUTO_EXPANDED_CONNECTOR_WIDTH = 160;
+/**
+ * Graph stacking order (React Flow `zIndexMode="manual"`):
+ * background < enclosure < wire < connector/merge < text < selected wire < expanded connector.
+ * Wires must clear nested enclosure frames (parent bump) while staying under connectors.
+ */
+export const GRAPH_Z_BACKGROUND = -1000;
+export const GRAPH_Z_ENCLOSURE = 0;
+export const GRAPH_Z_WIRE = 2;
+export const GRAPH_Z_CONNECTOR = 3;
+export const GRAPH_Z_MERGE = 3;
+export const GRAPH_Z_TEXT = 10;
+export const GRAPH_Z_SELECTED_WIRE = 1000;
 /** Keep expanded cavity tables above other graph nodes (and their parents). */
 export const EXPANDED_CONNECTOR_Z_INDEX = 2000;
 

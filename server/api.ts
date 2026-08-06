@@ -33,10 +33,12 @@ import {
   type RevisionWriter,
 } from './revisions.js';
 import {
+  checkpointPayloadDir,
   createCheckpoint,
   getCheckpoint,
   listCheckpoints,
   pruneHistory,
+  restoreManagedPayload,
   snapshotToHistory,
 } from './history.js';
 import { aggregateActivity, appendEditLog, type EditKind } from './editlog.js';
@@ -72,12 +74,22 @@ interface ConnectorType {
   cavity_variants?: Array<{
     pin_count: number;
     housing_part_number?: string;
+    male_housing_part_number?: string;
+    female_housing_part_number?: string;
     keyings?: string[];
     image?: string;
+    male_image?: string;
+    female_image?: string;
     side_image?: string;
+    male_side_image?: string;
+    female_side_image?: string;
   }>;
   image?: string;
+  male_image?: string;
+  female_image?: string;
   side_image?: string;
+  male_side_image?: string;
+  female_side_image?: string;
   default_properties?: Record<string, string>;
 }
 
@@ -86,7 +98,7 @@ interface ConnectorLibrary {
 }
 
 interface ManufacturingDocument {
-  schema_version: '1.1.0';
+  schema_version: '1.1.0' | '1.2.0';
   bundles: Record<string, {
     steps: Partial<Record<
       'ordered' | 'cut' | 'crimped' | 'populated' | 'qc' | 'installed',
@@ -97,6 +109,34 @@ interface ManufacturingDocument {
       boolean
     >>>;
     endpoint_genders?: Record<string, 'male' | 'female'>;
+    wire_progress?: Record<string, {
+      cut?: boolean;
+      ends?: Partial<Record<'from' | 'to', boolean>>;
+    }>;
+    splice_measured?: Record<string, boolean>;
+    connector_guide_states?: Record<string, 'checking' | 'verified'>;
+    task_attribution?: Record<string, {
+      user_id: string;
+      user_name: string;
+      day: string;
+    }>;
+    work_log?: Array<{
+      id: string;
+      task_key: string;
+      kind:
+        | 'wire-cut'
+        | 'wire-end'
+        | 'splice-measured'
+        | 'connector-guide'
+        | 'component-step';
+      action: 'complete' | 'reopen';
+      state?: string;
+      quantity?: number;
+      unit?: 'ea' | 'mm';
+      user_id: string;
+      user_name: string;
+      day: string;
+    }>;
     notes?: string;
   }>;
 }
@@ -162,7 +202,17 @@ export function validateConnectorLibraryData(raw: unknown) {
       ) {
         errors.push(`Connector family ${label} has invalid or duplicate keyings.`);
       }
-      for (const field of ['housing_part_number'] as const) {
+      for (const field of [
+        'housing_part_number',
+        'male_housing_part_number',
+        'female_housing_part_number',
+        'image',
+        'male_image',
+        'female_image',
+        'side_image',
+        'male_side_image',
+        'female_side_image',
+      ] as const) {
         if (variant[field] !== undefined && typeof variant[field] !== 'string') {
           errors.push(`Connector family ${label} has invalid ${field}.`);
         }
@@ -171,6 +221,12 @@ export function validateConnectorLibraryData(raw: unknown) {
     for (const field of [
       'male_crimp_part_number',
       'female_crimp_part_number',
+      'image',
+      'male_image',
+      'female_image',
+      'side_image',
+      'male_side_image',
+      'female_side_image',
     ] as const) {
       if (type[field] !== undefined && typeof type[field] !== 'string') {
         errors.push(`Connector type ${label} has invalid ${field}.`);
@@ -239,14 +295,6 @@ interface Route {
   paramNames: string[];
   handler: Handler;
 }
-
-type TaggedEntity = {
-  id: string;
-  tags: string[];
-  properties: Record<string, string>;
-};
-
-type HarnessCollectionKey = 'enclosures' | 'connectors' | 'mergePoints' | 'paths' | 'signals';
 
 function normalizeHarness(raw: any): HarnessData {
   const harness = structuredClone(raw ?? {}) as Partial<HarnessData> & { pcbs?: any[] };
@@ -344,15 +392,6 @@ function getPathSignalId(pathItem: Pick<PathEntity, 'signal_id' | 'tags'>): stri
   return slug ? `sig_${slug}` : null;
 }
 
-function getPathSignalName(
-  pathItem: Pick<PathEntity, 'signal_id' | 'tags'>,
-  harness?: Pick<HarnessData, 'signals'>,
-): string | null {
-  const signalId = getPathSignalId(pathItem);
-  if (!signalId) return null;
-  return harness?.signals.find((signal) => signal.id === signalId)?.name ?? signalId.replace(/^sig_/, '');
-}
-
 function getPathNodeRefKey(node: PathNode): string {
   return node.kind === 'connector'
     ? `connector:${node.connector_id}:${node.pin_number}`
@@ -410,18 +449,12 @@ function derivePathSegments(harness: HarnessData) {
   );
 }
 
-function getConnectorOccupancy(harness: HarnessData, connectorId: string) {
+function getOccupiedPinNumbers(harness: HarnessData, connectorId: string): number[] {
   return harness.paths.flatMap((pathItem) =>
     pathItem.nodes
       .filter((node): node is ConnectorPathNode => node.kind === 'connector' && node.connector_id === connectorId)
-      .map((node) => ({
-        connectorId,
-        // Missing/invalid pin_number (legacy ring terminals) counts as cavity 1.
-        pinNumber: Number.isInteger(node.pin_number) && node.pin_number > 0 ? node.pin_number : 1,
-        pathId: pathItem.id,
-        pathName: pathItem.name,
-        signalName: getPathSignalName(pathItem, harness),
-      })),
+      // Missing/invalid pin_number (legacy ring terminals) counts as cavity 1.
+      .map((node) => (Number.isInteger(node.pin_number) && node.pin_number > 0 ? node.pin_number : 1)),
   );
 }
 
@@ -434,10 +467,7 @@ export function migrateConnectorTypeToGeneric(
   let migrated = 0;
   for (const connector of next.connectors) {
     if (connector.connector_type !== removedType.id) continue;
-    const occupiedFloor = Math.max(
-      0,
-      ...getConnectorOccupancy(next, connector.id).map((entry) => entry.pinNumber),
-    );
+    const occupiedFloor = Math.max(0, ...getOccupiedPinNumbers(next, connector.id));
     const capacity = Math.max(
       1,
       occupiedFloor,
@@ -453,48 +483,6 @@ export function migrateConnectorTypeToGeneric(
     migrated += 1;
   }
   return { harness: next, migrated };
-}
-
-function getTaggable(harness: HarnessData, entityType: string, entityId: string): TaggedEntity | undefined {
-  switch (entityType) {
-    case 'enclosure':
-      return harness.enclosures.find((entity) => entity.id === entityId);
-    case 'connector':
-      return harness.connectors.find((entity) => entity.id === entityId);
-    case 'mergePoint':
-      return harness.mergePoints.find((entity) => entity.id === entityId);
-    case 'path':
-      return harness.paths.find((entity) => entity.id === entityId);
-    case 'signal':
-      return harness.signals.find((entity) => entity.id === entityId);
-    default:
-      return undefined;
-  }
-}
-
-function findConnector(harness: HarnessData, connectorRef: string): Connector | undefined {
-  const byId = harness.connectors.find((connector) => connector.id === connectorRef);
-  if (byId) return byId;
-  const byName = harness.connectors.filter((connector) => connector.name === connectorRef);
-  // Display names are intentionally non-unique and mutable. Never guess when
-  // this legacy convenience lookup becomes ambiguous.
-  return byName.length === 1 ? byName[0] : undefined;
-}
-
-function resolveConnectorPathNode(
-  harness: HarnessData,
-  connectorRef: string,
-  pinRef: string | number,
-): ConnectorPathNode | null {
-  const connector = findConnector(harness, connectorRef);
-  if (!connector) return null;
-  const pinNumber = typeof pinRef === 'number' ? pinRef : Number(pinRef);
-  if (!Number.isInteger(pinNumber) || pinNumber <= 0) return null;
-  return {
-    kind: 'connector',
-    connector_id: connector.id,
-    pin_number: pinNumber,
-  };
 }
 
 function countPathNodeRefMatches(pathItem: Pick<PathEntity, 'nodes'>, ref: PathNodeRef): number {
@@ -758,6 +746,32 @@ export function createApiMiddleware(projectRoot: string) {
     }
   }
 
+  /** Display name from harness data; falls back to storage key when unset. */
+  function readHarnessDisplayName(name: string): string {
+    const resolved = sanitizeName(name);
+    try {
+      if (isSheetedHarness(projectRoot, resolved)) {
+        const root = readJSON<{ name?: unknown }>(
+          path.join(sheetHarnessDir(projectRoot, resolved), 'root.json'),
+        );
+        if (typeof root.name === 'string' && root.name.trim()) return root.name.trim();
+      } else {
+        const data = readJSON<{ name?: unknown }>(harnessFile(resolved));
+        if (typeof data.name === 'string' && data.name.trim()) return data.name.trim();
+      }
+    } catch {
+      // Fall through to storage key.
+    }
+    return resolved;
+  }
+
+  function listHarnesses(): Array<{ id: string; name: string }> {
+    return listHarnessNames().map((id) => ({
+      id,
+      name: readHarnessDisplayName(id),
+    }));
+  }
+
   function layoutsFile(name = 'fsae-car') {
     return path.join(projectRoot, 'public', 'user-data', `layouts.${sanitizeName(name)}.json`);
   }
@@ -769,10 +783,6 @@ export function createApiMiddleware(projectRoot: string) {
       'user-data',
       `manufacturing.${sanitizeName(name)}.json`,
     );
-  }
-
-  function legacyLayoutsFile() {
-    return path.join(projectRoot, 'public', 'user-data', 'layouts.json');
   }
 
   function libraryFile() {
@@ -828,9 +838,6 @@ export function createApiMiddleware(projectRoot: string) {
     try {
       return readJSON<LayoutData>(layoutsFile(name));
     } catch {
-      if (name === 'fsae-car') {
-        try { return readJSON<LayoutData>(legacyLayoutsFile()); } catch { /* fall through */ }
-      }
       return {};
     }
   }
@@ -843,11 +850,11 @@ export function createApiMiddleware(projectRoot: string) {
     try {
       const data = readJSON<Partial<ManufacturingDocument>>(manufacturingFile(name));
       return {
-        schema_version: '1.1.0',
+        schema_version: '1.2.0',
         bundles: data.bundles && typeof data.bundles === 'object' ? data.bundles : {},
       };
     } catch {
-      return { schema_version: '1.1.0', bundles: {} };
+      return { schema_version: '1.2.0', bundles: {} };
     }
   }
 
@@ -902,12 +909,104 @@ export function createApiMiddleware(projectRoot: string) {
       ) {
         throw new Error(`Invalid connector-end genders for bundle '${bundleId}'.`);
       }
+      if (progress.wire_progress !== undefined) {
+        if (!isRecord(progress.wire_progress)) {
+          throw new Error(`Invalid wire progress for bundle '${bundleId}'.`);
+        }
+        for (const [wireId, wireProgress] of Object.entries(progress.wire_progress)) {
+          if (!wireId || !isRecord(wireProgress)) {
+            throw new Error(`Invalid wire progress for '${wireId}' in bundle '${bundleId}'.`);
+          }
+          if (wireProgress.cut !== undefined && typeof wireProgress.cut !== 'boolean') {
+            throw new Error(`Invalid cut state for wire '${wireId}'.`);
+          }
+          if (wireProgress.ends !== undefined) {
+            if (
+              !isRecord(wireProgress.ends)
+              || Object.entries(wireProgress.ends).some(
+                ([end, completed]) =>
+                  (end !== 'from' && end !== 'to') || typeof completed !== 'boolean',
+              )
+            ) {
+              throw new Error(`Invalid end progress for wire '${wireId}'.`);
+            }
+          }
+        }
+      }
+      if (
+        progress.splice_measured !== undefined
+        && (
+          !isRecord(progress.splice_measured)
+          || Object.entries(progress.splice_measured).some(
+            ([spliceId, completed]) => !spliceId || typeof completed !== 'boolean',
+          )
+        )
+      ) {
+        throw new Error(`Invalid splice measurements for bundle '${bundleId}'.`);
+      }
+      if (
+        progress.connector_guide_states !== undefined
+        && (
+          !isRecord(progress.connector_guide_states)
+          || Object.entries(progress.connector_guide_states).some(
+            ([connectorId, guideState]) =>
+              !connectorId || (guideState !== 'checking' && guideState !== 'verified'),
+          )
+        )
+      ) {
+        throw new Error(`Invalid connector guide states for bundle '${bundleId}'.`);
+      }
+      if (
+        progress.task_attribution !== undefined
+        && (
+          !isRecord(progress.task_attribution)
+          || Object.entries(progress.task_attribution).some(([, attribution]) =>
+            !isRecord(attribution)
+            || typeof attribution.user_id !== 'string'
+            || typeof attribution.user_name !== 'string'
+            || typeof attribution.day !== 'string'
+            || !/^\d{4}-\d{2}-\d{2}$/.test(attribution.day)
+          )
+        )
+      ) {
+        throw new Error(`Invalid manufacturing attribution for bundle '${bundleId}'.`);
+      }
+      if (
+        progress.work_log !== undefined
+        && (
+          !Array.isArray(progress.work_log)
+          || progress.work_log.some((event) =>
+            !isRecord(event)
+            || typeof event.id !== 'string'
+            || typeof event.task_key !== 'string'
+            || ![
+              'wire-cut',
+              'wire-end',
+              'splice-measured',
+              'connector-guide',
+              'component-step',
+            ].includes(
+              String(event.kind),
+            )
+            || (event.action !== 'complete' && event.action !== 'reopen')
+            || typeof event.user_id !== 'string'
+            || typeof event.user_name !== 'string'
+            || typeof event.day !== 'string'
+            || !/^\d{4}-\d{2}-\d{2}$/.test(event.day)
+            || (event.quantity !== undefined
+              && (typeof event.quantity !== 'number' || !Number.isFinite(event.quantity)))
+            || (event.unit !== undefined && event.unit !== 'ea' && event.unit !== 'mm')
+          )
+        )
+      ) {
+        throw new Error(`Invalid manufacturing work log for bundle '${bundleId}'.`);
+      }
       if (progress.notes !== undefined && typeof progress.notes !== 'string') {
         throw new Error(`Invalid manufacturing notes for bundle '${bundleId}'.`);
       }
     }
     writeJSONAtomic(manufacturingFile(name), {
-      schema_version: '1.1.0',
+      schema_version: '1.2.0',
       bundles: data.bundles,
     });
   }
@@ -1058,85 +1157,8 @@ export function createApiMiddleware(projectRoot: string) {
     return [...new Set([...diff.added, ...diff.modified, ...diff.removed])].sort();
   }
 
-  function userDataPayloadArtifacts(harness: string): string[] {
-    return [
-      path.join('harnesses', harness),
-      path.join('harnesses', `${harness}.json`),
-      `layouts.${harness}.json`,
-      `manufacturing.${harness}.json`,
-      path.join('subsystems', harness),
-    ];
-  }
-
   function removePath(filePath: string): void {
     if (fs.existsSync(filePath)) fs.rmSync(filePath, { recursive: true, force: true });
-  }
-
-  function restoreManagedPayload(snapshotRoot: string, harness: string): void {
-    const { stateRoot, userDataRoot } = getCollaborationPaths();
-    const transactionRoot = path.join(
-      stateRoot,
-      'rollback-staging',
-      `${harness}.${process.pid}.${Date.now()}.${Math.random().toString(36).slice(2)}.tmp`,
-    );
-    const stagedRoot = path.join(transactionRoot, 'staged');
-    const backupRoot = path.join(transactionRoot, 'backup');
-    const completed: Array<{
-      target: string;
-      backup: string;
-      installed: boolean;
-      backedUp: boolean;
-    }> = [];
-
-    try {
-      for (const relativePath of userDataPayloadArtifacts(harness)) {
-        const source = path.join(snapshotRoot, relativePath);
-        const staged = path.join(stagedRoot, relativePath);
-        if (fs.existsSync(source)) {
-          fs.mkdirSync(path.dirname(staged), { recursive: true });
-          fs.cpSync(source, staged, { recursive: true });
-        }
-      }
-
-      for (const relativePath of userDataPayloadArtifacts(harness)) {
-        const target = path.join(userDataRoot, relativePath);
-        const staged = path.join(stagedRoot, relativePath);
-        const backup = path.join(backupRoot, relativePath);
-        const operation = {
-          target,
-          backup,
-          installed: false,
-          backedUp: false,
-        };
-        completed.push(operation);
-        if (fs.existsSync(target)) {
-          fs.mkdirSync(path.dirname(backup), { recursive: true });
-          fs.renameSync(target, backup);
-          operation.backedUp = true;
-        }
-        if (fs.existsSync(staged)) {
-          fs.mkdirSync(path.dirname(target), { recursive: true });
-          fs.renameSync(staged, target);
-          operation.installed = true;
-        }
-      }
-    } catch (error) {
-      for (const operation of completed.reverse()) {
-        try {
-          if (operation.installed) removePath(operation.target);
-          if (operation.backedUp && fs.existsSync(operation.backup)) {
-            fs.mkdirSync(path.dirname(operation.target), { recursive: true });
-            fs.renameSync(operation.backup, operation.target);
-          }
-        } catch {
-          // Preserve the original failure. The history snapshot remains intact
-          // for manual recovery if the filesystem rollback also fails.
-        }
-      }
-      throw error;
-    } finally {
-      removePath(transactionRoot);
-    }
   }
 
   function historySnapshotRoot(harness: string, rev: number): string {
@@ -1679,10 +1701,10 @@ export function createApiMiddleware(projectRoot: string) {
 
   function readManufacturingFromRoot(root: string, harness: string): ManufacturingDocument {
     const file = path.join(root, `manufacturing.${harness}.json`);
-    if (!fs.existsSync(file)) return { schema_version: '1.1.0', bundles: {} };
+    if (!fs.existsSync(file)) return { schema_version: '1.2.0', bundles: {} };
     const data = readJSON<Partial<ManufacturingDocument>>(file);
     return {
-      schema_version: '1.1.0',
+      schema_version: '1.2.0',
       bundles: data.bundles && typeof data.bundles === 'object' ? data.bundles : {},
     };
   }
@@ -1841,151 +1863,6 @@ export function createApiMiddleware(projectRoot: string) {
     };
   }
 
-  function entityRoutes<T extends TaggedEntity>(
-    basePath: string,
-    collectionKey: HarnessCollectionKey,
-    idPrefix: string,
-    requiredFields: string[],
-    defaults: () => Partial<T>,
-  ) {
-    addRoute('GET', basePath, (_req, res, _params, query) => {
-      try {
-        const harness = readHarness(harnessName(query));
-        let items = harness[collectionKey] as unknown as T[];
-        const tagFilter = query.get('tag');
-        if (tagFilter) items = items.filter((item) => item.tags.includes(tagFilter));
-        json(res, items);
-      } catch (error: any) {
-        err(res, error.message, 404);
-      }
-    });
-
-    addEditorRoute('POST', basePath, async (req, res, _params, query) => {
-      const body = await parseBody(req);
-      if (!body) {
-        err(res, 'Request body required');
-        return;
-      }
-      for (const field of requiredFields) {
-        if (body[field] === undefined) {
-          err(res, `Field '${field}' is required`);
-          return;
-        }
-      }
-      const name = sanitizeName(harnessName(query) ?? 'fsae-car');
-      try {
-        const result = await commitHarnessDocument(req, name, 'harness', (harness) => {
-          const entity = { ...defaults(), ...body, id: body.id ?? genId(idPrefix) } as T;
-          entity.tags ??= [];
-          entity.properties ??= {};
-          const collection = harness[collectionKey] as unknown as T[];
-          if (collection.some((item) => item.id === entity.id)) {
-            throw new ApiWriteError(409, {
-              error: `Entity with id '${entity.id}' already exists`,
-            });
-          }
-          collection.push(entity);
-          return { next: harness, value: entity };
-        });
-        setRevisionHeader(res, result.rev);
-        json(res, result.value, 201);
-      } catch (error) {
-        writeError(res, error, 'Failed to create entity');
-      }
-    });
-
-    addRoute('GET', `${basePath}/:id`, (_req, res, params, query) => {
-      try {
-        const harness = readHarness(harnessName(query));
-        const item = (harness[collectionKey] as unknown as T[]).find((entity) => entity.id === params.id);
-        if (!item) {
-          err(res, `Not found: ${params.id}`, 404);
-          return;
-        }
-        json(res, item);
-      } catch (error: any) {
-        err(res, error.message, 404);
-      }
-    });
-
-    addEditorRoute('PUT', `${basePath}/:id`, async (req, res, params, query) => {
-      const body = await parseBody(req);
-      if (!body) {
-        err(res, 'Request body required');
-        return;
-      }
-      const name = sanitizeName(harnessName(query) ?? 'fsae-car');
-      try {
-        const result = await commitHarnessDocument(req, name, 'harness', (harness) => {
-          const collection = harness[collectionKey] as unknown as T[];
-          const index = collection.findIndex((entity) => entity.id === params.id);
-          if (index === -1) {
-            throw new ApiWriteError(404, { error: `Not found: ${params.id}` });
-          }
-          collection[index] = {
-            ...body,
-            id: params.id,
-            tags: body.tags ?? [],
-            properties: body.properties ?? {},
-          } as T;
-          return { next: harness, value: collection[index] };
-        });
-        setRevisionHeader(res, result.rev);
-        json(res, result.value);
-      } catch (error) {
-        writeError(res, error, 'Failed to update entity');
-      }
-    });
-    addEditorRoute('PATCH', `${basePath}/:id`, async (req, res, params, query) => {
-      const body = await parseBody(req);
-      if (!body) {
-        err(res, 'Request body required');
-        return;
-      }
-      const name = sanitizeName(harnessName(query) ?? 'fsae-car');
-      try {
-        const result = await commitHarnessDocument(req, name, 'harness', (harness) => {
-          const collection = harness[collectionKey] as unknown as T[];
-          const index = collection.findIndex((entity) => entity.id === params.id);
-          if (index === -1) {
-            throw new ApiWriteError(404, { error: `Not found: ${params.id}` });
-          }
-          collection[index] = {
-            ...collection[index],
-            ...body,
-            id: params.id,
-            tags: body.tags ?? collection[index].tags,
-            properties: body.properties ?? collection[index].properties,
-          } as T;
-          return { next: harness, value: collection[index] };
-        });
-        setRevisionHeader(res, result.rev);
-        json(res, result.value);
-      } catch (error) {
-        writeError(res, error, 'Failed to patch entity');
-      }
-    });
-
-    addEditorRoute('DELETE', `${basePath}/:id`, async (req, res, params, query) => {
-      const name = sanitizeName(harnessName(query) ?? 'fsae-car');
-      try {
-        const result = await commitHarnessDocument(req, name, 'harness', (harness) => {
-          const collection = harness[collectionKey] as unknown as T[];
-          const index = collection.findIndex((entity) => entity.id === params.id);
-          if (index === -1) {
-            throw new ApiWriteError(404, { error: `Not found: ${params.id}` });
-          }
-          const deleted = collection.splice(index, 1)[0];
-          return { next: harness, value: deleted };
-        });
-        setRevisionHeader(res, result.rev);
-        json(res, result.value);
-      } catch (error) {
-        writeError(res, error, 'Failed to delete entity');
-      }
-    });
-  }
-
   addRoute('POST', '/api/auth/login', auth.handlers.login);
   addRoute('POST', '/api/auth/logout', auth.handlers.logout);
   addRoute('GET', '/api/auth/me', auth.handlers.me);
@@ -2084,15 +1961,8 @@ export function createApiMiddleware(projectRoot: string) {
           const currentRev = getRev(name);
           const snapshot = await snapshotToHistory(name, currentRev);
           const rev = await bumpRev(name, writer);
-          const checkpointPayload = path.join(
-            getCollaborationPaths().stateRoot,
-            'checkpoints',
-            name,
-            params.id,
-            'files',
-          );
           try {
-            restoreManagedPayload(checkpointPayload, name);
+            restoreManagedPayload(checkpointPayloadDir(name, params.id), name);
           } catch (restoreError) {
             try {
               restoreManagedPayload(snapshot, name);
@@ -2162,40 +2032,8 @@ export function createApiMiddleware(projectRoot: string) {
     }
   });
 
-  addRoute('GET', '/api', (_req, res) => {
-    json(res, {
-      name: 'VibeWire API',
-      version: '3.0.0',
-      note: 'Entity endpoints accept ?harness=<name> (default: fsae-car)',
-      sections: {
-        harness_document: {
-          'GET /api/harnesses': 'List available harness names',
-          'GET /api/harness': 'Get full harness JSON (?harness=name)',
-          'PUT /api/harness': 'Replace or create harness JSON (?harness=name)',
-          'GET /api/harness/stats': 'Harness summary statistics (?harness=name)',
-          'GET /api/layouts': 'Get layout data for a harness (?harness=name)',
-          'GET /api/manufacturing': 'Get manufacturing progress for a harness (?harness=name)',
-          'GET /api/validate': 'Validate path and merge-point semantics (?harness=name)',
-          'POST /api/upload-image': 'Upload an image into public/user-data/images (?filename=name.png; raw body)',
-          'GET /api/list-assets': 'List image filenames in public/user-data/images',
-        },
-        naming: {
-          display_names: 'Mutable name fields are labels only; IDs and ?harness= storage keys remain stable',
-          connector_references: 'Use connector IDs. Name lookup is accepted only when exactly one connector has that name',
-        },
-        entities: {
-          'GET /api/enclosures': 'List enclosures',
-          'GET /api/connectors': 'List connectors',
-          'GET /api/merge-points': 'List merge points',
-          'GET /api/paths': 'List paths',
-          'GET /api/signals': 'List signals',
-        },
-      },
-    });
-  });
-
   addRoute('GET', '/api/harnesses', (_req, res) => {
-    json(res, listHarnessNames());
+    json(res, listHarnesses());
   });
 
   addRoute('GET', '/api/manufacturing', (_req, res, _params, query) => {
@@ -2229,29 +2067,6 @@ export function createApiMiddleware(projectRoot: string) {
     }
   });
 
-  addRoute('GET', '/api/harness/stats', (_req, res, _params, query) => {
-    try {
-      const harness = readHarness(harnessName(query));
-      const allTags = new Set<string>();
-      for (const item of [...harness.enclosures, ...harness.connectors, ...harness.mergePoints, ...harness.paths, ...harness.signals]) {
-        item.tags.forEach((tag) => allTags.add(tag));
-      }
-      json(res, {
-        schema_version: harness.schema_version,
-        counts: {
-          enclosures: harness.enclosures.length,
-          connectors: harness.connectors.length,
-          mergePoints: harness.mergePoints.length,
-          paths: harness.paths.length,
-          signals: harness.signals.length,
-        },
-        tags: [...allTags].sort(),
-      });
-    } catch (error: any) {
-      err(res, error.message, 404);
-    }
-  });
-
   addRoute('GET', '/api/subsystems', (_req, res, _params, query) => {
     const harness = sanitizeName(harnessName(query) ?? 'fsae-car');
     const dir = subsystemDir(harness);
@@ -2265,16 +2080,6 @@ export function createApiMiddleware(projectRoot: string) {
     } catch (error: any) {
       err(res, error.message ?? 'Failed to read subsystems', 500);
     }
-  });
-
-  addRoute('GET', '/api/subsystems/:id', (_req, res, params, query) => {
-    const harness = sanitizeName(harnessName(query) ?? 'fsae-car');
-    const file = subsystemFile(harness, params.id);
-    if (!fs.existsSync(file)) {
-      err(res, `Subsystem not found: ${params.id}`, 404);
-      return;
-    }
-    json(res, readJSON<SubsystemDocument>(file));
   });
 
   addEditorRoute('PUT', '/api/subsystems/:id', async (req, res, params, query) => {
@@ -2341,323 +2146,35 @@ export function createApiMiddleware(projectRoot: string) {
     }
   });
 
-  entityRoutes<Enclosure>('/api/enclosures', 'enclosures', 'enc', ['name'], () => ({ parent: null, container: true, tags: [], properties: {} }));
-  entityRoutes<Connector>('/api/connectors', 'connectors', 'con', ['name'], () => ({ parent: null, connector_type: '', tags: [], properties: {} }));
-  entityRoutes<MergePoint>('/api/merge-points', 'mergePoints', 'mp', ['name'], () => ({ parent: null, tags: [], properties: {} }));
-  entityRoutes<PathEntity>('/api/paths', 'paths', 'path', ['name', 'nodes'], () => ({ tags: [], properties: {}, nodes: [], measurements: [] }));
-  entityRoutes<Signal>('/api/signals', 'signals', 'sig', ['name'], () => ({ tags: [], properties: {} }));
-
-  addRoute('GET', '/api/tags', (_req, res, _params, query) => {
-    try {
-      const harness = readHarness(harnessName(query));
-      const tags = new Set<string>();
-      for (const item of [...harness.enclosures, ...harness.connectors, ...harness.mergePoints, ...harness.paths, ...harness.signals]) {
-        item.tags.forEach((tag) => tags.add(tag));
-      }
-      json(res, [...tags].sort());
-    } catch (error: any) {
-      err(res, error.message, 404);
-    }
-  });
-
-  addEditorRoute('POST', '/api/tags', async (req, res, _params, query) => {
+  // Creating a signal is the one entity write the UI performs outside of a full
+  // document save: the graph's route picker can mint a signal before routing.
+  addEditorRoute('POST', '/api/signals', async (req, res, _params, query) => {
     const body = await parseBody(req);
-    if (!body?.entityType || !body?.entityId || !body?.tag) {
-      err(res, 'Required fields: entityType, entityId, tag');
+    if (!body?.name) {
+      err(res, "Field 'name' is required");
       return;
     }
     const name = sanitizeName(harnessName(query) ?? 'fsae-car');
     try {
       const result = await commitHarnessDocument(req, name, 'harness', (harness) => {
-        const entity = getTaggable(harness, body.entityType, body.entityId);
-        if (!entity) {
-          throw new ApiWriteError(404, {
-            error: `Entity not found: ${body.entityType}/${body.entityId}`,
-          });
-        }
-        if (!entity.tags.includes(body.tag)) entity.tags.push(body.tag);
-        return { next: harness, value: entity };
-      });
-      setRevisionHeader(res, result.rev);
-      json(res, result.value);
-    } catch (error) {
-      writeError(res, error, 'Failed to add tag');
-    }
-  });
-
-  addEditorRoute('DELETE', '/api/tags', async (req, res, _params, query) => {
-    const body = await parseBody(req);
-    if (!body?.entityType || !body?.entityId || !body?.tag) {
-      err(res, 'Required fields: entityType, entityId, tag');
-      return;
-    }
-    const name = sanitizeName(harnessName(query) ?? 'fsae-car');
-    try {
-      const result = await commitHarnessDocument(req, name, 'harness', (harness) => {
-        const entity = getTaggable(harness, body.entityType, body.entityId);
-        if (!entity) {
-          throw new ApiWriteError(404, {
-            error: `Entity not found: ${body.entityType}/${body.entityId}`,
-          });
-        }
-        entity.tags = entity.tags.filter((tag) => tag !== body.tag);
-        return { next: harness, value: entity };
-      });
-      setRevisionHeader(res, result.rev);
-      json(res, result.value);
-    } catch (error) {
-      writeError(res, error, 'Failed to remove tag');
-    }
-  });
-
-  addRoute('GET', '/api/search', (_req, res, _params, query) => {
-    const q = (query.get('q') ?? '').toLowerCase();
-    if (!q) {
-      err(res, 'Query parameter q is required');
-      return;
-    }
-    try {
-      const harness = readHarness(harnessName(query));
-      const results: Array<{ type: string; id: string; name?: string; match: string }> = [];
-      const matches = (fields: string[]) => fields.some((field) => field.toLowerCase().includes(q));
-
-      for (const enclosure of harness.enclosures) {
-        if (matches([enclosure.id, enclosure.name, ...enclosure.tags])) results.push({ type: 'enclosure', id: enclosure.id, name: enclosure.name, match: enclosure.name });
-      }
-      for (const connector of harness.connectors) {
-        const pins = getConnectorOccupancy(harness, connector.id).map((entry) => String(entry.pinNumber));
-        if (matches([connector.id, connector.name, ...connector.tags, ...pins])) results.push({ type: 'connector', id: connector.id, name: connector.name, match: connector.name });
-      }
-      for (const mergePoint of harness.mergePoints) {
-        if (matches([mergePoint.id, mergePoint.name, ...mergePoint.tags])) results.push({ type: 'mergePoint', id: mergePoint.id, name: mergePoint.name, match: mergePoint.name });
-      }
-      for (const pathItem of harness.paths) {
-        const nodeLabels = pathItem.nodes.map((node) => getPathNodeRefKey(node));
-        if (matches([pathItem.id, pathItem.name, ...pathItem.tags, ...Object.values(pathItem.properties), ...nodeLabels])) {
-          results.push({ type: 'path', id: pathItem.id, name: pathItem.name, match: `${pathItem.name} (${pathItem.nodes.length} nodes)` });
-        }
-      }
-      for (const signal of harness.signals) {
-        if (matches([signal.id, signal.name, ...signal.tags])) results.push({ type: 'signal', id: signal.id, name: signal.name, match: signal.name });
-      }
-
-      json(res, results);
-    } catch (error: any) {
-      err(res, error.message, 404);
-    }
-  });
-
-  addRoute('GET', '/api/connectors/:id/paths', (_req, res, params, query) => {
-    try {
-      const harness = readHarness(harnessName(query));
-      const connector = harness.connectors.find((item) => item.id === params.id);
-      if (!connector) {
-        err(res, `Connector not found: ${params.id}`, 404);
-        return;
-      }
-      const paths = harness.paths.filter((pathItem) => pathItem.nodes.some((node) => node.kind === 'connector' && node.connector_id === params.id));
-      json(res, { connector: connector.id, connector_name: connector.name, path_count: paths.length, paths });
-    } catch (error: any) {
-      err(res, error.message, 404);
-    }
-  });
-
-  addRoute('GET', '/api/merge-points/:id/paths', (_req, res, params, query) => {
-    try {
-      const harness = readHarness(harnessName(query));
-      const mergePoint = harness.mergePoints.find((item) => item.id === params.id);
-      if (!mergePoint) {
-        err(res, `Merge point not found: ${params.id}`, 404);
-        return;
-      }
-      const paths = harness.paths.filter((pathItem) => pathItem.nodes.some((node) => node.kind === 'merge' && node.merge_point_id === params.id));
-      json(res, { mergePoint: mergePoint.id, merge_point_name: mergePoint.name, path_count: paths.length, paths });
-    } catch (error: any) {
-      err(res, error.message, 404);
-    }
-  });
-
-  addRoute('GET', '/api/signals/:id/net', (_req, res, params, query) => {
-    try {
-      const harness = readHarness(harnessName(query));
-      const signal = harness.signals.find((item) => item.id === params.id);
-      if (!signal) {
-        err(res, `Signal not found: ${params.id}`, 404);
-        return;
-      }
-      const paths = harness.paths.filter((pathItem) => getPathSignalId(pathItem) === signal.id);
-      const connectorIds = new Set<string>();
-      const mergePointIds = new Set<string>();
-      for (const pathItem of paths) {
-        for (const node of pathItem.nodes) {
-          if (node.kind === 'connector') connectorIds.add(node.connector_id);
-          else mergePointIds.add(node.merge_point_id);
-        }
-      }
-      json(res, {
-        signal,
-        paths,
-        connectors: harness.connectors.filter((connector) => connectorIds.has(connector.id)),
-        mergePoints: harness.mergePoints.filter((mergePoint) => mergePointIds.has(mergePoint.id)),
-      });
-    } catch (error: any) {
-      err(res, error.message, 404);
-    }
-  });
-
-  addRoute('GET', '/api/connectivity/:id', (_req, res, params, query) => {
-    try {
-      const harness = readHarness(harnessName(query));
-      const rootId = params.id;
-      const adjacency = new Map<string, Set<string>>();
-      const addEdge = (a: string, b: string) => {
-        if (!adjacency.has(a)) adjacency.set(a, new Set());
-        if (!adjacency.has(b)) adjacency.set(b, new Set());
-        adjacency.get(a)?.add(b);
-        adjacency.get(b)?.add(a);
-      };
-      for (const segment of derivePathSegments(harness)) {
-        addEdge(getPathNodeRefKey(segment.from), getPathNodeRefKey(segment.to));
-      }
-
-      const connectorRoot = harness.connectors.find((connector) => connector.id === rootId);
-      const mergeRoot = harness.mergePoints.find((mergePoint) => mergePoint.id === rootId);
-      const startKeys = connectorRoot
-        ? getConnectorOccupancy(harness, connectorRoot.id).map((entry) => `connector:${connectorRoot.id}:${entry.pinNumber}`)
-        : mergeRoot
-          ? [`merge:${mergeRoot.id}`]
-          : [];
-      if (startKeys.length === 0) {
-        err(res, `Connectivity root not found: ${rootId}`, 404);
-        return;
-      }
-
-      const visited = new Set<string>();
-      const queue = [...startKeys];
-      while (queue.length > 0) {
-        const current = queue.shift();
-        if (!current || visited.has(current)) continue;
-        visited.add(current);
-        for (const next of adjacency.get(current) ?? []) {
-          if (!visited.has(next)) queue.push(next);
-        }
-      }
-
-      const connectedConnectors = new Set<string>();
-      const connectedMergePoints = new Set<string>();
-      const connectedPaths = new Set<string>();
-      for (const ref of visited) {
-        if (ref.startsWith('connector:')) connectedConnectors.add(ref.split(':')[1]);
-        if (ref.startsWith('merge:')) connectedMergePoints.add(ref.split(':')[1]);
-      }
-      for (const pathItem of harness.paths) {
-        if (pathItem.nodes.some((node) => visited.has(getPathNodeRefKey(node)))) connectedPaths.add(pathItem.id);
-      }
-
-      json(res, {
-        root: rootId,
-        connectors: harness.connectors.filter((connector) => connectedConnectors.has(connector.id)),
-        mergePoints: harness.mergePoints.filter((mergePoint) => connectedMergePoints.has(mergePoint.id)),
-        paths: harness.paths.filter((pathItem) => connectedPaths.has(pathItem.id)),
-      });
-    } catch (error: any) {
-      err(res, error.message, 404);
-    }
-  });
-
-  addRoute('GET', '/api/unoccupied-pins', (_req, res, _params, query) => {
-    try {
-      const harness = readHarness(harnessName(query));
-      const library = readLibrary();
-      const byType = new Map((library?.connector_types ?? []).map((item) => [item.id, item]));
-      const pins: Array<{ connector_id: string; connector_name: string; pin_number: number }> = [];
-      for (const connector of harness.connectors) {
-        const connectorType = byType.get(connector.connector_type);
-        const effective = getEffectivePinCount(connector, connectorType);
-        if (effective <= 0) continue;
-        const occupied = new Set(getConnectorOccupancy(harness, connector.id).map((entry) => entry.pinNumber));
-        for (let pinNumber = 1; pinNumber <= effective; pinNumber++) {
-          if (!occupied.has(pinNumber)) {
-            pins.push({ connector_id: connector.id, connector_name: connector.name, pin_number: pinNumber });
-          }
-        }
-      }
-      json(res, { count: pins.length, pins });
-    } catch (error: any) {
-      err(res, error.message, 404);
-    }
-  });
-
-  addRoute('GET', '/api/validate', (_req, res, _params, query) => {
-    try {
-      json(res, validateHarnessData(readHarness(harnessName(query)), readLibrary()));
-    } catch (error: any) {
-      err(res, error.message, 404);
-    }
-  });
-
-  addEditorRoute('PUT', '/api/layouts', async (req, res, _params, query) => {
-    const body = await parseBody(req);
-    if (!body) {
-      err(res, 'Request body required');
-      return;
-    }
-    const name = sanitizeName(harnessName(query) ?? 'fsae-car');
-    try {
-      const result = await commitHarnessSidecar(
-        req,
-        name,
-        'layouts',
-        () => readLayouts(name),
-        (previous) => ({
-          next: body as LayoutData,
-          value: undefined,
-          diff: diffLayouts(previous, body as LayoutData),
-        }),
-        (next) => writeLayouts(next, name),
-      );
-      setRevisionHeader(res, result.rev);
-      json(res, { ok: true, rev: result.rev });
-    } catch (error) {
-      writeError(res, error, 'Failed to save layouts');
-    }
-  });
-
-  addRoute('GET', '/api/layouts/merge-points', (_req, res, _params, query) => {
-    json(res, readLayouts(harnessName(query) ?? 'fsae-car').mergePoints ?? {});
-  });
-
-  addEditorRoute('POST', '/api/path-by-name', async (req, res, _params, query) => {
-    const body = await parseBody(req);
-    if (!body?.from_connector || body?.from_pin === undefined || !body?.to_connector || body?.to_pin === undefined) {
-      err(res, 'Required: from_connector, from_pin, to_connector, to_pin');
-      return;
-    }
-    const name = sanitizeName(harnessName(query) ?? 'fsae-car');
-    try {
-      const result = await commitHarnessDocument(req, name, 'harness', (harness) => {
-        const fromNode = resolveConnectorPathNode(harness, body.from_connector, body.from_pin);
-        const toNode = resolveConnectorPathNode(harness, body.to_connector, body.to_pin);
-        if (!fromNode || !toNode) {
-          throw new ApiWriteError(404, {
-            error: 'Could not resolve one or both connector pin references',
-          });
-        }
-        const pathItem: PathEntity = {
-          id: body.id ?? genId('path'),
-          name: body.name ?? body.id ?? genId('path'),
+        const signal: Signal = {
+          id: body.id ?? genId('sig'),
+          name: body.name,
           tags: body.tags ?? [],
           properties: body.properties ?? {},
-          nodes: [fromNode, toNode],
-          measurements: body.measurements ?? [],
         };
-        harness.paths.push(pathItem);
-        return { next: harness, value: pathItem };
+        if (harness.signals.some((existing) => existing.id === signal.id)) {
+          throw new ApiWriteError(409, {
+            error: `Signal with id '${signal.id}' already exists`,
+          });
+        }
+        harness.signals.push(signal);
+        return { next: harness, value: signal };
       });
       setRevisionHeader(res, result.rev);
       json(res, result.value, 201);
     } catch (error) {
-      writeError(res, error, 'Failed to create path');
+      writeError(res, error, 'Failed to create signal');
     }
   });
 
@@ -3203,7 +2720,7 @@ export function createApiMiddleware(projectRoot: string) {
         (previous) => {
           const bundles = mergeRecordPatch(previous.bundles, patch, removed);
           const next: ManufacturingDocument = {
-            schema_version: '1.1.0',
+            schema_version: '1.2.0',
             bundles,
           };
           return {
@@ -3227,14 +2744,6 @@ export function createApiMiddleware(projectRoot: string) {
   });
 
   addRoute('GET', '/api/list-assets', (_req, res) => {
-    try {
-      json(res, listImageFiles());
-    } catch {
-      json(res, []);
-    }
-  });
-
-  addRoute('GET', '/api/list-connector-assets', (_req, res) => {
     try {
       json(res, listImageFiles());
     } catch {

@@ -13,7 +13,6 @@ import {
   type HarnessData,
 } from './sheets.js';
 import {
-  bumpRev,
   getCollaborationPaths,
   getRev,
   withHarnessLock,
@@ -40,12 +39,6 @@ export interface CheckpointMeta {
 
 export interface CheckpointDetails extends CheckpointMeta {
   countDiff: EntityCounts;
-}
-
-export interface RestoreResult {
-  restored: CheckpointMeta;
-  automaticCheckpoint: CheckpointMeta;
-  rev: number;
 }
 
 export interface PruneResult {
@@ -387,12 +380,24 @@ function stageHistorySnapshot(harness: string, rev: number): string {
   }
 }
 
-function swapStagedPayload(
-  harness: string,
-  stagedRoot: string,
-  transactionRoot: string,
-): void {
-  const { userDataRoot } = getCollaborationPaths();
+/**
+ * Replaces this harness's `public/user-data` payload with the copy held in
+ * `snapshotRoot`, which may be either an automatic history snapshot or a named
+ * checkpoint's `files` directory.
+ *
+ * Every artifact is staged first, then installed with renames. A failure part
+ * way through unwinds the renames already performed so the on-disk payload is
+ * never left half-replaced.
+ */
+export function restoreManagedPayload(snapshotRoot: string, harness: string): void {
+  const { stateRoot, userDataRoot } = getCollaborationPaths();
+  const transactionRoot = path.join(
+    stateRoot,
+    'rollback-staging',
+    `${harness}.${process.pid}.${Date.now()}.${Math.random().toString(36).slice(2)}.tmp`,
+  );
+  const stagedRoot = path.join(transactionRoot, 'staged');
+  const backupRoot = path.join(transactionRoot, 'backup');
   const completed: Array<{
     target: string;
     backup: string;
@@ -402,11 +407,16 @@ function swapStagedPayload(
 
   try {
     for (const artifact of payloadArtifacts(harness)) {
+      const source = path.join(snapshotRoot, artifact.relativePath);
+      if (fs.existsSync(source)) {
+        copyPathExact(source, path.join(stagedRoot, artifact.relativePath));
+      }
+    }
+
+    for (const artifact of payloadArtifacts(harness)) {
       const target = path.join(userDataRoot, artifact.relativePath);
       const staged = path.join(stagedRoot, artifact.relativePath);
-      const backup = path.join(transactionRoot, 'backup', artifact.relativePath);
-      const targetExists = fs.existsSync(target);
-      const stagedExists = fs.existsSync(staged);
+      const backup = path.join(backupRoot, artifact.relativePath);
       const operation = {
         target,
         backup,
@@ -414,13 +424,12 @@ function swapStagedPayload(
         backedUp: false,
       };
       completed.push(operation);
-
-      if (targetExists) {
+      if (fs.existsSync(target)) {
         fs.mkdirSync(path.dirname(backup), { recursive: true });
         fs.renameSync(target, backup);
         operation.backedUp = true;
       }
-      if (stagedExists) {
+      if (fs.existsSync(staged)) {
         fs.mkdirSync(path.dirname(target), { recursive: true });
         fs.renameSync(staged, target);
         operation.installed = true;
@@ -435,41 +444,19 @@ function swapStagedPayload(
           fs.renameSync(operation.backup, operation.target);
         }
       } catch {
-        // Preserve the original restore failure; the auto-checkpoint is the
-        // authoritative manual recovery path if filesystem rollback also fails.
+        // Preserve the original failure. The history snapshot remains intact
+        // for manual recovery if the filesystem rollback also fails.
       }
     }
     throw error;
-  }
-}
-
-function restorePayload(harness: string, id: string): void {
-  const source = path.join(checkpointDir(harness, id), 'files');
-  if (
-    !fs.existsSync(path.join(source, 'harnesses', harness, 'root.json'))
-    && !fs.existsSync(path.join(source, 'harnesses', `${harness}.json`))
-  ) {
-    throw new Error(`Cannot restore checkpoint '${id}': harness payload is missing.`);
-  }
-
-  const transactionRoot = path.join(
-    getCollaborationPaths().stateRoot,
-    'restore-staging',
-    `${harness}.${id}.${process.pid}.${Date.now()}.tmp`,
-  );
-  try {
-    const stagedRoot = path.join(transactionRoot, 'staged');
-    copyPathExact(source, stagedRoot);
-    swapStagedPayload(harness, stagedRoot, transactionRoot);
-  } catch (error) {
-    throw new Error(
-      `Cannot restore checkpoint '${id}' for '${harness}': ${
-        error instanceof Error ? error.message : String(error)
-      }`,
-    );
   } finally {
     removePath(transactionRoot);
   }
+}
+
+/** Directory holding the byte-exact user-data payload for a named checkpoint. */
+export function checkpointPayloadDir(harness: string, id: string): string {
+  return path.join(checkpointDir(harness, id), 'files');
 }
 
 export async function snapshotToHistory(harness: string, rev: number): Promise<string> {
@@ -516,27 +503,6 @@ export function getCheckpoint(harness: string, id: string): CheckpointDetails {
       signals: saved.signals - current.signals,
     },
   };
-}
-
-export async function restoreCheckpoint(
-  harness: string,
-  id: string,
-  user: RevisionWriter,
-): Promise<RestoreResult> {
-  return await withHarnessLock(harness, async () => {
-    const restored = readCheckpointMeta(harness, id);
-    const automaticCheckpoint = createCheckpointLocked(
-      harness,
-      `Auto-saved before restoring "${restored.label}"`,
-      validateUser(user, `Cannot restore checkpoint '${id}'`),
-      true,
-    );
-
-    await snapshotToHistory(harness, getRev(harness));
-    restorePayload(harness, id);
-    const rev = await bumpRev(harness, user);
-    return { restored, automaticCheckpoint, rev };
-  });
 }
 
 export async function pruneHistory(harness: string): Promise<PruneResult> {

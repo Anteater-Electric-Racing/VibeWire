@@ -19,11 +19,12 @@ import {
   appendEditLog,
 } from '../server/editlog.js';
 import {
+  checkpointPayloadDir,
   createCheckpoint,
   getCheckpoint,
   listCheckpoints,
   pruneHistory,
-  restoreCheckpoint,
+  restoreManagedPayload,
   snapshotToHistory,
 } from '../server/history.js';
 import {
@@ -53,6 +54,37 @@ function copyIfPresent(source: string, destination: string): void {
   if (!fs.existsSync(source)) return;
   fs.mkdirSync(path.dirname(destination), { recursive: true });
   fs.cpSync(source, destination, { recursive: true });
+}
+
+interface RestoreOutcome {
+  restored: { id: string; label: string };
+  automaticCheckpoint: { id: string; label: string };
+  rev: number;
+}
+
+/**
+ * Mirrors the sequence `POST /api/checkpoints/:id/restore` performs, minus the
+ * HTTP layer and harness validation. Keeps this suite exercising the same
+ * persistence primitives the route uses instead of a parallel implementation.
+ */
+async function restoreCheckpoint(
+  harnessName: string,
+  id: string,
+  writer: RevisionWriter,
+): Promise<RestoreOutcome> {
+  return await withHarnessLock(harnessName, async () => {
+    const restored = getCheckpoint(harnessName, id);
+    const automaticCheckpoint = await createCheckpoint(
+      harnessName,
+      `Auto-saved before restoring "${restored.label}"`,
+      writer,
+      true,
+    );
+    await snapshotToHistory(harnessName, getRev(harnessName));
+    const rev = await bumpRev(harnessName, writer);
+    restoreManagedPayload(checkpointPayloadDir(harnessName, id), harnessName);
+    return { restored, automaticCheckpoint, rev };
+  });
 }
 
 function setupThrowawayProject(): void {

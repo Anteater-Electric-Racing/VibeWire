@@ -82,9 +82,18 @@ export default function App() {
   useEffect(() => {
     if (!sessionReady) return;
     fetch('/api/harnesses')
-      .then((response) => response.json() as Promise<string[]>)
-      .then((harnesses) => useHarnessStore.getState().setAvailableHarnesses(harnesses))
-      .catch(() => useHarnessStore.getState().setAvailableHarnesses(['fsae-car']));
+      .then((response) => response.json() as Promise<Array<{ id: string; name: string }>>)
+      .then((harnesses) => {
+        const store = useHarnessStore.getState();
+        store.setAvailableHarnesses(harnesses);
+        // The remembered harness can disappear (renamed or deleted on disk).
+        // Move to a real one instead of failing to boot.
+        const ids = harnesses.map((item) => item.id);
+        if (ids.length > 0 && !ids.includes(store.activeHarnessName)) {
+          store.setActiveHarnessName(ids.includes('fsae-car') ? 'fsae-car' : ids[0]);
+        }
+      })
+      .catch(() => useHarnessStore.getState().setAvailableHarnesses([{ id: 'fsae-car', name: 'fsae-car' }]));
   }, [sessionReady]);
 
   useEffect(() => {
@@ -146,8 +155,8 @@ export default function App() {
         fetch(`/api/manufacturing${nameParam}&v=${Date.now()}`)
           .then((response) => (response.ok
             ? response.json() as Promise<ManufacturingDocument>
-            : { schema_version: '1.1.0' as const, bundles: {} }))
-          .catch(() => ({ schema_version: '1.1.0' as const, bundles: {} })),
+            : { schema_version: '1.2.0' as const, bundles: {} }))
+          .catch(() => ({ schema_version: '1.2.0' as const, bundles: {} })),
       ]);
       if (cancelled) return;
       applyLoadedState(harness, layouts, subsystems, manufacturing);

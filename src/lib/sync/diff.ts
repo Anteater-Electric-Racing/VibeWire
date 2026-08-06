@@ -375,9 +375,17 @@ export function applyLayoutPatch(
       ),
     });
   }
-  const mergePoints = { ...base.mergePoints };
   const mergePointPatch = diff.patch.mergePoints ?? {};
   const removedMergePoints = diff.removed.mergePoints;
+  const hasMergePointChange = Object.keys(mergePointPatch).length > 0
+    || (Array.isArray(removedMergePoints)
+      ? removedMergePoints.length > 0
+      : Object.keys(removedMergePoints ?? {}).length > 0);
+  // Callers compare layout maps by reference to detect "nothing changed", so an
+  // empty patch has to hand back the exact same object.
+  if (!hasMergePointChange) return next;
+
+  const mergePoints = { ...base.mergePoints };
   if (mergePointMode === 'contexts') {
     for (const [contextKey, context] of Object.entries(mergePointPatch)) {
       mergePoints[contextKey] = context;

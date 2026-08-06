@@ -148,6 +148,17 @@
       "properties": {}
     },
     {
+      "id": "enc_029",
+      "name": "Inertia Switch",
+      "parent": null,
+      "container": false,
+      "tags": [
+        "system:safety",
+        "system:sdc"
+      ],
+      "properties": {}
+    },
+    {
       "id": "enc_028",
       "name": "BOTS",
       "parent": null,
@@ -160,17 +171,6 @@
       "properties": {
         "description": "Brake Over Travel Switch"
       }
-    },
-    {
-      "id": "enc_029",
-      "name": "Inertia Switch",
-      "parent": null,
-      "container": false,
-      "tags": [
-        "system:safety",
-        "system:sdc"
-      ],
-      "properties": {}
     },
     {
       "id": "enc_031",
@@ -466,7 +466,7 @@
       "id": "con_079",
       "name": "APPS Conn",
       "parent": "enc_036",
-      "connector_type": "generic_multipin",
+      "connector_type": "deutsch_dtm",
       "tags": [
         "system:sensors"
       ],
@@ -1335,7 +1335,32 @@
           "pin_number": 4
         }
       ],
-      "measurements": []
+      "measurements": [
+        {
+          "from": {
+            "kind": "connector",
+            "connector_id": "con_079",
+            "pin_number": 1
+          },
+          "to": {
+            "kind": "merge",
+            "merge_point_id": "mp_006"
+          },
+          "length_mm": 117
+        },
+        {
+          "from": {
+            "kind": "merge",
+            "merge_point_id": "mp_006"
+          },
+          "to": {
+            "kind": "port",
+            "port_id": "port_con_002",
+            "pin_number": 4
+          },
+          "length_mm": 117
+        }
+      ]
     },
     {
       "id": "path_137",
@@ -1362,7 +1387,32 @@
           "pin_number": 6
         }
       ],
-      "measurements": []
+      "measurements": [
+        {
+          "from": {
+            "kind": "connector",
+            "connector_id": "con_079",
+            "pin_number": 3
+          },
+          "to": {
+            "kind": "merge",
+            "merge_point_id": "mp_006"
+          },
+          "length_mm": 111
+        },
+        {
+          "from": {
+            "kind": "merge",
+            "merge_point_id": "mp_006"
+          },
+          "to": {
+            "kind": "port",
+            "port_id": "port_con_002",
+            "pin_number": 6
+          },
+          "length_mm": 123
+        }
+      ]
     },
     {
       "id": "path_138",
@@ -1387,7 +1437,32 @@
           "pin_number": 8
         }
       ],
-      "measurements": []
+      "measurements": [
+        {
+          "from": {
+            "kind": "connector",
+            "connector_id": "con_079",
+            "pin_number": 2
+          },
+          "to": {
+            "kind": "merge",
+            "merge_point_id": "mp_006"
+          },
+          "length_mm": 117
+        },
+        {
+          "from": {
+            "kind": "merge",
+            "merge_point_id": "mp_006"
+          },
+          "to": {
+            "kind": "port",
+            "port_id": "port_con_002",
+            "pin_number": 8
+          },
+          "length_mm": 117
+        }
+      ]
     },
     {
       "id": "path_139",
@@ -1412,7 +1487,32 @@
           "pin_number": 9
         }
       ],
-      "measurements": []
+      "measurements": [
+        {
+          "from": {
+            "kind": "connector",
+            "connector_id": "con_079",
+            "pin_number": 4
+          },
+          "to": {
+            "kind": "merge",
+            "merge_point_id": "mp_006"
+          },
+          "length_mm": 117
+        },
+        {
+          "from": {
+            "kind": "merge",
+            "merge_point_id": "mp_006"
+          },
+          "to": {
+            "kind": "port",
+            "port_id": "port_con_002",
+            "pin_number": 9
+          },
+          "length_mm": 117
+        }
+      ]
     },
     {
       "id": "path_140",
@@ -1437,7 +1537,32 @@
           "pin_number": 7
         }
       ],
-      "measurements": []
+      "measurements": [
+        {
+          "from": {
+            "kind": "connector",
+            "connector_id": "con_079",
+            "pin_number": 6
+          },
+          "to": {
+            "kind": "merge",
+            "merge_point_id": "mp_006"
+          },
+          "length_mm": 117
+        },
+        {
+          "from": {
+            "kind": "merge",
+            "merge_point_id": "mp_006"
+          },
+          "to": {
+            "kind": "port",
+            "port_id": "port_con_002",
+            "pin_number": 7
+          },
+          "length_mm": 117
+        }
+      ]
     },
     {
       "id": "path_141",
@@ -1462,7 +1587,32 @@
           "pin_number": 5
         }
       ],
-      "measurements": []
+      "measurements": [
+        {
+          "from": {
+            "kind": "connector",
+            "connector_id": "con_079",
+            "pin_number": 5
+          },
+          "to": {
+            "kind": "merge",
+            "merge_point_id": "mp_006"
+          },
+          "length_mm": 117
+        },
+        {
+          "from": {
+            "kind": "merge",
+            "merge_point_id": "mp_006"
+          },
+          "to": {
+            "kind": "port",
+            "port_id": "port_con_002",
+            "pin_number": 5
+          },
+          "length_mm": 117
+        }
+      ]
     },
     {
       "id": "path_auto_8beb28152493",
@@ -1478,8 +1628,8 @@
       "nodes": [
         {
           "kind": "port",
-          "port_id": "port_con_auto_85f658b3eda2_1",
-          "pin_number": 1
+          "port_id": "port_con_auto_ba1a71ebd23a_1",
+          "pin_number": 3
         },
         {
           "kind": "port",
@@ -1527,8 +1677,8 @@
       "nodes": [
         {
           "kind": "port",
-          "port_id": "port_con_auto_c07012f0fb3e_1",
-          "pin_number": 1
+          "port_id": "port_con_auto_ba1a71ebd23a_1",
+          "pin_number": 2
         },
         {
           "kind": "port",
@@ -1626,14 +1776,14 @@
       }
     },
     {
-      "id": "port_con_auto_85f658b3eda2_1",
+      "id": "port_con_auto_ba1a71ebd23a_1",
       "name": "Unresolved bulkhead — FOC",
       "target_child_id": "enc_001",
       "entity_parent": "enc_001",
       "entity_kind": "connector",
-      "connector_id": "con_auto_85f658b3eda2_1",
-      "connector_type": "deutsch_dtm",
-      "pin_count": 2,
+      "connector_id": "con_auto_ba1a71ebd23a_1",
+      "connector_type": "generic_multipin",
+      "pin_count": 3,
       "tags": [
         "generated",
         "unresolved",
@@ -1641,9 +1791,8 @@
         "system:demo"
       ],
       "properties": {
-        "generated_by_route": "path_auto_85f658b3eda2",
-        "boundary_sheet": "enc_001",
-        "image": "SCR-20260410-cknx.png"
+        "generated_by_route": "path_auto_ba1a71ebd23a",
+        "boundary_sheet": "enc_001"
       }
     },
     {
@@ -1665,48 +1814,20 @@
         "generated_by_route": "path_auto_8beb28152493",
         "boundary_sheet": "enc_002"
       }
-    },
-    {
-      "id": "port_con_auto_ba1a71ebd23a_1",
-      "name": "Unresolved bulkhead — FOC",
-      "target_child_id": "enc_001",
-      "entity_parent": "enc_001",
-      "entity_kind": "connector",
-      "connector_id": "con_auto_ba1a71ebd23a_1",
-      "connector_type": "generic_multipin",
-      "pin_count": 1,
-      "tags": [
-        "generated",
-        "unresolved",
-        "bulkhead",
-        "system:demo"
-      ],
-      "properties": {
-        "generated_by_route": "path_auto_ba1a71ebd23a",
-        "boundary_sheet": "enc_001"
-      }
-    },
-    {
-      "id": "port_con_auto_c07012f0fb3e_1",
-      "name": "Unresolved bulkhead — FOC",
-      "target_child_id": "enc_001",
-      "entity_parent": "enc_001",
-      "entity_kind": "connector",
-      "connector_id": "con_auto_c07012f0fb3e_1",
-      "connector_type": "generic_multipin",
-      "pin_count": 1,
-      "tags": [
-        "generated",
-        "unresolved",
-        "bulkhead",
-        "system:demo"
-      ],
-      "properties": {
-        "generated_by_route": "path_auto_c07012f0fb3e",
-        "boundary_sheet": "enc_001"
-      }
     }
   ],
   "name": "Fsae Car (working)",
-  "signalPropertyDefinitions": []
+  "signalPropertyDefinitions": [
+    {
+      "id": "signal_property_asaf",
+      "key": "asaf",
+      "name": "asaf",
+      "type": "select",
+      "options": [
+        "a",
+        "b",
+        "c"
+      ]
+    }
+  ]
 }

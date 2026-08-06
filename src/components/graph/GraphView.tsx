@@ -1,14 +1,17 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ReactFlow,
   Background,
   ConnectionMode,
+  ControlButton,
   Controls,
   Panel,
   SelectionMode,
   useNodesState,
   useEdgesState,
   useReactFlow,
+  useOnViewportChange,
+  useStore,
   useUpdateNodeInternals,
   type Node,
   type Edge,
@@ -21,6 +24,7 @@ import {
 import '@xyflow/react/dist/style.css';
 import { useHarnessStore } from '../../store';
 import type { ConnectorType } from '../../types';
+import type { PresenceTargetKind } from '../../types/collab';
 import { EnclosureNode } from './EnclosureNode';
 import { ConnectorNode } from './ConnectorNode';
 import { MergePointNode } from './MergePointNode';
@@ -28,12 +32,10 @@ import { BundleEdge } from './BundleEdge';
 import { BackgroundImageNode } from './BackgroundImageNode';
 import { TextBoxNode } from './TextBoxNode';
 import { ImagePickerPanel } from './ImagePickerPanel';
-import { itemMatchesFilters } from '../../lib/tags';
 import {
   countPathsTouchingConnectors,
   getConnectorOccupancy,
-  getConnectorPinGuideImage,
-  getConnectorSideImage,
+  getConnectorSchematicImage,
   getChildEnclosures,
   getEnclosureMergePoints,
   getEnclosurePorts,
@@ -41,13 +43,17 @@ import {
   getEntityRevealContext,
   getPathById,
   getPathSignalId,
+  getPathWireAppearance,
   getPortWireAppearance,
   getSpaceFreeConnectors,
   getSpaceFreeMergePoints,
   getVisibleSegments,
 } from '../../lib/harness';
 import { nearestOnPolyline, type Point } from '../../lib/paths';
-import { getWireAppearance } from '../../lib/colors';
+import {
+  getSheetViewport,
+  setSheetViewport,
+} from '../../lib/userPrefs';
 import {
   EXPANDED_CONNECTOR_Z_INDEX,
   getConnectorTablePinCount,
@@ -56,7 +62,16 @@ import {
 import {
   buildSubsystemGraphModel,
   deriveGraphWireGroups,
+  getAbsoluteNodeCenter,
   findOverlappingWallMountedPeer,
+  GRAPH_Z_BACKGROUND,
+  GRAPH_Z_CONNECTOR,
+  GRAPH_Z_ENCLOSURE,
+  GRAPH_Z_MERGE,
+  GRAPH_Z_SELECTED_WIRE,
+  GRAPH_Z_TEXT,
+  GRAPH_Z_WIRE,
+  JUNCTION_SNAP_RADIUS_PX,
   projectNodeToEnclosureWall,
   SUBSYSTEM_CONNECTOR_PREFIX,
   SUBSYSTEM_DEVICE_PREFIX,
@@ -64,10 +79,85 @@ import {
 } from './graphModel';
 
 const BG_NODE_ID = '__bg_image__';
+const ORIGIN_NODE_ID = '__origin__';
 const TB_NODE_PREFIX = '__tb_';
 const FREE_CON_PREFIX = '__freecon_';
 const ENC_CON_PREFIX = '__enccon_';
 const FREE_MERGE_PREFIX = '__freemerge_';
+/** Half-length of each origin cross arm, in flow units. */
+const ORIGIN_ARM_PX = 56;
+const ORIGIN_SIZE = ORIGIN_ARM_PX * 2;
+const STANDARD_ZOOM = 1;
+
+const OriginNode = memo(function OriginNode() {
+  const c = ORIGIN_ARM_PX;
+  return (
+    <div aria-hidden className="pointer-events-none" style={{ width: ORIGIN_SIZE, height: ORIGIN_SIZE }}>
+      <svg width={ORIGIN_SIZE} height={ORIGIN_SIZE} viewBox={`0 0 ${ORIGIN_SIZE} ${ORIGIN_SIZE}`}>
+        <line
+          x1={c}
+          y1={0}
+          x2={c}
+          y2={ORIGIN_SIZE}
+          stroke="#a1a1aa"
+          strokeWidth={1.5}
+        />
+        <line
+          x1={0}
+          y1={c}
+          x2={ORIGIN_SIZE}
+          y2={c}
+          stroke="#a1a1aa"
+          strokeWidth={1.5}
+        />
+      </svg>
+    </div>
+  );
+});
+
+const ORIGIN_NODE: Node = {
+  id: ORIGIN_NODE_ID,
+  type: 'origin',
+  // Top-left offset so the cross center sits on flow (0, 0).
+  position: { x: -ORIGIN_ARM_PX, y: -ORIGIN_ARM_PX },
+  draggable: false,
+  selectable: false,
+  focusable: false,
+  deletable: false,
+  connectable: false,
+  zIndex: GRAPH_Z_BACKGROUND,
+  style: { width: ORIGIN_SIZE, height: ORIGIN_SIZE },
+  data: {},
+};
+
+/** Map a React Flow node id to the collab presence / interaction target it represents. */
+function presenceTargetForGraphNode(
+  nodeId: string,
+): { kind: PresenceTargetKind; id: string } | null {
+  if (nodeId === BG_NODE_ID || nodeId === ORIGIN_NODE_ID) return null;
+  if (nodeId.startsWith(TB_NODE_PREFIX)) {
+    return { kind: 'textBox', id: nodeId.slice(TB_NODE_PREFIX.length) };
+  }
+  if (nodeId.startsWith(FREE_CON_PREFIX)) {
+    return { kind: 'connector', id: nodeId.slice(FREE_CON_PREFIX.length) };
+  }
+  if (nodeId.startsWith(ENC_CON_PREFIX)) {
+    return { kind: 'connector', id: nodeId.slice(ENC_CON_PREFIX.length) };
+  }
+  if (nodeId.startsWith(FREE_MERGE_PREFIX)) {
+    return { kind: 'mergePoint', id: nodeId.slice(FREE_MERGE_PREFIX.length) };
+  }
+  if (nodeId.startsWith(SUBSYSTEM_CONNECTOR_PREFIX)) {
+    return { kind: 'connector', id: nodeId.slice(SUBSYSTEM_CONNECTOR_PREFIX.length) };
+  }
+  if (nodeId.startsWith(SUBSYSTEM_DEVICE_PREFIX)) {
+    return { kind: 'enclosure', id: nodeId.slice(SUBSYSTEM_DEVICE_PREFIX.length) };
+  }
+  if (nodeId.startsWith(SUBSYSTEM_FRAME_PREFIX)) {
+    return { kind: 'enclosure', id: nodeId.slice(SUBSYSTEM_FRAME_PREFIX.length) };
+  }
+  return { kind: 'enclosure', id: nodeId };
+}
 
 const nodeTypes = {
   enclosure: EnclosureNode,
@@ -75,36 +165,9 @@ const nodeTypes = {
   mergePoint: MergePointNode,
   backgroundImage: BackgroundImageNode,
   textBox: TextBoxNode,
+  origin: OriginNode,
 };
 const edgeTypes = { bundle: BundleEdge };
-
-function getAbsoluteNodeCenter(nodeId: string, nodes: Node[]): Point | null {
-  const nodesById = new Map(nodes.map((node) => [node.id, node]));
-  const node = nodesById.get(nodeId);
-  if (!node) return null;
-
-  let x = node.position.x;
-  let y = node.position.y;
-  let parentId = node.parentId;
-  const visited = new Set([node.id]);
-  while (parentId && !visited.has(parentId)) {
-    visited.add(parentId);
-    const parent = nodesById.get(parentId);
-    if (!parent) break;
-    x += parent.position.x;
-    y += parent.position.y;
-    parentId = parent.parentId;
-  }
-
-  const style = node.style as { width?: number | string; height?: number | string } | undefined;
-  const width = node.measured?.width
-    ?? node.width
-    ?? (typeof style?.width === 'number' ? style.width : 0);
-  const height = node.measured?.height
-    ?? node.height
-    ?? (typeof style?.height === 'number' ? style.height : 0);
-  return { x: x + width / 2, y: y + height / 2 };
-}
 
 function AddTextBoxButton() {
   const { screenToFlowPosition } = useReactFlow();
@@ -130,14 +193,109 @@ function AddTextBoxButton() {
   );
 }
 
-function ViewportResetter({ viewportKey }: { viewportKey: string }) {
-  const { setViewport } = useReactFlow();
+/** Cleared on full page reload; survives in-app GraphView remounts (tab switches). */
+let hasHomedOnPageLoad = false;
+
+function ViewportMemory({
+  viewportKey,
+  userId,
+}: {
+  viewportKey: string;
+  userId: string | null;
+}) {
+  const { getViewport, setViewport, setCenter } = useReactFlow();
+  const width = useStore((state) => state.width);
+  const height = useStore((state) => state.height);
+  const activeKeyRef = useRef(viewportKey);
+  const userIdRef = useRef(userId);
+  const readyRef = useRef(false);
+  const appliedKeyRef = useRef<string | null>(null);
 
   useEffect(() => {
-    void setViewport({ x: 0, y: 0, zoom: 1 }, { duration: 0 });
-  }, [setViewport, viewportKey]);
+    // setCenter needs a measured pane; retry when width/height become available.
+    if (width <= 0 || height <= 0) return;
+
+    const previousKey = activeKeyRef.current;
+    const previousUserId = userIdRef.current;
+    const keyChanged = previousKey !== viewportKey;
+    const userChanged = previousUserId !== userId;
+    const alreadyApplied = appliedKeyRef.current === viewportKey
+      && !keyChanged
+      && !userChanged
+      && hasHomedOnPageLoad;
+
+    if (alreadyApplied) return;
+
+    readyRef.current = false;
+    if (previousKey && keyChanged) {
+      setSheetViewport(previousUserId, previousKey, getViewport());
+    } else if (previousKey && userChanged) {
+      // Session user resolved after pan — keep camera, re-key prefs to the user.
+      setSheetViewport(userId, previousKey, getViewport());
+    }
+
+    activeKeyRef.current = viewportKey;
+    userIdRef.current = userId;
+    appliedKeyRef.current = viewportKey;
+
+    const finish = () => {
+      requestAnimationFrame(() => {
+        readyRef.current = true;
+      });
+    };
+
+    // Full page load / refresh: always start centered on the origin.
+    // In-session sheet/tab changes still restore the saved camera below.
+    if (!hasHomedOnPageLoad) {
+      hasHomedOnPageLoad = true;
+      void setCenter(0, 0, { zoom: STANDARD_ZOOM, duration: 0 }).finally(finish);
+      return;
+    }
+
+    const saved = getSheetViewport(userId, viewportKey);
+    const apply = saved
+      ? setViewport(saved, { duration: 0 })
+      : setCenter(0, 0, { zoom: STANDARD_ZOOM, duration: 0 });
+    void Promise.resolve(apply).finally(finish);
+  }, [getViewport, setViewport, setCenter, userId, viewportKey, width, height]);
+
+  useOnViewportChange({
+    onEnd: (viewport) => {
+      if (!readyRef.current) return;
+      const key = activeKeyRef.current;
+      if (key) setSheetViewport(userIdRef.current, key, viewport);
+    },
+  });
+
+  useEffect(() => {
+    return () => {
+      const key = activeKeyRef.current;
+      if (!key) return;
+      setSheetViewport(userIdRef.current, key, getViewport());
+    };
+  }, [getViewport]);
 
   return null;
+}
+
+function OriginHomeButton() {
+  const { setCenter } = useReactFlow();
+
+  return (
+    <ControlButton
+      onClick={() => {
+        void setCenter(0, 0, { zoom: STANDARD_ZOOM, duration: 220 });
+      }}
+      title="Home to origin (0,0) at standard zoom"
+      aria-label="Home to origin"
+    >
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+        <path d="M2.5 7.5 L8 2.5 L13.5 7.5" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M4 7 v5.5 h8 V7" strokeLinecap="round" strokeLinejoin="round" />
+        <circle cx="8" cy="9.5" r="1.4" fill="currentColor" stroke="none" />
+      </svg>
+    </ControlButton>
+  );
 }
 
 function NodeGeometryUpdater({ nodes }: { nodes: Node[] }) {
@@ -256,7 +414,6 @@ export function GraphView() {
   const selectedItem = useHarnessStore((s) => s.selectedItem);
   const selectedBundle = useHarnessStore((s) => s.selectedBundle);
   const selectItem = useHarnessStore((s) => s.selectItem);
-  const activeFilters = useHarnessStore((s) => s.activeFilters);
   const drillDownEnclosure = useHarnessStore((s) => s.drillDownEnclosure);
   const setDrillDown = useHarnessStore((s) => s.setDrillDown);
   const textBoxLayouts = useHarnessStore((s) => s.textBoxLayouts);
@@ -284,6 +441,8 @@ export function GraphView() {
   const mutationError = useHarnessStore((s) => s.mutationError);
   const removeEntityFromActiveSubsystem = useHarnessStore((s) => s.removeEntityFromActiveSubsystem);
   const openSignalLibrary = useHarnessStore((s) => s.openSignalLibrary);
+  const setInteracting = useHarnessStore((s) => s.setInteracting);
+  const userId = useHarnessStore((s) => s.session.user?.id ?? null);
 
   const spaceId = drillDownEnclosure ?? null;
   const bgKey = spaceId ?? 'graph';
@@ -295,6 +454,7 @@ export function GraphView() {
   const reactFlowInstance = useRef<ReactFlowInstance<Node, Edge> | null>(null);
   const draggingNodes = useRef(new Set<string>());
   const didPushSnapshotForDrag = useRef(false);
+  const nodesRef = useRef<Node[]>([]);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [lassoMode, setLassoMode] = useState(false);
   const [placingRoutePoints, setPlacingRoutePoints] = useState(false);
@@ -374,6 +534,7 @@ export function GraphView() {
         deletable: false,
         position: pos,
         style: { width: size.w, height: size.h },
+        zIndex: GRAPH_Z_ENCLOSURE,
         selected: selectedItem?.type === 'enclosure' && selectedItem.id === enc.id,
         data: {
           enclosureId: enc.id,
@@ -381,7 +542,6 @@ export function GraphView() {
           tags: enc.tags,
           connectorCount: allConnectors.length,
           pathCount,
-          matchesFilter: itemMatchesFilters(enc.tags, activeFilters),
           isContainer: enc.container,
           image: enc.properties?.image,
           childEnclosureCount: childEncs.length,
@@ -419,7 +579,7 @@ export function GraphView() {
             ? projectNodeToEnclosureWall(conPos, conSize, size)
             : { x: conPos.x, y: conPos.y },
           style: { width: conSize.w, height: conSize.h },
-          zIndex: isExpanded ? EXPANDED_CONNECTOR_Z_INDEX : 0,
+          zIndex: isExpanded ? EXPANDED_CONNECTOR_Z_INDEX : GRAPH_Z_CONNECTOR,
           selected: selectedItem?.type === 'connector' && selectedItem.id === con.id,
           data: {
             label: con.name,
@@ -432,13 +592,9 @@ export function GraphView() {
               signalName: entry.signalName,
             })),
             pinCount: occupiedPins.length,
-            matchesFilter: itemMatchesFilters(con.tags, activeFilters),
             wireAppearance: getPortWireAppearance(harness, con),
             connectorTypeId: con.connector_type,
-            instanceImage: (con.properties?.image as string)
-              || getConnectorSideImage(con, conType)
-              || getConnectorPinGuideImage(con, conType)
-              || '',
+            instanceImage: getConnectorSchematicImage(con, conType, { bulkhead: wallMounted }) || '',
             wallMounted,
           },
         } as Node);
@@ -471,7 +627,7 @@ export function GraphView() {
         deletable: false,
         position: { x: pos.x, y: pos.y },
         style: { width: conSize.w, height: conSize.h },
-        zIndex: isExpanded ? EXPANDED_CONNECTOR_Z_INDEX : 0,
+        zIndex: isExpanded ? EXPANDED_CONNECTOR_Z_INDEX : GRAPH_Z_CONNECTOR,
         selected: selectedItem?.type === 'connector' && selectedItem.id === con.id,
         data: {
           label: con.name,
@@ -484,13 +640,9 @@ export function GraphView() {
             signalName: entry.signalName,
           })),
           pinCount: occupiedPins.length,
-          matchesFilter: itemMatchesFilters(con.tags, activeFilters),
           wireAppearance: getPortWireAppearance(harness, con),
           connectorTypeId: con.connector_type,
-          instanceImage: (con.properties?.image as string)
-            || getConnectorSideImage(con, conType)
-            || getConnectorPinGuideImage(con, conType)
-            || '',
+          instanceImage: getConnectorSchematicImage(con, conType, { bulkhead: false }) || '',
         },
       } as Node);
     }
@@ -505,12 +657,11 @@ export function GraphView() {
         deletable: false,
         position: { x: pos.x, y: pos.y },
         style: { width: size.w, height: size.h },
-        zIndex: 5,
+        zIndex: GRAPH_Z_MERGE,
         selected: selectedItem?.type === 'mergePoint' && selectedItem.id === mergePoint.id,
         data: {
           mergePointId: mergePoint.id,
           label: mergePoint.name,
-          matchesFilter: itemMatchesFilters(mergePoint.tags, activeFilters),
         },
       } as Node);
     }
@@ -531,7 +682,7 @@ export function GraphView() {
           locked: bg.locked,
           contextKey: bgKey,
         },
-        zIndex: -1000,
+        zIndex: GRAPH_Z_BACKGROUND,
         style: { width: bg.w, height: bg.h },
       } as Node);
     }
@@ -563,7 +714,7 @@ export function GraphView() {
           h: tb.h,
         },
         style: { width: tb.w, height: tb.h },
-        zIndex: 10,
+        zIndex: GRAPH_Z_TEXT,
       } as Node);
     }
 
@@ -606,16 +757,10 @@ export function GraphView() {
 
       const pathAppearances = bundle.pathIds.map((pathId) => {
         const path = getPathById(harness, pathId);
-        return path ? getWireAppearance(path) : getWireAppearance({ tags: [], properties: {} });
+        return path
+          ? getPathWireAppearance(path, harness)
+          : getPathWireAppearance({ tags: [], properties: {} }, harness);
       });
-      let matchesFilter = false;
-      for (const pathId of bundle.pathIds) {
-        const path = getPathById(harness, pathId);
-        const effectiveTags = path?.signal_id
-          ? [...path.tags, `signal:${path.signal_id.replace(/^sig_/, '')}`]
-          : path?.tags ?? [];
-        if (path && itemMatchesFilters(effectiveTags, activeFilters)) matchesFilter = true;
-      }
       const firstAppearance = pathAppearances[0];
       const bundleColor =
         firstAppearance && pathAppearances.every((appearance) => appearance.key === firstAppearance.key)
@@ -663,13 +808,12 @@ export function GraphView() {
         type: 'bundle',
         selected: !!isSelected,
         // Keep selected edges (and their bend-point handles) above other harnesses.
-        zIndex: isSelected ? 1000 : 0,
+        zIndex: isSelected ? GRAPH_Z_SELECTED_WIRE : GRAPH_Z_WIRE,
         data: {
           pathIds: bundle.pathIds,
           pathCount: bundle.pathIds.length,
           wireAppearances: pathAppearances,
           bundleColor,
-          matchesFilter,
           resolvedWaypoints,
           junctionMeta,
           sourceStub: 0,
@@ -681,7 +825,7 @@ export function GraphView() {
     return { graphNodes: gNodes, graphEdges: gEdges };
   }, [
     harness, nodeLayouts, sizeLayouts, freePortLayouts, portLayouts, selectedItem,
-    selectedBundle, activeFilters, backgroundLayouts, bgKey,
+    selectedBundle, backgroundLayouts, bgKey,
     textBoxLayouts, waypointLayouts, junctionLayouts, spaceId, mergePointLayouts,
     expandedNodes, expandedSizeOverrides, connectorLibrary,
   ]);
@@ -700,23 +844,67 @@ export function GraphView() {
       ? buildSubsystemGraphModel(
         harness,
         subsystem,
-        activeFilters,
         expandedNodes,
         selectedItem,
         expandedSizeOverrides,
         connectorTypesById,
+        waypointLayouts,
+        junctionLayouts,
+        selectedBundle,
+        portLayouts,
+        sizeLayouts,
       )
       : { graphNodes: [] as Node[], graphEdges: [] as Edge[] },
-    [harness, subsystem, activeFilters, expandedNodes, selectedItem, expandedSizeOverrides, connectorTypesById],
+    [
+      harness,
+      subsystem,
+      expandedNodes,
+      selectedItem,
+      expandedSizeOverrides,
+      connectorTypesById,
+      waypointLayouts,
+      junctionLayouts,
+      selectedBundle,
+      portLayouts,
+      sizeLayouts,
+    ],
   );
-  const { graphNodes, graphEdges } = editingSurface === 'subsystem'
-    ? subsystemGraph
-    : hierarchyGraph;
+  const { graphNodes, graphEdges } = useMemo(() => {
+    const base = editingSurface === 'subsystem' ? subsystemGraph : hierarchyGraph;
+    return {
+      // Fresh copy each rebuild so React Flow mutations never leak across views.
+      graphNodes: [{ ...ORIGIN_NODE }, ...base.graphNodes],
+      graphEdges: base.graphEdges,
+    };
+  }, [editingSurface, subsystemGraph, hierarchyGraph]);
 
   const [nodes, setNodes, onNodesChangeBase] = useNodesState(graphNodes);
   const [edges, setEdges] = useEdgesState(graphEdges);
+  nodesRef.current = nodes;
 
-  useEffect(() => { setNodes(graphNodes); }, [graphNodes, setNodes]);
+  // Reconcile store-derived nodes into React Flow without clobbering in-flight
+  // drag positions. Selection/sync/etc. rebuild graphNodes from persisted
+  // layouts; applying that wholesale mid-drag snaps connectors back to their
+  // pre-drag spot until mouseup.
+  useEffect(() => {
+    setNodes((current) => {
+      if (draggingNodes.current.size === 0) return graphNodes;
+      const liveById = new Map(current.map((node) => [node.id, node]));
+      return graphNodes.map((node) => {
+        if (!draggingNodes.current.has(node.id)) return node;
+        const live = liveById.get(node.id);
+        if (!live) return node;
+        return {
+          ...node,
+          position: live.position,
+          dragging: live.dragging ?? true,
+          measured: live.measured,
+          width: live.width,
+          height: live.height,
+        };
+      });
+    });
+  }, [graphNodes, setNodes]);
   useEffect(() => { setEdges(graphEdges); }, [graphEdges, setEdges]);
 
   // Auto-create junction when a waypoint is dropped near another edge
@@ -730,7 +918,14 @@ export function GraphView() {
     const draggedId = prev.edgeId;
     const dropPos = prev.position;
     const wpIdx = prev.waypointIndex;
-    const THRESHOLD = 50;
+    const zoom = reactFlowInstance.current?.getZoom() ?? 1;
+    const threshold = JUNCTION_SNAP_RADIUS_PX / Math.max(zoom, 0.001);
+    let nearestTarget: {
+      edge: Edge;
+      dist: number;
+      segIndex: number;
+      position: Point;
+    } | null = null;
 
     for (const edge of graphEdges) {
       if (edge.id === draggedId) continue;
@@ -738,43 +933,70 @@ export function GraphView() {
       const edgeData = edge.data as { resolvedWaypoints?: Point[] } | undefined;
       const resolvedWps = edgeData?.resolvedWaypoints ?? [];
 
-      const eNode = graphNodes.find((n) => n.id === edge.source);
-      const tNode = graphNodes.find((n) => n.id === edge.target);
-      if (!eNode || !tNode) continue;
+      const source = getAbsoluteNodeCenter(edge.source, nodes);
+      const target = getAbsoluteNodeCenter(edge.target, nodes);
+      if (!source || !target) continue;
 
-      const eSz = sizeLayouts[eNode.id] ?? { w: 220, h: 180 };
-      const tSz = sizeLayouts[tNode.id] ?? { w: 220, h: 180 };
-      const ePt: Point = { x: eNode.position.x + eSz.w / 2, y: eNode.position.y + eSz.h / 2 };
-      const tPt: Point = { x: tNode.position.x + tSz.w / 2, y: tNode.position.y + tSz.h / 2 };
-      const pts: Point[] = [ePt, ...resolvedWps, tPt];
-
-      const { dist, segIndex } = nearestOnPolyline(dropPos, pts);
-
-      if (dist < THRESHOLD) {
-        const currentWps = useHarnessStore.getState().waypointLayouts;
-        const dragWp = (currentWps[draggedId] ?? [])[wpIdx];
-        const existingJunctionId = dragWp && 'junctionId' in dragWp ? dragWp.junctionId : null;
-        const targetWps = currentWps[edge.id] ?? [];
-        const alreadyLinked =
-          existingJunctionId &&
-          targetWps.some((wp) => 'junctionId' in wp && wp.junctionId === existingJunctionId);
-
-        if (alreadyLinked) break;
-
-        pushUndoSnapshot(`junction:${existingJunctionId ?? draggedId}:link:${edge.id}`);
-        const insertAfterIndex = Math.max(0, segIndex - 1);
-
-        if (existingJunctionId) {
-          linkEdgeToJunction(existingJunctionId, edge.id, insertAfterIndex, dropPos);
-        } else {
-          const junctionId = createJunction(dropPos, draggedId, wpIdx);
-          linkEdgeToJunction(junctionId, edge.id, insertAfterIndex, dropPos);
-        }
-        commitUndoSnapshot();
-        break;
+      const polyline = [source, ...resolvedWps, target];
+      const result = nearestOnPolyline(dropPos, polyline);
+      if (
+        result.dist <= threshold
+        && (!nearestTarget || result.dist < nearestTarget.dist)
+      ) {
+        nearestTarget = {
+          edge,
+          dist: result.dist,
+          segIndex: result.segIndex,
+          position: result.nearest,
+        };
       }
     }
-  }, [draggingEdgeInfo, graphEdges, graphNodes, sizeLayouts, createJunction, isEditor, linkEdgeToJunction, pushUndoSnapshot, commitUndoSnapshot]);
+
+    if (!nearestTarget) return;
+
+    const currentWps = useHarnessStore.getState().waypointLayouts;
+    const dragWp = (currentWps[draggedId] ?? [])[wpIdx];
+    const existingJunctionId = dragWp && 'junctionId' in dragWp ? dragWp.junctionId : null;
+    const targetWps = currentWps[nearestTarget.edge.id] ?? [];
+    const alreadyLinked =
+      existingJunctionId &&
+      targetWps.some((wp) => 'junctionId' in wp && wp.junctionId === existingJunctionId);
+    if (alreadyLinked) return;
+
+    pushUndoSnapshot(`junction:${existingJunctionId ?? draggedId}:link:${nearestTarget.edge.id}`);
+    const insertAfterIndex = nearestTarget.segIndex - 1;
+
+    if (existingJunctionId) {
+      linkEdgeToJunction(
+        existingJunctionId,
+        nearestTarget.edge.id,
+        insertAfterIndex,
+        nearestTarget.position,
+      );
+    } else {
+      const junctionId = createJunction(
+        nearestTarget.position,
+        draggedId,
+        wpIdx,
+      );
+      linkEdgeToJunction(
+        junctionId,
+        nearestTarget.edge.id,
+        insertAfterIndex,
+        nearestTarget.position,
+      );
+    }
+    commitUndoSnapshot();
+  }, [
+    commitUndoSnapshot,
+    createJunction,
+    draggingEdgeInfo,
+    graphEdges,
+    isEditor,
+    linkEdgeToJunction,
+    nodes,
+    pushUndoSnapshot,
+  ]);
 
   const onNodesChange: OnNodesChange = useCallback(
     (changes: NodeChange[]) => {
@@ -784,11 +1006,12 @@ export function GraphView() {
         ));
         return;
       }
+      const currentNodes = nodesRef.current;
       const constrainedChanges = changes.map((change) => {
         if (change.type !== 'position' || !change.position) return change;
-        const node = nodes.find((candidate) => candidate.id === change.id);
+        const node = currentNodes.find((candidate) => candidate.id === change.id);
         if (!node?.parentId || !node.data.wallMounted) return change;
-        const parent = nodes.find((candidate) => candidate.id === node.parentId);
+        const parent = currentNodes.find((candidate) => candidate.id === node.parentId);
         const nodeStyle = node.style as { width?: number; height?: number } | undefined;
         const parentStyle = parent?.style as { width?: number; height?: number } | undefined;
         if (
@@ -821,8 +1044,10 @@ export function GraphView() {
       }
 
       for (const change of positionChanges) {
-        if (change.dragging) {
+        if (change.dragging && !draggingNodes.current.has(change.id)) {
           draggingNodes.current.add(change.id);
+          const target = presenceTargetForGraphNode(change.id);
+          if (target) setInteracting(target.kind, target.id, true);
         }
 
         // Only persist after a real node-drag end. NodeResizer emits position
@@ -830,7 +1055,12 @@ export function GraphView() {
         // rewriting subsystem layouts mid-resize and snapping sizes back.
         if (change.position && change.dragging === false) {
           draggingNodes.current.delete(change.id);
+          const target = presenceTargetForGraphNode(change.id);
+          if (target) setInteracting(target.kind, target.id, false);
           if (draggingNodes.current.size === 0) didPushSnapshotForDrag.current = false;
+          if (change.id === ORIGIN_NODE_ID) {
+            continue;
+          }
           if (change.id === BG_NODE_ID) {
             updateBackground(bgKey, { x: change.position.x, y: change.position.y });
           } else if (change.id.startsWith(TB_NODE_PREFIX)) {
@@ -855,9 +1085,9 @@ export function GraphView() {
             updateSubsystemEntityLayout('devices', deviceId, { ...previous, x: change.position.x, y: change.position.y });
           } else if (change.id.startsWith(SUBSYSTEM_CONNECTOR_PREFIX)) {
             const connectorId = change.id.slice(SUBSYSTEM_CONNECTOR_PREFIX.length);
-            const draggedNode = nodes.find((candidate) => candidate.id === change.id);
+            const draggedNode = currentNodes.find((candidate) => candidate.id === change.id);
             if (draggedNode?.data.wallMounted && draggedNode.parentId) {
-              const parent = nodes.find((candidate) => candidate.id === draggedNode.parentId);
+              const parent = currentNodes.find((candidate) => candidate.id === draggedNode.parentId);
               const parentStyle = parent?.style as { width?: number; height?: number } | undefined;
               const enclosureSize =
                 typeof parentStyle?.width === 'number' && typeof parentStyle.height === 'number'
@@ -875,7 +1105,7 @@ export function GraphView() {
                     },
                     wallMounted: true,
                   },
-                  nodes.map((candidate) => {
+                  currentNodes.map((candidate) => {
                     const style = candidate.style as { width?: number; height?: number } | undefined;
                     return {
                       id: candidate.id,
@@ -925,7 +1155,7 @@ export function GraphView() {
     },
     [isEditor, onNodesChangeBase, updateNodePosition, updateBackground, updateTextBox,
      updateFreePortLayout, updatePortLayout, updateMergePointLayout, updateSubsystemEntityLayout,
-     mergeBulkheadConnectors, subsystem, bgKey, pushUndoSnapshot, commitUndoSnapshot, nodes],
+     mergeBulkheadConnectors, subsystem, bgKey, pushUndoSnapshot, commitUndoSnapshot, setInteracting],
   );
 
   const placeRoutePoint = useCallback((event: React.MouseEvent): boolean => {
@@ -1196,18 +1426,22 @@ export function GraphView() {
         connectionMode={ConnectionMode.Loose}
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
-        fitView
-        fitViewOptions={{ padding: 0.3 }}
         minZoom={0.2}
         maxZoom={3}
+        // d3-zoom's dblclick handler calls stopImmediatePropagation, which
+        // swallows the double-click before React's delegated onDoubleClick can
+        // run. Nodes use double-click to drill in, so zoom-to-double-click has
+        // to stay off; the zoom controls and scroll wheel cover zooming.
+        zoomOnDoubleClick={false}
         proOptions={{ hideAttribution: true }}
-        defaultEdgeOptions={{ animated: false }}
+        defaultEdgeOptions={{ animated: false, zIndex: GRAPH_Z_WIRE }}
+        zIndexMode="manual"
         elevateEdgesOnSelect
         selectionOnDrag={lassoMode}
         panOnDrag={lassoMode ? false : true}
         selectionMode={SelectionMode.Partial}
       >
-        <ViewportResetter viewportKey={viewportKey} />
+        <ViewportMemory viewportKey={viewportKey} userId={userId} />
         <NodeGeometryUpdater nodes={nodes} />
         <EntityRevealController nodes={nodes} edges={edges} />
         <Background
@@ -1216,7 +1450,9 @@ export function GraphView() {
           size={1}
           color="#333"
         />
-        <Controls className="!bg-zinc-800 !border-zinc-600 !rounded !shadow-lg [&>button]:!bg-zinc-800 [&>button]:!border-zinc-600 [&>button]:!text-zinc-300 [&>button:hover]:!bg-zinc-700" />
+        <Controls className="!bg-zinc-800 !border-zinc-600 !rounded !shadow-lg [&>button]:!bg-zinc-800 [&>button]:!border-zinc-600 [&>button]:!text-zinc-300 [&>button:hover]:!bg-zinc-700">
+          <OriginHomeButton />
+        </Controls>
 
         {breadcrumbs.length > 0 && (
           <Panel position="top-left">

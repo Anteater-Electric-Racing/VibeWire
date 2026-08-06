@@ -95,7 +95,7 @@ vibewire-state/
   attribution/<harness>.json        # entityId -> { by, at, rev }
 ```
 
-Add `vibewire-state/` to `.gitignore`.
+`vibewire-state/` is gitignored: it is regenerable local runtime state, not source.
 
 **Snapshots are byte-exact file copies**, never re-serialized documents. Restore
 is a plain file copy that skips split/assemble entirely and therefore cannot
@@ -210,9 +210,13 @@ must never be the sole check. Non-editors receive **403**.
 
 Success response: `{ ok: true, rev: 43 }`.
 
-Existing entity-CRUD routes (`POST /api/connectors` etc.) keep working for
-scripts, bump the rev, and broadcast. They are exempt from CAS — they are
-inherently single-shot server-side operations.
+The narrow single-shot mutation routes (`POST /api/signals`, `POST /api/paths/route`) bump the rev and
+broadcast, but are exempt from CAS: they are server-side operations that read, mutate, and write
+under the harness lock in one step rather than submitting a client-side document.
+
+The general entity-CRUD routes this section originally referred to (`POST /api/connectors` and
+friends) no longer exist. The API only serves the UI now — see "What This Project Is" in
+`Architecture.md`.
 
 ### Live sync
 

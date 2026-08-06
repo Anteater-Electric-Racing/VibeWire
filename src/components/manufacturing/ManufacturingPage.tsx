@@ -1,19 +1,36 @@
-import { useMemo, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useHarnessStore } from '../../store';
+import type { ManufacturingTab } from '../../types';
 import {
   MANUFACTURING_STEPS,
   completedManufacturingComponentStepCount,
   deriveManufacturingBom,
   deriveManufacturingBundles,
+  deriveManufacturingHarnesses,
+  manufacturingTaskCompleted,
   manufacturingComponentSteps,
   manufacturingBomToCsv,
   matingBundleIdsForConnector,
   type ManufacturingBundle,
   type ManufacturingEndpoint,
+  type ManufacturingHarness,
   type ManufacturingLengthHop,
   type ManufacturingWire,
 } from '../../lib/manufacturing';
-import type { ManufacturingStep, SelectedItem } from '../../types';
+import { WIRE_COLOR_PRESETS } from '../../lib/colors';
+import { WIRE_GAUGE_PRESETS } from '../../lib/gauge';
+import {
+  ManufacturingHarnessVisualizer,
+  type ManufacturingVisualSelection,
+  type ManufacturingVisualTask,
+} from './ManufacturingHarnessVisualizer';
+import { ManufacturingConnectorGuide } from './ManufacturingConnectorGuide';
+import { ManufacturingProgressView } from './ManufacturingProgressView';
+import type {
+  ManufacturingConnectorGuideState,
+  ManufacturingStep,
+  SelectedItem,
+} from '../../types';
 
 function InspectorLink({
   item,
@@ -26,7 +43,7 @@ function InspectorLink({
   title?: string;
   children: ReactNode;
 }) {
-  const inspectEntity = useHarnessStore((state) => state.inspectEntity);
+  const inspectEntity = useHarnessStore((state) => state.inspectEntityQuiet);
   if (!item) {
     return <span className={className}>{children}</span>;
   }
@@ -42,7 +59,7 @@ function InspectorLink({
   );
 }
 
-type PageTab = 'cutlists' | 'bom';
+type PageTab = ManufacturingTab;
 
 interface WorkComponent {
   key: string;
@@ -211,7 +228,7 @@ function EndpointCell({
     ? { type: 'connector' as const, id: endpoint.connectorId }
     : null;
   return (
-    <div className="min-w-[120px]">
+    <div className="min-w-0">
       <div className="flex items-baseline gap-1 text-[11px] font-medium text-zinc-200">
         <InspectorLink item={connectorItem} className="min-w-0 truncate text-[11px] font-medium text-zinc-200">
           {endpoint.connectorName ?? endpoint.connectorId}
@@ -402,105 +419,114 @@ function WireLengthEditor({
   }, { distanceMm: 0, marks: [] }).marks;
 
   return (
-    <div className="min-w-[120px]">
-      <div className="flex items-center gap-1">
-        <input
-          type="number"
-          readOnly={!isEditor}
-          min={0}
-          step="any"
-          inputMode="decimal"
-          value={totalDraft}
-          onChange={(event) => setTotalDraft(event.target.value)}
-          onBlur={commitTotal}
-          onKeyDown={(event) => {
-            if (event.key === 'Enter') event.currentTarget.blur();
-            if (event.key === 'Escape') {
-              cancelBlur.current = true;
-              setTotalDraft(initialTotal);
-              event.currentTarget.blur();
-            }
-          }}
-          placeholder={wire.lengthLabel ?? 'Total needed'}
-          aria-label={`${wire.wireId} total cut length in millimeters`}
-          className={`w-20 bg-zinc-950 border rounded px-2 py-1.5 text-right font-mono text-[11px] focus:outline-none focus:border-amber-500 ${
-            wire.lengthMm === undefined
-              ? 'border-amber-800/60 text-amber-300 placeholder-amber-700'
-              : 'border-zinc-700 text-zinc-200'
-          }`}
-        />
-        <span className="text-[9px] text-zinc-500">mm</span>
-      </div>
-      {wire.lengthMm === undefined && wire.lengthLabel && (
-        <div className="mt-0.5 text-[8px] text-zinc-600">Legacy estimate</div>
-      )}
-      {spliceMarks.map((mark) => (
-        <div
-          key={`${wire.id}:${mark.label}`}
-          className="mt-1 text-[9px] font-medium text-violet-300"
-        >
-          Mark {mark.label}
-          <span className="text-violet-500">
-            {mark.distanceMm === undefined ? ' · position needed' : ` @ ${formatLength(mark.distanceMm)}`}
-          </span>
-        </div>
-      ))}
-
-      {showHopBreakdown && (
-        <details className="mt-1.5">
-          <summary className={`cursor-pointer text-[9px] ${
-            missingHop ? 'text-amber-500' : 'text-zinc-500 hover:text-zinc-300'
-          }`}>
-            {wire.hops.length} splice sections{missingHop ? ' · incomplete' : ''}
-          </summary>
-          <div className="mt-1.5 w-[270px] space-y-1.5 rounded border border-zinc-800 bg-zinc-950 p-2">
-            {wire.hops.map((hop) => (
-              <div key={`${wire.id}:${hop.segmentIndex}`} className="flex items-center gap-1.5">
-                <div
-                  className="min-w-0 flex-1 truncate text-[9px] text-zinc-400"
-                  title={`${hop.fromLabel} → ${hop.toLabel}`}
-                >
-                  {hop.fromLabel}
-                  <span className="text-zinc-600"> → </span>
-                  {hop.toLabel}
-                </div>
-                <input
-                  type="number"
-                  readOnly={!isEditor}
-                  min={0}
-                  step="any"
-                  inputMode="decimal"
-                  value={hopDrafts[hop.segmentIndex] ?? ''}
-                  onChange={(event) => setHopDrafts((current) => ({
-                    ...current,
-                    [hop.segmentIndex]: event.target.value,
-                  }))}
-                  onBlur={() => commitHop(hop)}
-                  onKeyDown={(event) => {
-                    if (event.key === 'Enter') event.currentTarget.blur();
-                    if (event.key === 'Escape') {
-                      cancelBlur.current = true;
-                      setHopDrafts((current) => ({
-                        ...current,
-                        [hop.segmentIndex]: hop.lengthMm === undefined ? '' : String(hop.lengthMm),
-                      }));
-                      event.currentTarget.blur();
-                    }
-                  }}
-                  placeholder="—"
-                  aria-label={`${wire.wireId} ${hop.fromLabel} to ${hop.toLabel} length in millimeters`}
-                  className={`w-14 bg-zinc-950 border rounded px-1.5 py-0.5 text-right font-mono text-[9px] focus:outline-none focus:border-amber-500 ${
-                    hop.lengthMm === undefined
-                      ? 'border-amber-800/60 text-amber-300'
-                      : 'border-zinc-700 text-zinc-300'
-                  }`}
-                />
-                <span className="text-[8px] text-zinc-600">mm</span>
-              </div>
-            ))}
+    <div className="min-w-[320px]">
+      <div className={`grid items-start gap-3 ${
+        showHopBreakdown ? 'grid-cols-[105px_minmax(190px,1fr)]' : 'grid-cols-1'
+      }`}>
+        <div>
+          <div className="flex items-center gap-1">
+            <input
+              type="number"
+              readOnly={!isEditor}
+              min={0}
+              step="any"
+              inputMode="decimal"
+              value={totalDraft}
+              onChange={(event) => setTotalDraft(event.target.value)}
+              onBlur={commitTotal}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') event.currentTarget.blur();
+                if (event.key === 'Escape') {
+                  cancelBlur.current = true;
+                  setTotalDraft(initialTotal);
+                  event.currentTarget.blur();
+                }
+              }}
+              placeholder={wire.lengthLabel ?? 'Total needed'}
+              aria-label={`${wire.wireId} total cut length in millimeters`}
+              className={`w-20 bg-zinc-950 border rounded px-2 py-1.5 text-right font-mono text-[11px] focus:outline-none focus:border-amber-500 ${
+                wire.lengthMm === undefined
+                  ? 'border-amber-800/60 text-amber-300 placeholder-amber-700'
+                  : 'border-zinc-700 text-zinc-200'
+              }`}
+            />
+            <span className="text-[9px] text-zinc-500">mm</span>
           </div>
-        </details>
-      )}
+          {wire.lengthMm === undefined && wire.lengthLabel && (
+            <div className="mt-0.5 text-[8px] text-zinc-600">Legacy estimate</div>
+          )}
+          {spliceMarks.map((mark) => (
+            <div
+              key={`${wire.id}:${mark.label}`}
+              className="mt-1 whitespace-normal text-[9px] font-medium text-violet-300"
+            >
+              Mark {mark.label}
+              <span className="text-violet-500">
+                {mark.distanceMm === undefined ? ' · position needed' : ` @ ${formatLength(mark.distanceMm)}`}
+              </span>
+            </div>
+          ))}
+        </div>
+
+        {showHopBreakdown && (
+          <div className="rounded-md border-2 border-zinc-800 bg-zinc-950/80 p-2">
+            <div className={`mb-1.5 text-[8px] font-semibold uppercase tracking-wide ${
+              missingHop ? 'text-amber-500' : 'text-zinc-500'
+            }`}>
+              Splice sections · {wire.hops.length}{missingHop ? ' · incomplete' : ''}
+            </div>
+            <div className="space-y-1.5">
+              {wire.hops.map((hop) => (
+                <div
+                  key={`${wire.id}:${hop.segmentIndex}`}
+                  className="grid grid-cols-[minmax(0,1fr)_56px_16px] items-center gap-1.5"
+                >
+                  <div
+                    className="min-w-0 truncate text-[9px] text-zinc-400"
+                    title={`${hop.fromLabel} → ${hop.toLabel}`}
+                  >
+                    {hop.fromLabel}
+                    <span className="text-zinc-600"> → </span>
+                    {hop.toLabel}
+                  </div>
+                  <input
+                    type="number"
+                    readOnly={!isEditor}
+                    min={0}
+                    step="any"
+                    inputMode="decimal"
+                    value={hopDrafts[hop.segmentIndex] ?? ''}
+                    onChange={(event) => setHopDrafts((current) => ({
+                      ...current,
+                      [hop.segmentIndex]: event.target.value,
+                    }))}
+                    onBlur={() => commitHop(hop)}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter') event.currentTarget.blur();
+                      if (event.key === 'Escape') {
+                        cancelBlur.current = true;
+                        setHopDrafts((current) => ({
+                          ...current,
+                          [hop.segmentIndex]: hop.lengthMm === undefined ? '' : String(hop.lengthMm),
+                        }));
+                        event.currentTarget.blur();
+                      }
+                    }}
+                    placeholder="—"
+                    aria-label={`${wire.wireId} ${hop.fromLabel} to ${hop.toLabel} length in millimeters`}
+                    className={`w-14 bg-zinc-950 border rounded px-1.5 py-0.5 text-right font-mono text-[9px] focus:outline-none focus:border-amber-500 ${
+                      hop.lengthMm === undefined
+                        ? 'border-amber-800/60 text-amber-300'
+                        : 'border-zinc-700 text-zinc-300'
+                    }`}
+                  />
+                  <span className="text-[8px] text-zinc-600">mm</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -512,21 +538,34 @@ function WireRow({
   wire: ManufacturingWire;
   bundle: ManufacturingBundle;
 }) {
-  const signalItem = wire.signalId
-    ? { type: 'signal' as const, id: wire.signalId }
-    : null;
+  const harness = useHarnessStore((state) => state.harness);
+  const updatePathProperty = useHarnessStore((state) => state.updatePathProperty);
+  const isEditor = useHarnessStore((state) => state.session.isEditor);
+  const path = harness?.paths.find((candidate) => candidate.id === wire.pathId);
+  const explicitColor = path?.properties.wire_color ?? path?.properties.color ?? '';
+  const explicitGauge = path?.properties.wire_gauge ?? '';
+  const colorOptions = Array.from(new Set([
+    ...WIRE_COLOR_PRESETS,
+    'white/blue',
+    'white/brown',
+    'black/orange',
+    'black/green',
+    explicitColor,
+  ].filter(Boolean)));
 
   return (
     <tr className="border-b border-zinc-800/80 align-top hover:bg-zinc-900/70">
       <td className="px-3 py-2">
-        <div className="font-mono text-xs font-semibold text-amber-300">{wire.wireId}</div>
         <InspectorLink
-          item={signalItem}
-          className="mt-0.5 block max-w-[160px] truncate text-[10px] text-zinc-400"
-          title="Open signal in inspector"
+          item={{ type: 'path', id: wire.pathId }}
+          className="font-mono text-xs font-semibold text-amber-300"
+          title="Open path in inspector without moving the camera"
         >
-          {wire.signalName || wire.pathName}
+          {wire.wireId}
         </InspectorLink>
+        <div className="mt-0.5 max-w-[180px] truncate text-[10px] text-zinc-400">
+          {wire.signalName || wire.pathName}
+        </div>
         {wire.issues.length > 0 && (
           <div className="mt-1 text-[9px] text-amber-500">
             ⚠ {wire.issues.join(' · ')}
@@ -543,20 +582,58 @@ function WireRow({
         />
       </td>
       <td className="px-3 py-2">
-        <div className="text-[11px] font-medium text-zinc-200">
-          {wire.color || '—'}
-          {wire.colorInferred && (
-            <span className="ml-1 text-[8px] text-sky-500">default</span>
-          )}
-        </div>
-        <div className={`text-[9px] mt-0.5 ${wire.gauge ? 'text-zinc-500' : 'text-amber-500'}`}>
-          {wire.gauge || 'Gauge missing'}
-          {wire.gaugeInferred ? ' · inferred' : ''}
+        <div className="space-y-1">
+          <select
+            disabled={!isEditor}
+            value={explicitColor}
+            onChange={(event) => updatePathProperty(
+              wire.pathId,
+              'wire_color',
+              event.target.value,
+            )}
+            className="w-full rounded border border-zinc-700 bg-zinc-950 px-1.5 py-1 text-[9px] text-zinc-200 focus:border-amber-500 focus:outline-none disabled:opacity-50"
+            aria-label={`${wire.wireId} wire color`}
+          >
+            <option value="">Auto · {wire.color || 'none'}</option>
+            {colorOptions.map((color) => (
+              <option key={color} value={color}>{color}</option>
+            ))}
+          </select>
+          <select
+            disabled={!isEditor}
+            value={explicitGauge}
+            onChange={(event) => updatePathProperty(
+              wire.pathId,
+              'wire_gauge',
+              event.target.value,
+            )}
+            className={`w-full rounded border bg-zinc-950 px-1.5 py-1 text-[9px] focus:border-amber-500 focus:outline-none disabled:opacity-50 ${
+              wire.gauge ? 'border-zinc-700 text-zinc-300' : 'border-amber-800 text-amber-300'
+            }`}
+            aria-label={`${wire.wireId} wire gauge`}
+          >
+            <option value="">Auto · {wire.gauge || 'missing'}</option>
+            {Array.from(new Set([...WIRE_GAUGE_PRESETS, explicitGauge].filter(Boolean))).map(
+              (gauge) => <option key={gauge} value={gauge}>{gauge}</option>,
+            )}
+          </select>
         </div>
       </td>
-      <td className="px-3 py-2"><EndpointCell endpoint={wire.from} /></td>
       <td className="px-3 py-2">
-        <EndpointCell endpoint={wire.to} crimpOwned={!wire.fromCrimpOnly} />
+        <div className="grid min-w-0 grid-cols-2 divide-x divide-zinc-800">
+          <div className="min-w-0 pr-2">
+            <div className="mb-1 text-[8px] font-semibold uppercase tracking-wide text-zinc-600">
+              A
+            </div>
+            <EndpointCell endpoint={wire.from} />
+          </div>
+          <div className="min-w-0 pl-2">
+            <div className="mb-1 text-[8px] font-semibold uppercase tracking-wide text-zinc-600">
+              B
+            </div>
+            <EndpointCell endpoint={wire.to} crimpOwned={!wire.fromCrimpOnly} />
+          </div>
+        </div>
       </td>
     </tr>
   );
@@ -657,6 +734,34 @@ function ComponentWorkCard({
   const mateBundleIds = component.kind === 'connector'
     ? matingBundleIdsForConnector(bundles, bundle.id, component.entityId)
     : [];
+  const changeGender = (nextGender: 'male' | 'female' | undefined) => {
+    const expectedMate = nextGender === 'male'
+      ? 'female'
+      : nextGender === 'female'
+        ? 'male'
+        : undefined;
+    const conflicts = mateBundleIds.filter((mateBundleId) => {
+      const assigned =
+        manufacturing.bundles[mateBundleId]?.endpoint_genders?.[component.entityId];
+      return assigned !== undefined && assigned !== expectedMate;
+    });
+    if (conflicts.length === 0) {
+      updateGender(bundle.id, component.entityId, nextGender, mateBundleIds);
+      return;
+    }
+    const changeMate = window.confirm([
+      `${conflicts.length} mating connector assignment${conflicts.length === 1 ? '' : 's'} conflict.`,
+      '',
+      `OK: change the mating side${conflicts.length === 1 ? '' : 's'} to ${expectedMate ?? 'unassigned'}.`,
+      'Cancel: keep the other side and leave an unresolved flag.',
+    ].join('\n'));
+    updateGender(
+      bundle.id,
+      component.entityId,
+      nextGender,
+      changeMate ? mateBundleIds : [],
+    );
+  };
   const inspectorItem: SelectedItem = component.kind === 'connector'
     ? { type: 'connector', id: component.entityId }
     : { type: 'mergePoint', id: component.entityId };
@@ -694,11 +799,8 @@ function ComponentWorkCard({
           <select
             disabled={!isEditor}
             value={gender ?? ''}
-            onChange={(event) => updateGender(
-              bundle.id,
-              component.entityId,
+            onChange={(event) => changeGender(
               (event.target.value || undefined) as 'male' | 'female' | undefined,
-              mateBundleIds,
             )}
             className={`shrink-0 rounded border bg-zinc-950 px-1.5 py-1 text-[9px] focus:outline-none focus:border-amber-500 ${
               gender ? 'border-zinc-700 text-zinc-200' : 'border-amber-800 text-amber-400'
@@ -715,6 +817,10 @@ function ComponentWorkCard({
       <div className="mt-1 flex min-h-4 items-center gap-2 text-[9px]">
         {component.kind === 'connector' ? (
           <>
+            <span className={gender ? 'text-zinc-300' : 'text-amber-500'}>
+              {gender === 'male' ? '🍆' : gender === 'female' ? '🍑' : '🍆/🍑'}
+              {' '}{endpoint?.familyCode ?? endpoint?.familyName ?? 'Unknown'} {gender ?? 'gender needed'}
+            </span>
             <span className={crimpPartNumber ? 'font-mono text-sky-300' : 'text-amber-500'}>
               {crimpPartNumber ?? 'Select contact gender'}
             </span>
@@ -790,107 +896,333 @@ function EmptyManufacturing() {
 }
 
 function BundleCutList({
-  bundle,
+  manufacturingHarness,
   bundles,
 }: {
-  bundle: ManufacturingBundle;
+  manufacturingHarness: ManufacturingHarness;
   bundles: ManufacturingBundle[];
 }) {
+  const harness = useHarnessStore((state) => state.harness);
+  const connectorLibrary = useHarnessStore((state) => state.connectorLibrary);
   const manufacturing = useHarnessStore((state) => state.manufacturing);
   const updateNotes = useHarnessStore((state) => state.updateManufacturingNotes);
+  const updateTasks = useHarnessStore((state) => state.updateManufacturingTasks);
+  const updateGender = useHarnessStore(
+    (state) => state.updateManufacturingEndpointGender,
+  );
+  const inspectEntityQuiet = useHarnessStore((state) => state.inspectEntityQuiet);
+  const openConnectorLibrary = useHarnessStore((state) => state.openConnectorLibrary);
   const isEditor = useHarnessStore((state) => state.session.isEditor);
   const showBundleInHierarchy = useHarnessStore(
     (state) => state.showBundleInHierarchy,
   );
-  const progress = manufacturing.bundles[bundle.id] ?? { steps: {} };
-  const pathIds = Array.from(new Set(bundle.wires.map((wire) => wire.pathId)));
-  const components = deriveWorkComponents(bundle);
-  const completedComponents = components.filter((component) =>
-    completedManufacturingComponentStepCount(
-      manufacturing,
-      bundle.id,
-      component.key,
-    ) === MANUFACTURING_STEPS.length
+  const [selection, setSelection] = useState<ManufacturingVisualSelection | null>(null);
+  const trunk = manufacturingHarness.bundles.find(
+    (bundle) => bundle.id === manufacturingHarness.trunkBundleId,
+  ) ?? manufacturingHarness.bundles[0];
+  if (!harness || !trunk) return null;
+  const progress = manufacturing.bundles[trunk.id] ?? { steps: {} };
+  const bundleById = new Map(
+    manufacturingHarness.bundles.map((bundle) => [bundle.id, bundle]),
+  );
+
+  const applyVisualTasks = (tasks: ManufacturingVisualTask[]) => {
+    if (!isEditor) return;
+    const byBundle = new Map<string, ManufacturingVisualTask[]>();
+    for (const task of tasks) {
+      byBundle.set(task.bundleId, [...(byBundle.get(task.bundleId) ?? []), task]);
+    }
+    for (const [bundleId, grouped] of byBundle) {
+      updateTasks(bundleId, grouped.map((task) => task.update));
+    }
+  };
+
+  const spliceComplete = (spliceId: string): boolean =>
+    manufacturingHarness.bundleIds.some(
+      (bundleId) => manufacturing.bundles[bundleId]?.splice_measured?.[spliceId],
+    );
+
+  const ownerBundleForConnector = (connectorId: string): ManufacturingBundle | undefined => {
+    const candidates = manufacturingHarness.bundles.filter(
+      (bundle) => bundle.connectorIds.includes(connectorId),
+    );
+    return candidates.find(
+      (bundle) => manufacturing.bundles[bundle.id]?.endpoint_genders?.[connectorId],
+    ) ?? candidates[0];
+  };
+
+  const genderConflictFor = (
+    connectorId: string,
+    ownerBundleId: string,
+  ): string | undefined => {
+    const ownerGender =
+      manufacturing.bundles[ownerBundleId]?.endpoint_genders?.[connectorId];
+    if (!ownerGender) return undefined;
+    const expected = ownerGender === 'male' ? 'female' : 'male';
+    const conflicting = matingBundleIdsForConnector(
+      bundles,
+      ownerBundleId,
+      connectorId,
+    ).filter((bundleId) => {
+      const gender = manufacturing.bundles[bundleId]?.endpoint_genders?.[connectorId];
+      return gender && gender !== expected;
+    });
+    return conflicting.length > 0
+      ? `${conflicting.length} mating side${conflicting.length === 1 ? '' : 's'} should be ${expected}`
+      : undefined;
+  };
+
+  const changeGender = (
+    connectorId: string,
+    bundleId: string,
+    gender: 'male' | 'female' | undefined,
+  ) => {
+    if (!isEditor) return;
+    const mateBundleIds = matingBundleIdsForConnector(bundles, bundleId, connectorId);
+    const expectedMate = gender === 'male'
+      ? 'female'
+      : gender === 'female'
+        ? 'male'
+        : undefined;
+    const assignedConflicts = mateBundleIds.filter((mateBundleId) => {
+      const assigned =
+        manufacturing.bundles[mateBundleId]?.endpoint_genders?.[connectorId];
+      return assigned !== undefined && assigned !== expectedMate;
+    });
+    if (assignedConflicts.length === 0) {
+      updateGender(bundleId, connectorId, gender, mateBundleIds);
+      return;
+    }
+    const changeMate = window.confirm([
+      `${assignedConflicts.length} mating side${assignedConflicts.length === 1 ? ' is' : 's are'} already assigned.`,
+      '',
+      `OK: set the other side${assignedConflicts.length === 1 ? '' : 's'} to ${expectedMate ?? 'unassigned'}.`,
+      'Cancel: keep the other assignment and leave a visible unresolved flag.',
+    ].join('\n'));
+    updateGender(
+      bundleId,
+      connectorId,
+      gender,
+      changeMate ? mateBundleIds : [],
+    );
+  };
+
+  const allWireTasks = manufacturingHarness.bundles.flatMap((bundle) =>
+    bundle.wires.flatMap((wire) => {
+      const tasks: ManufacturingVisualTask[] = [{
+        bundleId: bundle.id,
+        update: {
+          kind: 'wire-cut',
+          wireId: wire.id,
+          completed: true,
+          lengthMm: wire.lengthMm,
+        },
+      }];
+      if (wire.from.kind === 'connector') {
+        tasks.push({
+          bundleId: bundle.id,
+          update: {
+            kind: 'wire-end',
+            wireId: wire.id,
+            end: 'from',
+            connectorId: wire.from.connectorId,
+            completed: true,
+          },
+        });
+      }
+      if (wire.to.kind === 'connector' && !wire.fromCrimpOnly) {
+        tasks.push({
+          bundleId: bundle.id,
+          update: {
+            kind: 'wire-end',
+            wireId: wire.id,
+            end: 'to',
+            connectorId: wire.to.connectorId,
+            completed: true,
+          },
+        });
+      }
+      return tasks;
+    }),
+  );
+  const completedWireTasks = allWireTasks.filter((task) =>
+    manufacturingTaskCompleted(manufacturing.bundles[task.bundleId], task.update)
   ).length;
+  const completedSplices = manufacturingHarness.spliceIds.filter(spliceComplete).length;
+  const verifiedGuides = manufacturingHarness.connectorIds.filter((connectorId) =>
+    manufacturingHarness.bundleIds.some(
+      (bundleId) =>
+        manufacturing.bundles[bundleId]?.connector_guide_states?.[connectorId]
+        === 'verified',
+    )
+  ).length;
+  const visualCompleted = completedWireTasks + completedSplices + verifiedGuides;
+  const visualTotal =
+    allWireTasks.length
+    + manufacturingHarness.spliceIds.length
+    + manufacturingHarness.connectorIds.length;
+
+  const selectedBundle = selection && 'bundleId' in selection
+    ? bundleById.get(selection.bundleId)
+    : undefined;
+  const selectedComponent = selection?.kind === 'endpoint' && selectedBundle
+    ? deriveWorkComponents(selectedBundle).find((component) => {
+        const wire = selectedBundle.wires.find((candidate) => candidate.id === selection.wireId);
+        return component.kind === 'connector'
+          && component.entityId === wire?.[selection.end].connectorId;
+      })
+    : selection?.kind === 'splice' && selectedBundle
+      ? deriveWorkComponents(selectedBundle).find(
+          (component) => component.kind === 'splice'
+            && component.entityId === selection.spliceId,
+        )
+      : undefined;
 
   return (
-    <div className="h-full min-h-0 flex flex-col">
+    <div className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden">
       <div className="shrink-0 border-b border-zinc-800 bg-zinc-900/30 px-3 py-2.5">
         <div className="flex items-center gap-3">
           <div className="min-w-0 flex-1">
             <div className="flex items-baseline gap-2">
-              <h2 className="truncate text-sm font-semibold text-zinc-100">{bundle.name}</h2>
+              <button
+                type="button"
+                onClick={() => showBundleInHierarchy(manufacturingHarness.pathIds)}
+                className="truncate text-left text-sm font-semibold text-zinc-100 hover:text-amber-300 hover:underline"
+                title="Open this whole harness on the canvas and frame it"
+              >
+                {manufacturingHarness.name}
+              </button>
               <span className="shrink-0 text-[9px] text-zinc-500">
-                {bundle.wires.length} wire{bundle.wires.length === 1 ? '' : 's'}
+                {manufacturingHarness.wireCount} wire{manufacturingHarness.wireCount === 1 ? '' : 's'}
                 {' · '}
-                {formatLength(bundle.knownLengthMm)}
-                {bundle.issueCount > 0 && (
-                  <span className="text-amber-500"> · {bundle.issueCount} issues</span>
+                {formatLength(manufacturingHarness.knownLengthMm)}
+                {manufacturingHarness.issueCount > 0 && (
+                  <span className="text-amber-500"> · {manufacturingHarness.issueCount} issues</span>
                 )}
               </span>
             </div>
-            <p className="mt-0.5 truncate font-mono text-[8px] text-zinc-600">{bundle.id}</p>
+            <p className="mt-0.5 truncate text-[8px] text-zinc-600">
+              Click a wire for its inspector · click the harness name to move the canvas
+            </p>
           </div>
           <div className="w-44 shrink-0">
             <BundleNotes
-            key={`${bundle.id}:${isEditor ? 'editable' : 'read-only'}`}
+            key={`${trunk.id}:${isEditor ? 'editable' : 'read-only'}`}
               value={progress.notes ?? ''}
-              onSave={(notes) => updateNotes(bundle.id, notes)}
+              onSave={(notes) => updateNotes(trunk.id, notes)}
             />
           </div>
-          <div className={`shrink-0 text-[10px] font-semibold ${
-            completedComponents === components.length ? 'text-emerald-400' : 'text-amber-400'
-          }`}>
-            {completedComponents}/{components.length} ends done
+          <div className="w-32 shrink-0">
+            <div className={`mb-1 text-right text-[9px] font-semibold ${
+              visualCompleted === visualTotal ? 'text-emerald-400' : 'text-amber-400'
+            }`}>
+              {visualCompleted}/{visualTotal} visual tasks
+            </div>
+            <ProgressBar completed={visualCompleted} total={visualTotal} />
           </div>
           <button
             type="button"
-            onClick={() => showBundleInHierarchy(pathIds)}
+            onClick={() => showBundleInHierarchy(manufacturingHarness.pathIds)}
             className="shrink-0 rounded border border-zinc-700 bg-zinc-900 px-2 py-1.5 text-[9px] text-zinc-400 hover:border-amber-700 hover:text-amber-300"
             title="Show this harness in the hierarchy canvas"
           >
-            Hierarchy ↗
+            View harness ↗
           </button>
-        </div>
-
-        <div className="mt-2 grid grid-cols-1 gap-2 lg:grid-cols-2">
-          {components.map((component) => (
-            <ComponentWorkCard
-              key={component.key}
-              bundle={bundle}
-              bundles={bundles}
-              component={component}
-            />
-          ))}
         </div>
       </div>
 
-      <div className="flex-1 min-h-0 overflow-auto">
-        <table className="w-full min-w-[720px] table-fixed border-collapse">
-          <thead className="sticky top-0 z-10 bg-zinc-900">
-            <tr className="border-b border-zinc-700">
-              {[
-                ['Wire / signal', 'w-[22%]'],
-                ['Cut + marks', 'w-[20%]'],
-                ['Material', 'w-[15%]'],
-                ['End A', 'w-[21.5%]'],
-                ['End B', 'w-[21.5%]'],
-              ].map(([label, width]) => (
-                <th
-                  key={label}
-                  className={`${width} px-3 py-2 text-left text-[9px] font-semibold uppercase tracking-wider text-zinc-500`}
-                >
-                  {label}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {bundle.wires.map((wire) => (
-              <WireRow key={wire.id} wire={wire} bundle={bundle} />
-            ))}
-          </tbody>
-        </table>
+      <div className="flex min-h-0 min-w-0 flex-1 overflow-hidden">
+        <div className="flex min-w-0 basis-0 flex-1 flex-col overflow-hidden">
+          <div className="h-[58%] min-h-[360px] shrink-0 overflow-hidden border-b border-zinc-800">
+            <ManufacturingHarnessVisualizer
+              harness={manufacturingHarness}
+              manufacturing={manufacturing}
+              selection={selection}
+              onSelect={setSelection}
+              onInspectPath={(pathId) => inspectEntityQuiet({ type: 'path', id: pathId })}
+              onTasks={applyVisualTasks}
+            />
+          </div>
+
+          <div className="flex-1 min-h-[180px] overflow-auto bg-zinc-950">
+            {selectedComponent && selectedBundle && (
+              <div className="sticky left-0 top-0 z-20 border-b border-zinc-800 bg-zinc-950 p-2">
+                <ComponentWorkCard
+                  bundle={selectedBundle}
+                  bundles={bundles}
+                  component={selectedComponent}
+                />
+              </div>
+            )}
+            <table className="w-full min-w-[1000px] table-fixed border-collapse">
+              <thead className="sticky top-0 z-10 bg-zinc-900">
+                <tr className="border-b border-zinc-700">
+                  {[
+                    ['Wire / signal', 'w-[18%]'],
+                    ['Cut + splice sections', 'w-[40%]'],
+                    ['Material', 'w-[14%]'],
+                    ['Connector ends', 'w-[28%]'],
+                  ].map(([label, width]) => (
+                    <th
+                      key={label}
+                      className={`${width} px-3 py-2 text-left text-[9px] font-semibold uppercase tracking-wider text-zinc-500`}
+                    >
+                      {label}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {manufacturingHarness.bundles.flatMap((bundle) =>
+                  bundle.wires.map((wire) => (
+                    <WireRow key={`${bundle.id}:${wire.id}`} wire={wire} bundle={bundle} />
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <aside className="w-[380px] shrink-0 overflow-y-auto border-l-4 border-zinc-800 bg-zinc-950 2xl:w-[440px]">
+          <div className="sticky top-0 z-20 border-b-2 border-zinc-800 bg-zinc-950/95 px-3 py-2.5 backdrop-blur">
+            <div className="text-[10px] font-semibold uppercase tracking-wide text-zinc-300">
+              Connector reference
+            </div>
+            <div className="text-[8px] text-zinc-600">
+              Pin guides and cavity tables stay outside the harness view.
+            </div>
+          </div>
+          <div className="space-y-3 p-3">
+            {manufacturingHarness.connectorIds.map((connectorId) => {
+              const ownerBundle = ownerBundleForConnector(connectorId);
+              if (!ownerBundle) return null;
+              return (
+                <ManufacturingConnectorGuide
+                  key={connectorId}
+                  connectorId={connectorId}
+                  ownerBundleId={ownerBundle.id}
+                  manufacturingHarness={manufacturingHarness}
+                  harness={harness}
+                  library={connectorLibrary}
+                  manufacturing={manufacturing}
+                  isEditor={isEditor}
+                  genderConflict={genderConflictFor(connectorId, ownerBundle.id)}
+                  onInspect={inspectEntityQuiet}
+                  onOpenLibrary={openConnectorLibrary}
+                  onGenderChange={changeGender}
+                  onGuideStateChange={(
+                    bundleId: string,
+                    id: string,
+                    state: ManufacturingConnectorGuideState | undefined,
+                  ) => applyVisualTasks([{
+                    bundleId,
+                    update: { kind: 'connector-guide', connectorId: id, state },
+                  }])}
+                />
+              );
+            })}
+          </div>
+        </aside>
       </div>
     </div>
   );
@@ -903,13 +1235,14 @@ export function ManufacturingPage() {
   const manufacturingTargetBundleId = useHarnessStore(
     (state) => state.manufacturingTargetBundleId,
   );
+  const setManufacturingTargetBundle = useHarnessStore(
+    (state) => state.setManufacturingTargetBundle,
+  );
+  const tab = useHarnessStore((state) => state.manufacturingTab);
+  const setTab = useHarnessStore((state) => state.setManufacturingTab);
   const activeHarnessName = useHarnessStore((state) => state.activeHarnessName);
 
-  const [tab, setTab] = useState<PageTab>('cutlists');
   const [search, setSearch] = useState('');
-  const [selectedBundleId, setSelectedBundleId] = useState<string | null>(
-    manufacturingTargetBundleId,
-  );
 
   const bundles = useMemo(
     () => harness
@@ -917,17 +1250,21 @@ export function ManufacturingPage() {
       : [],
     [harness, connectorLibrary, manufacturing],
   );
+  const manufacturingHarnesses = useMemo(
+    () => deriveManufacturingHarnesses(bundles),
+    [bundles],
+  );
   const bom = useMemo(
     () => harness ? deriveManufacturingBom(harness, connectorLibrary, bundles) : [],
     [harness, connectorLibrary, bundles],
   );
-  const visibleBundles = useMemo(() => {
+  const visibleHarnesses = useMemo(() => {
     const query = search.trim().toLowerCase();
-    if (!query) return bundles;
-    return bundles.filter((bundle) =>
-      bundle.name.toLowerCase().includes(query)
-      || bundle.id.toLowerCase().includes(query)
-      || bundle.wires.some((wire) =>
+    if (!query) return manufacturingHarnesses;
+    return manufacturingHarnesses.filter((manufacturingHarness) =>
+      manufacturingHarness.name.toLowerCase().includes(query)
+      || manufacturingHarness.id.toLowerCase().includes(query)
+      || manufacturingHarness.bundles.some((bundle) => bundle.wires.some((wire) =>
         [
           wire.wireId,
           wire.pathName,
@@ -936,46 +1273,84 @@ export function ManufacturingPage() {
           wire.to.label,
           ...wire.viaSplices.map((splice) => splice.label),
         ].some((value) => value.toLowerCase().includes(query))
-      )
+      ))
     );
-  }, [bundles, search]);
+  }, [manufacturingHarnesses, search]);
 
-  const effectiveSelectedBundleId = selectedBundleId
-    && bundles.some((bundle) => bundle.id === selectedBundleId)
-      ? selectedBundleId
-      : bundles[0]?.id ?? null;
-  const selectedBundle = bundles.find((bundle) => bundle.id === effectiveSelectedBundleId);
-  const totalCuts = bundles.reduce((sum, bundle) => sum + bundle.wires.length, 0);
-  const componentStats = new Map(bundles.map((bundle) => {
-    const components = deriveWorkComponents(bundle);
-    const completedStages = components.reduce(
-      (sum, component) => sum + completedManufacturingComponentStepCount(
-        manufacturing,
-        bundle.id,
-        component.key,
-      ),
-      0,
+  const effectiveSelectedHarnessId = manufacturingHarnesses.find(
+    (candidate) => candidate.bundleIds.includes(manufacturingTargetBundleId ?? '')
+      || candidate.trunkBundleId === manufacturingTargetBundleId
+      || candidate.id === manufacturingTargetBundleId,
+  )?.id ?? manufacturingHarnesses[0]?.id ?? null;
+
+  const selectManufacturingHarness = (manufacturingHarness: ManufacturingHarness) => {
+    setManufacturingTargetBundle(manufacturingHarness.trunkBundleId);
+  };
+
+  // Keep store + per-user prefs aligned with the harness actually shown (including
+  // fallback to the first harness when the saved target no longer exists).
+  useEffect(() => {
+    if (!effectiveSelectedHarnessId) return;
+    const selected = manufacturingHarnesses.find(
+      (candidate) => candidate.id === effectiveSelectedHarnessId,
     );
-    const completedComponents = components.filter((component) =>
-      completedManufacturingComponentStepCount(
-        manufacturing,
-        bundle.id,
-        component.key,
-      ) === MANUFACTURING_STEPS.length
+    if (!selected) return;
+    const matches = !!manufacturingTargetBundleId && (
+      selected.bundleIds.includes(manufacturingTargetBundleId)
+      || selected.trunkBundleId === manufacturingTargetBundleId
+      || selected.id === manufacturingTargetBundleId
+    );
+    if (!matches) setManufacturingTargetBundle(selected.trunkBundleId);
+  }, [
+    effectiveSelectedHarnessId,
+    manufacturingHarnesses,
+    manufacturingTargetBundleId,
+    setManufacturingTargetBundle,
+  ]);
+
+  const selectedManufacturingHarness = manufacturingHarnesses.find(
+    (candidate) => candidate.id === effectiveSelectedHarnessId,
+  );
+  const totalCuts = bundles.reduce((sum, bundle) => sum + bundle.wires.length, 0);
+  const visualStats = new Map(manufacturingHarnesses.map((manufacturingHarness) => {
+    let completed = 0;
+    let total = 0;
+    for (const bundle of manufacturingHarness.bundles) {
+      for (const wire of bundle.wires) {
+        total += 1;
+        if (manufacturing.bundles[bundle.id]?.wire_progress?.[wire.id]?.cut) completed += 1;
+        for (const end of ['from', 'to'] as const) {
+          if (wire[end].kind !== 'connector') continue;
+          if (end === 'to' && wire.fromCrimpOnly) continue;
+          total += 1;
+          if (manufacturing.bundles[bundle.id]?.wire_progress?.[wire.id]?.ends?.[end]) {
+            completed += 1;
+          }
+        }
+      }
+    }
+    total += manufacturingHarness.spliceIds.length;
+    completed += manufacturingHarness.spliceIds.filter((spliceId) =>
+      manufacturingHarness.bundleIds.some(
+        (bundleId) => manufacturing.bundles[bundleId]?.splice_measured?.[spliceId],
+      )
     ).length;
-    return [bundle.id, {
-      completedStages,
-      totalStages: components.length * MANUFACTURING_STEPS.length,
-      completedComponents,
-      totalComponents: components.length,
-    }];
+    total += manufacturingHarness.connectorIds.length;
+    completed += manufacturingHarness.connectorIds.filter((connectorId) =>
+      manufacturingHarness.bundleIds.some(
+        (bundleId) =>
+          manufacturing.bundles[bundleId]?.connector_guide_states?.[connectorId]
+          === 'verified',
+      )
+    ).length;
+    return [manufacturingHarness.id, { completed, total }];
   }));
-  const totalComponents = [...componentStats.values()].reduce(
-    (sum, stats) => sum + stats.totalComponents,
+  const totalVisualTasks = [...visualStats.values()].reduce(
+    (sum, stats) => sum + stats.total,
     0,
   );
-  const completedComponents = [...componentStats.values()].reduce(
-    (sum, stats) => sum + stats.completedComponents,
+  const completedVisualTasks = [...visualStats.values()].reduce(
+    (sum, stats) => sum + stats.completed,
     0,
   );
   const openIssues = bundles.reduce((sum, bundle) => sum + bundle.issueCount, 0);
@@ -1007,6 +1382,7 @@ export function ManufacturingPage() {
         <div className="flex items-center rounded-md border border-zinc-700 overflow-hidden">
           {([
             ['cutlists', 'Build'],
+            ['progress', 'Progress'],
             ['bom', 'BOM'],
           ] as const).map(([id, label]) => (
             <button
@@ -1024,13 +1400,13 @@ export function ManufacturingPage() {
           ))}
         </div>
         <div className="min-w-0 flex-1 truncate text-[9px] text-zinc-500">
-          <span className="text-zinc-300">{bundles.length}</span> harnesses
+          <span className="text-zinc-300">{manufacturingHarnesses.length}</span> harnesses
           <span className="mx-2 text-zinc-700">·</span>
           <span className="text-zinc-300">{totalCuts}</span> wire cuts
           <span className="mx-2 text-zinc-700">·</span>
-          <span className={completedComponents === totalComponents ? 'text-emerald-400' : 'text-amber-400'}>
-            {completedComponents}/{totalComponents}
-          </span> ends done
+          <span className={completedVisualTasks === totalVisualTasks ? 'text-emerald-400' : 'text-amber-400'}>
+            {completedVisualTasks}/{totalVisualTasks}
+          </span> visual tasks
           {openIssues > 0 && (
             <>
               <span className="mx-2 text-zinc-700">·</span>
@@ -1050,7 +1426,7 @@ export function ManufacturingPage() {
         )}
       </div>
 
-      {bundles.length === 0 ? (
+      {manufacturingHarnesses.length === 0 ? (
         <div className="flex-1 min-h-0"><EmptyManufacturing /></div>
       ) : tab === 'cutlists' ? (
         <div className="flex flex-1 min-h-0">
@@ -1058,9 +1434,9 @@ export function ManufacturingPage() {
             <div className="border-b border-zinc-800 p-2">
               <div className="mb-1.5 flex items-center justify-between px-0.5">
                 <span className="text-[9px] font-semibold uppercase tracking-wide text-zinc-500">
-                  Harness runs
+                  Physical harnesses
                 </span>
-                <span className="text-[9px] text-zinc-600">{visibleBundles.length}</span>
+                <span className="text-[9px] text-zinc-600">{visibleHarnesses.length}</span>
               </div>
               <input
                 value={search}
@@ -1070,50 +1446,53 @@ export function ManufacturingPage() {
               />
             </div>
             <div className="flex-1 min-h-0 overflow-y-auto p-2 space-y-1">
-              {visibleBundles.map((bundle) => {
-                const stats = componentStats.get(bundle.id) ?? {
-                  completedStages: 0,
-                  totalStages: 0,
-                  completedComponents: 0,
-                  totalComponents: 0,
+              {visibleHarnesses.map((manufacturingHarness, harnessIndex) => {
+                const stats = visualStats.get(manufacturingHarness.id) ?? {
+                  completed: 0,
+                  total: 0,
                 };
                 return (
                   <button
-                    key={bundle.id}
+                    key={manufacturingHarness.id}
                     type="button"
-                    onClick={() => setSelectedBundleId(bundle.id)}
+                    onClick={() => selectManufacturingHarness(manufacturingHarness)}
                     className={`w-full rounded-md border px-2.5 py-2 text-left transition-colors ${
-                      effectiveSelectedBundleId === bundle.id
+                      effectiveSelectedHarnessId === manufacturingHarness.id
                         ? 'border-amber-700/70 bg-amber-950/25'
                         : 'border-transparent hover:border-zinc-800 hover:bg-zinc-900'
                     }`}
                   >
                     <div className="flex items-start gap-2">
+                      {harnessIndex < 9 && (
+                        <span className="w-3 shrink-0 pt-0.5 text-[10px] text-zinc-600 tabular-nums">
+                          {harnessIndex + 1}
+                        </span>
+                      )}
                       <span className="min-w-0 flex-1 truncate text-[11px] font-medium text-zinc-200">
-                        {bundle.name}
+                        {manufacturingHarness.name}
                       </span>
                       <span className={`shrink-0 text-[9px] ${
-                        stats.completedComponents === stats.totalComponents
+                        stats.completed === stats.total && stats.total > 0
                           ? 'text-emerald-400'
                           : 'text-zinc-500'
                       }`}>
-                        {stats.completedComponents}/{stats.totalComponents}
+                        {stats.completed}/{stats.total}
                       </span>
                     </div>
                     <div className="mb-1.5 mt-1 flex items-center justify-between text-[8px] text-zinc-600">
-                      <span>{bundle.wires.length} wire{bundle.wires.length === 1 ? '' : 's'}</span>
-                      {bundle.issueCount > 0 && (
-                        <span className="text-amber-500">{bundle.issueCount} issues</span>
+                      <span>{manufacturingHarness.wireCount} wire{manufacturingHarness.wireCount === 1 ? '' : 's'}</span>
+                      {manufacturingHarness.issueCount > 0 && (
+                        <span className="text-amber-500">{manufacturingHarness.issueCount} issues</span>
                       )}
                     </div>
                     <ProgressBar
-                      completed={stats.completedStages}
-                      total={stats.totalStages}
+                      completed={stats.completed}
+                      total={stats.total}
                     />
                   </button>
                 );
               })}
-              {visibleBundles.length === 0 && (
+              {visibleHarnesses.length === 0 && (
                 <div className="py-8 text-center text-xs text-zinc-600">
                   No matching harnesses
                 </div>
@@ -1121,16 +1500,30 @@ export function ManufacturingPage() {
             </div>
           </aside>
           <main className="flex-1 min-w-0 min-h-0">
-            {selectedBundle
+            {selectedManufacturingHarness
               ? (
                   <BundleCutList
-                    key={selectedBundle.id}
-                    bundle={selectedBundle}
+                    key={selectedManufacturingHarness.id}
+                    manufacturingHarness={selectedManufacturingHarness}
                     bundles={bundles}
                   />
                 )
-              : <div className="h-full flex items-center justify-center text-sm text-zinc-600">Select a bundle</div>}
+              : <div className="h-full flex items-center justify-center text-sm text-zinc-600">Select a harness</div>}
           </main>
+        </div>
+      ) : tab === 'progress' ? (
+        <div className="flex-1 min-h-0">
+          <ManufacturingProgressView
+            harnesses={manufacturingHarnesses}
+            manufacturing={manufacturing}
+            onSelectHarness={(harnessId) => {
+              const manufacturingHarness = manufacturingHarnesses.find(
+                (candidate) => candidate.id === harnessId,
+              );
+              if (manufacturingHarness) selectManufacturingHarness(manufacturingHarness);
+              setTab('cutlists');
+            }}
+          />
         </div>
       ) : (
         <div className="flex-1 min-h-0 overflow-auto">

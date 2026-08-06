@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { Topbar } from './Topbar';
+import { openManufacturingPicker, openSubsystemPicker, Topbar } from './Topbar';
 import { SettingsModal } from './SettingsModal';
 import { GraphView } from '../graph/GraphView';
 import { TreeView } from '../tree/TreeView';
@@ -19,12 +19,14 @@ function requestUndoWithWarning() {
 }
 
 export function AppShell() {
+  const harness = useHarnessStore((s) => s.harness);
   const selectedItem = useHarnessStore((s) => s.selectedItem);
   const selectedBundle = useHarnessStore((s) => s.selectedBundle);
   const selectedTextBoxId = useHarnessStore((s) => s.selectedTextBoxId);
   const drillDownEnclosure = useHarnessStore((s) => s.drillDownEnclosure);
   const selectItem = useHarnessStore((s) => s.selectItem);
   const selectTextBox = useHarnessStore((s) => s.selectTextBox);
+  const setSelectedBundle = useHarnessStore((s) => s.setSelectedBundle);
   const setDrillDown = useHarnessStore((s) => s.setDrillDown);
   const redo = useHarnessStore((s) => s.redo);
   const rotateConnector = useHarnessStore((s) => s.rotateConnector);
@@ -35,8 +37,16 @@ export function AppShell() {
   const editingSurface = useHarnessStore((s) => s.editingSurface);
   const removeEntityFromActiveSubsystem = useHarnessStore((s) => s.removeEntityFromActiveSubsystem);
   const appView = useHarnessStore((s) => s.appView);
+  const closeConnectorLibrary = useHarnessStore((s) => s.closeConnectorLibrary);
+  const setEditingSurface = useHarnessStore((s) => s.setEditingSurface);
+  const openManufacturing = useHarnessStore((s) => s.openManufacturing);
+  const openConnectorLibrary = useHarnessStore((s) => s.openConnectorLibrary);
+  const openSignalLibrary = useHarnessStore((s) => s.openSignalLibrary);
   const isEditor = useHarnessStore((s) => s.session.isEditor);
-  const showInspector = !!(selectedItem || (selectedBundle && selectedBundle.pathIds.length > 0) || selectedTextBoxId);
+  const inspectorDismissed = useHarnessStore((s) => s.inspectorDismissed);
+  const showInspector = !inspectorDismissed && !!(
+    selectedItem || (selectedBundle && selectedBundle.pathIds.length > 0) || selectedTextBoxId
+  );
 
   // Left sidebar state
   const [leftWidth, setLeftWidth] = useState(LEFT_WIDTH_DEFAULT);
@@ -139,8 +149,105 @@ export function AppShell() {
         return;
       }
 
+      // View shortcuts: 1 System, 2 Subsystem (again → picker),
+      // 3 Manufacturing (again → harness / Build-Progress-BOM menu),
+      // 4 Connectors, 5 Signals
+      if (!isTyping && !mod && !e.altKey && !e.shiftKey) {
+        if (e.key === '1') {
+          e.preventDefault();
+          closeConnectorLibrary();
+          setEditingSurface('hierarchy');
+          return;
+        }
+        if (e.key === '2') {
+          e.preventDefault();
+          if (appView === 'canvas' && editingSurface === 'subsystem') {
+            openSubsystemPicker();
+          } else {
+            closeConnectorLibrary();
+            setEditingSurface('subsystem');
+          }
+          return;
+        }
+        if (e.key === '3') {
+          e.preventDefault();
+          if (appView === 'manufacturing') {
+            openManufacturingPicker();
+          } else {
+            openManufacturing();
+          }
+          return;
+        }
+        if (e.key === '4') {
+          e.preventDefault();
+          openConnectorLibrary();
+          return;
+        }
+        if (e.key === '5') {
+          e.preventDefault();
+          openSignalLibrary();
+          return;
+        }
+      }
+
+      // Tilde / backtick: step inspector selection up one hierarchy level.
+      // Closes at the current sheet boundary (drilled-in enclosure, or parent === null
+      // on the root sheet) instead of climbing into a parent sheet.
+      // Also deselects an active wire bundle (inspector open or dismissed).
+      if (!isTyping && !mod && !e.altKey && (e.code === 'Backquote' || e.key === '`' || e.key === '~')) {
+        if (!showInspector && !selectedBundle) return;
+        e.preventDefault();
+
+        // Wire bundles have no parent chain — tilde just exits them.
+        if (selectedBundle) {
+          setSelectedBundle(null);
+          selectTextBox(null);
+          return;
+        }
+
+        if (
+          harness
+          && selectedItem
+          && (selectedItem.type === 'enclosure'
+            || selectedItem.type === 'connector'
+            || selectedItem.type === 'mergePoint')
+        ) {
+          // Already on the sheet entity for this view — close.
+          if (
+            selectedItem.type === 'enclosure'
+            && drillDownEnclosure !== null
+            && selectedItem.id === drillDownEnclosure
+          ) {
+            selectItem(null);
+            selectTextBox(null);
+            return;
+          }
+
+          const parentId =
+            selectedItem.type === 'enclosure'
+              ? harness.enclosures.find((item) => item.id === selectedItem.id)?.parent ?? null
+              : selectedItem.type === 'connector'
+                ? harness.connectors.find((item) => item.id === selectedItem.id)?.parent ?? null
+                : harness.mergePoints.find((item) => item.id === selectedItem.id)?.parent ?? null;
+
+          // Next step would be the current sheet or leave the root sheet — close.
+          if (parentId === null || parentId === drillDownEnclosure) {
+            selectItem(null);
+            selectTextBox(null);
+            return;
+          }
+
+          selectItem({ type: 'enclosure', id: parentId });
+          return;
+        }
+
+        selectItem(null);
+        selectTextBox(null);
+        return;
+      }
+
       if (e.key !== 'Escape') return;
-      if (showInspector) {
+      if (showInspector || inspectorDismissed) {
         selectItem(null);
         selectTextBox(null);
       } else if (drillDownEnclosure) {
@@ -149,7 +256,7 @@ export function AppShell() {
     }
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [showInspector, drillDownEnclosure, selectItem, selectTextBox, setDrillDown, redo, selectedItem, selectedBundle, rotateConnector, rotateEnclosure, editingSurface, getDeleteImpact, deleteEntityCascade, deletePathBundle, removeEntityFromActiveSubsystem, isEditor]);
+  }, [showInspector, inspectorDismissed, drillDownEnclosure, harness, selectItem, selectTextBox, setSelectedBundle, setDrillDown, redo, selectedItem, selectedBundle, rotateConnector, rotateEnclosure, editingSurface, appView, getDeleteImpact, deleteEntityCascade, deletePathBundle, removeEntityFromActiveSubsystem, isEditor, closeConnectorLibrary, setEditingSurface, openManufacturing, openConnectorLibrary, openSignalLibrary]);
 
   return (
     <div className="h-screen w-screen flex flex-col bg-zinc-950 text-zinc-100 overflow-hidden">
@@ -163,8 +270,15 @@ export function AppShell() {
           <SignalLibraryPage />
         </div>
       ) : appView === 'manufacturing' ? (
-        <div className="flex-1 min-h-0">
-          <ManufacturingPage />
+        <div className="flex flex-1 min-h-0">
+          <main className="min-w-0 flex-1">
+            <ManufacturingPage />
+          </main>
+          {selectedItem && (
+            <aside className="w-64 shrink-0 border-l border-zinc-800 bg-zinc-900 overflow-hidden">
+              <InspectorPanel />
+            </aside>
+          )}
         </div>
       ) : (
         <div className="flex flex-1 min-h-0">

@@ -12,7 +12,6 @@ type EnclosureNodeData = {
   tags: string[];
   connectorCount: number;
   pathCount: number;
-  matchesFilter: boolean;
   isContainer: boolean;
   image?: string;
   childEnclosureCount: number;
@@ -26,8 +25,7 @@ export const EnclosureNode = memo(function EnclosureNode({
   data,
   selected,
 }: NodeProps<EnclosureNodeType>) {
-  const updateNodeSize = useHarnessStore((s) => s.updateNodeSize);
-  const updateNodePosition = useHarnessStore((s) => s.updateNodePosition);
+  const resizeHierarchyEntityLayout = useHarnessStore((s) => s.resizeHierarchyEntityLayout);
   const selectItem = useHarnessStore((s) => s.selectItem);
   const setDrillDown = useHarnessStore((s) => s.setDrillDown);
   const pushUndoSnapshot = useHarnessStore((s) => s.pushUndoSnapshot);
@@ -37,6 +35,7 @@ export const EnclosureNode = memo(function EnclosureNode({
   const subsystem = useHarnessStore((s) => s.activeSubsystemId ? s.subsystems[s.activeSubsystemId] : undefined);
   const resizeSubsystemEntityLayout = useHarnessStore((s) => s.resizeSubsystemEntityLayout);
   const nodeRef = useRef<HTMLDivElement>(null);
+  const resizeStartRef = useRef<{ x: number; y: number; w: number; h: number } | null>(null);
   const [hovered, setHovered] = useState(false);
 
   const handleDoubleClick = useCallback(
@@ -60,7 +59,7 @@ export const EnclosureNode = memo(function EnclosureNode({
       ref={nodeRef}
       className={`w-full h-full relative rounded-lg border-2 ${
         selected ? 'border-amber-400 ring-1 ring-amber-400/40' : borderColor
-      } ${data.matchesFilter ? 'opacity-100' : 'opacity-25'} transition-opacity cursor-pointer group`}
+      } cursor-pointer group`}
       style={{
         background: bgColor,
       }}
@@ -75,30 +74,48 @@ export const EnclosureNode = memo(function EnclosureNode({
         isVisible={!!selected && isEditor}
         lineClassName="!border-amber-500/50"
         handleClassName="!w-2 !h-2 !bg-amber-400 !border-amber-600"
-        onResizeStart={() => pushUndoSnapshot(`enclosure:${data.enclosureId}:resize`)}
+        onResizeStart={(_, params) => {
+          resizeStartRef.current = {
+            x: params.x,
+            y: params.y,
+            w: params.width,
+            h: params.height,
+          };
+          pushUndoSnapshot(`enclosure:${data.enclosureId}:resize`);
+        }}
         onResizeEnd={(_, params) => {
+          const previousRenderedLayout = resizeStartRef.current ?? {
+            x: params.x,
+            y: params.y,
+            w: params.width,
+            h: params.height,
+          };
+          const nextLayout = {
+            x: params.x,
+            y: params.y,
+            w: params.width,
+            h: params.height,
+          };
           if (data.subsystemFrame) {
             const previous = subsystem?.enclosures[data.enclosureId];
             resizeSubsystemEntityLayout('enclosures', data.enclosureId, {
               ...previous,
-              x: params.x,
-              y: params.y,
-              w: params.width,
-              h: params.height,
-            });
+              ...nextLayout,
+            }, previousRenderedLayout);
           } else if (data.subsystemDevice) {
             const previous = subsystem?.devices[data.enclosureId];
             resizeSubsystemEntityLayout('devices', data.enclosureId, {
               ...previous,
-              x: params.x,
-              y: params.y,
-              w: params.width,
-              h: params.height,
-            });
+              ...nextLayout,
+            }, previousRenderedLayout);
           } else {
-            updateNodeSize(data.enclosureId, params.width, params.height);
-            updateNodePosition(data.enclosureId, params.x, params.y);
+            resizeHierarchyEntityLayout(
+              data.enclosureId,
+              previousRenderedLayout,
+              nextLayout,
+            );
           }
+          resizeStartRef.current = null;
           commitUndoSnapshot();
         }}
       />

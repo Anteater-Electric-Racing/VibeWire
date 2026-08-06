@@ -10,7 +10,15 @@ export const GENERIC_MULTIPIN_TYPE_ID = 'generic_multipin';
 type ConnectorCapacity = Pick<Connector, 'pin_count'>;
 type ConnectorDefinition = Pick<
   ConnectorType,
-  'id' | 'pin_count' | 'cavity_variants' | 'image' | 'side_image'
+  | 'id'
+  | 'pin_count'
+  | 'cavity_variants'
+  | 'image'
+  | 'male_image'
+  | 'female_image'
+  | 'side_image'
+  | 'male_side_image'
+  | 'female_side_image'
 >;
 
 function uniqueSortedPositive(values: readonly number[]): number[] {
@@ -167,15 +175,70 @@ export function normalizeConnectorKeying(
 export function getConnectorPinGuideImage(
   connector: ConnectorCapacity,
   type: ConnectorDefinition | undefined | null,
+  gender?: 'male' | 'female',
 ): string | undefined {
-  return getConnectorCavityVariant(connector, type)?.image ?? type?.image;
+  const variant = getConnectorCavityVariant(connector, type);
+  if (gender === 'male') {
+    return variant?.male_image ?? variant?.image ?? type?.male_image ?? type?.image;
+  }
+  if (gender === 'female') {
+    return variant?.female_image ?? variant?.image ?? type?.female_image ?? type?.image;
+  }
+  return variant?.image ?? type?.image;
 }
 
 export function getConnectorSideImage(
   connector: ConnectorCapacity,
   type: ConnectorDefinition | undefined | null,
+  gender?: 'male' | 'female',
 ): string | undefined {
-  return getConnectorCavityVariant(connector, type)?.side_image ?? type?.side_image;
+  const variant = getConnectorCavityVariant(connector, type);
+  if (gender === 'male') {
+    return variant?.male_side_image
+      ?? variant?.side_image
+      ?? type?.male_side_image
+      ?? type?.side_image;
+  }
+  if (gender === 'female') {
+    return variant?.female_side_image
+      ?? variant?.side_image
+      ?? type?.female_side_image
+      ?? type?.side_image;
+  }
+  return variant?.side_image ?? type?.side_image;
+}
+
+/**
+ * Image shown on schematic connector nodes.
+ * Bulkheads (wall-mounted on enclosure boxes) use the type side view.
+ * Free-hanging / non-bulkhead connectors use the instance free-hanging image.
+ * Pin guides never appear on schematics — only in the inspector / manufacturing.
+ */
+export function getConnectorSchematicImage(
+  connector: ConnectorCapacity & { properties?: Record<string, string> },
+  type: ConnectorDefinition | undefined | null,
+  options: { bulkhead: boolean },
+): string | undefined {
+  if (options.bulkhead) {
+    return getConnectorSideImage(connector, type);
+  }
+  const freeHanging = connector.properties?.image?.trim();
+  return freeHanging || undefined;
+}
+
+export function getConnectorHousingPartNumber(
+  connector: ConnectorCapacity,
+  type: ConnectorDefinition | undefined | null,
+  gender?: 'male' | 'female',
+): string | undefined {
+  const variant = getConnectorCavityVariant(connector, type);
+  if (gender === 'male') {
+    return variant?.male_housing_part_number ?? variant?.housing_part_number;
+  }
+  if (gender === 'female') {
+    return variant?.female_housing_part_number ?? variant?.housing_part_number;
+  }
+  return variant?.housing_part_number;
 }
 
 /**

@@ -24,6 +24,7 @@ export {
   getConnectorCavityVariant,
   getConnectorFamilyCode,
   getConnectorPinGuideImage,
+  getConnectorSchematicImage,
   getConnectorSideImage,
   getConnectorSupportedKeyings,
   getConnectorSupportedPinCounts,
@@ -35,19 +36,6 @@ export {
   normalizeConnectorKeying,
   resolveConnectorFamilyPinCount,
 } from './connectorFamily';
-
-/**
- * Walk up the parent chain to find the nearest enclosure ancestor of a
- * connector.  Returns null when the connector sits in the root space.
- */
-export function getConnectorEnclosure(
-  harness: HarnessData,
-  conId: string,
-): string | null {
-  const con = harness.connectors.find((c) => c.id === conId);
-  if (!con) return null;
-  return con.parent;
-}
 
 /**
  * Direct child enclosures of a given space.
@@ -248,13 +236,144 @@ export function getConnectorOccupancy(
   return occupancy;
 }
 
+/** Side of a bulkhead wall: wires inside the box, outside, or both. */
+export type BulkheadWireSide = 'internal' | 'external' | 'both';
+
+/**
+ * True when a connector is mounted on a container enclosure wall (a bulkhead).
+ * Device-mounted connectors and free/root connectors are not bulkheads.
+ */
+export function isBulkheadConnector(
+  harness: HarnessData,
+  connectorId: string,
+): boolean {
+  const connector = harness.connectors.find((item) => item.id === connectorId);
+  if (!connector?.parent) return false;
+  const parent = harness.enclosures.find((item) => item.id === connector.parent);
+  return parent?.container === true;
+}
+
+/** True when `ancestorId` is `nodeId` or an ancestor enclosure of `nodeId`. */
+export function enclosureContains(
+  harness: HarnessData,
+  ancestorId: string,
+  nodeId: string | null,
+): boolean {
+  let current = nodeId;
+  while (current) {
+    if (current === ancestorId) return true;
+    current = harness.enclosures.find((item) => item.id === current)?.parent ?? null;
+  }
+  return false;
+}
+
+/**
+ * True when the entity lives in the enclosure's interior (device/PCB or in-box
+ * splice), not merely on the enclosure wall as another bulkhead.
+ */
+export function isInteriorToEnclosure(
+  harness: HarnessData,
+  node: PathNode,
+  enclosureId: string,
+): boolean {
+  if (node.kind === 'connector') {
+    const connector = harness.connectors.find((item) => item.id === node.connector_id);
+    if (!connector?.parent) return false;
+    // Wall-mounted siblings share the enclosure as parent — treat as exterior.
+    if (connector.parent === enclosureId) return false;
+    return enclosureContains(harness, enclosureId, connector.parent);
+  }
+  const mergePoint = harness.mergePoints.find((item) => item.id === node.merge_point_id);
+  if (!mergePoint) return false;
+  if (mergePoint.parent === enclosureId) return true;
+  return enclosureContains(harness, enclosureId, mergePoint.parent);
+}
+
+/**
+ * Which bulkhead sides a path touches at `connectorId`.
+ * Non-bulkhead connectors always report `'both'`.
+ */
+export function getPathBulkheadSidesAtConnector(
+  harness: HarnessData,
+  connectorId: string,
+  path: Path,
+): BulkheadWireSide {
+  if (!isBulkheadConnector(harness, connectorId)) return 'both';
+  const connector = harness.connectors.find((item) => item.id === connectorId);
+  const enclosureId = connector?.parent;
+  if (!enclosureId) return 'both';
+
+  let internal = false;
+  let external = false;
+  path.nodes.forEach((node, index) => {
+    if (node.kind !== 'connector' || node.connector_id !== connectorId) return;
+    for (const neighborIndex of [index - 1, index + 1]) {
+      const neighbor = path.nodes[neighborIndex];
+      if (!neighbor) continue;
+      if (isInteriorToEnclosure(harness, neighbor, enclosureId)) internal = true;
+      else external = true;
+    }
+  });
+
+  if (internal && external) return 'both';
+  if (internal) return 'internal';
+  if (external) return 'external';
+  // Path ends on the bulkhead with no neighbor yet — treat as both so it stays editable.
+  return 'both';
+}
+
+/**
+ * Paths that land on `connectorId`, optionally filtered by bulkhead side.
+ * `side` is ignored for non-bulkhead connectors.
+ */
+export function getPathsTouchingConnector(
+  harness: HarnessData,
+  connectorId: string,
+  side: BulkheadWireSide = 'both',
+): Path[] {
+  const seen = new Set<string>();
+  const matches: Path[] = [];
+  for (const path of harness.paths) {
+    if (!path.nodes.some((node) => node.kind === 'connector' && node.connector_id === connectorId)) {
+      continue;
+    }
+    if (seen.has(path.id)) continue;
+    if (side !== 'both') {
+      const pathSide = getPathBulkheadSidesAtConnector(harness, connectorId, path);
+      if (pathSide !== side && pathSide !== 'both') continue;
+    }
+    seen.add(path.id);
+    matches.push(path);
+  }
+  return matches;
+}
+
+/** Resolve wire appearance for a path, preferring path color then signal preferred color. */
+export function getPathWireAppearance(
+  path: Pick<Path, 'properties' | 'tags' | 'signal_id'>,
+  harness: Pick<HarnessData, 'signals'>,
+): WireAppearance {
+  const signalId = getPathSignalId(path);
+  const preferred = signalId
+    ? harness.signals.find((signal) => signal.id === signalId)?.properties.preferred_wire_color
+    : undefined;
+  return getWireAppearance({
+    properties: path.properties,
+    tags: path.tags,
+    signal_id: path.signal_id,
+    preferred_wire_color: preferred,
+  });
+}
+
 export function getPortWireAppearance(
   harness: HarnessData,
   con: Connector,
 ): WireAppearance | null {
   const appearances = getConnectorOccupancy(harness, con.id).map((entry) => {
     const path = harness.paths.find((candidate) => candidate.id === entry.pathId);
-    return path ? getWireAppearance(path) : getWireAppearance({ tags: [], properties: {} });
+    return path
+      ? getPathWireAppearance(path, harness)
+      : getWireAppearance({ tags: [], properties: {} });
   });
   if (appearances.length === 0) return null;
 
@@ -347,17 +466,6 @@ function getVisibleMergePointIds(
     }
   }
   return visible;
-}
-
-export function isPathNodeVisible(
-  harness: HarnessData,
-  node: PathNode,
-  spaceId: string | null,
-): boolean {
-  if (node.kind === 'connector') {
-    return getVisibleConnectorIds(harness, spaceId).has(node.connector_id);
-  }
-  return getVisibleMergePointIds(harness, spaceId).has(node.merge_point_id);
 }
 
 export function getVisibleSegments(
@@ -760,5 +868,111 @@ export function mergeConnectors(
   normalizeConnectorKeying(surviving, options.targetType ?? null);
 
   next.connectors = next.connectors.filter((connector) => connector.id !== sourceId);
+  return next;
+}
+
+export type HierarchyEntityKind = 'enclosure' | 'connector' | 'mergePoint';
+
+/**
+ * Move an enclosure, connector, or merge point to a new parent and/or sibling
+ * position. Sibling order is array order among entities that share the same
+ * `parent`. `beforeId` inserts immediately before that same-kind sibling under
+ * the new parent; `null` appends after the last sibling.
+ */
+export function moveHierarchyEntity(
+  harness: HarnessData,
+  type: HierarchyEntityKind,
+  id: string,
+  newParentId: string | null,
+  beforeId: string | null = null,
+): HarnessData {
+  if (beforeId === id) {
+    throw new Error('Cannot insert an entity before itself.');
+  }
+
+  if (newParentId !== null) {
+    const parent = harness.enclosures.find((item) => item.id === newParentId);
+    if (!parent) {
+      throw new Error('Target parent does not exist.');
+    }
+    if (type === 'enclosure' && !parent.container) {
+      throw new Error('Devices and enclosures can only be placed inside an enclosure.');
+    }
+  }
+
+  const items =
+    type === 'enclosure' ? harness.enclosures
+      : type === 'connector' ? harness.connectors
+        : harness.mergePoints;
+  const fromIndex = items.findIndex((item) => item.id === id);
+  if (fromIndex < 0) {
+    throw new Error(
+      type === 'enclosure' ? 'Enclosure not found.'
+        : type === 'connector' ? 'Connector not found.'
+          : 'Merge point not found.',
+    );
+  }
+
+  if (type === 'enclosure') {
+    if (newParentId === id) {
+      throw new Error('An enclosure cannot be placed inside itself.');
+    }
+    if (newParentId !== null) {
+      const parentById = new Map(harness.enclosures.map((item) => [item.id, item.parent]));
+      let current: string | null = newParentId;
+      const visited = new Set<string>();
+      while (current) {
+        if (current === id) {
+          throw new Error('Cannot move an enclosure into one of its descendants.');
+        }
+        if (visited.has(current)) break;
+        visited.add(current);
+        current = parentById.get(current) ?? null;
+      }
+    }
+  }
+
+  const current = items[fromIndex];
+  if (current.parent === newParentId) {
+    const siblings = items.filter((item) => item.parent === newParentId);
+    const currentSiblingIndex = siblings.findIndex((item) => item.id === id);
+    if (beforeId === null) {
+      if (siblings.at(-1)?.id === id) return harness;
+    } else {
+      const beforeSiblingIndex = siblings.findIndex((item) => item.id === beforeId);
+      if (
+        beforeSiblingIndex >= 0
+        && (beforeSiblingIndex === currentSiblingIndex || beforeSiblingIndex === currentSiblingIndex + 1)
+      ) {
+        return harness;
+      }
+    }
+  }
+
+  const next = structuredClone(harness);
+  const nextItems =
+    type === 'enclosure' ? next.enclosures
+      : type === 'connector' ? next.connectors
+        : next.mergePoints;
+  const nextFromIndex = nextItems.findIndex((item) => item.id === id);
+  const [removed] = nextItems.splice(nextFromIndex, 1);
+  removed.parent = newParentId;
+
+  if (beforeId) {
+    const beforeIndex = nextItems.findIndex((item) => item.id === beforeId);
+    if (beforeIndex >= 0 && nextItems[beforeIndex].parent === newParentId) {
+      nextItems.splice(beforeIndex, 0, removed);
+      return next;
+    }
+  }
+
+  let insertAt = nextItems.length;
+  for (let i = nextItems.length - 1; i >= 0; i -= 1) {
+    if (nextItems[i].parent === newParentId) {
+      insertAt = i + 1;
+      break;
+    }
+  }
+  nextItems.splice(insertAt, 0, removed);
   return next;
 }

@@ -4,7 +4,10 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {
   applyConnectorPinCount,
+  getConnectorHousingPartNumber,
   getConnectorPinGuideImage,
+  getConnectorSchematicImage,
+  getConnectorSideImage,
   getConnectorSupportedKeyings,
   getEffectivePinCount,
   getNextConnectorPinCount,
@@ -29,11 +32,16 @@ const family: ConnectorType = {
   wire_gauge: '',
   notes: '',
   cavity_variants: [
-    { pin_count: 2, image: '2.png' },
+    { pin_count: 2, image: '2.png', side_image: '2-side.png' },
     {
       pin_count: 4,
       image: '4.png',
+      male_image: '4-male.png',
+      female_image: '4-female.png',
+      side_image: '4-side.png',
       housing_part_number: 'HOUSING-4',
+      male_housing_part_number: 'HOUSING-4-M',
+      female_housing_part_number: 'HOUSING-4-F',
     },
     { pin_count: 6, keyings: ['A', 'B'] },
   ],
@@ -55,6 +63,35 @@ assert.equal(getNextConnectorPinCount(family, 6), 6);
 assert.equal(getPreviousConnectorPinCount(family, 6, 5), 6);
 assert.equal(getPreviousConnectorPinCount(family, 6, 4), 4);
 assert.equal(getConnectorPinGuideImage(connector, family), '4.png');
+assert.equal(getConnectorPinGuideImage(connector, family, 'male'), '4-male.png');
+assert.equal(getConnectorPinGuideImage(connector, family, 'female'), '4-female.png');
+assert.equal(getConnectorSideImage(connector, family), '4-side.png');
+assert.equal(getConnectorHousingPartNumber(connector, family, 'male'), 'HOUSING-4-M');
+assert.equal(getConnectorHousingPartNumber(connector, family, 'female'), 'HOUSING-4-F');
+assert.equal(
+  getConnectorSchematicImage(connector, family, { bulkhead: true }),
+  '4-side.png',
+);
+assert.equal(
+  getConnectorSchematicImage(connector, family, { bulkhead: false }),
+  undefined,
+);
+assert.equal(
+  getConnectorSchematicImage(
+    { ...connector, properties: { image: 'free-hanging.png' } },
+    family,
+    { bulkhead: false },
+  ),
+  'free-hanging.png',
+);
+assert.equal(
+  getConnectorSchematicImage(
+    { ...connector, properties: { image: 'free-hanging.png' } },
+    family,
+    { bulkhead: true },
+  ),
+  '4-side.png',
+);
 assert.deepEqual(getConnectorSupportedKeyings(connector, family), []);
 
 applyConnectorPinCount(connector, family, 5);
@@ -68,6 +105,7 @@ normalizeConnectorKeying(connector, family);
 assert.equal(connector.keying, undefined);
 
 const harness: HarnessData = {
+  signalPropertyDefinitions: [],
   schema_version: '0.2.0-sheets',
   enclosures: [{
     id: 'enc_001',

@@ -919,8 +919,8 @@
         },
         {
           "kind": "connector",
-          "connector_id": "con_auto_85f658b3eda2_1",
-          "pin_number": 1
+          "connector_id": "con_auto_ba1a71ebd23a_1",
+          "pin_number": 3
         }
       ],
       "measurements": []
@@ -968,8 +968,8 @@
         },
         {
           "kind": "connector",
-          "connector_id": "con_auto_c07012f0fb3e_1",
-          "pin_number": 1
+          "connector_id": "con_auto_ba1a71ebd23a_1",
+          "pin_number": 2
         }
       ],
       "measurements": []

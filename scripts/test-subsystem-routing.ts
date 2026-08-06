@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import http from 'node:http';
 import path from 'node:path';
+import type { Node } from '@xyflow/react';
 import {
   readSheetedHarness,
   splitHarness,
@@ -15,17 +16,21 @@ import {
   getPathSignalId,
   mergeConnectors,
   renumberConnectorPins,
+  splicePathWithMerge,
 } from '../src/lib/harness.js';
 import { planSheetRoute, routeRequestToken } from '../server/routing.js';
 import { createApiMiddleware, validateHarnessData } from '../server/api.js';
 import {
   buildSubsystemGraphModel,
+  clampNodeToParentBounds,
   findOverlappingWallMountedPeer,
+  getAbsoluteNodeCenter,
   projectNodeToEnclosureWall,
   SUBSYSTEM_CONNECTOR_PREFIX,
   SUBSYSTEM_DEVICE_PREFIX,
   SUBSYSTEM_FRAME_PREFIX,
 } from '../src/components/graph/graphModel.js';
+import { resolveParentResizeWithConnectorShove } from '../src/lib/parentResize.js';
 import {
   buildSubsystemSavePayload,
   useHarnessStore,
@@ -33,6 +38,7 @@ import {
 import type { SubsystemDocument } from '../src/types/index.js';
 
 const harness: HarnessData = {
+  signalPropertyDefinitions: [],
   schema_version: '0.2.0-sheets',
   enclosures: [
     { id: 'enc_a', name: 'A', parent: null, container: true, tags: [], properties: {} },
@@ -89,8 +95,46 @@ localHarness.paths = [{
 const localSplit = splitHarness(localHarness, sheetIds);
 assert.deepEqual(verifyRoundTrip(localHarness, localSplit, sheetIds), []);
 
+const measuredSpliceHarness = structuredClone(harness);
+measuredSpliceHarness.mergePoints = [{
+  id: 'mp_measured',
+  name: 'Measured splice',
+  parent: null,
+  tags: [],
+  properties: {},
+}];
+measuredSpliceHarness.paths = [{
+  ...harness.paths[0],
+  id: 'path_measured_splice',
+  nodes: [
+    { kind: 'connector', connector_id: 'con_wall_a', pin_number: 1 },
+    { kind: 'connector', connector_id: 'con_wall_b', pin_number: 1 },
+  ],
+  measurements: [{
+    from: { kind: 'connector', connector_id: 'con_wall_a', pin_number: 1 },
+    to: { kind: 'connector', connector_id: 'con_wall_b', pin_number: 1 },
+    length_mm: 22,
+  }],
+}];
+measuredSpliceHarness.paths[0] = splicePathWithMerge(
+  measuredSpliceHarness.paths[0],
+  'bundle:connector:con_wall_a|connector:con_wall_b',
+  'mp_measured',
+);
+const measuredSpliceProblems = verifyRoundTrip(
+  measuredSpliceHarness,
+  splitHarness(measuredSpliceHarness, sheetIds),
+  sheetIds,
+);
+assert(
+  measuredSpliceProblems.some((problem) =>
+    problem.includes("path 'path_measured_splice' measurement count mismatch"),
+  ),
+  'a splice that invalidates an existing measured hop must fail the sheet round-trip check',
+);
+
 assert.equal(getPathSignalId({ signal_id: 'sig_TEST', tags: [] }), 'sig_TEST');
-assert.equal(getPathSignalId({ tags: ['signal:LEGACY'] }), 'sig_LEGACY');
+assert.equal(getPathSignalId({ signal_id: undefined, tags: ['signal:LEGACY'] }), 'sig_LEGACY');
 assert.deepEqual(
   planSheetRoute(harness, sheetIds, harness.connectors[0], harness.connectors[1]).crossedChildScopes,
   ['enc_a1', 'enc_a', 'enc_b'],
@@ -123,7 +167,9 @@ assert(duplicateResult.errors.some((error) => error.includes('occupied by multip
 
 const renumbered = renumberConnectorPins(localHarness, 'con_a1', [2, 1]);
 assert.equal(
-  renumbered.paths[0].nodes.find((node) => node.kind === 'connector' && node.connector_id === 'con_a1')?.pin_number,
+  renumbered.paths[0].nodes
+    .filter((node) => node.kind === 'connector')
+    .find((node) => node.connector_id === 'con_a1')?.pin_number,
   2,
 );
 
@@ -153,9 +199,59 @@ const subsystem: SubsystemDocument = {
   devices: { dev_root: { x: 500, y: 0, w: 220, h: 180 } },
   connectors: { con_a1: { x: 20, y: 20, w: 160, h: 180 } },
 };
-const placementGraph = buildSubsystemGraphModel(placementHarness, subsystem, new Map());
+const placementGraph = buildSubsystemGraphModel(placementHarness, subsystem);
 assert(placementGraph.graphNodes.some((node) => node.id === `${SUBSYSTEM_CONNECTOR_PREFIX}con_a1`));
 assert(placementGraph.graphNodes.some((node) => node.id === `${SUBSYSTEM_DEVICE_PREFIX}dev_root`));
+
+const appearanceHarness = structuredClone(placementHarness);
+const appearanceDevice = appearanceHarness.enclosures.find((item) => item.id === 'dev_a1');
+assert(appearanceDevice);
+appearanceDevice.properties = { image: 'device-board.png' };
+const appearanceSubsystem: SubsystemDocument = {
+  schema_version: '1.0.0',
+  id: 'appearance',
+  name: 'Appearance',
+  tags: [],
+  enclosures: { enc_a1: { x: 0, y: 0, w: 520, h: 360 } },
+  devices: { dev_a1: { x: 40, y: 60 } },
+  connectors: {},
+  device_connector_mode: { dev_a1: 'all' },
+};
+const appearanceGraph = buildSubsystemGraphModel(
+  appearanceHarness,
+  appearanceSubsystem,
+  new Set(),
+  null,
+  {},
+  new Map(),
+  {},
+  {},
+  null,
+  { con_a1: { x: 88, y: 64 } },
+  { dev_a1: { w: 554, h: 471 }, con_a1: { w: 120, h: 48 } },
+);
+const appearanceDeviceNode = appearanceGraph.graphNodes.find(
+  (node) => node.id === `${SUBSYSTEM_DEVICE_PREFIX}dev_a1`,
+);
+const appearanceConnectorNode = appearanceGraph.graphNodes.find(
+  (node) => node.id === `${SUBSYSTEM_CONNECTOR_PREFIX}con_a1`,
+);
+assert.equal(appearanceDeviceNode?.data.image, 'device-board.png', 'subsystem devices must reuse the harness image');
+assert.deepEqual(
+  appearanceDeviceNode?.style,
+  { width: 554, height: 471 },
+  'subsystem devices without local size must inherit system sizeLayouts',
+);
+assert.deepEqual(
+  appearanceConnectorNode?.position,
+  { x: 88, y: 64 },
+  'mode-all connectors without subsystem layout must inherit system portLayouts',
+);
+assert.deepEqual(
+  appearanceConnectorNode?.style,
+  { width: 120, height: 48 },
+  'mode-all connectors without subsystem size must inherit system sizeLayouts',
+);
 
 const freeformSubsystem: SubsystemDocument = {
   schema_version: '1.0.0',
@@ -163,20 +259,36 @@ const freeformSubsystem: SubsystemDocument = {
   name: 'Freeform',
   tags: [],
   enclosures: { enc_a1: { x: 10, y: 20, w: 400, h: 300 } },
-  devices: { dev_a1: { x: 500, y: -40, w: 220, h: 180 } },
+  devices: { dev_a1: { x: 40, y: 60, w: 220, h: 180 } },
   connectors: {
     con_a1: { x: 30, y: 50, w: 96, h: 36 },
     con_wall_a1: { x: 190, y: 120, w: 96, h: 36 },
   },
   device_connector_mode: { dev_a1: 'all' },
 };
-const freeformGraph = buildSubsystemGraphModel(placementHarness, freeformSubsystem, new Map());
+const freeformGraph = buildSubsystemGraphModel(placementHarness, freeformSubsystem);
 const frameNode = freeformGraph.graphNodes.find((node) => node.id === `${SUBSYSTEM_FRAME_PREFIX}enc_a1`);
 const freeDeviceNode = freeformGraph.graphNodes.find((node) => node.id === `${SUBSYSTEM_DEVICE_PREFIX}dev_a1`);
 const bulkheadNode = freeformGraph.graphNodes.find((node) => node.id === `${SUBSYSTEM_CONNECTOR_PREFIX}con_wall_a1`);
 assert(frameNode);
 assert.equal(freeDeviceNode?.parentId, frameNode.id);
-assert.equal(freeDeviceNode?.extent, undefined, 'subsystem devices must not snap back into their physical frame');
+assert.equal(freeDeviceNode?.extent, 'parent', 'subsystem devices must stay inside their physical frame');
+assert.deepEqual(
+  freeDeviceNode?.position,
+  { x: 40, y: 60 },
+  'in-bounds device layouts must render at their saved position',
+);
+const overflowSubsystem: SubsystemDocument = {
+  ...structuredClone(freeformSubsystem),
+  devices: { dev_a1: { x: 500, y: -40, w: 220, h: 180 } },
+};
+const overflowGraph = buildSubsystemGraphModel(placementHarness, overflowSubsystem);
+const overflowDeviceNode = overflowGraph.graphNodes.find((node) => node.id === `${SUBSYSTEM_DEVICE_PREFIX}dev_a1`);
+assert.deepEqual(
+  overflowDeviceNode?.position,
+  clampNodeToParentBounds({ x: 500, y: -40 }, { w: 220, h: 180 }, { w: 400, h: 300 }),
+  'out-of-bounds device layouts must clamp into their enclosure frame',
+);
 assert.deepEqual(
   bulkheadNode?.position,
   { x: 190, y: -18 },
@@ -195,7 +307,6 @@ const duplicatedDeviceSubsystem: SubsystemDocument = {
 const deduplicatedGraph = buildSubsystemGraphModel(
   placementHarness,
   duplicatedDeviceSubsystem,
-  new Map(),
 );
 assert(
   !deduplicatedGraph.graphNodes.some((node) => node.id === `${SUBSYSTEM_FRAME_PREFIX}dev_a1`),
@@ -225,13 +336,13 @@ useHarnessStore.getState().resizeSubsystemEntityLayout(
 let resizedSubsystem = useHarnessStore.getState().subsystems.freeform;
 assert.deepEqual(
   resizedSubsystem.devices.dev_a1,
-  { x: 485, y: -32, w: 220, h: 180 },
+  { x: 25, y: 68, w: 220, h: 180 },
   'top/left frame resize must preserve the child device screen position',
 );
 assert.deepEqual(
   resizedSubsystem.connectors.con_wall_a1,
-  { x: 175, y: 128, w: 96, h: 36 },
-  'top/left frame resize must preserve the bulkhead screen position',
+  { x: 175, y: -18, w: 96, h: 36 },
+  'frame resize must preserve the bulkhead tangent position while following its wall',
 );
 assert.deepEqual(
   resizedSubsystem.connectors.con_a1,
@@ -239,18 +350,102 @@ assert.deepEqual(
   'frame resize must not double-adjust connectors nested under a represented device',
 );
 useHarnessStore.getState().resizeSubsystemEntityLayout(
+  'enclosures',
+  'enc_a1',
+  { x: 25, y: 12, w: 200, h: 160 },
+);
+resizedSubsystem = useHarnessStore.getState().subsystems.freeform;
+assert.deepEqual(
+  resizedSubsystem.devices.dev_a1,
+  { x: 0, y: 0, w: 220, h: 180 },
+  'shrinking a frame must clamp child devices back inside the enclosure',
+);
+useHarnessStore.getState().loadSubsystems([{
+  ...freeformSubsystem,
+  enclosures: { enc_a1: { x: 25, y: 12, w: 430, h: 320 } },
+  devices: { dev_a1: { x: 25, y: 68, w: 220, h: 180 } },
+}]);
+useHarnessStore.getState().resizeSubsystemEntityLayout(
   'devices',
   'dev_a1',
-  { x: 490, y: -26, w: 230, h: 190 },
+  { x: 35, y: 78, w: 230, h: 190 },
 );
 resizedSubsystem = useHarnessStore.getState().subsystems.freeform;
 assert.deepEqual(
   resizedSubsystem.connectors.con_a1,
-  { x: 25, y: 44, w: 96, h: 36 },
+  { x: 20, y: 40, w: 96, h: 36 },
   'top/left device resize must preserve its connector screen positions',
 );
 
+const connectorCollisionHarness = structuredClone(placementHarness);
+connectorCollisionHarness.connectors.push({
+  ...connectorCollisionHarness.connectors.find((connector) => connector.id === 'con_a1')!,
+  id: 'con_a2',
+  name: 'A1 second endpoint',
+});
+const connectorCollisionSubsystem: SubsystemDocument = {
+  schema_version: '1.0.0',
+  id: 'resize-collision',
+  name: 'Resize collision',
+  tags: [],
+  enclosures: { enc_a1: { x: 0, y: 0, w: 500, h: 400 } },
+  devices: { dev_a1: { x: 20, y: 20, w: 300, h: 200 } },
+  connectors: {
+    con_a1: { x: 100, y: 60, w: 50, h: 30 },
+    con_a2: { x: 200, y: 60, w: 50, h: 30 },
+  },
+  device_connector_mode: { dev_a1: 'all' },
+};
+useHarnessStore.getState().loadHarness(connectorCollisionHarness as never);
+useHarnessStore.getState().loadSubsystems([connectorCollisionSubsystem]);
+useHarnessStore.getState().setActiveSubsystem('resize-collision');
+useHarnessStore.getState().resizeSubsystemEntityLayout(
+  'devices',
+  'dev_a1',
+  { x: 20, y: 20, w: 170, h: 200 },
+);
+const collisionResizeDocument = useHarnessStore.getState().subsystems['resize-collision'];
+assert.deepEqual(
+  collisionResizeDocument.devices.dev_a1,
+  { x: 20, y: 20, w: 200, h: 200 },
+  'subsystem device resize must stop when a shoved connector reaches its peer',
+);
+assert.deepEqual(
+  collisionResizeDocument.connectors.con_a1,
+  { x: 100, y: 60, w: 50, h: 30 },
+);
+assert.deepEqual(
+  collisionResizeDocument.connectors.con_a2,
+  { x: 150, y: 60, w: 50, h: 30 },
+);
+
+useHarnessStore.setState({
+  nodeLayouts: { dev_a1: { x: 20, y: 20 } },
+  portLayouts: {
+    con_a1: { x: 100, y: 60 },
+    con_a2: { x: 200, y: 60 },
+  },
+  sizeLayouts: {
+    dev_a1: { w: 300, h: 200 },
+    con_a1: { w: 50, h: 30 },
+    con_a2: { w: 50, h: 30 },
+  },
+});
+useHarnessStore.getState().resizeHierarchyEntityLayout(
+  'dev_a1',
+  { x: 20, y: 20, w: 300, h: 200 },
+  { x: 20, y: 20, w: 170, h: 200 },
+);
+assert.deepEqual(
+  useHarnessStore.getState().sizeLayouts.dev_a1,
+  { w: 200, h: 200 },
+  'hierarchy device resize must use the same connector collision stop',
+);
+assert.deepEqual(useHarnessStore.getState().portLayouts.con_a1, { x: 100, y: 60 });
+assert.deepEqual(useHarnessStore.getState().portLayouts.con_a2, { x: 150, y: 60 });
+
 const mergeHarness: HarnessData = {
+  signalPropertyDefinitions: [],
   schema_version: '0.2.0-sheets',
   enclosures: [
     { id: 'enc_box', name: 'Box', parent: null, container: true, tags: [], properties: {} },
@@ -338,6 +533,27 @@ assert.deepEqual(
 );
 assert.equal(getConnectorOccupancy(merged, 'bh_b').length, 2);
 
+const nestedGraphNodes: Node[] = [
+  {
+    id: 'parent',
+    position: { x: 400, y: 300 },
+    style: { width: 300, height: 200 },
+    data: {},
+  },
+  {
+    id: 'child',
+    parentId: 'parent',
+    position: { x: 25, y: 35 },
+    style: { width: 100, height: 40 },
+    data: {},
+  },
+];
+assert.deepEqual(
+  getAbsoluteNodeCenter('child', nestedGraphNodes),
+  { x: 475, y: 355 },
+  'junction proximity must use absolute child-node geometry',
+);
+
 const enclosureSize = { w: 400, h: 300 };
 const size = { w: 96, h: 36 };
 const topWallA = projectNodeToEnclosureWall({ x: 100, y: 10 }, size, enclosureSize);
@@ -389,6 +605,136 @@ assert.equal(
   'bulkheads on opposite walls must not merge',
 );
 
+const singleShove = resolveParentResizeWithConnectorShove(
+  { x: 0, y: 0, w: 300, h: 200 },
+  { x: 0, y: 0, w: 180, h: 200 },
+  [{
+    id: 'rightmost',
+    position: { x: 200, y: 60 },
+    size: { w: 50, h: 30 },
+  }],
+);
+assert.deepEqual(singleShove.parent, { x: 0, y: 0, w: 180, h: 200 });
+assert.deepEqual(
+  singleShove.connectorPositions.rightmost,
+  { x: 130, y: 60 },
+  'an encroaching wall must shove an unblocked connector',
+);
+
+const blockedShove = resolveParentResizeWithConnectorShove(
+  { x: 0, y: 0, w: 300, h: 200 },
+  { x: 0, y: 0, w: 170, h: 200 },
+  [
+    {
+      id: 'blocker',
+      position: { x: 100, y: 60 },
+      size: { w: 50, h: 30 },
+    },
+    {
+      id: 'shoved',
+      position: { x: 200, y: 60 },
+      size: { w: 50, h: 30 },
+    },
+  ],
+);
+assert.deepEqual(
+  blockedShove.parent,
+  { x: 0, y: 0, w: 200, h: 200 },
+  'the resizing wall must stop when its connector reaches another connector',
+);
+assert.deepEqual(blockedShove.connectorPositions.blocker, { x: 100, y: 60 });
+assert.deepEqual(
+  blockedShove.connectorPositions.shoved,
+  { x: 150, y: 60 },
+  'a shove must stop at contact instead of chain-pushing the next connector',
+);
+
+const touchingShove = resolveParentResizeWithConnectorShove(
+  { x: 0, y: 0, w: 300, h: 200 },
+  { x: 0, y: 0, w: 170, h: 200 },
+  [
+    {
+      id: 'blocker',
+      position: { x: 100, y: 60 },
+      size: { w: 50, h: 30 },
+    },
+    {
+      id: 'touching',
+      position: { x: 150, y: 60 },
+      size: { w: 50, h: 30 },
+    },
+  ],
+);
+assert.deepEqual(
+  touchingShove.parent,
+  { x: 0, y: 0, w: 200, h: 200 },
+  'a connector already touching a peer must not be shoved',
+);
+assert.deepEqual(touchingShove.connectorPositions.touching, { x: 150, y: 60 });
+
+const overlappingShove = resolveParentResizeWithConnectorShove(
+  { x: 0, y: 0, w: 300, h: 200 },
+  { x: 0, y: 0, w: 170, h: 200 },
+  [
+    {
+      id: 'blocker',
+      position: { x: 100, y: 60 },
+      size: { w: 60, h: 30 },
+    },
+    {
+      id: 'overlapping',
+      position: { x: 150, y: 60 },
+      size: { w: 50, h: 30 },
+    },
+  ],
+);
+assert.deepEqual(
+  overlappingShove.parent,
+  { x: 0, y: 0, w: 200, h: 200 },
+  'an overlapping connector must not be shoved farther',
+);
+assert.deepEqual(overlappingShove.connectorPositions.overlapping, { x: 150, y: 60 });
+
+const oppositeWallShove = resolveParentResizeWithConnectorShove(
+  { x: 0, y: 0, w: 300, h: 200 },
+  { x: 0, y: 0, w: 80, h: 200 },
+  [{
+    id: 'wide',
+    position: { x: 0, y: 60 },
+    size: { w: 120, h: 30 },
+  }],
+);
+assert.deepEqual(
+  oppositeWallShove.parent,
+  { x: 0, y: 0, w: 120, h: 200 },
+  'a connector must stop the resize when it reaches the opposite wall',
+);
+
+const wallMountedShove = resolveParentResizeWithConnectorShove(
+  { x: 0, y: 0, w: 300, h: 200 },
+  { x: 0, y: 0, w: 170, h: 200 },
+  [
+    {
+      id: 'top-blocker',
+      position: { x: 100, y: -10 },
+      size: { w: 50, h: 20 },
+      wallMounted: true,
+    },
+    {
+      id: 'top-shoved',
+      position: { x: 200, y: -10 },
+      size: { w: 50, h: 20 },
+      wallMounted: true,
+    },
+  ],
+);
+assert.deepEqual(
+  wallMountedShove.parent,
+  { x: 0, y: 0, w: 200, h: 200 },
+  'wall-mounted connectors must use the same collision stop along their wall',
+);
+assert.deepEqual(wallMountedShove.connectorPositions['top-shoved'], { x: 150, y: -10 });
+
 const mergeSubsystem: SubsystemDocument = {
   schema_version: '1.0.0',
   id: 'merge-sub',
@@ -406,6 +752,7 @@ useHarnessStore.setState({ collabAvailable: false, connectorLibrary: null });
 useHarnessStore.getState().loadHarness(mergeHarness as never);
 useHarnessStore.getState().loadSubsystems([mergeSubsystem]);
 useHarnessStore.getState().setActiveSubsystem('merge-sub');
+const undoDepthBeforeMerge = useHarnessStore.getState().undoStack.length;
 const keptGenerated = useHarnessStore.getState().mergeBulkheadConnectors('bh_a', 'bh_b');
 assert.equal(keptGenerated, 'bh_b');
 assert.equal(
@@ -413,7 +760,11 @@ assert.equal(
   false,
 );
 assert.equal(useHarnessStore.getState().subsystems['merge-sub'].connectors.bh_a, undefined);
-assert.equal(useHarnessStore.getState().structuralUndoStack.length, 1);
+assert.equal(
+  useHarnessStore.getState().undoStack.length,
+  undoDepthBeforeMerge + 1,
+  'merging bulkheads must record exactly one undoable entry',
+);
 
 useHarnessStore.getState().loadHarness(mergeHarness as never);
 useHarnessStore.getState().loadSubsystems([mergeSubsystem]);
@@ -426,6 +777,7 @@ assert.equal(
 assert.ok(useHarnessStore.getState().harness?.connectors.some((connector) => connector.id === 'bh_real'));
 
 const projectedHarness: HarnessData = {
+  signalPropertyDefinitions: [],
   schema_version: '0.2.0-sheets',
   enclosures: [
     { id: 'dev_left', name: 'Left', parent: null, container: false, tags: [], properties: {} },
@@ -464,11 +816,31 @@ const projectedSubsystem: SubsystemDocument = {
   },
   connectors: {},
 };
-const projectedGraph = buildSubsystemGraphModel(projectedHarness as never, projectedSubsystem, new Map());
+const projectedGraph = buildSubsystemGraphModel(projectedHarness as never, projectedSubsystem);
 assert.equal(projectedGraph.graphEdges.length, 1, 'hidden inline entities must not break subsystem connections');
 assert.deepEqual(projectedGraph.graphEdges[0].data?.pathIds, ['path_projected']);
 assert.equal(projectedGraph.graphEdges[0].sourceHandle, undefined, 'collapsed connectors must use their generic handle');
 assert.equal(projectedGraph.graphEdges[0].targetHandle, undefined, 'collapsed connectors must use their generic handle');
+
+const projectedEdgeId = projectedGraph.graphEdges[0].id;
+const routedSubsystemGraph = buildSubsystemGraphModel(
+  projectedHarness as never,
+  projectedSubsystem,
+  new Set(),
+  null,
+  {},
+  new Map(),
+  { [projectedEdgeId]: [{ x: 120, y: 80 }] },
+  {},
+  { id: projectedEdgeId, pathIds: ['path_projected'] },
+);
+assert.equal(routedSubsystemGraph.graphEdges[0].selected, true, 'selected subsystem bundles must mark their edge selected');
+assert.deepEqual(
+  routedSubsystemGraph.graphEdges[0].data?.resolvedWaypoints,
+  [{ x: 120, y: 80 }],
+  'subsystem edges must render free route points from waypoint layouts',
+);
+
 useHarnessStore.getState().loadHarness(projectedHarness as never);
 useHarnessStore.getState().loadSubsystems([projectedSubsystem]);
 useHarnessStore.getState().updateSubsystemEntityLayout(
@@ -495,7 +867,7 @@ assert.equal(
   'deleting a selected subsystem bundle must remove its underlying paths',
 );
 assert.equal(useHarnessStore.getState().selectedBundle, null);
-useHarnessStore.getState().undoStructuralMutation();
+useHarnessStore.getState().undo();
 assert(useHarnessStore.getState().harness?.paths.some((wirePath) => wirePath.id === 'path_projected'));
 const generatedDeletionHarness = structuredClone(projectedHarness);
 generatedDeletionHarness.connectors.find((connector) => connector.id === 'con_hidden')!.properties = {
@@ -542,7 +914,6 @@ mergeProjectedHarness.paths = [
 const mergeProjectedGraph = buildSubsystemGraphModel(
   mergeProjectedHarness as never,
   projectedSubsystem,
-  new Map(),
   new Set(['con_left', 'con_right']),
 );
 assert.equal(mergeProjectedGraph.graphEdges.length, 1, 'shared cavity endpoints must render as one visible wire bundle');
@@ -583,13 +954,26 @@ const connectorOnlySubsystem: SubsystemDocument = {
   connectors: {},
 };
 useHarnessStore.getState().loadHarness(placementHarness as never);
+useHarnessStore.setState({
+  portLayouts: { con_a1: { x: 77, y: 55 } },
+  sizeLayouts: { con_a1: { w: 110, h: 44 }, dev_a1: { w: 400, h: 300 } },
+});
 useHarnessStore.getState().loadSubsystems([connectorOnlySubsystem]);
 useHarnessStore.getState().addEntityToActiveSubsystem('connector', 'con_a1');
 const connectorOnlyDocument = useHarnessStore.getState().subsystems['connector-only'];
 assert(connectorOnlyDocument.enclosures.enc_a1);
 assert(connectorOnlyDocument.devices.dev_a1);
+assert.equal(
+  connectorOnlyDocument.devices.dev_a1.w,
+  undefined,
+  'added devices omit size so they inherit system sizeLayouts',
+);
 assert.equal(connectorOnlyDocument.device_connector_mode?.dev_a1, 'selected');
-assert(connectorOnlyDocument.connectors.con_a1);
+assert.deepEqual(
+  connectorOnlyDocument.connectors.con_a1,
+  { x: 77, y: 55, w: 110, h: 44 },
+  'explicitly added connectors must seed layout from system port/size layouts',
+);
 useHarnessStore.getState().removeEntityFromActiveSubsystem('enclosure', 'dev_a1');
 assert(!useHarnessStore.getState().subsystems['connector-only'].devices.dev_a1);
 assert(!useHarnessStore.getState().subsystems['connector-only'].connectors.con_a1);
@@ -734,7 +1118,6 @@ async function testRouteEndpoint() {
     const routedGraph = buildSubsystemGraphModel(
       saved as never,
       savedRoutingSubsystem,
-      new Map(),
       new Set(),
     );
     assert(

@@ -1,22 +1,22 @@
+/**
+ * Renaming must only ever change display labels. IDs, parents, path nodes,
+ * measurements, signal references, subsystem membership, and the sheet split
+ * all have to survive a rename untouched.
+ */
 import assert from 'node:assert/strict';
-import fs from 'node:fs';
-import http from 'node:http';
-import path from 'node:path';
-import { createApiMiddleware } from '../server/api.js';
 import { splitHarness, verifyRoundTrip } from '../server/sheets.js';
 import {
-  renameConnectorType,
   renameHarnessEntity,
   renameSubsystem,
   renameSystem,
 } from '../src/lib/rename.js';
 import type {
-  ConnectorLibrary,
   HarnessData,
   SubsystemDocument,
 } from '../src/types/index.js';
 
 const original: HarnessData = {
+  signalPropertyDefinitions: [],
   schema_version: '0.2.0-sheets',
   name: 'Original System',
   enclosures: [
@@ -101,72 +101,9 @@ assert.equal(renamedSubsystem.id, 'cooling');
 assert.deepEqual(renamedSubsystem.tags, ['system:cooling']);
 assert.deepEqual(Object.keys(renamedSubsystem.devices), ['dev_ecu']);
 
-const library: ConnectorLibrary = {
-  connector_types: [{
-    id: 'type_2p',
-    name: 'Two Pin',
-    pin_count: 2,
-    crimp_spec: '',
-    wire_gauge: '',
-    notes: '',
-  }],
-};
-const renamedLibrary = renameConnectorType(library, 'type_2p', 'Two-Cavity Connector');
-assert.equal(renamedLibrary.connector_types[0].id, 'type_2p');
-assert.equal(renamedLibrary.connector_types[0].name, 'Two-Cavity Connector');
-
 const sheetIds = new Set(['enc_box']);
 const split = splitHarness(renamed, sheetIds);
 assert.equal(split.sheets.get(null)?.name, 'Renamed System');
 assert.deepEqual(verifyRoundTrip(renamed, split, sheetIds), []);
 
-async function testAmbiguousLegacyNameLookup() {
-  const projectRoot = path.join(process.cwd(), `.tmp-rename-test-${process.pid}`);
-  const harnessDir = path.join(projectRoot, 'public', 'user-data', 'harnesses');
-  fs.mkdirSync(harnessDir, { recursive: true });
-  fs.writeFileSync(path.join(harnessDir, 'rename-test.json'), JSON.stringify(renamed));
-
-  const middleware = createApiMiddleware(projectRoot);
-  const server = http.createServer((request, response) => middleware(request, response, () => {
-    response.statusCode = 404;
-    response.end();
-  }));
-  await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
-  const address = server.address();
-  assert(address && typeof address === 'object');
-  const endpoint = `http://127.0.0.1:${address.port}/api/path-by-name?harness=rename-test`;
-
-  try {
-    const ambiguous = await fetch(endpoint, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        from_connector: 'Shared Display Name',
-        from_pin: 1,
-        to_connector: 'Shared Display Name',
-        to_pin: 2,
-      }),
-    });
-    assert.equal(ambiguous.status, 404, 'duplicate display names must never resolve by guessing');
-
-    const stableIds = await fetch(endpoint, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        from_connector: 'con_root',
-        from_pin: 2,
-        to_connector: 'con_ecu',
-        to_pin: 2,
-      }),
-    });
-    assert.equal(stableIds.status, 201, 'stable connector IDs remain valid after renaming');
-  } finally {
-    await new Promise<void>((resolve, reject) =>
-      server.close((error) => error ? reject(error) : resolve())
-    );
-    fs.rmSync(projectRoot, { recursive: true, force: true });
-  }
-}
-
-await testAmbiguousLegacyNameLookup();
 console.log('Rename integrity tests passed');

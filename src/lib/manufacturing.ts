@@ -4,8 +4,11 @@ import type {
   ConnectorPathNode,
   ConnectorType,
   HarnessData,
+  ManufacturingBundleProgress,
   ManufacturingDocument,
   ManufacturingStep,
+  ManufacturingTaskUpdate,
+  ManufacturingWorkAttribution,
   Path,
   PathNode,
 } from '../types';
@@ -18,8 +21,11 @@ import {
 } from './harness';
 import {
   getConnectorCavityVariant,
+  getConnectorFamilyCode,
+  getConnectorHousingPartNumber,
   getEffectivePinCount,
 } from './connectorFamily';
+import { inferGaugeFromEnds } from './gauge';
 
 export const MANUFACTURING_STEPS: ReadonlyArray<{
   id: ManufacturingStep;
@@ -34,7 +40,7 @@ export const MANUFACTURING_STEPS: ReadonlyArray<{
 ];
 
 export const EMPTY_MANUFACTURING_DOCUMENT: ManufacturingDocument = {
-  schema_version: '1.1.0',
+  schema_version: '1.2.0',
   bundles: {},
 };
 
@@ -47,9 +53,15 @@ export interface ManufacturingEndpoint {
   pinNumber?: number;
   familyId?: string;
   familyName?: string;
+  familyCode?: string;
   pinCount?: number;
   terminalGender?: 'male' | 'female';
   housingPartNumber?: string;
+  maleHousingPartNumber?: string;
+  femaleHousingPartNumber?: string;
+  pinGuideImage?: string;
+  malePinGuideImage?: string;
+  femalePinGuideImage?: string;
   maleCrimpPartNumber?: string;
   femaleCrimpPartNumber?: string;
   crimpPartNumber?: string;
@@ -64,6 +76,8 @@ export interface ManufacturingSpliceNote {
 /** One physical run between consecutive path nodes (connector↔splice or connector↔connector). */
 export interface ManufacturingLengthHop {
   segmentIndex: number;
+  fromKey: string;
+  toKey: string;
   fromLabel: string;
   toLabel: string;
   fromKind: 'connector' | 'merge';
@@ -105,8 +119,24 @@ export interface ManufacturingBundle {
   id: string;
   name: string;
   tagged: boolean;
+  harnessTag?: string;
   wires: ManufacturingWire[];
   connectorIds: string[];
+  knownLengthMm: number;
+  missingLengthCount: number;
+  issueCount: number;
+}
+
+export interface ManufacturingHarness {
+  id: string;
+  name: string;
+  trunkBundleId: string;
+  bundles: ManufacturingBundle[];
+  bundleIds: string[];
+  pathIds: string[];
+  connectorIds: string[];
+  spliceIds: string[];
+  wireCount: number;
   knownLengthMm: number;
   missingLengthCount: number;
   issueCount: number;
@@ -176,11 +206,31 @@ function resolveEndpoint(
     pinNumber: node.pin_number,
     familyId: type?.id ?? connector.connector_type,
     familyName: type?.name ?? connector.connector_type,
+    familyCode: getConnectorFamilyCode(type),
     pinCount: getEffectivePinCount(connector, type),
     housingPartNumber:
       clean(connector.properties.housing_part_number)
       ?? clean(connector.properties.part_number)
       ?? clean(variant?.housing_part_number),
+    maleHousingPartNumber:
+      clean(connector.properties.male_housing_part_number)
+      ?? clean(variant?.male_housing_part_number)
+      ?? clean(variant?.housing_part_number),
+    femaleHousingPartNumber:
+      clean(connector.properties.female_housing_part_number)
+      ?? clean(variant?.female_housing_part_number)
+      ?? clean(variant?.housing_part_number),
+    pinGuideImage: clean(variant?.image) ?? clean(type?.image),
+    malePinGuideImage:
+      clean(variant?.male_image)
+      ?? clean(variant?.image)
+      ?? clean(type?.male_image)
+      ?? clean(type?.image),
+    femalePinGuideImage:
+      clean(variant?.female_image)
+      ?? clean(variant?.image)
+      ?? clean(type?.female_image)
+      ?? clean(type?.image),
     maleCrimpPartNumber:
       clean(type?.male_crimp_part_number) ?? clean(type?.crimp_spec),
     femaleCrimpPartNumber:
@@ -196,13 +246,31 @@ function inferGauge(
 ): { gauge: string; inferred: boolean } {
   const explicit = clean(explicitGauge);
   if (explicit) return { gauge: explicit, inferred: false };
-  const ranges = Array.from(new Set(
-    [from.crimpGauge, to.crimpGauge].map(clean).filter(Boolean) as string[],
-  ));
-  return {
-    gauge: ranges.join(' / '),
-    inferred: ranges.length > 0,
-  };
+  return inferGaugeFromEnds(from.crimpGauge, to.crimpGauge);
+}
+
+/**
+ * Path-level gauge resolution for inspector hints: explicit `wire_gauge`, else
+ * the intersection of the first and last connector types' crimp ranges.
+ */
+export function getPathInferredGauge(
+  harness: HarnessData,
+  path: Path,
+  library: ConnectorLibrary | null | undefined,
+): { gauge: string; inferred: boolean } {
+  const explicit = clean(path.properties.wire_gauge);
+  if (explicit) return { gauge: explicit, inferred: false };
+  const stops = path.nodes.filter((node): node is ConnectorPathNode => node.kind === 'connector');
+  if (stops.length === 0) return { gauge: '', inferred: false };
+  const typeById = new Map(
+    (library?.connector_types ?? []).map((type) => [type.id, type]),
+  );
+  const first = harness.connectors.find((item) => item.id === stops[0].connector_id);
+  const last = harness.connectors.find((item) => item.id === stops[stops.length - 1].connector_id);
+  return inferGaugeFromEnds(
+    typeById.get(first?.connector_type ?? '')?.wire_gauge,
+    typeById.get(last?.connector_type ?? '')?.wire_gauge,
+  );
 }
 
 function endpointNeedsGender(endpoint: ManufacturingEndpoint): boolean {
@@ -224,6 +292,16 @@ function applyEndpointGender(
     ...endpoint,
     terminalGender,
     crimpPartNumber: crimpForGender(endpoint, terminalGender),
+    housingPartNumber: terminalGender === 'male'
+      ? endpoint.maleHousingPartNumber ?? endpoint.housingPartNumber
+      : terminalGender === 'female'
+        ? endpoint.femaleHousingPartNumber ?? endpoint.housingPartNumber
+        : endpoint.housingPartNumber,
+    pinGuideImage: terminalGender === 'male'
+      ? endpoint.malePinGuideImage ?? endpoint.pinGuideImage
+      : terminalGender === 'female'
+        ? endpoint.femalePinGuideImage ?? endpoint.pinGuideImage
+        : endpoint.pinGuideImage,
   };
 }
 
@@ -299,6 +377,12 @@ function measurementBetweenNodes(
   })?.length_mm;
 }
 
+export function manufacturingNodeKey(node: PathNode): string {
+  return node.kind === 'connector'
+    ? `connector:${node.connector_id}`
+    : `merge:${node.merge_point_id}`;
+}
+
 function buildLengthHops(
   harness: HarnessData,
   path: Path,
@@ -316,6 +400,8 @@ function buildLengthHops(
     if (!from || !to) continue;
     hops.push({
       segmentIndex: index,
+      fromKey: manufacturingNodeKey(from),
+      toKey: manufacturingNodeKey(to),
       fromLabel: getPathNodeLabel(harness, from),
       toLabel: getPathNodeLabel(harness, to),
       fromKind: from.kind,
@@ -474,7 +560,7 @@ export function deriveManufacturingBundles(
     path: Path,
     fromNodeIndex: number,
     toNodeIndex: number,
-    tagged: boolean,
+    harnessTag: string | undefined,
   ) => {
     const fromNode = path.nodes[fromNodeIndex];
     const toNode = path.nodes[toNodeIndex];
@@ -549,14 +635,16 @@ export function deriveManufacturingBundles(
     const current = bundles.get(id) ?? {
       id,
       name,
-      tagged,
+      tagged: !!harnessTag,
+      ...(harnessTag ? { harnessTag } : {}),
       wires: [],
       connectorIds: [],
       knownLengthMm: 0,
       missingLengthCount: 0,
       issueCount: 0,
     };
-    current.tagged ||= tagged;
+    current.tagged ||= !!harnessTag;
+    if (!current.harnessTag && harnessTag) current.harnessTag = harnessTag;
     current.wires.push(wire);
     current.knownLengthMm += wire.lengthMm ?? 0;
     if (wire.lengthMm === undefined) current.missingLengthCount += 1;
@@ -572,10 +660,10 @@ export function deriveManufacturingBundles(
   for (const path of harness.paths) {
     const stops = connectorStops(path);
     if (stops.length === 0) continue;
-    const tagged = !!bundleTag(path.tags);
+    const harnessTag = bundleTag(path.tags);
     if (stops.length >= 2) {
       for (let index = 0; index < stops.length - 1; index += 1) {
-        addRun(path, stops[index].index, stops[index + 1].index, tagged);
+        addRun(path, stops[index].index, stops[index + 1].index, harnessTag);
       }
       continue;
     }
@@ -590,7 +678,7 @@ export function deriveManufacturingBundles(
     const farthestMergeIndex = [...mergeIndexes].sort(
       (a, b) => Math.abs(b - only.index) - Math.abs(a - only.index),
     )[0];
-    addRun(path, only.index, farthestMergeIndex, tagged);
+    addRun(path, only.index, farthestMergeIndex, harnessTag);
   }
 
   return [...bundles.values()]
@@ -603,6 +691,87 @@ export function deriveManufacturingBundles(
       connectorIds: [...bundle.connectorIds].sort(),
     }))
     .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
+}
+
+function bundleSpliceIds(bundle: ManufacturingBundle): string[] {
+  return Array.from(new Set(bundle.wires.flatMap((wire) => [
+    ...(wire.from.mergePointId ? [wire.from.mergePointId] : []),
+    ...(wire.to.mergePointId ? [wire.to.mergePointId] : []),
+    ...wire.viaSplices.map((splice) => splice.id),
+  ])));
+}
+
+/**
+ * Group physical runs into operator-facing harnesses through real splices.
+ * Merely sharing a connector or a label does not make two independently
+ * mateable harnesses one assembly.
+ */
+export function deriveManufacturingHarnesses(
+  bundles: ManufacturingBundle[],
+): ManufacturingHarness[] {
+  const parent = bundles.map((_, index) => index);
+  const findRoot = (index: number): number => {
+    let current = index;
+    while (parent[current] !== current) {
+      parent[current] = parent[parent[current]];
+      current = parent[current];
+    }
+    return current;
+  };
+  const join = (left: number, right: number) => {
+    const leftRoot = findRoot(left);
+    const rightRoot = findRoot(right);
+    if (leftRoot !== rightRoot) parent[rightRoot] = leftRoot;
+  };
+  const spliceSets = bundles.map((bundle) => new Set(bundleSpliceIds(bundle)));
+
+  for (let left = 0; left < bundles.length; left += 1) {
+    for (let right = left + 1; right < bundles.length; right += 1) {
+      const sharedSplice = [...spliceSets[left]].some((id) => spliceSets[right].has(id));
+      if (sharedSplice) join(left, right);
+    }
+  }
+
+  const members = new Map<number, ManufacturingBundle[]>();
+  bundles.forEach((bundle, index) => {
+    const root = findRoot(index);
+    members.set(root, [...(members.get(root) ?? []), bundle]);
+  });
+
+  return [...members.values()].map((groupBundles) => {
+    const sortedByTrunk = [...groupBundles].sort(
+      (a, b) => b.wires.length - a.wires.length
+        || b.knownLengthMm - a.knownLengthMm
+        || a.id.localeCompare(b.id),
+    );
+    const trunk = sortedByTrunk[0];
+    const spliceIds = Array.from(new Set(groupBundles.flatMap(bundleSpliceIds))).sort();
+    const pathIds = Array.from(new Set(
+      groupBundles.flatMap((bundle) => bundle.wires.map((wire) => wire.pathId)),
+    )).sort();
+    const connectorIds = Array.from(new Set(
+      groupBundles.flatMap((bundle) => bundle.connectorIds),
+    )).sort();
+    const harnessTag = trunk.harnessTag
+      ?? groupBundles.map((bundle) => bundle.harnessTag).find(Boolean);
+    return {
+      id: `harness:${trunk.id}`,
+      name: harnessTag ?? trunk.name,
+      trunkBundleId: trunk.id,
+      bundles: groupBundles,
+      bundleIds: groupBundles.map((bundle) => bundle.id).sort(),
+      pathIds,
+      connectorIds,
+      spliceIds,
+      wireCount: groupBundles.reduce((sum, bundle) => sum + bundle.wires.length, 0),
+      knownLengthMm: groupBundles.reduce((sum, bundle) => sum + bundle.knownLengthMm, 0),
+      missingLengthCount: groupBundles.reduce(
+        (sum, bundle) => sum + bundle.missingLengthCount,
+        0,
+      ),
+      issueCount: groupBundles.reduce((sum, bundle) => sum + bundle.issueCount, 0),
+    };
+  }).sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
 }
 
 function addBomQuantity(
@@ -655,9 +824,14 @@ export function deriveManufacturingBom(
     const type = connectorTypeFor(connector, typeById);
     const variant = getConnectorCavityVariant(connector, type);
     const pinCount = getEffectivePinCount(connector, type);
+    const terminalGender = bundles
+      .flatMap((bundle) => bundle.wires)
+      .flatMap((wire) => [wire.from, wire.to])
+      .find((endpoint) => endpoint.connectorId === connector.id)?.terminalGender;
     const partNumber =
       clean(connector.properties.housing_part_number)
       ?? clean(connector.properties.part_number)
+      ?? clean(getConnectorHousingPartNumber(connector, type, terminalGender))
       ?? clean(variant?.housing_part_number)
       ?? '';
     const key = `housing:${partNumber || `${connector.connector_type}:${pinCount}:${connector.keying ?? ''}`}`;
@@ -769,7 +943,7 @@ export function assignManufacturingEndpointGender(
   mateBundleIds: string[],
 ): ManufacturingDocument {
   const next = structuredClone(document);
-  next.schema_version = '1.1.0';
+  next.schema_version = '1.2.0';
   const assignments = [
     { bundleId, gender },
     ...mateBundleIds.map((mateBundleId) => ({
@@ -797,12 +971,182 @@ export function assignManufacturingEndpointGender(
   return next;
 }
 
-export function completedManufacturingStepCount(
+export function manufacturingTaskKey(update: ManufacturingTaskUpdate): string {
+  switch (update.kind) {
+    case 'wire-cut':
+      return `wire:${update.wireId}:cut`;
+    case 'wire-end':
+      return `wire:${update.wireId}:end:${update.end}`;
+    case 'splice-measured':
+      return `splice:${update.spliceId}:measured`;
+    case 'connector-guide':
+      return `connector:${update.connectorId}:guide`;
+  }
+}
+
+export function manufacturingTaskCompleted(
+  progress: ManufacturingBundleProgress | undefined,
+  update: ManufacturingTaskUpdate,
+): boolean {
+  if (!progress) return false;
+  switch (update.kind) {
+    case 'wire-cut':
+      return !!progress.wire_progress?.[update.wireId]?.cut;
+    case 'wire-end':
+      return !!progress.wire_progress?.[update.wireId]?.ends?.[update.end];
+    case 'splice-measured':
+      return !!progress.splice_measured?.[update.spliceId];
+    case 'connector-guide':
+      return !!progress.connector_guide_states?.[update.connectorId];
+  }
+}
+
+function setComponentStep(
+  progress: ManufacturingBundleProgress,
+  componentKey: string,
+  step: ManufacturingStep,
+  completed: boolean,
+) {
+  const stepIndex = MANUFACTURING_STEPS.findIndex((candidate) => candidate.id === step);
+  if (stepIndex < 0) return;
+  const componentSteps = {
+    ...(progress.component_steps?.[componentKey] ?? {}),
+  };
+  for (let index = 0; index < MANUFACTURING_STEPS.length; index += 1) {
+    const candidate = MANUFACTURING_STEPS[index].id;
+    if (completed && index <= stepIndex) componentSteps[candidate] = true;
+    if (!completed && index >= stepIndex) delete componentSteps[candidate];
+  }
+  progress.component_steps = {
+    ...(progress.component_steps ?? {}),
+    [componentKey]: componentSteps,
+  };
+}
+
+function cleanVisualProgress(progress: ManufacturingBundleProgress) {
+  if (progress.wire_progress) {
+    for (const [wireId, wire] of Object.entries(progress.wire_progress)) {
+      if (wire.ends && !wire.ends.from && !wire.ends.to) delete wire.ends;
+      if (!wire.cut && !wire.ends) delete progress.wire_progress[wireId];
+    }
+    if (Object.keys(progress.wire_progress).length === 0) delete progress.wire_progress;
+  }
+  if (progress.splice_measured && Object.keys(progress.splice_measured).length === 0) {
+    delete progress.splice_measured;
+  }
+  if (
+    progress.connector_guide_states
+    && Object.keys(progress.connector_guide_states).length === 0
+  ) {
+    delete progress.connector_guide_states;
+  }
+  if (progress.task_attribution && Object.keys(progress.task_attribution).length === 0) {
+    delete progress.task_attribution;
+  }
+}
+
+/**
+ * Apply visual-workbench tasks as one atomic document update. Every transition
+ * records the operator and day while preserving the existing boolean workflow.
+ */
+export function applyManufacturingTaskUpdates(
   document: ManufacturingDocument,
   bundleId: string,
-): number {
-  const steps = document.bundles[bundleId]?.steps ?? {};
-  return MANUFACTURING_STEPS.filter((step) => steps[step.id]).length;
+  updates: ManufacturingTaskUpdate[],
+  actor: ManufacturingWorkAttribution,
+  eventTime = Date.now(),
+): ManufacturingDocument {
+  const next = structuredClone(document);
+  next.schema_version = '1.2.0';
+  const progress = next.bundles[bundleId] ?? { steps: {} };
+  let eventSequence = progress.work_log?.length ?? 0;
+
+  for (const update of updates) {
+    const previousCompleted = manufacturingTaskCompleted(progress, update);
+    const previousGuideState = update.kind === 'connector-guide'
+      ? progress.connector_guide_states?.[update.connectorId]
+      : undefined;
+    let completed = false;
+
+    if (update.kind === 'wire-cut') {
+      const wire = progress.wire_progress?.[update.wireId] ?? {};
+      wire.cut = update.completed || undefined;
+      progress.wire_progress = {
+        ...(progress.wire_progress ?? {}),
+        [update.wireId]: wire,
+      };
+      completed = update.completed;
+      setComponentStep(progress, `wire:${update.wireId}`, 'cut', completed);
+    } else if (update.kind === 'wire-end') {
+      const wire = progress.wire_progress?.[update.wireId] ?? {};
+      wire.ends = { ...(wire.ends ?? {}), [update.end]: update.completed || undefined };
+      progress.wire_progress = {
+        ...(progress.wire_progress ?? {}),
+        [update.wireId]: wire,
+      };
+      completed = update.completed;
+      setComponentStep(progress, `wire:${update.wireId}:end:${update.end}`, 'crimped', completed);
+    } else if (update.kind === 'splice-measured') {
+      progress.splice_measured = { ...(progress.splice_measured ?? {}) };
+      if (update.completed) progress.splice_measured[update.spliceId] = true;
+      else delete progress.splice_measured[update.spliceId];
+      completed = update.completed;
+      setComponentStep(progress, `splice:${update.spliceId}`, 'cut', completed);
+    } else {
+      progress.connector_guide_states = { ...(progress.connector_guide_states ?? {}) };
+      if (update.state) progress.connector_guide_states[update.connectorId] = update.state;
+      else delete progress.connector_guide_states[update.connectorId];
+      completed = !!update.state;
+      const componentKey = `connector:${update.connectorId}`;
+      if (update.state === 'verified') {
+        setComponentStep(progress, componentKey, 'qc', true);
+      } else {
+        setComponentStep(progress, componentKey, 'qc', false);
+        if (update.state === 'checking') {
+          setComponentStep(progress, componentKey, 'populated', true);
+        } else {
+          setComponentStep(progress, componentKey, 'populated', false);
+        }
+      }
+    }
+
+    const changed = update.kind === 'connector-guide'
+      ? previousGuideState !== update.state
+      : previousCompleted !== completed;
+    if (!changed) continue;
+
+    const taskKey = manufacturingTaskKey(update);
+    progress.task_attribution = { ...(progress.task_attribution ?? {}) };
+    if (completed) progress.task_attribution[taskKey] = actor;
+    else delete progress.task_attribution[taskKey];
+
+    const quantity = update.kind === 'wire-cut'
+      ? update.lengthMm
+      : update.kind === 'wire-end'
+        ? 1
+        : undefined;
+    progress.work_log = [
+      ...(progress.work_log ?? []),
+      {
+        id: `work:${bundleId}:${eventTime}:${eventSequence++}`,
+        task_key: taskKey,
+        kind: update.kind,
+        action: completed ? 'complete' : 'reopen',
+        ...(update.kind === 'connector-guide' && update.state
+          ? { state: update.state }
+          : {}),
+        ...(quantity !== undefined ? { quantity } : {}),
+        ...(quantity !== undefined
+          ? { unit: update.kind === 'wire-cut' ? 'mm' as const : 'ea' as const }
+          : {}),
+        ...actor,
+      },
+    ];
+  }
+
+  cleanVisualProgress(progress);
+  next.bundles[bundleId] = progress;
+  return next;
 }
 
 export function manufacturingComponentSteps(

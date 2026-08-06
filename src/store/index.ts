@@ -9,10 +9,10 @@ import type {
   Enclosure,
   FreePortLayouts,
   HarnessData,
-  JunctionLayout,
   JunctionLayouts,
   ManufacturingDocument,
   ManufacturingStep,
+  ManufacturingTaskUpdate,
   MergePoint,
   MergePointLayouts,
   NodeLayout,
@@ -29,6 +29,7 @@ import type {
   SubsystemDocument,
   SubsystemEntityLayout,
   EditingSurface,
+  ManufacturingTab,
   TextBoxFontFamily,
   TextBoxFontWeight,
   TextBoxLayout,
@@ -38,12 +39,16 @@ import type {
   WaypointLayouts,
 } from '../types';
 import {
+  applyManufacturingTaskUpdates,
   applySpanTotalLength,
   assignManufacturingEndpointGender,
   EMPTY_MANUFACTURING_DOCUMENT,
   MANUFACTURING_STEPS,
 } from '../lib/manufacturing';
-import { collectAllTags, itemMatchesFilters } from '../lib/tags';
+import {
+  getLastManufacturingBundleId,
+  setLastManufacturingBundleId,
+} from '../lib/userPrefs';
 import {
   applyConnectorPinCount,
   deriveBundles,
@@ -59,6 +64,7 @@ import {
   getNextConnectorPinCount,
   getPathNodeBundleKey,
   getPathSegmentMeasurement,
+  getPathsTouchingConnector,
   getPreviousConnectorPinCount,
   getVisibleSegments,
   isConnectorFamily,
@@ -67,16 +73,24 @@ import {
   parseBundleId,
   dissolveMergePoint,
   mergeConnectors,
+  moveHierarchyEntity as relocateHierarchyEntity,
   renumberConnectorPins,
   splicePathWithMerge,
+  type BulkheadWireSide,
+  type HierarchyEntityKind,
 } from '../lib/harness';
 import {
   getConnectorTablePinCount,
   resolveConnectorRenderedSize,
 } from '../lib/connectorSize';
 import {
+  resolveParentResizeWithConnectorShove,
+  type GraphNodeSize,
+  type GraphRect,
+  type ParentResizeConnector,
+} from '../lib/parentResize';
+import {
   normalizeDisplayName,
-  renameConnectorType as renameConnectorTypeInLibrary,
   renameHarnessEntity,
   renameSubsystem as renameSubsystemDocument,
   renameSystem as renameSystemDocument,
@@ -175,18 +189,18 @@ export interface HarnessStore {
   serverLayouts: CollaborationLayouts;
   serverSubsystems: Record<string, SubsystemDocument>;
   manufacturingTargetBundleId: string | null;
+  manufacturingTab: ManufacturingTab;
   appView: AppView;
   connectorLibraryTargetId: string | null;
   signalLibraryTargetId: string | null;
   activeHarnessName: string;
-  availableHarnesses: string[];
+  availableHarnesses: Array<{ id: string; name: string }>;
   selectedItem: SelectedItem | null;
   nodeLayouts: NodeLayout;
   isDirty: boolean;
   expandedNodes: Set<string>;
   /** Session-only sizes while a connector table is expanded; cleared on collapse. */
   expandedSizeOverrides: SizeLayouts;
-  activeFilters: Map<string, Set<string>>;
   settingsOpen: boolean;
   drillDownEnclosure: string | null;
   portLayouts: PortLayouts;
@@ -197,6 +211,8 @@ export interface HarnessStore {
   textBoxLayouts: TextBoxLayouts;
   selectedTextBoxId: string | null;
   selectedBundle: SelectedBundle | null;
+  /** Hide the inspector while keeping the current selection (e.g. while editing waypoints). */
+  inspectorDismissed: boolean;
   revealRequest: { item: SelectedItem; requestId: number } | null;
   revealRequestSequence: number;
   waypointLayouts: WaypointLayouts;
@@ -221,13 +237,18 @@ export interface HarnessStore {
   queuedRemoteUpdates: SyncPayload[];
 
   setActiveHarnessName: (name: string) => Promise<boolean>;
-  setAvailableHarnesses: (harnesses: string[]) => void;
+  setAvailableHarnesses: (harnesses: Array<{ id: string; name: string }>) => void;
   renameSystem: (name: string) => void;
   openConnectorLibrary: (typeId?: string | null) => void;
   openSignalLibrary: (signalId?: string | null) => void;
   openManufacturing: (bundleId?: string | null) => void;
+  /** Remember the manufacturing harness selection for this user without changing app view. */
+  setManufacturingTargetBundle: (bundleId: string | null) => void;
+  setManufacturingTab: (tab: ManufacturingTab) => void;
   showBundleInHierarchy: (pathIds: string[]) => void;
   inspectEntity: (item: SelectedItem) => void;
+  /** Select for the inspector without changing view or issuing a camera reveal. */
+  inspectEntityQuiet: (item: SelectedItem) => void;
   closeConnectorLibrary: () => void;
   setEditingSurface: (surface: EditingSurface) => void;
   loadSubsystems: (documents: SubsystemDocument[]) => void;
@@ -236,7 +257,12 @@ export interface HarnessStore {
   acceptSavedSubsystem: (document: SubsystemDocument) => void;
   renameSubsystem: (id: string, name: string) => void;
   updateSubsystemEntityLayout: (kind: 'enclosures' | 'devices' | 'connectors', id: string, layout: SubsystemEntityLayout) => void;
-  resizeSubsystemEntityLayout: (kind: 'enclosures' | 'devices', id: string, layout: SubsystemEntityLayout) => void;
+  resizeSubsystemEntityLayout: (
+    kind: 'enclosures' | 'devices',
+    id: string,
+    layout: SubsystemEntityLayout,
+    previousRenderedLayout?: SubsystemEntityLayout,
+  ) => void;
   addEntityToActiveSubsystem: (type: 'enclosure' | 'connector', id: string) => void;
   removeEntityFromActiveSubsystem: (type: 'enclosure' | 'connector', id: string) => void;
   renumberConnectorCavities: (connectorId: string, orderedOldPinNumbers: number[]) => void;
@@ -259,6 +285,17 @@ export interface HarnessStore {
   deleteSignalPropertyDefinition: (id: string) => void;
   addEnclosure: (input: Pick<Enclosure, 'name' | 'parent' | 'container'>) => string | null;
   addConnector: (parentId: string) => string | null;
+  /**
+   * Reparent and/or reorder an enclosure, connector, or merge point in the
+   * hierarchy tree. `beforeId` inserts before that same-kind sibling under
+   * `newParentId`; omit/null to append.
+   */
+  moveHierarchyEntity: (
+    type: HierarchyEntityKind,
+    id: string,
+    newParentId: string | null,
+    beforeId?: string | null,
+  ) => boolean;
   setConnectorType: (connectorId: string, typeId: string) => void;
   setConnectorKeying: (connectorId: string, keying: string | undefined) => void;
   updateManufacturingEndpointGender: (
@@ -274,13 +311,16 @@ export interface HarnessStore {
   updateSignalProperty: (signalId: string, key: string, value: string) => void;
   updatePathSignal: (pathId: string, signalId: string | null) => void;
   updatePathProperty: (pathId: string, key: string, value: string) => void;
-  updatePathSegmentLength: (pathId: string, segmentIndex: number, lengthMm: number | undefined) => void;
-  updatePathSpanLength: (
-    pathId: string,
-    fromNodeIndex: number,
-    toNodeIndex: number,
-    lengthMm: number | undefined,
+  /**
+   * Set `wire_gauge` on every path landing on a connector.
+   * For bulkheads, `side` limits the update to internal, external, or both.
+   */
+  updateConnectorPathsGauge: (
+    connectorId: string,
+    gauge: string,
+    side?: BulkheadWireSide,
   ) => void;
+  updatePathSegmentLength: (pathId: string, segmentIndex: number, lengthMm: number | undefined) => void;
   updatePathSpanLengths: (
     updates: Array<{
       pathId: string;
@@ -326,6 +366,10 @@ export interface HarnessStore {
     step: ManufacturingStep,
     completed: boolean,
   ) => void;
+  updateManufacturingTasks: (
+    bundleId: string,
+    updates: ManufacturingTaskUpdate[],
+  ) => void;
   updateManufacturingNotes: (bundleId: string, notes: string) => void;
   updateConnectorLibrary: (data: ConnectorLibrary) => void;
   loadLayouts: (layouts: NodeLayout) => void;
@@ -355,6 +399,11 @@ export interface HarnessStore {
   updateExpandedNodeSize: (nodeId: string, w: number, h: number) => void;
 
   updateNodePosition: (nodeId: string, x: number, y: number) => void;
+  resizeHierarchyEntityLayout: (
+    nodeId: string,
+    previousLayout: GraphRect,
+    layout: GraphRect,
+  ) => void;
   updatePortLayout: (connectorId: string, x: number, y: number) => void;
   updateNodeSize: (nodeId: string, w: number, h: number) => void;
   updateFreePortLayout: (connectorId: string, x: number, y: number) => void;
@@ -362,16 +411,14 @@ export interface HarnessStore {
 
   setDrillDown: (encId: string | null) => void;
   setSelectedBundle: (bundle: SelectedBundle | null) => void;
+  dismissInspector: () => void;
 
   setEdgeWaypoints: (edgeId: string, waypoints: WaypointItem[]) => void;
-  clearEdgeWaypoints: (edgeId: string) => void;
   createJunction: (pos: { x: number; y: number }, edgeId: string, waypointIndex: number) => string;
   moveJunction: (junctionId: string, pos: { x: number; y: number }) => void;
   deleteJunction: (junctionId: string) => void;
   linkEdgeToJunction: (junctionId: string, edgeId: string, insertAfterIndex: number, pos: { x: number; y: number }) => void;
   unlinkEdgeFromJunction: (junctionId: string, edgeId: string) => void;
-  findJunctionForEdgeWaypoint: (edgeId: string, waypointIndex: number) => JunctionLayout | undefined;
-  getJunctionsForEdge: (edgeId: string) => JunctionLayout[];
 
   draggingEdgeInfo: { edgeId: string; position: { x: number; y: number }; waypointIndex?: number } | null;
   setDraggingEdgeInfo: (info: { edgeId: string; position: { x: number; y: number }; waypointIndex?: number } | null) => void;
@@ -384,30 +431,20 @@ export interface HarnessStore {
   getUndoAffectedEntities: () => string[];
   undo: () => void;
   redo: () => void;
-  canUndo: () => boolean;
-  canRedo: () => boolean;
 
   loadConnectorTypeSizes: (sizes: ConnectorTypeSizes) => void;
-  updateConnectorTypeSize: (typeId: string, w: number, h: number) => void;
   updateConnectorTypeImage: (typeId: string, image: string, pinCount?: number) => void;
   updateConnectorTypeSideImage: (typeId: string, image: string, pinCount?: number) => void;
-  renameConnectorType: (typeId: string, name: string) => void;
   updateEnclosureProperty: (encId: string, key: string, value: string) => void;
   updateConnectorProperty: (conId: string, key: string, value: string) => void;
 
   addTag: (entityType: string, entityId: string, tag: string) => void;
   removeTag: (entityType: string, entityId: string, tag: string) => void;
 
-  toggleFilter: (namespace: string, value: string) => void;
-  clearFilters: () => void;
   setSettingsOpen: (open: boolean) => void;
-  markClean: () => void;
 
-  getAllTagNamespaces: () => Map<string, Set<string>>;
   getAllExistingTags: () => string[];
-  getFilteredMatch: (tags: string[]) => boolean;
   findEntity: (type: string, id: string) => Enclosure | Connector | MergePoint | Path | Signal | undefined;
-  getParentName: (parentId: string) => string;
 }
 
 function normalizeHarness(data: HarnessData): HarnessData {
@@ -1147,6 +1184,35 @@ export function buildSubsystemSavePayload(
   return { patch: localDocument, removed };
 }
 
+function connectorRenderedSizeForResize(
+  state: HarnessStore,
+  connector: Connector,
+  layout: { w?: number; h?: number } | undefined,
+  fallback: GraphNodeSize,
+): GraphNodeSize {
+  const systemSize = state.sizeLayouts[connector.id];
+  const collapsedSize = {
+    w: layout?.w ?? systemSize?.w ?? fallback.w,
+    h: layout?.h ?? systemSize?.h ?? fallback.h,
+  };
+  const connectorType = state.connectorLibrary?.connector_types.find(
+    (item) => item.id === connector.connector_type,
+  );
+  const occupiedPins = state.harness
+    ? getConnectorOccupancy(state.harness, connector.id)
+    : [];
+  return resolveConnectorRenderedSize(
+    collapsedSize,
+    state.expandedNodes.has(connector.id),
+    getConnectorTablePinCount(
+      connector,
+      connectorType,
+      occupiedPins.map((pin) => pin.pinNumber),
+    ),
+    state.expandedSizeOverrides[connector.id],
+  );
+}
+
 export const useHarnessStore = create<HarnessStore>(readOnlyMiddleware((set, get) => ({
   harness: null,
   serverHarness: null,
@@ -1157,6 +1223,7 @@ export const useHarnessStore = create<HarnessStore>(readOnlyMiddleware((set, get
   serverLayouts: emptyLayouts(),
   serverSubsystems: {},
   manufacturingTargetBundleId: null,
+  manufacturingTab: 'cutlists',
   appView: 'canvas',
   connectorLibraryTargetId: null,
   signalLibraryTargetId: null,
@@ -1167,7 +1234,6 @@ export const useHarnessStore = create<HarnessStore>(readOnlyMiddleware((set, get
   isDirty: false,
   expandedNodes: new Set<string>(),
   expandedSizeOverrides: {},
-  activeFilters: new Map<string, Set<string>>(),
   settingsOpen: false,
   drillDownEnclosure: null,
   portLayouts: {},
@@ -1178,6 +1244,7 @@ export const useHarnessStore = create<HarnessStore>(readOnlyMiddleware((set, get
   textBoxLayouts: {},
   selectedTextBoxId: null,
   selectedBundle: null,
+  inspectorDismissed: false,
   revealRequest: null,
   revealRequestSequence: 0,
   waypointLayouts: {},
@@ -1383,9 +1450,17 @@ export const useHarnessStore = create<HarnessStore>(readOnlyMiddleware((set, get
     if (!state.harness) return state;
     try {
       const harness = renameSystemDocument(state.harness, name);
-      return harness === state.harness
-        ? state
-        : historyPatch(state, { harness, isDirty: true, mutationError: null }, 'rename:system');
+      if (harness === state.harness) return state;
+      const availableHarnesses = state.availableHarnesses.map((item) => (
+        item.id === state.activeHarnessName && harness.name
+          ? { ...item, name: harness.name }
+          : item
+      ));
+      return historyPatch(
+        state,
+        { harness, availableHarnesses, isDirty: true, mutationError: null },
+        'rename:system',
+      );
     } catch (error) {
       return { mutationError: error instanceof Error ? error.message : 'System rename failed.' };
     }
@@ -1401,12 +1476,32 @@ export const useHarnessStore = create<HarnessStore>(readOnlyMiddleware((set, get
     signalLibraryTargetId: signalId,
     manufacturingTargetBundleId: null,
   }),
-  openManufacturing: (bundleId = null) => set({
-    appView: 'manufacturing',
-    connectorLibraryTargetId: null,
-    signalLibraryTargetId: null,
-    manufacturingTargetBundleId: bundleId,
+  openManufacturing: (bundleId = null) => set((state) => {
+    const userId = state.session.user?.id ?? null;
+    const harnessName = state.activeHarnessName;
+    if (bundleId) {
+      setLastManufacturingBundleId(userId, harnessName, bundleId);
+    }
+    const resolved = bundleId
+      ?? getLastManufacturingBundleId(userId, harnessName);
+    return {
+      appView: 'manufacturing' as const,
+      connectorLibraryTargetId: null,
+      signalLibraryTargetId: null,
+      manufacturingTargetBundleId: resolved,
+    };
   }),
+  setManufacturingTargetBundle: (bundleId) => set((state) => {
+    if (bundleId) {
+      setLastManufacturingBundleId(
+        state.session.user?.id ?? null,
+        state.activeHarnessName,
+        bundleId,
+      );
+    }
+    return { manufacturingTargetBundleId: bundleId };
+  }),
+  setManufacturingTab: (tab) => set({ manufacturingTab: tab }),
   showBundleInHierarchy: (pathIds) => set((state) => {
     const firstPathId = pathIds.find((pathId) =>
       state.harness?.paths.some((path) => path.id === pathId)
@@ -1430,6 +1525,7 @@ export const useHarnessStore = create<HarnessStore>(readOnlyMiddleware((set, get
       }))
       .filter((entry) => entry.overlap > 0)
       .sort((a, b) => b.overlap - a.overlap)[0]?.bundle;
+    const requestId = (state.revealRequestSequence ?? 0) + 1;
     return {
       appView: 'canvas',
       editingSurface: 'hierarchy',
@@ -1441,7 +1537,10 @@ export const useHarnessStore = create<HarnessStore>(readOnlyMiddleware((set, get
           : null,
       selectedItem: null,
       selectedTextBoxId: null,
-      revealRequest: null,
+      revealRequest: firstPathId
+        ? { item: { type: 'path' as const, id: firstPathId }, requestId }
+        : null,
+      revealRequestSequence: firstPathId ? requestId : state.revealRequestSequence,
       manufacturingTargetBundleId: null,
     };
   }),
@@ -1463,6 +1562,12 @@ export const useHarnessStore = create<HarnessStore>(readOnlyMiddleware((set, get
       revealRequestSequence: requestId,
       drillDownEnclosure,
     };
+  }),
+  inspectEntityQuiet: (item) => set({
+    selectedItem: item,
+    selectedBundle: null,
+    selectedTextBoxId: null,
+    revealRequest: null,
   }),
   closeConnectorLibrary: () => set({
     appView: 'canvas',
@@ -1539,71 +1644,146 @@ export const useHarnessStore = create<HarnessStore>(readOnlyMiddleware((set, get
       },
     }, `subsystem:${activeId}:${kind}:${id}:layout`);
   }),
-  resizeSubsystemEntityLayout: (kind, id, layout) => set((state) => {
+  resizeSubsystemEntityLayout: (
+    kind,
+    id,
+    layout,
+    previousRenderedLayout,
+  ) => set((state) => {
     const activeId = state.activeSubsystemId;
     const document = activeId ? state.subsystems[activeId] : undefined;
-    const previous = document?.[kind][id];
-    if (!activeId || !document || !previous) return state;
+    const previousStoredLayout = document?.[kind][id];
+    const harness = state.harness;
+    if (!activeId || !document || !previousStoredLayout || !harness) return state;
 
-    const deltaX = layout.x - previous.x;
-    const deltaY = layout.y - previous.y;
-    let devices = document.devices;
-    let connectors = document.connectors;
+    const inheritedDeviceSize = kind === 'devices' ? state.sizeLayouts[id] : undefined;
+    const previousParent: GraphRect = {
+      x: previousRenderedLayout?.x ?? previousStoredLayout.x,
+      y: previousRenderedLayout?.y ?? previousStoredLayout.y,
+      w: previousRenderedLayout?.w
+        ?? previousStoredLayout.w
+        ?? inheritedDeviceSize?.w
+        ?? (kind === 'enclosures' ? 520 : 220),
+      h: previousRenderedLayout?.h
+        ?? previousStoredLayout.h
+        ?? inheritedDeviceSize?.h
+        ?? (kind === 'enclosures' ? 360 : 180),
+    };
+    const requestedParent: GraphRect = {
+      x: layout.x,
+      y: layout.y,
+      w: layout.w ?? previousParent.w,
+      h: layout.h ?? previousParent.h,
+    };
+    const hiddenConnectorIds = new Set(document.hidden_connectors ?? []);
+    const connectorLayouts = new Map<string, SubsystemEntityLayout>();
+    const connectorInputs: ParentResizeConnector[] = [];
 
-    if (deltaX !== 0 || deltaY !== 0) {
-      if (kind === 'enclosures') {
-        devices = { ...devices };
-        const representedDeviceIds = new Set(Object.keys(document.devices));
-        for (const [deviceId, deviceLayout] of Object.entries(document.devices)) {
-          const device = state.harness?.enclosures.find((entity) => entity.id === deviceId);
-          if (device?.parent !== id) continue;
-          devices[deviceId] = {
-            ...deviceLayout,
-            x: deviceLayout.x - deltaX,
-            y: deviceLayout.y - deltaY,
-          };
-        }
-
-        connectors = { ...connectors };
-        for (const [connectorId, connectorLayout] of Object.entries(document.connectors)) {
-          const connector = state.harness?.connectors.find((entity) => entity.id === connectorId);
-          const parentEntity = connector?.parent
-            ? state.harness?.enclosures.find((entity) => entity.id === connector.parent)
-            : undefined;
-          const isDirectFrameChild =
-            connector?.parent === id ||
-            (
-              parentEntity?.container === false &&
-              parentEntity.parent === id &&
-              !representedDeviceIds.has(parentEntity.id)
-            );
-          if (!isDirectFrameChild) continue;
-          connectors[connectorId] = {
-            ...connectorLayout,
-            x: connectorLayout.x - deltaX,
-            y: connectorLayout.y - deltaY,
-          };
-        }
-      } else {
-        connectors = { ...connectors };
-        const hiddenConnectorIds = new Set(document.hidden_connectors ?? []);
-        const connectorMode = document.device_connector_mode?.[id] ?? 'all';
-        const visibleConnectors = (state.harness?.connectors ?? []).filter((connector) =>
-          connector.parent === id &&
-          !hiddenConnectorIds.has(connector.id) &&
-          (connectorMode === 'all' || !!document.connectors[connector.id]),
-        );
-        visibleConnectors.forEach((connector, index) => {
-          const connectorLayout = document.connectors[connector.id] ?? {
-            x: 12 + (index % 2) * 100,
-            y: 48 + Math.floor(index / 2) * 44,
-          };
-          connectors[connector.id] = {
-            ...connectorLayout,
-            x: connectorLayout.x - deltaX,
-            y: connectorLayout.y - deltaY,
-          };
+    if (kind === 'devices') {
+      const connectorMode = document.device_connector_mode?.[id] ?? 'all';
+      const visibleConnectors = harness.connectors.filter((connector) =>
+        connector.parent === id
+        && !hiddenConnectorIds.has(connector.id)
+        && (connectorMode === 'all' || !!document.connectors[connector.id]));
+      visibleConnectors.forEach((connector, index) => {
+        const storedLayout = document.connectors[connector.id];
+        const systemPosition = state.portLayouts[connector.id];
+        const resolvedLayout: SubsystemEntityLayout = {
+          x: storedLayout?.x ?? systemPosition?.x ?? 12 + (index % 2) * 100,
+          y: storedLayout?.y ?? systemPosition?.y ?? 48 + Math.floor(index / 2) * 44,
+          ...(storedLayout?.w !== undefined ? { w: storedLayout.w } : {}),
+          ...(storedLayout?.h !== undefined ? { h: storedLayout.h } : {}),
+        };
+        connectorLayouts.set(connector.id, resolvedLayout);
+        connectorInputs.push({
+          id: connector.id,
+          position: { x: resolvedLayout.x, y: resolvedLayout.y },
+          size: connectorRenderedSizeForResize(
+            state,
+            connector,
+            storedLayout,
+            { w: 96, h: 36 },
+          ),
         });
+      });
+    } else {
+      const representedDeviceIds = new Set(Object.keys(document.devices));
+      for (const [connectorId, connectorLayout] of Object.entries(document.connectors)) {
+        if (hiddenConnectorIds.has(connectorId)) continue;
+        const connector = harness.connectors.find((entity) => entity.id === connectorId);
+        const parentEntity = connector?.parent
+          ? harness.enclosures.find((entity) => entity.id === connector.parent)
+          : undefined;
+        const isDirectFrameChild =
+          connector?.parent === id
+          || (
+            parentEntity?.container === false
+            && parentEntity.parent === id
+            && !representedDeviceIds.has(parentEntity.id)
+          );
+        if (!connector || !isDirectFrameChild) continue;
+        connectorLayouts.set(connector.id, connectorLayout);
+        connectorInputs.push({
+          id: connector.id,
+          position: { x: connectorLayout.x, y: connectorLayout.y },
+          size: connectorRenderedSizeForResize(
+            state,
+            connector,
+            connectorLayout,
+            { w: 96, h: 36 },
+          ),
+          wallMounted: parentEntity?.container === true,
+        });
+      }
+    }
+
+    const resolvedResize = resolveParentResizeWithConnectorShove(
+      previousParent,
+      requestedParent,
+      connectorInputs,
+    );
+    const resolvedLayout: SubsystemEntityLayout = {
+      ...layout,
+      x: resolvedResize.parent.x,
+      y: resolvedResize.parent.y,
+      w: resolvedResize.parent.w,
+      h: resolvedResize.parent.h,
+    };
+    let connectors = document.connectors;
+    if (connectorInputs.length > 0) {
+      connectors = { ...connectors };
+      for (const connectorInput of connectorInputs) {
+        const position = resolvedResize.connectorPositions[connectorInput.id];
+        const previousConnectorLayout = connectorLayouts.get(connectorInput.id);
+        if (!position || !previousConnectorLayout) continue;
+        connectors[connectorInput.id] = {
+          ...previousConnectorLayout,
+          x: position.x,
+          y: position.y,
+        };
+      }
+    }
+
+    let devices = document.devices;
+    if (kind === 'enclosures') {
+      devices = { ...devices };
+      const deltaX = resolvedResize.parent.x - previousParent.x;
+      const deltaY = resolvedResize.parent.y - previousParent.y;
+      for (const [deviceId, deviceLayout] of Object.entries(document.devices)) {
+        const device = harness.enclosures.find((entity) => entity.id === deviceId);
+        if (device?.parent !== id) continue;
+        const systemDeviceSize = state.sizeLayouts[deviceId];
+        const deviceW = deviceLayout.w ?? systemDeviceSize?.w ?? 220;
+        const deviceH = deviceLayout.h ?? systemDeviceSize?.h ?? 180;
+        const nextX = deviceLayout.x - deltaX;
+        const nextY = deviceLayout.y - deltaY;
+        const maxX = Math.max(0, resolvedResize.parent.w - deviceW);
+        const maxY = Math.max(0, resolvedResize.parent.h - deviceH);
+        devices[deviceId] = {
+          ...deviceLayout,
+          x: Math.min(maxX, Math.max(0, nextX)),
+          y: Math.min(maxY, Math.max(0, nextY)),
+        };
       }
     }
 
@@ -1613,10 +1793,10 @@ export const useHarnessStore = create<HarnessStore>(readOnlyMiddleware((set, get
         [activeId]: {
           ...document,
           enclosures: kind === 'enclosures'
-            ? { ...document.enclosures, [id]: layout }
+            ? { ...document.enclosures, [id]: resolvedLayout }
             : document.enclosures,
           devices: kind === 'devices'
-            ? { ...devices, [id]: layout }
+            ? { ...devices, [id]: resolvedLayout }
             : devices,
           connectors,
         },
@@ -1634,15 +1814,32 @@ export const useHarnessStore = create<HarnessStore>(readOnlyMiddleware((set, get
       const index = Object.keys(document.enclosures).length;
       return { x: 40 + (index % 3) * 560, y: 40 + Math.floor(index / 3) * 400, w: 520, h: 360 };
     };
-    const nextDeviceLayout = (frameId: string | null) => {
-      const index = Object.keys(document.devices).filter((deviceId) =>
-        harness.enclosures.find((item) => item.id === deviceId)?.parent === frameId,
+    const nextDeviceLayout = (_deviceId: string, frameId: string | null) => {
+      const index = Object.keys(document.devices).filter((id) =>
+        harness.enclosures.find((item) => item.id === id)?.parent === frameId,
       ).length;
-      return { x: 40 + (index % 2) * 240, y: 60 + Math.floor(index / 2) * 200, w: 220, h: 180 };
+      // Omit w/h so the subsystem canvas inherits the system device size until locally resized.
+      return {
+        x: 40 + (index % 2) * 240,
+        y: 60 + Math.floor(index / 2) * 200,
+      };
     };
-    const nextConnectorLayout = () => {
+    const nextConnectorLayout = (connectorId: string) => {
+      const systemPort = state.portLayouts[connectorId];
+      const systemSize = state.sizeLayouts[connectorId];
+      if (systemPort) {
+        return {
+          x: systemPort.x,
+          y: systemPort.y,
+          ...(systemSize ? { w: systemSize.w, h: systemSize.h } : {}),
+        };
+      }
       const index = Object.keys(document.connectors).length;
-      return { x: 40 + (index % 3) * 112, y: 80 + Math.floor(index / 3) * 52, w: 96, h: 36 };
+      return {
+        x: 40 + (index % 3) * 112,
+        y: 80 + Math.floor(index / 3) * 52,
+        ...(systemSize ? { w: systemSize.w, h: systemSize.h } : { w: 96, h: 36 }),
+      };
     };
     const nextHarness = structuredClone(harness);
     if (type === 'enclosure') {
@@ -1665,7 +1862,7 @@ export const useHarnessStore = create<HarnessStore>(readOnlyMiddleware((set, get
         if (mutableFrame && !mutableFrame.tags.includes(systemTag)) mutableFrame.tags.push(systemTag);
       }
       if (isDevice && !document.devices[id]) {
-        document.devices[id] = nextDeviceLayout(frameId);
+        document.devices[id] = nextDeviceLayout(id, frameId);
       }
       if (isDevice) {
         document.device_connector_mode = {
@@ -1696,14 +1893,14 @@ export const useHarnessStore = create<HarnessStore>(readOnlyMiddleware((set, get
       document.enclosures[frameId] = nextFrameLayout();
     }
     if (deviceId && !document.devices[deviceId]) {
-      document.devices[deviceId] = nextDeviceLayout(frameId);
+      document.devices[deviceId] = nextDeviceLayout(deviceId, frameId);
       document.device_connector_mode = {
         ...(document.device_connector_mode ?? {}),
         [deviceId]: 'selected',
       };
     }
     if (!document.connectors[id]) {
-      document.connectors[id] = nextConnectorLayout();
+      document.connectors[id] = nextConnectorLayout(id);
     }
     document.hidden_connectors = (document.hidden_connectors ?? []).filter((connectorId) => connectorId !== id);
     const mutableConnector = nextHarness.connectors.find((item) => item.id === id);
@@ -2364,6 +2561,29 @@ export const useHarnessStore = create<HarnessStore>(readOnlyMiddleware((set, get
 
     return connectorId;
   },
+  moveHierarchyEntity: (type, id, newParentId, beforeId = null) => {
+    const state = get();
+    if (!state.harness) return false;
+    if (state.collabAvailable && !state.session.isEditor) {
+      set({ mutationError: 'Log in to edit' });
+      return false;
+    }
+    try {
+      const harness = relocateHierarchyEntity(state.harness, type, id, newParentId, beforeId ?? null);
+      if (harness === state.harness) return true;
+      set((prev) => historyPatch(prev, {
+        harness,
+        isDirty: true,
+        mutationError: null,
+      }, `hierarchy:${type}:${id}:move`));
+      return true;
+    } catch (error) {
+      set({
+        mutationError: error instanceof Error ? error.message : 'Could not move hierarchy entity.',
+      });
+      return false;
+    }
+  },
   setConnectorType: (connectorId, typeId) => set((state) => {
     if (!state.harness) return state;
     const libraryType = state.connectorLibrary?.connector_types.find((item) => item.id === typeId);
@@ -2524,6 +2744,34 @@ export const useHarnessStore = create<HarnessStore>(readOnlyMiddleware((set, get
       `path:${pathId}:property:${key}`,
     );
   }),
+  updateConnectorPathsGauge: (connectorId, gauge, side = 'both') => set((state) => {
+    if (!state.harness) return state;
+    const trimmed = gauge.trim();
+    const harness = structuredClone(state.harness);
+    const targets = getPathsTouchingConnector(harness, connectorId, side);
+    if (targets.length === 0) return state;
+    let changed = false;
+    for (const path of targets) {
+      path.properties ??= {};
+      const current = path.properties.wire_gauge ?? '';
+      if (trimmed === '') {
+        if (path.properties.wire_gauge !== undefined) {
+          delete path.properties.wire_gauge;
+          changed = true;
+        }
+      } else if (current !== trimmed) {
+        path.properties.wire_gauge = trimmed;
+        changed = true;
+      }
+    }
+    return changed
+      ? historyPatch(
+          state,
+          { harness, isDirty: true, mutationError: null },
+          `connector:${connectorId}:paths-gauge:${side}`,
+        )
+      : state;
+  }),
   updatePathSegmentLength: (pathId, segmentIndex, lengthMm) => set((state) => {
     if (!state.harness) return state;
     if (lengthMm !== undefined && (!Number.isFinite(lengthMm) || lengthMm < 0)) {
@@ -2542,22 +2790,6 @@ export const useHarnessStore = create<HarnessStore>(readOnlyMiddleware((set, get
       state,
       { harness, isDirty: true, mutationError: null },
       `path:${pathId}:segment:${segmentIndex}:length`,
-    );
-  }),
-  updatePathSpanLength: (pathId, fromNodeIndex, toNodeIndex, lengthMm) => set((state) => {
-    if (!state.harness) return state;
-    if (lengthMm !== undefined && (!Number.isFinite(lengthMm) || lengthMm < 0)) {
-      return { mutationError: 'Stretch length must be a non-negative number.' };
-    }
-
-    const harness = structuredClone(state.harness);
-    const path = harness.paths.find((item) => item.id === pathId);
-    if (!path) return state;
-    if (!applySpanTotalLength(path, fromNodeIndex, toNodeIndex, lengthMm)) return state;
-    return historyPatch(
-      state,
-      { harness, isDirty: true, mutationError: null },
-      `path:${pathId}:span:${fromNodeIndex}:${toNodeIndex}:length`,
     );
   }),
   updatePathSpanLengths: (updates) => set((state) => {
@@ -2673,7 +2905,6 @@ export const useHarnessStore = create<HarnessStore>(readOnlyMiddleware((set, get
     drillDownEnclosure: null,
     expandedNodes: new Set(),
     expandedSizeOverrides: {},
-    activeFilters: new Map(),
     isDirty: false,
     draggingEdgeInfo: null,
     manufacturing: structuredClone(EMPTY_MANUFACTURING_DOCUMENT),
@@ -2694,7 +2925,19 @@ export const useHarnessStore = create<HarnessStore>(readOnlyMiddleware((set, get
 
   loadHarness: (data) => set((state) => {
     const harness = normalizeHarness(data);
-    const patch = { harness, serverHarness: structuredClone(harness), isDirty: false };
+    const availableHarnesses = harness.name
+      ? state.availableHarnesses.map((item) => (
+        item.id === state.activeHarnessName
+          ? { ...item, name: harness.name as string }
+          : item
+      ))
+      : state.availableHarnesses;
+    const patch = {
+      harness,
+      serverHarness: structuredClone(harness),
+      availableHarnesses,
+      isDirty: false,
+    };
     if (!state.harness) return trustedDocumentPatch(patch);
     const changedIds = changedHarnessEntityIds(diffHarness(state.harness, harness)).sort();
     return trustedDocumentPatch(historyPatch(
@@ -2722,11 +2965,11 @@ export const useHarnessStore = create<HarnessStore>(readOnlyMiddleware((set, get
   }),
   loadManufacturing: (data) => set(trustedDocumentPatch({
     manufacturing: {
-      schema_version: '1.1.0',
+      schema_version: '1.2.0',
       bundles: data?.bundles ?? {},
     },
     serverManufacturing: {
-      schema_version: '1.1.0',
+      schema_version: '1.2.0',
       bundles: structuredClone(data?.bundles ?? {}),
     },
   })),
@@ -2753,6 +2996,7 @@ export const useHarnessStore = create<HarnessStore>(readOnlyMiddleware((set, get
     const componentSteps = {
       ...(progress.component_steps?.[componentKey] ?? progress.steps),
     };
+    const wasCompleted = !!componentSteps[step];
     for (let index = 0; index < MANUFACTURING_STEPS.length; index += 1) {
       const candidate = MANUFACTURING_STEPS[index].id;
       if (completed && index <= stepIndex) componentSteps[candidate] = true;
@@ -2762,11 +3006,56 @@ export const useHarnessStore = create<HarnessStore>(readOnlyMiddleware((set, get
       ...(progress.component_steps ?? {}),
       [componentKey]: componentSteps,
     };
+    if (wasCompleted !== completed) {
+      const user = state.session.user;
+      const actor = {
+        user_id: user?.id ?? 'unattributed',
+        user_name: user?.displayName ?? 'Unattributed',
+        day: new Date().toISOString().slice(0, 10),
+      };
+      const taskKey = `component:${componentKey}:step:${step}`;
+      progress.task_attribution = { ...(progress.task_attribution ?? {}) };
+      if (completed) progress.task_attribution[taskKey] = actor;
+      else delete progress.task_attribution[taskKey];
+      const now = Date.now();
+      progress.work_log = [
+        ...(progress.work_log ?? []),
+        {
+          id: `work:${bundleId}:${now}:${progress.work_log?.length ?? 0}`,
+          task_key: taskKey,
+          kind: 'component-step',
+          action: completed ? 'complete' : 'reopen',
+          state: step,
+          ...actor,
+        },
+      ];
+    }
+    document.schema_version = '1.2.0';
     document.bundles[bundleId] = progress;
     return historyPatch(
       state,
       { manufacturing: document, isDirty: true },
       `manufacturing:${bundleId}:${componentKey}:${step}`,
+    );
+  }),
+  updateManufacturingTasks: (bundleId, updates) => set((state) => {
+    if (updates.length === 0) return state;
+    const user = state.session.user;
+    const manufacturing = applyManufacturingTaskUpdates(
+      state.manufacturing,
+      bundleId,
+      updates,
+      {
+        user_id: user?.id ?? 'unattributed',
+        user_name: user?.displayName ?? 'Unattributed',
+        day: new Date().toISOString().slice(0, 10),
+      },
+    );
+    if (deepEqual(manufacturing, state.manufacturing)) return state;
+    return historyPatch(
+      state,
+      { manufacturing, isDirty: true },
+      `manufacturing:${bundleId}:visual-tasks`,
     );
   }),
   updateManufacturingNotes: (bundleId, notes) => set((state) => {
@@ -3113,6 +3402,7 @@ export const useHarnessStore = create<HarnessStore>(readOnlyMiddleware((set, get
     selectedTextBoxId: id,
     selectedItem: null,
     selectedBundle: null,
+    inspectorDismissed: false,
     revealRequest: null,
   }),
 
@@ -3120,6 +3410,7 @@ export const useHarnessStore = create<HarnessStore>(readOnlyMiddleware((set, get
     selectedItem: item,
     selectedBundle: null,
     selectedTextBoxId: null,
+    inspectorDismissed: false,
     revealRequest: null,
   }),
   revealItem: (item) => set((state) => {
@@ -3132,6 +3423,7 @@ export const useHarnessStore = create<HarnessStore>(readOnlyMiddleware((set, get
       selectedItem: item,
       selectedBundle: null,
       selectedTextBoxId: null,
+      inspectorDismissed: false,
       revealRequest: { item, requestId },
       revealRequestSequence: requestId,
       drillDownEnclosure,
@@ -3157,6 +3449,72 @@ export const useHarnessStore = create<HarnessStore>(readOnlyMiddleware((set, get
   updateNodePosition: (nodeId, x, y) => set((state) => historyPatch(state, {
     nodeLayouts: { ...state.nodeLayouts, [nodeId]: { x, y } },
   }, `node:${nodeId}:position`)),
+  resizeHierarchyEntityLayout: (nodeId, previousLayout, layout) =>
+    set((state) => {
+      const harness = state.harness;
+      const entity = harness?.enclosures.find((candidate) => candidate.id === nodeId);
+      if (!harness || !entity) {
+        return historyPatch(state, {
+          nodeLayouts: {
+            ...state.nodeLayouts,
+            [nodeId]: { x: layout.x, y: layout.y },
+          },
+          sizeLayouts: {
+            ...state.sizeLayouts,
+            [nodeId]: { w: layout.w, h: layout.h },
+          },
+        }, `node:${nodeId}:resize`);
+      }
+
+      const directConnectors = harness.connectors.filter(
+        (connector) => connector.parent === nodeId,
+      );
+      const connectorInputs = directConnectors.map((connector, index) => {
+        const position = state.portLayouts[connector.id] ?? {
+          x: 12 + (index % 3) * 90,
+          y: 48 + Math.floor(index / 3) * 52,
+        };
+        return {
+          id: connector.id,
+          position,
+          size: connectorRenderedSizeForResize(
+            state,
+            connector,
+            state.sizeLayouts[connector.id],
+            { w: 100, h: 32 },
+          ),
+          wallMounted: entity.container,
+        } satisfies ParentResizeConnector;
+      });
+      const resolvedResize = resolveParentResizeWithConnectorShove(
+        previousLayout,
+        layout,
+        connectorInputs,
+      );
+      const portLayouts = { ...state.portLayouts };
+      for (const connector of directConnectors) {
+        const position = resolvedResize.connectorPositions[connector.id];
+        if (position) portLayouts[connector.id] = position;
+      }
+
+      return historyPatch(state, {
+        nodeLayouts: {
+          ...state.nodeLayouts,
+          [nodeId]: {
+            x: resolvedResize.parent.x,
+            y: resolvedResize.parent.y,
+          },
+        },
+        portLayouts,
+        sizeLayouts: {
+          ...state.sizeLayouts,
+          [nodeId]: {
+            w: resolvedResize.parent.w,
+            h: resolvedResize.parent.h,
+          },
+        },
+      }, `node:${nodeId}:resize`);
+    }),
   updatePortLayout: (connectorId, x, y) => set((state) => historyPatch(state, {
     portLayouts: { ...state.portLayouts, [connectorId]: { x, y } },
   }, `connector:${connectorId}:port-position`)),
@@ -3188,32 +3546,19 @@ export const useHarnessStore = create<HarnessStore>(readOnlyMiddleware((set, get
     selectedBundle: bundle,
     selectedItem: null,
     selectedTextBoxId: null,
+    inspectorDismissed: false,
     revealRequest: null,
   }),
+  dismissInspector: () => set({ inspectorDismissed: true }),
 
   setEdgeWaypoints: (edgeId, waypoints) => set((state) => historyPatch(state, {
     waypointLayouts: { ...state.waypointLayouts, [edgeId]: waypoints },
   }, `edge:${edgeId}:waypoints`)),
-  clearEdgeWaypoints: (edgeId) =>
-    set((state) => {
-      const next = { ...state.waypointLayouts };
-      delete next[edgeId];
-      return historyPatch(
-        state,
-        { waypointLayouts: next },
-        `edge:${edgeId}:clear-waypoints`,
-      );
-    }),
   createJunction: (pos, edgeId, waypointIndex) => {
-    const id = `jct_${Date.now()}`;
+    const id = `jct_${crypto.randomUUID()}`;
     set((state) => {
       const waypoints = [...(state.waypointLayouts[edgeId] ?? [])];
       waypoints[waypointIndex] = { junctionId: id };
-
-      // Attempt to couple the junction with a real MergePoint entity. Only
-      // succeeds if the edge id parses as a bundle and at least one path
-      // actually traverses that bundle — otherwise fall back to an orphan
-      // layout-only junction (legacy behavior).
       const harness = state.harness;
       const parsed = harness ? parseBundleId(edgeId) : null;
       let mergePointId: string | undefined;
@@ -3252,7 +3597,7 @@ export const useHarnessStore = create<HarnessStore>(readOnlyMiddleware((set, get
               [mergePointId]: { x: pos.x, y: pos.y },
             },
           };
-          // Bundle has split into sub-bundles; original waypoint entry is stale.
+          // The semantic merge splits this bundle into new sub-bundle ids.
           nextWaypointLayouts = { ...state.waypointLayouts };
           delete nextWaypointLayouts[edgeId];
         }
@@ -3322,30 +3667,28 @@ export const useHarnessStore = create<HarnessStore>(readOnlyMiddleware((set, get
       const waypoints = [...(state.waypointLayouts[edgeId] ?? [])];
       const insertAt = Math.min(waypoints.length, Math.max(0, insertAfterIndex + 1));
       waypoints.splice(insertAt, 0, { junctionId });
-
-      // If this junction is coupled with a MergePoint, splice the merge into
-      // every path that traverses the newly linked edge's bundle so the
-      // harness stays in sync with the visual convergence.
       const harness = state.harness;
       const mergePointId = junction.mergePointId;
       let nextHarness = harness;
-      let nextWaypointLayouts: WaypointLayouts = { ...state.waypointLayouts, [edgeId]: waypoints };
+      let nextWaypointLayouts: WaypointLayouts = {
+        ...state.waypointLayouts,
+        [edgeId]: waypoints,
+      };
 
       if (harness && mergePointId) {
         const parsed = parseBundleId(edgeId);
         if (parsed) {
           const updatedPaths = harness.paths.map((path) => {
-            // Skip paths that already include this merge to avoid duplicates
-            // on self-intersecting paths.
-            const already = path.nodes.some(
+            const alreadyLinked = path.nodes.some(
               (node) => node.kind === 'merge' && node.merge_point_id === mergePointId,
             );
-            if (already) return path;
-            return splicePathWithMerge(path, edgeId, mergePointId);
+            return alreadyLinked
+              ? path
+              : splicePathWithMerge(path, edgeId, mergePointId);
           });
-          if (updatedPaths.some((path, idx) => path !== harness.paths[idx])) {
+          if (updatedPaths.some((path, index) => path !== harness.paths[index])) {
             nextHarness = { ...harness, paths: updatedPaths };
-            // Bundle has split; the waypoint entry pointing at this junction is stale.
+            // The semantic merge splits this bundle into new sub-bundle ids.
             nextWaypointLayouts = { ...state.waypointLayouts };
             delete nextWaypointLayouts[edgeId];
           }
@@ -3429,20 +3772,6 @@ export const useHarnessStore = create<HarnessStore>(readOnlyMiddleware((set, get
         mergePointLayouts: nextMergePointLayouts,
       }, `junction:${junctionId}:unlink:${edgeId}`);
     }),
-  findJunctionForEdgeWaypoint: (edgeId, waypointIndex) => {
-    const state = get();
-    const waypoint = state.waypointLayouts[edgeId]?.[waypointIndex];
-    if (!waypoint || !('junctionId' in waypoint)) return undefined;
-    return state.junctionLayouts[waypoint.junctionId];
-  },
-  getJunctionsForEdge: (edgeId) => {
-    const state = get();
-    return (state.waypointLayouts[edgeId] ?? [])
-      .filter((waypoint): waypoint is { junctionId: string } => 'junctionId' in waypoint)
-      .map((waypoint) => state.junctionLayouts[waypoint.junctionId])
-      .filter(Boolean) as JunctionLayout[];
-  },
-
   setDraggingEdgeInfo: (info) => set({ draggingEdgeInfo: info }),
 
   pushUndoSnapshot: (actionKey = 'manual') =>
@@ -3533,13 +3862,6 @@ export const useHarnessStore = create<HarnessStore>(readOnlyMiddleware((set, get
         redoStack: state.redoStack.slice(0, -1),
       };
     }),
-  canUndo: () => get().undoStack.length > 0,
-  canRedo: () => get().redoStack.length > 0,
-
-  updateConnectorTypeSize: (typeId, w, h) =>
-    set((state) => historyPatch(state, {
-      connectorTypeSizes: { ...state.connectorTypeSizes, [typeId]: { w: Math.round(w), h: Math.round(h) } },
-    }, `connectorType:${typeId}:size`)),
   updateConnectorTypeImage: (typeId, image, pinCount) =>
     set((state) => {
       if (!state.connectorLibrary) return state;
@@ -3567,22 +3889,6 @@ export const useHarnessStore = create<HarnessStore>(readOnlyMiddleware((set, get
         { connectorLibrary: library, isDirty: true },
         `connectorType:${typeId}:side-image:${pinCount ?? 'default'}`,
       );
-    }),
-  renameConnectorType: (typeId, name) =>
-    set((state) => {
-      if (!state.connectorLibrary) return state;
-      try {
-        const connectorLibrary = renameConnectorTypeInLibrary(state.connectorLibrary, typeId, name);
-        return connectorLibrary === state.connectorLibrary
-          ? state
-          : historyPatch(
-              state,
-              { connectorLibrary, isDirty: true, mutationError: null },
-              `connectorType:${typeId}:rename`,
-            );
-      } catch (error) {
-        return { mutationError: error instanceof Error ? error.message : 'Connector type rename failed.' };
-      }
     }),
   updateEnclosureProperty: (encId, key, value) =>
     set((state) => {
@@ -3640,39 +3946,8 @@ export const useHarnessStore = create<HarnessStore>(readOnlyMiddleware((set, get
       );
     }),
 
-  toggleFilter: (namespace, value) =>
-    set((state) => {
-      const next = new Map(state.activeFilters);
-      const values = new Set(next.get(namespace) ?? []);
-      if (values.has(value)) values.delete(value);
-      else values.add(value);
-      if (values.size === 0) next.delete(namespace);
-      else next.set(namespace, values);
-      return { activeFilters: next };
-    }),
-  clearFilters: () => set({ activeFilters: new Map() }),
   setSettingsOpen: (open) => set({ settingsOpen: open }),
-  markClean: () => set({ isDirty: false }),
 
-  getAllTagNamespaces: () => {
-    const state = get();
-    const harness = state.harness;
-    if (!harness) return new Map();
-    const result = collectAllTags([
-      ...harness.enclosures,
-      ...harness.connectors,
-      ...harness.mergePoints,
-      ...harness.paths,
-      ...harness.signals,
-    ]);
-    const signalValues = result.get('signal') ?? new Set<string>();
-    for (const signal of harness.signals) signalValues.add(signal.id.replace(/^sig_/, ''));
-    if (signalValues.size > 0) result.set('signal', signalValues);
-    const systemValues = result.get('system') ?? new Set<string>();
-    for (const subsystem of Object.values(state.subsystems)) systemValues.add(subsystem.id);
-    if (systemValues.size > 0) result.set('system', systemValues);
-    return result;
-  },
   getAllExistingTags: () => {
     const harness = get().harness;
     if (!harness) return [];
@@ -3682,7 +3957,6 @@ export const useHarnessStore = create<HarnessStore>(readOnlyMiddleware((set, get
     }
     return [...tagSet].sort();
   },
-  getFilteredMatch: (tags) => itemMatchesFilters(tags, get().activeFilters),
   findEntity: (type, id) => {
     const harness = get().harness;
     if (!harness) return undefined;
@@ -3700,11 +3974,6 @@ export const useHarnessStore = create<HarnessStore>(readOnlyMiddleware((set, get
       default:
         return undefined;
     }
-  },
-  getParentName: (parentId) => {
-    const harness = get().harness;
-    if (!harness) return parentId;
-    return harness.enclosures.find((item) => item.id === parentId)?.name ?? parentId;
   },
 })));
 
@@ -3947,12 +4216,12 @@ function remoteManufacturing(
   if (!incoming) return null;
   if (isMapPatch<ManufacturingDocument['bundles'][string]>(incoming)) {
     return {
-      schema_version: '1.1.0',
+      schema_version: '1.2.0',
       bundles: applyRecordDiff(current.bundles, incoming),
     };
   }
   return {
-    schema_version: '1.1.0',
+    schema_version: '1.2.0',
     bundles: incoming.bundles ?? {},
   };
 }
@@ -4075,7 +4344,7 @@ function applyRemoteSyncPayload(payload: SyncPayload): void {
     );
     patch.serverManufacturing = nextRemoteManufacturing;
     patch.manufacturing = {
-      schema_version: '1.1.0',
+      schema_version: '1.2.0',
       bundles: merged.live,
     };
   }
@@ -4260,6 +4529,7 @@ export function useUndoStaleness(): UndoStaleness {
 
 const FAST_AUTO_SAVE_DELAY = 300;
 const SLOW_AUTO_SAVE_DELAY = 1_000;
+const AUTO_SAVE_ERROR_MIN_VISIBLE_MS = 15_000;
 type AutoSaveType =
   | 'harness'
   | 'layouts'
@@ -4279,6 +4549,8 @@ let pendingFastSaveTypes = new Set<AutoSaveType>();
 let pendingSlowSaveTypes = new Set<AutoSaveType>();
 let autoSaveActive = false;
 let activeAutoSave: Promise<boolean> | null = null;
+let autoSaveErrorShownAt = 0;
+let autoSaveErrorClearTimer: ReturnType<typeof setTimeout> | null = null;
 
 interface SaveResponseBody {
   ok?: boolean;
@@ -4306,8 +4578,37 @@ function updateConfirmedRevision(body: SaveResponseBody): void {
   });
 }
 
+function showAutoSaveFailure(message: string): void {
+  autoSaveErrorShownAt = Date.now();
+  if (autoSaveErrorClearTimer) {
+    clearTimeout(autoSaveErrorClearTimer);
+    autoSaveErrorClearTimer = null;
+  }
+  useHarnessStore.getState().setMutationError(message);
+}
+
+function scheduleAutoSaveFailureClear(message: string): void {
+  if (autoSaveErrorClearTimer) clearTimeout(autoSaveErrorClearTimer);
+  const clearIfResolved = () => {
+    autoSaveErrorClearTimer = null;
+    const state = useHarnessStore.getState();
+    if (state.mutationError === message && !hasOutstandingChanges(state)) {
+      state.setMutationError(null);
+    }
+  };
+  const remaining = Math.max(
+    0,
+    AUTO_SAVE_ERROR_MIN_VISIBLE_MS - (Date.now() - autoSaveErrorShownAt),
+  );
+  if (remaining === 0) {
+    clearIfResolved();
+  } else {
+    autoSaveErrorClearTimer = setTimeout(clearIfResolved, remaining);
+  }
+}
+
 function reportSaveFailure(response: Response, body: SaveResponseBody): false {
-  useHarnessStore.getState().setMutationError(
+  showAutoSaveFailure(
     `Autosave failed: ${body.error ?? `${response.status} ${response.statusText}`}`,
   );
   return false;
@@ -4516,12 +4817,12 @@ async function performAutoSave(what: Set<AutoSaveType>): Promise<boolean> {
     const current = useHarnessStore.getState();
     const dirty = hasOutstandingChanges(current);
     useHarnessStore.setState({ isDirty: dirty });
-    if (saved && current.mutationError?.startsWith('Autosave failed:')) {
-      current.setMutationError(null);
+    if (saved && !dirty && current.mutationError?.startsWith('Autosave failed:')) {
+      scheduleAutoSaveFailureClear(current.mutationError);
     }
     return saved;
   } catch (error) {
-    useHarnessStore.getState().setMutationError(
+    showAutoSaveFailure(
       `Autosave failed: ${error instanceof Error ? error.message : 'API unavailable'}`,
     );
     return false;

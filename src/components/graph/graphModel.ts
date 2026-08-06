@@ -4,102 +4,112 @@ import type {
   DerivedBundle,
   DerivedSegment,
   HarnessData,
+  JunctionLayouts,
   PathNode,
+  PortLayouts,
+  SelectedBundle,
   SelectedItem,
+  SizeLayouts,
   SubsystemDocument,
+  WaypointLayouts,
 } from '../../types';
 import {
   deriveSegments,
   getConnectorOccupancy,
-  getConnectorPinGuideImage,
-  getConnectorSideImage,
+  getConnectorSchematicImage,
   getPathNodeBundleKey,
   getPathNodeRefKey,
   getPathById,
   getPathSignalId,
+  getPathWireAppearance,
   getPortWireAppearance,
 } from '../../lib/harness';
+import type { Point } from '../../lib/paths';
 import {
   EXPANDED_CONNECTOR_Z_INDEX,
+  GRAPH_Z_CONNECTOR,
+  GRAPH_Z_ENCLOSURE,
+  GRAPH_Z_SELECTED_WIRE,
+  GRAPH_Z_WIRE,
   getConnectorTablePinCount,
   resolveConnectorRenderedSize,
 } from '../../lib/connectorSize';
-import { getWireAppearance } from '../../lib/colors';
-import { itemMatchesFilters } from '../../lib/tags';
+import {
+  getNearestWallSide,
+  projectNodeToEnclosureWall,
+  type GraphNodeSize,
+} from '../../lib/parentResize';
 
 export const SUBSYSTEM_FRAME_PREFIX = '__subframe_';
 export const SUBSYSTEM_DEVICE_PREFIX = '__subdevice_';
 export const SUBSYSTEM_CONNECTOR_PREFIX = '__subconnector_';
+export const JUNCTION_SNAP_RADIUS_PX = 24;
+
+export function getAbsoluteNodeCenter(nodeId: string, nodes: readonly Node[]): Point | null {
+  const nodesById = new Map(nodes.map((node) => [node.id, node]));
+  const node = nodesById.get(nodeId);
+  if (!node) return null;
+
+  let x = node.position.x;
+  let y = node.position.y;
+  let parentId = node.parentId;
+  const visited = new Set([node.id]);
+  while (parentId && !visited.has(parentId)) {
+    visited.add(parentId);
+    const parent = nodesById.get(parentId);
+    if (!parent) break;
+    x += parent.position.x;
+    y += parent.position.y;
+    parentId = parent.parentId;
+  }
+
+  const style = node.style as { width?: number | string; height?: number | string } | undefined;
+  const width = node.measured?.width
+    ?? node.width
+    ?? (typeof style?.width === 'number' ? style.width : 0);
+  const height = node.measured?.height
+    ?? node.height
+    ?? (typeof style?.height === 'number' ? style.height : 0);
+  return { x: x + width / 2, y: y + height / 2 };
+}
 
 export {
   AUTO_EXPANDED_CONNECTOR_WIDTH,
   CONNECTOR_HEADER_HEIGHT,
   CONNECTOR_PIN_ROW_HEIGHT,
   EXPANDED_CONNECTOR_Z_INDEX,
+  GRAPH_Z_BACKGROUND,
+  GRAPH_Z_CONNECTOR,
+  GRAPH_Z_ENCLOSURE,
+  GRAPH_Z_MERGE,
+  GRAPH_Z_SELECTED_WIRE,
+  GRAPH_Z_TEXT,
+  GRAPH_Z_WIRE,
   getAutoExpandedConnectorSize,
   getConnectorTablePinCount,
   MAX_AUTO_EXPAND_PINS,
   resolveConnectorRenderedSize,
 } from '../../lib/connectorSize';
-
-type GraphNodeSize = {
-  w: number;
-  h: number;
-};
-
-export type WallSide = 'left' | 'right' | 'top' | 'bottom';
-
-/** Nearest enclosure wall for a connector center, using the same metric as wall projection. */
-export function getNearestWallSide(
-  position: { x: number; y: number },
-  nodeSize: GraphNodeSize,
-  enclosureSize: GraphNodeSize,
-): WallSide {
-  const centerX = position.x + nodeSize.w / 2;
-  const centerY = position.y + nodeSize.h / 2;
-  return [
-    { side: 'left' as const, distance: Math.abs(centerX) },
-    { side: 'right' as const, distance: Math.abs(enclosureSize.w - centerX) },
-    { side: 'top' as const, distance: Math.abs(centerY) },
-    { side: 'bottom' as const, distance: Math.abs(enclosureSize.h - centerY) },
-  ].reduce((nearest, candidate) =>
-    candidate.distance < nearest.distance ? candidate : nearest).side;
-}
+export {
+  getNearestWallSide,
+  projectNodeToEnclosureWall,
+  type WallSide,
+} from '../../lib/parentResize';
 
 /**
- * Keep a connector centered on the nearest edge of its enclosure. Positions
- * are relative to the parent and use React Flow's top-left node origin.
+ * Keep a child node fully inside its parent bounds. Positions are relative to
+ * the parent and use React Flow's top-left node origin.
  */
-export function projectNodeToEnclosureWall(
+export function clampNodeToParentBounds(
   position: { x: number; y: number },
   nodeSize: GraphNodeSize,
-  enclosureSize: GraphNodeSize,
+  parentSize: GraphNodeSize,
 ): { x: number; y: number } {
-  const centerX = position.x + nodeSize.w / 2;
-  const centerY = position.y + nodeSize.h / 2;
-  const nearestWall = getNearestWallSide(position, nodeSize, enclosureSize);
-  const clampCenter = (value: number, nodeLength: number, enclosureLength: number) => {
-    if (nodeLength >= enclosureLength) return enclosureLength / 2;
-    return Math.min(
-      enclosureLength - nodeLength / 2,
-      Math.max(nodeLength / 2, value),
-    );
-  };
-
-  if (nearestWall === 'left' || nearestWall === 'right') {
-    return {
-      x: nearestWall === 'left'
-        ? -nodeSize.w / 2
-        : enclosureSize.w - nodeSize.w / 2,
-      y: clampCenter(centerY, nodeSize.h, enclosureSize.h) - nodeSize.h / 2,
-    };
-  }
-
+  const maxX = Math.max(0, parentSize.w - nodeSize.w);
+  const maxY = Math.max(0, parentSize.h - nodeSize.h);
   return {
-    x: clampCenter(centerX, nodeSize.w, enclosureSize.w) - nodeSize.w / 2,
-    y: nearestWall === 'top'
-      ? -nodeSize.h / 2
-      : enclosureSize.h - nodeSize.h / 2,
+    x: Math.min(maxX, Math.max(0, position.x)),
+    y: Math.min(maxY, Math.max(0, position.y)),
   };
 }
 
@@ -381,14 +391,50 @@ export function deriveSubsystemSegments(
   );
 }
 
+function resolveSubsystemDeviceSize(
+  layout: { w?: number; h?: number },
+  systemSize?: { w: number; h: number },
+): GraphNodeSize {
+  return {
+    w: layout.w ?? systemSize?.w ?? 220,
+    h: layout.h ?? systemSize?.h ?? 180,
+  };
+}
+
+/** Prefer subsystem-local geometry, then system port/size layouts, then a grid default. */
+function resolveSubsystemConnectorLayout(
+  connectorId: string,
+  index: number,
+  subsystemLayout: { x?: number; y?: number; w?: number; h?: number } | undefined,
+  portLayouts: PortLayouts,
+  sizeLayouts: SizeLayouts,
+): { position: { x: number; y: number }; size: { w?: number; h?: number } } {
+  const systemPort = portLayouts[connectorId];
+  const systemSize = sizeLayouts[connectorId];
+  return {
+    position: {
+      x: subsystemLayout?.x ?? systemPort?.x ?? 12 + (index % 2) * 100,
+      y: subsystemLayout?.y ?? systemPort?.y ?? 48 + Math.floor(index / 2) * 44,
+    },
+    size: {
+      w: subsystemLayout?.w ?? systemSize?.w,
+      h: subsystemLayout?.h ?? systemSize?.h,
+    },
+  };
+}
+
 export function buildSubsystemGraphModel(
   harness: HarnessData,
   subsystem: SubsystemDocument,
-  activeFilters: Map<string, Set<string>>,
   expandedNodes: ReadonlySet<string> = new Set(),
   selectedItem: SelectedItem | null = null,
   expandedSizeOverrides: Readonly<Record<string, GraphNodeSize>> = {},
   connectorTypesById: ReadonlyMap<string, ConnectorType> = new Map(),
+  waypointLayouts: WaypointLayouts = {},
+  junctionLayouts: JunctionLayouts = {},
+  selectedBundle: SelectedBundle | null = null,
+  portLayouts: PortLayouts = {},
+  sizeLayouts: SizeLayouts = {},
 ): { graphNodes: Node[]; graphEdges: Edge[] } {
   const nodes: Node[] = [];
   const connectorNodeIds = new Map<string, string>();
@@ -410,6 +456,7 @@ export function buildSubsystemGraphModel(
       type: 'enclosure',
       position: { x: layout.x, y: layout.y },
       style: { width: layout.w ?? 520, height: layout.h ?? 360 },
+      zIndex: GRAPH_Z_ENCLOSURE,
       selected: selectedItem?.type === 'enclosure' && selectedItem.id === enclosureId,
       data: {
         enclosureId,
@@ -417,13 +464,14 @@ export function buildSubsystemGraphModel(
         tags: enclosure.tags,
         connectorCount: 0,
         pathCount: 0,
-        matchesFilter: itemMatchesFilters(enclosure.tags, activeFilters),
         isContainer: true,
+        image: enclosure.properties?.image,
         childEnclosureCount: 0,
         subsystemFrame: true,
       },
     });
 
+    const frameSize = { w: layout.w ?? 520, h: layout.h ?? 360 };
     for (const { entity: device, layout: deviceLayout } of devices) {
       if (!device) continue;
       const deviceNodeId = `${SUBSYSTEM_DEVICE_PREFIX}${device.id}`;
@@ -433,12 +481,20 @@ export function buildSubsystemGraphModel(
         !hiddenConnectorIds.has(connector.id) &&
         (connectorMode === 'all' || !!subsystem.connectors[connector.id]),
       );
+      const deviceSize = resolveSubsystemDeviceSize(deviceLayout, sizeLayouts[device.id]);
+      const devicePosition = clampNodeToParentBounds(
+        { x: deviceLayout.x, y: deviceLayout.y },
+        deviceSize,
+        frameSize,
+      );
       nodes.push({
         id: deviceNodeId,
         type: 'enclosure',
         parentId: frameNodeId,
-        position: { x: deviceLayout.x, y: deviceLayout.y },
-        style: { width: deviceLayout.w ?? 220, height: deviceLayout.h ?? 180 },
+        extent: 'parent',
+        position: devicePosition,
+        style: { width: deviceSize.w, height: deviceSize.h },
+        zIndex: GRAPH_Z_ENCLOSURE,
         selected: selectedItem?.type === 'enclosure' && selectedItem.id === device.id,
         data: {
           enclosureId: device.id,
@@ -446,8 +502,8 @@ export function buildSubsystemGraphModel(
           tags: device.tags,
           connectorCount: harness.connectors.filter((item) => item.parent === device.id).length,
           pathCount: 0,
-          matchesFilter: itemMatchesFilters(device.tags, activeFilters),
           isContainer: false,
+          image: device.properties?.image,
           childEnclosureCount: 0,
           subsystemDevice: true,
         },
@@ -456,18 +512,20 @@ export function buildSubsystemGraphModel(
       deviceConnectors.forEach((connector, index) => {
         const connectorNodeId = `${SUBSYSTEM_CONNECTOR_PREFIX}${connector.id}`;
         connectorNodeIds.set(connector.id, connectorNodeId);
-        const connectorLayout = subsystem.connectors[connector.id];
+        const resolved = resolveSubsystemConnectorLayout(
+          connector.id,
+          index,
+          subsystem.connectors[connector.id],
+          portLayouts,
+          sizeLayouts,
+        );
         nodes.push(connectorNode(
           harness,
-          activeFilters,
           connector.id,
           connectorNodeId,
           deviceNodeId,
-          {
-            x: connectorLayout?.x ?? 12 + (index % 2) * 100,
-            y: connectorLayout?.y ?? 48 + Math.floor(index / 2) * 44,
-          },
-          connectorLayout,
+          resolved.position,
+          resolved.size,
           expandedNodes.has(connector.id),
           selectedItem?.type === 'connector' && selectedItem.id === connector.id,
           expandedSizeOverrides[connector.id],
@@ -490,17 +548,20 @@ export function buildSubsystemGraphModel(
       const connectorNodeId = `${SUBSYSTEM_CONNECTOR_PREFIX}${connector.id}`;
       const wallMounted = parentEntity?.container === true;
       connectorNodeIds.set(connector.id, connectorNodeId);
+      const resolved = resolveSubsystemConnectorLayout(
+        connector.id,
+        0,
+        connectorLayout,
+        portLayouts,
+        sizeLayouts,
+      );
       nodes.push(connectorNode(
         harness,
-        activeFilters,
         connector.id,
         connectorNodeId,
         frameNodeId,
-        {
-          x: connectorLayout.x,
-          y: connectorLayout.y,
-        },
-        connectorLayout,
+        resolved.position,
+        resolved.size,
         expandedNodes.has(connector.id),
         selectedItem?.type === 'connector' && selectedItem.id === connector.id,
         expandedSizeOverrides[connector.id],
@@ -523,11 +584,13 @@ export function buildSubsystemGraphModel(
       !hiddenConnectorIds.has(connector.id) &&
       (connectorMode === 'all' || !!subsystem.connectors[connector.id]),
     );
+    const deviceSize = resolveSubsystemDeviceSize(layout, sizeLayouts[device.id]);
     nodes.push({
       id: deviceNodeId,
       type: 'enclosure',
       position: { x: layout.x, y: layout.y },
-      style: { width: layout.w ?? 220, height: layout.h ?? 180 },
+      style: { width: deviceSize.w, height: deviceSize.h },
+      zIndex: GRAPH_Z_ENCLOSURE,
       selected: selectedItem?.type === 'enclosure' && selectedItem.id === device.id,
       data: {
         enclosureId: device.id,
@@ -535,8 +598,8 @@ export function buildSubsystemGraphModel(
         tags: device.tags,
         connectorCount: harness.connectors.filter((item) => item.parent === device.id).length,
         pathCount: 0,
-        matchesFilter: itemMatchesFilters(device.tags, activeFilters),
         isContainer: false,
+        image: device.properties?.image,
         childEnclosureCount: 0,
         subsystemDevice: true,
       },
@@ -544,18 +607,20 @@ export function buildSubsystemGraphModel(
     deviceConnectors.forEach((connector, index) => {
       const connectorNodeId = `${SUBSYSTEM_CONNECTOR_PREFIX}${connector.id}`;
       connectorNodeIds.set(connector.id, connectorNodeId);
-      const connectorLayout = subsystem.connectors[connector.id];
+      const resolved = resolveSubsystemConnectorLayout(
+        connector.id,
+        index,
+        subsystem.connectors[connector.id],
+        portLayouts,
+        sizeLayouts,
+      );
       nodes.push(connectorNode(
         harness,
-        activeFilters,
         connector.id,
         connectorNodeId,
         deviceNodeId,
-        {
-          x: connectorLayout?.x ?? 12 + (index % 2) * 100,
-          y: connectorLayout?.y ?? 48 + Math.floor(index / 2) * 44,
-        },
-        connectorLayout,
+        resolved.position,
+        resolved.size,
         expandedNodes.has(connector.id),
         selectedItem?.type === 'connector' && selectedItem.id === connector.id,
         expandedSizeOverrides[connector.id],
@@ -577,7 +642,6 @@ export function buildSubsystemGraphModel(
     connectorNodeIds.set(connector.id, connectorNodeId);
     nodes.push(connectorNode(
       harness,
-      activeFilters,
       connector.id,
       connectorNodeId,
       undefined,
@@ -603,39 +667,53 @@ export function buildSubsystemGraphModel(
     if (!source || !target) return [];
     const appearances = bundle.pathIds.map((pathId) => {
       const path = getPathById(harness, pathId);
-      return path ? getWireAppearance(path) : getWireAppearance({ tags: [] });
+      return path
+        ? getPathWireAppearance(path, harness)
+        : getPathWireAppearance({ tags: [], properties: {} }, harness);
+    });
+    const edgeId = `subsystem:${subsystem.id}:${bundle.id}`;
+    const isSelected =
+      (selectedBundle != null && selectedBundle.id === edgeId) ||
+      (selectedItem?.type === 'path' && bundle.pathIds.includes(selectedItem.id)) ||
+      (
+        selectedItem?.type === 'signal' &&
+        bundle.pathIds.some((pathId) => {
+          const path = getPathById(harness, pathId);
+          return path ? getPathSignalId(path) === selectedItem.id : false;
+        })
+      );
+    const rawWps = waypointLayouts[edgeId] ?? [];
+    const resolvedWaypoints = rawWps.map((wp) => {
+      if ('junctionId' in wp) {
+        const junction = junctionLayouts[wp.junctionId];
+        return junction ? { x: junction.x, y: junction.y } : { x: 0, y: 0 };
+      }
+      return { x: wp.x, y: wp.y };
+    });
+    const junctionMeta = rawWps.map((wp) => {
+      if (!('junctionId' in wp)) return { junctionId: null, isOwner: false, memberCount: 1 };
+      const junction = junctionLayouts[wp.junctionId];
+      if (!junction) return { junctionId: null, isOwner: false, memberCount: 1 };
+      const sortedMembers = [...junction.memberEdgeIds].sort();
+      const isOwner = sortedMembers[0] === edgeId;
+      return { junctionId: wp.junctionId, isOwner, memberCount: junction.memberEdgeIds.length };
     });
     return [{
-      id: `subsystem:${subsystem.id}:${bundle.id}`,
+      id: edgeId,
       source,
       target,
       sourceHandle: bundle.sourceHandle,
       targetHandle: bundle.targetHandle,
       type: 'bundle',
-      selected:
-        (selectedItem?.type === 'path' && bundle.pathIds.includes(selectedItem.id)) ||
-        (
-          selectedItem?.type === 'signal' &&
-          bundle.pathIds.some((pathId) => {
-            const path = getPathById(harness, pathId);
-            return path ? getPathSignalId(path) === selectedItem.id : false;
-          })
-        ),
+      selected: !!isSelected,
+      zIndex: isSelected ? GRAPH_Z_SELECTED_WIRE : GRAPH_Z_WIRE,
       data: {
         pathIds: bundle.pathIds,
         pathCount: bundle.pathIds.length,
         wireAppearances: appearances,
         bundleColor: appearances[0]?.primaryColor ?? '#666',
-        matchesFilter: bundle.pathIds.some((pathId) => {
-          const path = getPathById(harness, pathId);
-          if (!path) return false;
-          const tags = path.signal_id
-            ? [...path.tags, `signal:${path.signal_id.replace(/^sig_/, '')}`]
-            : path.tags;
-          return itemMatchesFilters(tags, activeFilters);
-        }),
-        resolvedWaypoints: [],
-        junctionMeta: [],
+        resolvedWaypoints,
+        junctionMeta,
         sourceStub: 0,
         targetStub: 0,
       },
@@ -647,7 +725,6 @@ export function buildSubsystemGraphModel(
 
 function connectorNode(
   harness: HarnessData,
-  activeFilters: Map<string, Set<string>>,
   connectorId: string,
   nodeId: string,
   parentId: string | undefined,
@@ -690,7 +767,7 @@ function connectorNode(
       width: renderedSize.w,
       height: renderedSize.h,
     },
-    zIndex: expanded ? EXPANDED_CONNECTOR_Z_INDEX : 0,
+    zIndex: expanded ? EXPANDED_CONNECTOR_Z_INDEX : GRAPH_Z_CONNECTOR,
     selected,
     data: {
       label: connector.name,
@@ -698,13 +775,9 @@ function connectorNode(
       connectorId,
       occupiedPins,
       pinCount: occupiedPins.length,
-      matchesFilter: itemMatchesFilters(connector.tags, activeFilters),
       wireAppearance: getPortWireAppearance(harness, connector),
       connectorTypeId: connector.connector_type,
-      instanceImage: connector.properties.image
-        ?? getConnectorSideImage(connector, connectorType)
-        ?? getConnectorPinGuideImage(connector, connectorType)
-        ?? '',
+      instanceImage: getConnectorSchematicImage(connector, connectorType, { bulkhead: wallMounted }) || '',
       wallMounted,
     },
   };

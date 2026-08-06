@@ -1,12 +1,15 @@
 #!/usr/bin/env -S npx tsx
 import assert from 'node:assert/strict';
 import {
+  applyManufacturingTaskUpdates,
   applySpanTotalLength,
   assignManufacturingEndpointGender,
   completedManufacturingComponentStepCount,
   deriveManufacturingBom,
   deriveManufacturingBundles,
+  deriveManufacturingHarnesses,
   manufacturingComponentSteps,
+  manufacturingTaskCompleted,
   manufacturingBomToCsv,
   matingBundleIdsForConnector,
 } from '../src/lib/manufacturing.js';
@@ -35,6 +38,7 @@ const library: ConnectorLibrary = {
 };
 
 const harness: HarnessData = {
+  signalPropertyDefinitions: [],
   schema_version: '0.2.0-sheets',
   enclosures: [],
   connectors: [
@@ -130,6 +134,24 @@ const unresolvedBundle = deriveManufacturingBundles(
 )[0];
 assert.equal(unresolvedBundle.wires[0].gauge, '22-18 AWG');
 assert.equal(unresolvedBundle.wires[0].gaugeInferred, true);
+
+const mixedLibrary: ConnectorLibrary = {
+  schema_version: '1.1.0',
+  connector_types: [
+    { ...library.connector_types[0], id: 'family_a', wire_gauge: '22-18 AWG' },
+    { ...library.connector_types[0], id: 'family_b', wire_gauge: '20-16 AWG' },
+  ],
+};
+const mixedHarness = structuredClone(unresolved);
+mixedHarness.connectors[0].connector_type = 'family_a';
+mixedHarness.connectors[1].connector_type = 'family_b';
+const mixedBundle = deriveManufacturingBundles(
+  mixedHarness,
+  mixedLibrary,
+  { schema_version: '1.1.0', bundles: {} },
+)[0];
+assert.equal(mixedBundle.wires[0].gauge, '20-18 AWG');
+assert.equal(mixedBundle.wires[0].gaugeInferred, true);
 assert.equal(unresolvedBundle.wires[0].color, 'Blue');
 assert.equal(unresolvedBundle.wires[0].colorInferred, true);
 assert.equal(
@@ -304,6 +326,8 @@ assert.equal(splicedBundles[0].wires[0].hops[0].lengthMm, 400);
 assert.equal(splicedBundles[0].wires[0].hops[1].lengthMm, 850);
 assert.equal(splicedBundles[0].wires[0].hops[0].toKind, 'merge');
 assert.equal(splicedBundles[0].wires[0].hops[1].fromKind, 'merge');
+assert.equal(splicedBundles[0].wires[0].hops[0].fromKey, 'connector:con_a');
+assert.equal(splicedBundles[0].wires[0].hops[0].toKey, 'merge:mp_1');
 assert.deepEqual(
   splicedBundles[0].wires[0].viaSplices.map((splice) => splice.id),
   ['mp_1'],
@@ -324,6 +348,7 @@ assert.equal(
 
 // Stub legs remain explicit connector-to-splice runs instead of inventing a mate.
 const stubHarness: HarnessData = {
+  signalPropertyDefinitions: [],
   schema_version: '0.2.0-sheets',
   enclosures: [],
   connectors: [
@@ -433,6 +458,68 @@ assert.equal(
   stubBundles.flatMap((bundle) => bundle.wires)
     .find((wire) => wire.pathId === 'path_a')?.lengthMm,
   100,
+);
+
+// Splice-connected branches are one operator-facing physical harness.
+const groupedStubHarnesses = deriveManufacturingHarnesses(stubBundles);
+assert.equal(groupedStubHarnesses.length, 1);
+assert.equal(groupedStubHarnesses[0].bundles.length, 3);
+assert.deepEqual(groupedStubHarnesses[0].spliceIds, ['mp_star']);
+assert.equal(groupedStubHarnesses[0].wireCount, 3);
+
+// Visual task transitions retain current attribution and an append-only day log.
+const actor = {
+  user_id: 'user_joe',
+  user_name: 'Joe',
+  day: '2026-08-04',
+};
+const visualProgress = applyManufacturingTaskUpdates(
+  { schema_version: '1.1.0', bundles: {} },
+  bundles[0].id,
+  [
+    {
+      kind: 'wire-cut',
+      wireId: bundles[0].wires[0].id,
+      completed: true,
+      lengthMm: bundles[0].wires[0].lengthMm,
+    },
+    {
+      kind: 'wire-end',
+      wireId: bundles[0].wires[0].id,
+      end: 'from',
+      connectorId: 'con_a',
+      completed: true,
+    },
+  ],
+  actor,
+  1_722_833_400_000,
+);
+assert.equal(visualProgress.schema_version, '1.2.0');
+assert.equal(
+  visualProgress.bundles[bundles[0].id].wire_progress?.[bundles[0].wires[0].id]?.cut,
+  true,
+);
+assert.equal(
+  visualProgress.bundles[bundles[0].id].work_log?.[0].quantity,
+  1250,
+);
+assert.equal(
+  visualProgress.bundles[bundles[0].id].task_attribution?.[
+    `wire:${bundles[0].wires[0].id}:cut`
+  ]?.user_name,
+  'Joe',
+);
+assert.equal(
+  manufacturingTaskCompleted(
+    visualProgress.bundles[bundles[0].id],
+    {
+      kind: 'wire-end',
+      wireId: bundles[0].wires[0].id,
+      end: 'from',
+      completed: true,
+    },
+  ),
+  true,
 );
 
 console.log('Manufacturing tests passed.');

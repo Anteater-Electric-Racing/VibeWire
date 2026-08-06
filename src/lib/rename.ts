@@ -1,5 +1,4 @@
 import type {
-  ConnectorLibrary,
   EntityType,
   HarnessData,
   SubsystemDocument,
@@ -50,21 +49,4 @@ export function renameSubsystem(
   const name = normalizeDisplayName(value);
   if (subsystem.name === name) return subsystem;
   return { ...subsystem, name };
-}
-
-export function renameConnectorType(
-  library: ConnectorLibrary,
-  typeId: string,
-  value: string,
-): ConnectorLibrary {
-  const name = normalizeDisplayName(value);
-  const connectorType = library.connector_types.find((item) => item.id === typeId);
-  if (!connectorType) throw new Error(`Cannot rename missing connector type '${typeId}'.`);
-  if (connectorType.name === name) return library;
-  return {
-    ...library,
-    connector_types: library.connector_types.map((item) =>
-      item.id === typeId ? { ...item, name } : item
-    ),
-  };
 }

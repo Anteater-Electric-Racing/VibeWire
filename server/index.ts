@@ -24,8 +24,9 @@ server.listen(port, () => {
   URL:    http://localhost:${port}
   Root:   ${projectRoot}
 
-  Try:    curl http://localhost:${port}/api
-          curl http://localhost:${port}/api/harness/stats
-          curl http://localhost:${port}/api/enclosures
+  Serves the same endpoints the app uses in dev, for running a production
+  build with working persistence. Point the built frontend at this origin.
+
+  Try:    curl http://localhost:${port}/api/harnesses
 `);
 });

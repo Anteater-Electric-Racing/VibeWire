@@ -1,0 +1,13 @@
+{
+  "schema_version": "1.0.0",
+  "id": "test",
+  "name": "test",
+  "tags": [
+    "system:test"
+  ],
+  "enclosures": {},
+  "devices": {},
+  "connectors": {},
+  "device_connector_mode": {},
+  "rev": 431
+}

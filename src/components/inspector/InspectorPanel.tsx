@@ -40,15 +40,20 @@ import {
   getNextConnectorPinCount,
   getPreviousConnectorPinCount,
   getEnclosureConnectors,
+  getPathsTouchingConnector,
+  isBulkheadConnector,
   isConnectorFamily,
   getPathNodeLabel,
   getPathNodeRefKey,
   getPathSegmentMeasurement,
   getPathSignalId,
   getPathSignalName,
+  getPathWireAppearance,
   parseBundleId,
+  type BulkheadWireSide,
 } from '../../lib/harness';
-import { deriveManufacturingBundles } from '../../lib/manufacturing';
+import { WIRE_GAUGE_PRESETS } from '../../lib/gauge';
+import { deriveManufacturingBundles, getPathInferredGauge } from '../../lib/manufacturing';
 import { normalizeDisplayName } from '../../lib/rename';
 
 function TagPill({
@@ -485,6 +490,187 @@ function WireColorEditor({
   );
 }
 
+function WireGaugeEditor({
+  label,
+  value,
+  onChange,
+  hint,
+  clearLabel,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  hint?: string;
+  clearLabel?: string;
+}) {
+  const [text, setText] = useState(value);
+  useEffect(() => {
+    setText(value);
+  }, [value]);
+
+  const commit = (next: string) => {
+    const trimmed = next.trim();
+    setText(trimmed);
+    onChange(trimmed);
+  };
+
+  return (
+    <div className="py-1">
+      <div className="flex items-center gap-2 mb-1.5">
+        <span className="text-[10px] text-zinc-500 w-20 shrink-0 text-right">{label}</span>
+        <input
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          onBlur={() => commit(text)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') commit(text);
+          }}
+          placeholder="e.g. 20 AWG"
+          className="min-w-0 flex-1 bg-zinc-800 border border-zinc-700 rounded px-2 py-1 text-[11px] text-zinc-300 placeholder-zinc-600 focus:border-amber-600 focus:outline-none"
+        />
+      </div>
+      <div className="flex gap-1 flex-wrap pl-[5.5rem]">
+        {WIRE_GAUGE_PRESETS.map((preset) => {
+          const selected = value.trim() === preset;
+          return (
+            <button
+              key={preset}
+              type="button"
+              title={preset}
+              onClick={() => commit(preset)}
+              className={`px-1.5 py-0.5 rounded border text-[10px] transition-colors ${
+                selected
+                  ? 'border-amber-500 text-amber-300 bg-amber-950/40'
+                  : 'border-zinc-700 text-zinc-400 hover:border-zinc-500 hover:text-zinc-200'
+              }`}
+            >
+              {preset.replace(' AWG', '')}
+            </button>
+          );
+        })}
+      </div>
+      {clearLabel && (
+        <div className="pl-[5.5rem] pt-1.5">
+          <button
+            type="button"
+            disabled={!value.trim()}
+            onClick={() => commit('')}
+            className="text-[10px] text-zinc-400 hover:text-amber-400 disabled:text-zinc-700 disabled:cursor-default"
+          >
+            {clearLabel}
+          </button>
+        </div>
+      )}
+      {hint && (
+        <div className="pl-[5.5rem] pt-1 text-[9px] text-zinc-600">{hint}</div>
+      )}
+    </div>
+  );
+}
+
+function ConnectorGaugeBulkEditor({ connector }: { connector: Connector }) {
+  const harness = useHarnessStore((s) => s.harness);
+  const updateConnectorPathsGauge = useHarnessStore((s) => s.updateConnectorPathsGauge);
+  const [text, setText] = useState('');
+  const [side, setSide] = useState<BulkheadWireSide>('both');
+
+  if (!harness) return null;
+  const bulkhead = isBulkheadConnector(harness, connector.id);
+  const targets = getPathsTouchingConnector(harness, connector.id, bulkhead ? side : 'both');
+  const sideLabel = !bulkhead
+    ? 'all wires'
+    : side === 'both'
+      ? 'internal + external'
+      : side;
+
+  const apply = (gauge: string) => {
+    const trimmed = gauge.trim();
+    if (targets.length === 0) return;
+    const summary = targets
+      .slice(0, 8)
+      .map((path) => {
+        const current = path.properties.wire_gauge?.trim() || '(inferred)';
+        const next = trimmed || '(inferred)';
+        return `• ${path.name || path.id}: ${current} → ${next}`;
+      })
+      .join('\n');
+    const extra = targets.length > 8 ? `\n…and ${targets.length - 8} more` : '';
+    const confirmed = window.confirm(
+      `Set wire gauge to ${trimmed || '(clear / use inferred)'} on ${targets.length} ${sideLabel} path${targets.length === 1 ? '' : 's'} at ${connector.name}?\n\n${summary}${extra}`,
+    );
+    if (!confirmed) return;
+    updateConnectorPathsGauge(connector.id, trimmed, bulkhead ? side : 'both');
+    setText(trimmed);
+  };
+
+  return (
+    <div className="mt-2 pt-2 border-t border-zinc-700/50">
+      <div className="text-[10px] text-zinc-500 font-medium mb-1">Set wire gauge</div>
+      {bulkhead && (
+        <div className="flex gap-1 mb-1.5">
+          {([
+            ['internal', 'Internal'],
+            ['external', 'External'],
+            ['both', 'Both'],
+          ] as const).map(([value, label]) => (
+            <button
+              key={value}
+              type="button"
+              onClick={() => setSide(value)}
+              className={`flex-1 px-1 py-0.5 rounded border text-[10px] transition-colors ${
+                side === value
+                  ? 'border-amber-500 text-amber-300 bg-amber-950/40'
+                  : 'border-zinc-700 text-zinc-400 hover:border-zinc-500'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      )}
+      <div className="flex items-center gap-1.5">
+        <input
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') apply(text);
+          }}
+          placeholder="e.g. 18 AWG"
+          className="min-w-0 flex-1 bg-zinc-800 border border-zinc-700 rounded px-2 py-1 text-[11px] text-zinc-300 placeholder-zinc-600 focus:border-amber-600 focus:outline-none"
+        />
+        <button
+          type="button"
+          disabled={targets.length === 0 || !text.trim()}
+          onClick={() => apply(text)}
+          className="shrink-0 px-2 py-1 rounded border border-zinc-700 text-[10px] text-zinc-300 hover:border-amber-600 hover:text-amber-300 disabled:opacity-30 disabled:hover:border-zinc-700 disabled:hover:text-zinc-300"
+        >
+          Apply
+        </button>
+      </div>
+      <div className="flex gap-1 flex-wrap mt-1.5">
+        {WIRE_GAUGE_PRESETS.map((preset) => (
+          <button
+            key={preset}
+            type="button"
+            disabled={targets.length === 0}
+            onClick={() => apply(preset)}
+            className="px-1.5 py-0.5 rounded border border-zinc-700 text-[10px] text-zinc-400 hover:border-zinc-500 hover:text-zinc-200 disabled:opacity-30"
+          >
+            {preset.replace(' AWG', '')}
+          </button>
+        ))}
+      </div>
+      <div className="pt-1 text-[9px] text-zinc-600">
+        {targets.length === 0
+          ? bulkhead
+            ? `No ${sideLabel} wires on this bulkhead`
+            : 'No wires on this connector'
+          : `${targets.length} ${sideLabel} path${targets.length === 1 ? '' : 's'} will be updated`}
+      </div>
+    </div>
+  );
+}
+
 function DerivedFromPortNote({ portId }: { portId?: string }) {
   return (
     <div className="mb-2 text-[10px] leading-snug px-2 py-1.5 rounded border border-sky-800/50 bg-sky-900/20 text-sky-300">
@@ -633,7 +819,7 @@ function ConnectorOccupancyTable({
                       const expandKey = `${row.pinNumber}:${item.pathId}`;
                       const isExpanded = expandedPaths.has(expandKey);
                       const path = harness.paths.find((p) => p.id === item.pathId);
-                      const appearance = path ? getWireAppearance(path) : null;
+                      const appearance = path ? getPathWireAppearance(path, harness) : null;
 
                       return (
                         <div
@@ -951,7 +1137,7 @@ function BundleInspector({
     if (signalId && signalName && !signalAppearances.has(signalId)) {
       signalAppearances.set(signalId, {
         name: signalName,
-        appearance: getWireAppearance(path),
+        appearance: getPathWireAppearance(path, harness),
       });
     }
   }
@@ -1030,7 +1216,7 @@ function BundleInspector({
         {paths.map((path) => {
           const sig = getPathSignalName(path);
           const signalId = getPathSignalId(path);
-          const appearance = getWireAppearance(path);
+          const appearance = getPathWireAppearance(path, harness);
           const segment = segmentByPathId.get(path.id);
           const hopIndex = segment?.segmentIndex;
           const lengthMm = segment
@@ -1448,13 +1634,13 @@ function ConnectorInspector({ con }: { con: Connector }) {
       )}
 
       {(() => {
-        const instanceImg = con.properties?.image as string | undefined;
+        const freeHangingImg = con.properties?.image as string | undefined;
         return (
           <div className="mb-2 relative">
-            <div className="text-[9px] text-zinc-500 font-medium mb-1 uppercase tracking-wider">Connection box image</div>
-            {instanceImg ? (
+            <div className="text-[9px] text-zinc-500 font-medium mb-1 uppercase tracking-wider">Free hanging connector</div>
+            {freeHangingImg ? (
               <div className="rounded overflow-hidden border border-zinc-700/60 bg-zinc-800">
-                <img src={`/user-data/images/${instanceImg}`} alt={con.name} className="w-full object-contain" style={{ maxHeight: 100 }} />
+                <img src={`/user-data/images/${freeHangingImg}`} alt={con.name} className="w-full object-contain" style={{ maxHeight: 100 }} />
               </div>
             ) : (
               <div className="rounded border border-dashed border-zinc-700 bg-zinc-800/40 flex items-center justify-center text-[10px] text-zinc-600 italic" style={{ height: 44 }}>
@@ -1466,9 +1652,9 @@ function ConnectorInspector({ con }: { con: Connector }) {
                 onClick={() => setInstanceImgPickerOpen((p) => !p)}
                 className="w-full text-[10px] text-zinc-400 hover:text-zinc-200 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded py-0.5 transition-colors"
               >
-                {instanceImg ? '⇄ Change image' : '+ Set image'}
+                {freeHangingImg ? '⇄ Change image' : '+ Set image'}
               </button>
-              {instanceImg && (
+              {freeHangingImg && (
                 <button
                   onClick={() => updateConnectorProperty(con.id, 'image', '')}
                   className="absolute right-0 top-0 bottom-0 px-2 text-zinc-500 hover:text-red-400 text-[10px]"
@@ -1492,7 +1678,7 @@ function ConnectorInspector({ con }: { con: Connector }) {
 
       {ct && (
         <>
-          {/* Pin reading guide image */}
+          {/* Pin-reading guide — inspector / manufacturing only; never on schematics */}
           <div className="mb-2">
             <div className="text-[9px] text-zinc-500 font-medium mb-1 uppercase tracking-wider">Pin guide</div>
             {pinGuideImage ? (
@@ -1519,7 +1705,7 @@ function ConnectorInspector({ con }: { con: Connector }) {
             </div>
           </div>
 
-          {/* Side view image — shown on connector tabs in both views */}
+          {/* Bulkhead side view — schematic thumbnail when wall-mounted on an enclosure */}
           <div className="mb-2">
             <div className="text-[9px] text-zinc-500 font-medium mb-1 uppercase tracking-wider">Side view (on boxes)</div>
             {sideImage ? (
@@ -1553,6 +1739,7 @@ function ConnectorInspector({ con }: { con: Connector }) {
       </div>
 
       <ConnectorOccupancyTable connector={con} />
+      <ConnectorGaugeBulkEditor connector={con} />
 
       <div ref={cavityControlsRef} className="mt-3 pt-2 border-t border-zinc-700/50 flex gap-1.5">
         <button
@@ -1874,6 +2061,7 @@ const CREATE_NEW_SIGNAL_VALUE = '__create_new_signal__';
 
 function PathInspector({ path }: { path: Path }) {
   const harness = useHarnessStore((s) => s.harness);
+  const connectorLibrary = useHarnessStore((s) => s.connectorLibrary);
   const addSignal = useHarnessStore((s) => s.addSignal);
   const updatePathSignal = useHarnessStore((s) => s.updatePathSignal);
   const updatePathProperty = useHarnessStore((s) => s.updatePathProperty);
@@ -1882,8 +2070,10 @@ function PathInspector({ path }: { path: Path }) {
 
   const signalName = getPathSignalName(path, harness);
   const signalId = getPathSignalId(path);
-  const appearance = getWireAppearance(path);
+  const appearance = getPathWireAppearance(path, harness);
   const wireColor = (path.properties?.wire_color ?? path.properties?.color ?? '').trim();
+  const wireGauge = (path.properties?.wire_gauge ?? '').trim();
+  const inferredGauge = getPathInferredGauge(harness, path, connectorLibrary);
   const signal = signalId
     ? harness.signals.find((candidate) => candidate.id === signalId)
     : undefined;
@@ -1977,6 +2167,19 @@ function PathInspector({ path }: { path: Path }) {
           clearLabel="Remove color (signal default)"
           hint={wireColor ? undefined : `Using signal default: ${appearance.label}. Stripes: white/brown`}
         />
+        <WireGaugeEditor
+          label="Wire gauge"
+          value={wireGauge}
+          onChange={(value) => updatePathProperty(path.id, 'wire_gauge', value)}
+          clearLabel="Remove gauge (use crimp range)"
+          hint={
+            wireGauge
+              ? undefined
+              : inferredGauge.gauge
+                ? `Using both-end crimp range: ${inferredGauge.gauge}`
+                : 'No explicit gauge; both-end crimp ranges do not resolve a value'
+          }
+        />
       </div>
 
       {signalName && signalId && <SignalInfo signalId={signalId} appearance={appearance} />}
@@ -2053,7 +2256,7 @@ function PathInspector({ path }: { path: Path }) {
       )}
 
       {Object.entries(path.properties)
-        .filter(([key]) => key !== 'wire_color' && key !== 'color' && key !== 'notes')
+        .filter(([key]) => key !== 'wire_color' && key !== 'color' && key !== 'wire_gauge' && key !== 'notes')
         .map(([key, value]) => (
           <PropertyRow key={key} label={key} value={value} />
         ))}

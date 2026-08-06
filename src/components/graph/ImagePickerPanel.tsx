@@ -4,16 +4,17 @@ interface Props {
   onPick: (filename: string) => void;
   onClose: () => void;
   title?: string;
-  listEndpoint?: string; // default '/api/list-assets'
-  uploadEndpoint?: string; // default '/api/upload-image'
-  baseUrl?: string;      // default '/user-data/images/'
 }
+
+const LIST_ENDPOINT = '/api/list-assets';
+const UPLOAD_ENDPOINT = '/api/upload-image';
+const IMAGE_BASE_URL = '/user-data/images/';
 
 const ACCEPTED = 'image/png,image/jpeg,image/webp,image/gif,.png,.jpg,.jpeg,.webp,.gif';
 
-async function uploadImage(file: File, uploadEndpoint: string): Promise<string> {
+async function uploadImage(file: File): Promise<string> {
   const response = await fetch(
-    `${uploadEndpoint}?filename=${encodeURIComponent(file.name)}`,
+    `${UPLOAD_ENDPOINT}?filename=${encodeURIComponent(file.name)}`,
     {
       method: 'POST',
       headers: { 'Content-Type': file.type || 'application/octet-stream' },
@@ -31,9 +32,6 @@ export function ImagePickerPanel({
   onPick,
   onClose,
   title = 'Pick image',
-  listEndpoint = '/api/list-assets',
-  uploadEndpoint = '/api/upload-image',
-  baseUrl = '/user-data/images/',
 }: Props) {
   const [assets, setAssets] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
@@ -49,7 +47,7 @@ export function ImagePickerPanel({
   async function refreshAssets() {
     setLoading(true);
     try {
-      const files = await fetch(listEndpoint).then((r) => r.json() as Promise<string[]>);
+      const files = await fetch(LIST_ENDPOINT).then((r) => r.json() as Promise<string[]>);
       setAssets(files);
       setCacheBust(Date.now());
     } catch {
@@ -61,7 +59,7 @@ export function ImagePickerPanel({
 
   useEffect(() => {
     void refreshAssets();
-  }, [listEndpoint]);
+  }, []);
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -83,7 +81,7 @@ export function ImagePickerPanel({
     setError(null);
     setUploading(true);
     try {
-      const filename = await uploadImage(file, uploadEndpoint);
+      const filename = await uploadImage(file);
       setAssets((prev) => (prev.includes(filename) ? prev : [filename, ...prev]));
       onPick(filename);
       onClose();
@@ -193,7 +191,7 @@ export function ImagePickerPanel({
               title={filename}
             >
               <img
-                src={`${baseUrl}${encodeURIComponent(filename)}?v=${cacheBust}`}
+                src={`${IMAGE_BASE_URL}${encodeURIComponent(filename)}?v=${cacheBust}`}
                 alt={filename}
                 className="w-full h-full object-cover"
               />

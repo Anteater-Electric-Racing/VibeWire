@@ -19,12 +19,17 @@ import {
   type WireAppearance,
 } from '../../lib/colors';
 import type { WaypointItem } from '../../types';
+import {
+  GRAPH_Z_SELECTED_WIRE,
+  GRAPH_Z_WIRE,
+  JUNCTION_SNAP_RADIUS_PX,
+} from './graphModel';
 
 const BOUNDARY_EXIT_NODE_TYPES = new Set(['connector', 'mergePoint']);
-const CONNECTOR_BORDER_WIDTH = 1;
 
 type BoundaryGeometry = Rect & {
-  strictHorizontalHandles: boolean;
+  /** Connectors emit from their geometric center; merge points use boundary projection. */
+  exitFromCenter: boolean;
 };
 
 function nodeFlowRect(node: {
@@ -51,7 +56,7 @@ function nodeFlowRect(node: {
     y: node.internals.positionAbsolute.y,
     width,
     height,
-    strictHorizontalHandles: node.type === 'connector',
+    exitFromCenter: node.type === 'connector',
   };
 }
 
@@ -61,26 +66,14 @@ function boundaryExitPoint(
   fallback: Point,
 ): Point {
   if (!rect) return fallback;
-  if (!rect.strictHorizontalHandles) {
-    const anchor = { x: rect.x + rect.width / 2, y: fallback.y };
-    return pointOnRectBoundaryToward(rect, anchor, toward);
+  if (rect.exitFromCenter) {
+    return {
+      x: rect.x + rect.width / 2,
+      y: rect.y + rect.height / 2,
+    };
   }
-
-  const rectRight = rect.x + rect.width;
-  const y = Math.min(rect.y + rect.height, Math.max(rect.y, fallback.y));
-  const left = { x: rect.x + CONNECTOR_BORDER_WIDTH, y };
-  const right = { x: rectRight - CONNECTOR_BORDER_WIDTH, y };
-  const distanceSquared = (point: Point) =>
-    (toward.x - point.x) ** 2 + (toward.y - point.y) ** 2;
-  const leftDistance = distanceSquared(left);
-  const rightDistance = distanceSquared(right);
-
-  if (Math.abs(leftDistance - rightDistance) < 0.001) {
-    return Math.abs(fallback.x - left.x) <= Math.abs(fallback.x - right.x)
-      ? left
-      : right;
-  }
-  return leftDistance < rightDistance ? left : right;
+  const anchor = { x: rect.x + rect.width / 2, y: fallback.y };
+  return pointOnRectBoundaryToward(rect, anchor, toward);
 }
 
 type BundleEdgeData = {
@@ -88,7 +81,6 @@ type BundleEdgeData = {
   pathCount: number;
   wireAppearances: WireAppearance[];
   bundleColor: string;
-  matchesFilter: boolean;
   resolvedWaypoints: Point[];
   junctionMeta: Array<{ junctionId: string | null; isOwner: boolean; memberCount: number }>;
 };
@@ -164,10 +156,12 @@ function getInteractiveCorners(points: Point[]): Point[] {
 export function BundleEdge(props: EdgeProps<BundleEdgeType>) {
   const { id, source: sourceId, target: targetId, sourceX, sourceY, targetX, targetY, data, selected } = props;
 
-  const { screenToFlowPosition, setEdges } = useReactFlow();
+  const { screenToFlowPosition, setEdges, getZoom } = useReactFlow();
   const sourceNode = useInternalNode(sourceId);
   const targetNode = useInternalNode(targetId);
   const setSelectedBundle = useHarnessStore((s) => s.setSelectedBundle);
+  const dismissInspector = useHarnessStore((s) => s.dismissInspector);
+  const inspectorDismissed = useHarnessStore((s) => s.inspectorDismissed);
   const setEdgeWaypoints = useHarnessStore((s) => s.setEdgeWaypoints);
   const moveJunction = useHarnessStore((s) => s.moveJunction);
   const unlinkEdgeFromJunction = useHarnessStore((s) => s.unlinkEdgeFromJunction);
@@ -176,6 +170,7 @@ export function BundleEdge(props: EdgeProps<BundleEdgeType>) {
   const setDraggingEdgeInfo = useHarnessStore((s) => s.setDraggingEdgeInfo);
   const pushUndoSnapshot = useHarnessStore((s) => s.pushUndoSnapshot);
   const commitUndoSnapshot = useHarnessStore((s) => s.commitUndoSnapshot);
+  const setInteracting = useHarnessStore((s) => s.setInteracting);
   const rawWaypoints = useHarnessStore((s) => s.waypointLayouts[id] ?? EMPTY_WAYPOINTS);
   const isEditor = useHarnessStore((s) => s.session.isEditor);
 
@@ -189,7 +184,6 @@ export function BundleEdge(props: EdgeProps<BundleEdgeType>) {
 
   const wireCount = data?.pathCount ?? 1;
   const color = data?.bundleColor ?? '#666';
-  const matchesFilter = data?.matchesFilter ?? true;
   const resolvedWaypoints = useMemo(
     () => data?.resolvedWaypoints ?? [],
     [data?.resolvedWaypoints],
@@ -199,8 +193,11 @@ export function BundleEdge(props: EdgeProps<BundleEdgeType>) {
     [data?.junctionMeta],
   );
 
-  const waypoints = resolvedWaypoints.map((wp, i) =>
-    i === dragIdx && dragPos ? dragPos : wp,
+  const waypoints = useMemo(
+    () => resolvedWaypoints.map((wp, i) =>
+      i === dragIdx && dragPos ? dragPos : wp,
+    ),
+    [dragIdx, dragPos, resolvedWaypoints],
   );
 
   const sourceRect = useMemo(
@@ -234,7 +231,10 @@ export function BundleEdge(props: EdgeProps<BundleEdgeType>) {
     };
   }, [sourceRect, targetRect, sourceX, sourceY, targetX, targetY, waypoints]);
 
-  const allPoints = [source, ...waypoints, target];
+  const allPoints = useMemo(
+    () => [source, ...waypoints, target],
+    [source, target, waypoints],
+  );
 
   const wireAppearances = data?.wireAppearances ?? Array(wireCount).fill(FALLBACK_WIRE_APPEARANCE);
   const rawTotalW = wireCount * DEFAULT_WIRE_W + Math.max(0, wireCount - 1) * WIRE_GAP;
@@ -307,15 +307,17 @@ export function BundleEdge(props: EdgeProps<BundleEdgeType>) {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [hoveredWpIdx, isEditor, junctionMeta, pushUndoSnapshot, commitUndoSnapshot, deleteJunction, unlinkEdgeFromJunction, id, commitWaypoints]);
 
-  // Click: select the edge
+  // Click: select the edge (or re-open the inspector after waypoint editing)
+  const pathIds = data?.pathIds;
   const handleHitAreaClick = useCallback(
     (e: React.MouseEvent) => {
       e.stopPropagation();
-      if (!selected && data?.pathIds) {
-        setSelectedBundle({ id, pathIds: data.pathIds });
+      if (!pathIds) return;
+      if (!selected || inspectorDismissed) {
+        setSelectedBundle({ id, pathIds });
       }
     },
-    [selected, id, data?.pathIds, setSelectedBundle],
+    [selected, inspectorDismissed, id, pathIds, setSelectedBundle],
   );
 
   // Double-click edge body: insert a bend point (only if not over a handle)
@@ -341,7 +343,11 @@ export function BundleEdge(props: EdgeProps<BundleEdgeType>) {
       if (!isEditor || e.button !== 0) return;
       e.stopPropagation();
       e.preventDefault();
+      // Keep the edge selected for handles, but free the canvas from the inspector.
+      if (pathIds) setSelectedBundle({ id, pathIds });
+      dismissInspector();
       pushUndoSnapshot(`edge:${id}:move-waypoint:${resolvedIndex}`);
+      setInteracting('bundle', id, true);
 
       setDragIdx(resolvedIndex);
       const startPt = resolvedWaypoints[resolvedIndex];
@@ -359,6 +365,7 @@ export function BundleEdge(props: EdgeProps<BundleEdgeType>) {
         document.removeEventListener('mousemove', onMove);
         document.removeEventListener('mouseup', onUp);
         setDraggingEdgeInfo(null);
+        setInteracting('bundle', id, false);
 
         if (dragPosRef.current) {
           const newWps = [...rawWaypointsRef.current];
@@ -375,8 +382,9 @@ export function BundleEdge(props: EdgeProps<BundleEdgeType>) {
       document.addEventListener('mousemove', onMove);
       document.addEventListener('mouseup', onUp);
     },
-    [isEditor, resolvedWaypoints, screenToFlowPosition, commitWaypoints, id,
-      setDraggingEdgeInfo, pushUndoSnapshot, commitUndoSnapshot],
+    [isEditor, resolvedWaypoints, screenToFlowPosition, commitWaypoints, id, pathIds,
+      setSelectedBundle, dismissInspector, setDraggingEdgeInfo, pushUndoSnapshot, commitUndoSnapshot,
+      setInteracting],
   );
 
   // Drag a junction
@@ -385,7 +393,10 @@ export function BundleEdge(props: EdgeProps<BundleEdgeType>) {
       if (!isEditor || e.button !== 0) return;
       e.stopPropagation();
       e.preventDefault();
+      if (pathIds) setSelectedBundle({ id, pathIds });
+      dismissInspector();
       pushUndoSnapshot(`junction:${junctionId}:move`);
+      setInteracting('bundle', id, true);
 
       const startPt = resolvedWaypoints[resolvedIndex];
       setDragIdx(resolvedIndex);
@@ -402,6 +413,7 @@ export function BundleEdge(props: EdgeProps<BundleEdgeType>) {
       const onUp = () => {
         document.removeEventListener('mousemove', onMove);
         document.removeEventListener('mouseup', onUp);
+        setInteracting('bundle', id, false);
         if (dragPosRef.current) {
           moveJunction(junctionId, dragPosRef.current);
         }
@@ -414,7 +426,8 @@ export function BundleEdge(props: EdgeProps<BundleEdgeType>) {
       document.addEventListener('mousemove', onMove);
       document.addEventListener('mouseup', onUp);
     },
-    [isEditor, resolvedWaypoints, screenToFlowPosition, moveJunction, pushUndoSnapshot, commitUndoSnapshot],
+    [isEditor, resolvedWaypoints, screenToFlowPosition, moveJunction, id, pathIds,
+      setSelectedBundle, dismissInspector, pushUndoSnapshot, commitUndoSnapshot, setInteracting],
   );
 
   // Proximity detection for junction auto-merge
@@ -422,7 +435,7 @@ export function BundleEdge(props: EdgeProps<BundleEdgeType>) {
     if (!draggingEdgeInfo || draggingEdgeInfo.edgeId === id) return false;
     const dp = draggingEdgeInfo.position;
     const { dist } = nearestOnPolyline(dp, allPoints);
-    return dist < 50;
+    return dist * getZoom() <= JUNCTION_SNAP_RADIUS_PX;
   })();
 
   const showHandles = isEditor && (selected || hovered);
@@ -448,9 +461,11 @@ export function BundleEdge(props: EdgeProps<BundleEdgeType>) {
     setEdges((eds) =>
       eds.map((edge) => {
         if (edge.id !== id) return edge;
-        if (elevate) return { ...edge, zIndex: Math.max(edge.zIndex ?? 0, 1000) };
-        if (edge.selected) return { ...edge, zIndex: 1000 };
-        return { ...edge, zIndex: 0 };
+        if (elevate) {
+          return { ...edge, zIndex: Math.max(edge.zIndex ?? GRAPH_Z_WIRE, GRAPH_Z_SELECTED_WIRE) };
+        }
+        if (edge.selected) return { ...edge, zIndex: GRAPH_Z_SELECTED_WIRE };
+        return { ...edge, zIndex: GRAPH_Z_WIRE };
       }),
     );
   }, [id, setEdges]);
@@ -510,7 +525,7 @@ export function BundleEdge(props: EdgeProps<BundleEdgeType>) {
                 fill="none"
                 stroke={layer.color}
                 strokeWidth={layer.width}
-                opacity={(layer.opacity ?? 1) * (matchesFilter ? 1 : 0.15)}
+                opacity={layer.opacity ?? 1}
                 strokeDasharray={layer.dasharray}
                 strokeDashoffset={layer.dashoffset}
                 strokeLinejoin="round"

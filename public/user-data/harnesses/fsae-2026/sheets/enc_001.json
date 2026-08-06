@@ -241,7 +241,7 @@
     },
     {
       "id": "con_017",
-      "name": "Safety Board J9 \u2014 Current Sensor",
+      "name": "Safety Board J9 — Current Sensor",
       "parent": "enc_010",
       "connector_type": "generic_multipin",
       "tags": [
@@ -371,7 +371,7 @@
     },
     {
       "id": "con_026",
-      "name": "Safety Board J18 \u2014 to CCM",
+      "name": "Safety Board J18 — to CCM",
       "parent": "enc_010",
       "connector_type": "molex_minifit_jr",
       "tags": [
@@ -384,7 +384,7 @@
     },
     {
       "id": "con_025",
-      "name": "Safety Board J17 \u2014 Shock/Wheel Sensor",
+      "name": "Safety Board J17 — Shock/Wheel Sensor",
       "parent": "enc_010",
       "connector_type": "molex_minifit_jr",
       "tags": [
@@ -404,7 +404,7 @@
         "status:placeholder"
       ],
       "properties": {
-        "notes": "Spare \u2014 referenced in EXT H3 description but no wires."
+        "notes": "Spare — referenced in EXT H3 description but no wires."
       },
       "pin_count": 2
     },
@@ -424,7 +424,7 @@
     },
     {
       "id": "con_009",
-      "name": "Safety Board J1 \u2014 E-Stop IN",
+      "name": "Safety Board J1 — E-Stop IN",
       "parent": "enc_010",
       "connector_type": "molex_minifit_jr",
       "tags": [
@@ -437,7 +437,7 @@
     },
     {
       "id": "con_010",
-      "name": "Safety Board J2 \u2014 TS-ON SW",
+      "name": "Safety Board J2 — TS-ON SW",
       "parent": "enc_010",
       "connector_type": "molex_minifit_jr",
       "tags": [
@@ -450,7 +450,7 @@
     },
     {
       "id": "con_011",
-      "name": "Safety Board J3 \u2014 SDC OUT",
+      "name": "Safety Board J3 — SDC OUT",
       "parent": "enc_010",
       "connector_type": "molex_minifit_jr",
       "tags": [
@@ -463,7 +463,7 @@
     },
     {
       "id": "con_012",
-      "name": "Safety Board J4 \u2014 ACCU/HVB LV",
+      "name": "Safety Board J4 — ACCU/HVB LV",
       "parent": "enc_010",
       "connector_type": "molex_minifit_jr",
       "tags": [
@@ -476,7 +476,7 @@
     },
     {
       "id": "con_013",
-      "name": "Safety Board J5 \u2014 12V EXP",
+      "name": "Safety Board J5 — 12V EXP",
       "parent": "enc_010",
       "connector_type": "molex_minifit_jr",
       "tags": [
@@ -489,7 +489,7 @@
     },
     {
       "id": "con_014",
-      "name": "Safety Board J6 \u2014 PWR IN",
+      "name": "Safety Board J6 — PWR IN",
       "parent": "enc_010",
       "connector_type": "molex_minifit_jr",
       "tags": [
@@ -502,7 +502,7 @@
     },
     {
       "id": "con_015",
-      "name": "Safety Board J7 \u2014 24V EXP",
+      "name": "Safety Board J7 — 24V EXP",
       "parent": "enc_010",
       "connector_type": "molex_minifit_jr",
       "tags": [
@@ -515,7 +515,7 @@
     },
     {
       "id": "con_016",
-      "name": "Safety Board J8 \u2014 5V EXP",
+      "name": "Safety Board J8 — 5V EXP",
       "parent": "enc_010",
       "connector_type": "molex_minifit_jr",
       "tags": [
@@ -528,7 +528,7 @@
     },
     {
       "id": "con_018",
-      "name": "Safety Board J10 \u2014 TSSI",
+      "name": "Safety Board J10 — TSSI",
       "parent": "enc_010",
       "connector_type": "generic_multipin",
       "tags": [
@@ -541,7 +541,7 @@
     },
     {
       "id": "con_019",
-      "name": "Safety Board J11 \u2014 ACCU LED fan-out",
+      "name": "Safety Board J11 — ACCU LED fan-out",
       "parent": "enc_010",
       "connector_type": "generic_multipin",
       "tags": [
@@ -554,7 +554,7 @@
     },
     {
       "id": "con_020",
-      "name": "Safety Board J12 \u2014 BBC",
+      "name": "Safety Board J12 — BBC",
       "parent": "enc_010",
       "connector_type": "molex_minifit_jr",
       "tags": [
@@ -567,7 +567,7 @@
     },
     {
       "id": "con_021",
-      "name": "Safety Board J13 \u2014 USB to Pi",
+      "name": "Safety Board J13 — USB to Pi",
       "parent": "enc_010",
       "connector_type": "generic_multipin",
       "tags": [
@@ -580,7 +580,7 @@
     },
     {
       "id": "con_022",
-      "name": "Safety Board J14 \u2014 Footwell",
+      "name": "Safety Board J14 — Footwell",
       "parent": "enc_010",
       "connector_type": "molex_minifit_jr",
       "tags": [
@@ -593,7 +593,7 @@
     },
     {
       "id": "con_023",
-      "name": "Safety Board J15 \u2014 RTD B",
+      "name": "Safety Board J15 — RTD B",
       "parent": "enc_010",
       "connector_type": "molex_minifit_jr",
       "tags": [
@@ -606,7 +606,7 @@
     },
     {
       "id": "con_024",
-      "name": "Safety Board J16 \u2014 Brakelight",
+      "name": "Safety Board J16 — Brakelight",
       "parent": "enc_010",
       "connector_type": "generic_multipin",
       "tags": [
@@ -619,7 +619,7 @@
     },
     {
       "id": "con_027",
-      "name": "Safety Board J19 \u2014 AMP / Speaker",
+      "name": "Safety Board J19 — AMP / Speaker",
       "parent": "enc_010",
       "connector_type": "generic_multipin",
       "tags": [
@@ -814,7 +814,7 @@
     },
     {
       "id": "con_068",
-      "name": "24V\u219212V DC-DC (Dash)",
+      "name": "24V→12V DC-DC (Dash)",
       "parent": "enc_019",
       "connector_type": "molex_minifit_jr",
       "tags": [
@@ -926,7 +926,7 @@
         "bundle:FOC_H8"
       ],
       "properties": {
-        "notes": "Power Distribution Board J10 \u2014 2-pin Molex .062."
+        "notes": "Power Distribution Board J10 — 2-pin Molex .062."
       },
       "pin_count": 2
     },
@@ -1043,7 +1043,7 @@
         "wire_id": "W3",
         "wire_color": "Red",
         "wire_gauge": "18 AWG",
-        "length": "\u2265 38 in",
+        "length": "≥ 38 in",
         "notes": "12V_ACCU"
       },
       "nodes": [
@@ -2653,7 +2653,7 @@
         "system:sensors"
       ],
       "properties": {
-        "notes": "SB J14 (Footwell) \u2192 footwell breakout per AER xlsx.",
+        "notes": "SB J14 (Footwell) → footwell breakout per AER xlsx.",
         "wire_id": "SB-J14-2"
       },
       "nodes": [
@@ -2681,7 +2681,7 @@
         "system:sensors"
       ],
       "properties": {
-        "notes": "SB J14 (Footwell) \u2192 footwell breakout per AER xlsx.",
+        "notes": "SB J14 (Footwell) → footwell breakout per AER xlsx.",
         "wire_id": "SB-J14-3"
       },
       "nodes": [
@@ -2709,7 +2709,7 @@
         "system:sensors"
       ],
       "properties": {
-        "notes": "SB J14 (Footwell) \u2192 footwell breakout per AER xlsx.",
+        "notes": "SB J14 (Footwell) → footwell breakout per AER xlsx.",
         "wire_id": "SB-J14-4"
       },
       "nodes": [
@@ -2737,7 +2737,7 @@
         "system:sensors"
       ],
       "properties": {
-        "notes": "SB J14 (Footwell) \u2192 footwell breakout per AER xlsx.",
+        "notes": "SB J14 (Footwell) → footwell breakout per AER xlsx.",
         "wire_id": "SB-J14-5"
       },
       "nodes": [
@@ -2765,7 +2765,7 @@
         "system:sensors"
       ],
       "properties": {
-        "notes": "SB J14 (Footwell) \u2192 footwell breakout per AER xlsx.",
+        "notes": "SB J14 (Footwell) → footwell breakout per AER xlsx.",
         "wire_id": "SB-J14-6"
       },
       "nodes": [
@@ -2793,7 +2793,7 @@
         "system:sensors"
       ],
       "properties": {
-        "notes": "SB J14 (Footwell) \u2192 footwell breakout per AER xlsx.",
+        "notes": "SB J14 (Footwell) → footwell breakout per AER xlsx.",
         "wire_id": "SB-J14-7"
       },
       "nodes": [
@@ -2821,7 +2821,7 @@
         "system:sensors"
       ],
       "properties": {
-        "notes": "SB J14 (Footwell) \u2192 footwell breakout per AER xlsx.",
+        "notes": "SB J14 (Footwell) → footwell breakout per AER xlsx.",
         "wire_id": "SB-J14-9"
       },
       "nodes": [
@@ -2849,7 +2849,7 @@
         "system:sensors"
       ],
       "properties": {
-        "notes": "SB J14 (Footwell) \u2192 footwell breakout per AER xlsx.",
+        "notes": "SB J14 (Footwell) → footwell breakout per AER xlsx.",
         "wire_id": "SB-J14-10"
       },
       "nodes": [
@@ -2877,7 +2877,7 @@
         "system:sensors"
       ],
       "properties": {
-        "notes": "SB J14 (Footwell) \u2192 footwell breakout per AER xlsx.",
+        "notes": "SB J14 (Footwell) → footwell breakout per AER xlsx.",
         "wire_id": "SB-J14-11"
       },
       "nodes": [
@@ -2905,7 +2905,7 @@
         "system:sensors"
       ],
       "properties": {
-        "notes": "SB J14 (Footwell) \u2192 footwell breakout per AER xlsx.",
+        "notes": "SB J14 (Footwell) → footwell breakout per AER xlsx.",
         "wire_id": "SB-J14-12"
       },
       "nodes": [
@@ -2933,7 +2933,7 @@
         "system:sensors"
       ],
       "properties": {
-        "notes": "SB J14 (Footwell) \u2192 footwell breakout per AER xlsx.",
+        "notes": "SB J14 (Footwell) → footwell breakout per AER xlsx.",
         "wire_id": "SB-J14-13"
       },
       "nodes": [
@@ -2961,7 +2961,7 @@
         "system:sensors"
       ],
       "properties": {
-        "notes": "SB J14 (Footwell) \u2192 footwell breakout per AER xlsx.",
+        "notes": "SB J14 (Footwell) → footwell breakout per AER xlsx.",
         "wire_id": "SB-J14-14"
       },
       "nodes": [

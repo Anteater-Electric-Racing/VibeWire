@@ -1,6 +1,24 @@
 # VibeWire Changelog
 
-Changes to harness data, logged by the AI agent.
+Notable feature and harness-data changes, newest first. Maintained by hand; earlier entries were
+written by the AI agent workflow that used to drive this project and are kept as-is for history.
+Treat older entries as a record of what happened at the time, not as instructions — some scripts,
+API endpoints, and source files they mention have since been removed.
+
+---
+
+## 2026-08-05 — Crossing-free manufacturing harness diagram
+
+- Rebuilt the manufacturing visualizer layout around the harness tree instead of per-bundle bands. Every wire gets one global lane ordered by the branch it ends in, and each node fans its wires in that same order, so wires sharing a run stay parallel and never cross.
+- Branches now grow away from the side their wires arrive on, removing the hairpins where branch wires ran back along the trunk before turning off.
+- Added connector shells with names, side-mounted pin labels, a dotted junction bar through each splice, and a splice marker placed above the bundle it joins. Length tags now dodge connector names, splice markers, and each other.
+
+---
+
+## 2026-08-04 — Subsystem devices stay in enclosure
+
+- Constrained subsystem devices to their parent enclosure frame (`extent: 'parent'`).
+- Clamp out-of-bounds device layouts into the frame on graph build and when the frame is resized.
 
 ---
 

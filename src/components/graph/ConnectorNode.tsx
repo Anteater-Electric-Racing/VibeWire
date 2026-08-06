@@ -10,12 +10,11 @@ import {
 } from '@xyflow/react';
 import { useHarnessStore } from '../../store';
 import {
-  getWireAppearance,
   getWireBackground,
   getWireBorderColor,
   type WireAppearance,
 } from '../../lib/colors';
-import { getEffectivePinCount, getPathSignalId } from '../../lib/harness';
+import { getEffectivePinCount, getPathSignalId, getPathWireAppearance } from '../../lib/harness';
 
 type ConnectorNodeData = {
   label: string;
@@ -28,7 +27,6 @@ type ConnectorNodeData = {
     signalName: string | null;
   }>;
   pinCount: number;
-  matchesFilter: boolean;
   wireAppearance: WireAppearance | null;
   connectorTypeId?: string;
   instanceImage?: string;
@@ -252,7 +250,7 @@ export const ConnectorNode = memo(function ConnectorNode({
       ref={nodeRef}
       className={`w-full h-full rounded border overflow-visible relative ${
         selected ? 'ring-1 ring-amber-400' : ''
-      } ${data.matchesFilter ? 'opacity-100' : 'opacity-25'} transition-opacity`}
+      }`}
       style={{
         background: data.wireAppearance
           ? getWireBackground(data.wireAppearance, 0.15)
@@ -355,7 +353,9 @@ export const ConnectorNode = memo(function ConnectorNode({
               ? harness?.paths.find((candidate) => candidate.id === pin.pathId)
               : undefined;
             const signalId = signalPath ? getPathSignalId(signalPath) : undefined;
-            const wireAppearance = signalPath ? getWireAppearance(signalPath) : null;
+            const wireAppearance = signalPath && harness
+              ? getPathWireAppearance(signalPath, harness)
+              : null;
             const wireHandleBackground = wireAppearance
               ? getWireBackground(wireAppearance)
               : undefined;

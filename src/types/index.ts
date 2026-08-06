@@ -12,6 +12,10 @@ export interface Connector {
   /** Optional mechanical key selected from the active family cavity variant. */
   keying?: string;
   tags: string[];
+  /**
+   * Free-form instance properties. `image` is the free-hanging connector
+   * thumbnail shown on schematics when this connector is not a bulkhead.
+   */
   properties: Record<string, string>;
   /**
    * True when this connector is not authored directly, but synthesized at
@@ -125,12 +129,21 @@ export interface ConnectorCavityVariant {
   pin_count: number;
   /** Housing part number for this exact cavity count. */
   housing_part_number?: string;
+  /** Gender-specific housings, when the family uses different mating shells. */
+  male_housing_part_number?: string;
+  female_housing_part_number?: string;
   /** Keys offered for this exact cavity count. Omitted when keying is not applicable. */
   keyings?: string[];
-  /** Pin-reading guide for this cavity count. */
+  /** Pin-reading guide for this cavity count (inspector / manufacturing only). */
   image?: string;
-  /** Side/profile image for this cavity count. */
+  /** Gender-specific pin-reading guides. Fall back to `image`. */
+  male_image?: string;
+  female_image?: string;
+  /** Bulkhead side view for this cavity count (schematic when wall-mounted on an enclosure). */
   side_image?: string;
+  /** Gender-specific bulkhead side views. Fall back to `side_image`. */
+  male_side_image?: string;
+  female_side_image?: string;
 }
 
 export interface ConnectorType {
@@ -150,9 +163,16 @@ export interface ConnectorType {
   notes: string;
   /** Supported housings when this entry represents a connector family. */
   cavity_variants?: ConnectorCavityVariant[];
-  /** Default/fallback media for fixed types or family variants without media. */
+  /**
+   * Default/fallback media for fixed types or family variants without media.
+   * `image` = pin guide (inspector / manufacturing). `side_image` = bulkhead side view on boxes.
+   */
   image?: string;
+  male_image?: string;
+  female_image?: string;
   side_image?: string;
+  male_side_image?: string;
+  female_side_image?: string;
   /**
    * Properties copied onto a connector instance when this type is selected.
    * Existing instance values win and later default edits are not retroactive.
@@ -176,11 +196,6 @@ export interface SelectedItem {
 export interface SelectedBundle {
   id: string;
   pathIds: string[];
-}
-
-export interface TagFilter {
-  namespace: string;
-  values: Set<string>;
 }
 
 export interface NodeLayout {
@@ -318,6 +333,63 @@ export type ManufacturingStep =
   | 'qc'
   | 'installed';
 
+export interface ManufacturingWorkAttribution {
+  user_id: string;
+  user_name: string;
+  /** Calendar day is intentionally the finest manufacturing reporting granularity. */
+  day: string;
+}
+
+export type ManufacturingWorkKind =
+  | 'wire-cut'
+  | 'wire-end'
+  | 'splice-measured'
+  | 'connector-guide'
+  | 'component-step';
+
+export interface ManufacturingWorkEvent extends ManufacturingWorkAttribution {
+  id: string;
+  task_key: string;
+  kind: ManufacturingWorkKind;
+  action: 'complete' | 'reopen';
+  /** Optional state for multi-stage tasks such as a connector guide review. */
+  state?: string;
+  quantity?: number;
+  unit?: 'ea' | 'mm';
+}
+
+export interface ManufacturingWireProgress {
+  cut?: boolean;
+  ends?: Partial<Record<'from' | 'to', boolean>>;
+}
+
+export type ManufacturingConnectorGuideState = 'checking' | 'verified';
+
+export type ManufacturingTaskUpdate =
+  | {
+      kind: 'wire-cut';
+      wireId: string;
+      completed: boolean;
+      lengthMm?: number;
+    }
+  | {
+      kind: 'wire-end';
+      wireId: string;
+      end: 'from' | 'to';
+      connectorId?: string;
+      completed: boolean;
+    }
+  | {
+      kind: 'splice-measured';
+      spliceId: string;
+      completed: boolean;
+    }
+  | {
+      kind: 'connector-guide';
+      connectorId: string;
+      state: ManufacturingConnectorGuideState | undefined;
+    };
+
 export interface ManufacturingBundleProgress {
   /** Legacy whole-harness progress. Used as a fallback for pre-component data. */
   steps: Partial<Record<ManufacturingStep, boolean>>;
@@ -325,16 +397,27 @@ export interface ManufacturingBundleProgress {
   component_steps?: Record<string, Partial<Record<ManufacturingStep, boolean>>>;
   /** Contact gender for every wire ending at a connector in this bundle. */
   endpoint_genders?: Record<string, 'male' | 'female'>;
+  /** Visual workbench progress, kept at wire granularity. */
+  wire_progress?: Record<string, ManufacturingWireProgress>;
+  /** A splice is measured once even when several wires meet there. */
+  splice_measured?: Record<string, boolean>;
+  /** Two-stage pin-guide review: checking (yellow) then verified (green). */
+  connector_guide_states?: Record<string, ManufacturingConnectorGuideState>;
+  /** Current ownership of completed visual tasks, used for progress metrics. */
+  task_attribution?: Record<string, ManufacturingWorkAttribution>;
+  /** Append-only, day-granular operator activity for this harness run. */
+  work_log?: ManufacturingWorkEvent[];
   notes?: string;
 }
 
 export interface ManufacturingDocument {
-  schema_version: '1.1.0';
+  schema_version: '1.1.0' | '1.2.0';
   bundles: Record<string, ManufacturingBundleProgress>;
 }
 
 export type EditingSurface = 'hierarchy' | 'subsystem';
 export type AppView = 'canvas' | 'connectorLibrary' | 'signalLibrary' | 'manufacturing';
+export type ManufacturingTab = 'cutlists' | 'progress' | 'bom';
 
 export interface SubsystemEntityLayout {
   x: number;

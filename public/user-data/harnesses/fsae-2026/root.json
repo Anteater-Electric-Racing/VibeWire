@@ -366,7 +366,7 @@
         "system:sensors"
       ],
       "properties": {
-        "notes": "Motor-sensor breakout \u2014 Souriau UTS6JC12E14PW 14-pin (letter pins A-L mapped to 1-10)."
+        "notes": "Motor-sensor breakout — Souriau UTS6JC12E14PW 14-pin (letter pins A-L mapped to 1-10)."
       },
       "pin_count": 14
     },
@@ -560,7 +560,7 @@
         "system:sensors"
       ],
       "properties": {
-        "notes": "NTC thermistor 1 \u2014 1=signal+, 2=GND."
+        "notes": "NTC thermistor 1 — 1=signal+, 2=GND."
       },
       "pin_count": 2
     },
@@ -574,7 +574,7 @@
         "system:sensors"
       ],
       "properties": {
-        "notes": "NTC thermistor 2 \u2014 1=signal+, 2=GND."
+        "notes": "NTC thermistor 2 — 1=signal+, 2=GND."
       },
       "pin_count": 2
     },
@@ -588,7 +588,7 @@
         "system:sensors"
       ],
       "properties": {
-        "notes": "NTC thermistor 3 \u2014 1=signal+, 2=GND."
+        "notes": "NTC thermistor 3 — 1=signal+, 2=GND."
       },
       "pin_count": 2
     },
@@ -602,7 +602,7 @@
         "system:sensors"
       ],
       "properties": {
-        "notes": "NTC thermistor 4 \u2014 1=signal+, 2=GND."
+        "notes": "NTC thermistor 4 — 1=signal+, 2=GND."
       },
       "pin_count": 2
     }
@@ -866,7 +866,7 @@
         "wire_id": "W6",
         "wire_color": "Black",
         "wire_gauge": "18 AWG",
-        "length": "\u2265 38 in",
+        "length": "≥ 38 in",
         "notes": "GND_INV"
       },
       "nodes": [
@@ -911,7 +911,7 @@
         "wire_id": "W10",
         "wire_color": "Red",
         "wire_gauge": "18 AWG",
-        "length": "\u2265 38 in",
+        "length": "≥ 38 in",
         "notes": "12V_INV"
       },
       "nodes": [
@@ -954,7 +954,7 @@
         "wire_id": "W13",
         "wire_color": "Black",
         "wire_gauge": "18 AWG",
-        "length": "\u2265 38 in",
+        "length": "≥ 38 in",
         "notes": "GND_ACCU"
       },
       "nodes": [
@@ -997,7 +997,7 @@
         "wire_id": "W5",
         "wire_color": "Green",
         "wire_gauge": "18 AWG",
-        "length": "\u2265 38 in",
+        "length": "≥ 38 in",
         "notes": "BMS Fault"
       },
       "nodes": [
@@ -1042,7 +1042,7 @@
         "wire_id": "W4",
         "wire_color": "Green",
         "wire_gauge": "18 AWG",
-        "length": "\u2265 38 in",
+        "length": "≥ 38 in",
         "notes": "IMD_FAULT"
       },
       "nodes": [
@@ -1087,7 +1087,7 @@
         "wire_id": "W2",
         "wire_color": "Yellow",
         "wire_gauge": "18 AWG",
-        "length": "\u2265 38 in",
+        "length": "≥ 38 in",
         "notes": "CAN_ACC high"
       },
       "nodes": [
@@ -1132,7 +1132,7 @@
         "wire_id": "W1",
         "wire_color": "Green",
         "wire_gauge": "18 AWG",
-        "length": "\u2265 38 in",
+        "length": "≥ 38 in",
         "notes": "CAN_ACC low"
       },
       "nodes": [
@@ -1755,7 +1755,7 @@
         "wire_id": "W1",
         "wire_color": "Red",
         "wire_gauge": "18 AWG",
-        "length": "\u2265 75 in",
+        "length": "≥ 75 in",
         "notes": "12V_TSL"
       },
       "nodes": [
@@ -1798,7 +1798,7 @@
         "wire_id": "W6",
         "wire_color": "Black-Red",
         "wire_gauge": "18 AWG",
-        "length": "\u2265 75 in",
+        "length": "≥ 75 in",
         "notes": "TSSI_RED-LT"
       },
       "nodes": [
@@ -1841,7 +1841,7 @@
         "wire_id": "W9",
         "wire_color": "Black-Green",
         "wire_gauge": "18 AWG",
-        "length": "\u2265 75 in",
+        "length": "≥ 75 in",
         "notes": "TSSI_GRN-LT"
       },
       "nodes": [
@@ -1917,7 +1917,7 @@
     },
     {
       "id": "path_097",
-      "name": "BOTS OUT \u2192 Inertia Switch IN",
+      "name": "BOTS OUT → Inertia Switch IN",
       "tags": [
         "system:sdc",
         "bundle:EXT_H4",
@@ -2776,14 +2776,14 @@
     },
     {
       "id": "path_356",
-      "name": "Inverter\u2192Motor Phase U",
+      "name": "Inverter→Motor Phase U",
       "tags": [
         "bundle:transcript",
         "system:ts",
         "signal:PHASE_U"
       ],
       "properties": {
-        "notes": "Inverter\u2192Motor 3-phase wire U.",
+        "notes": "Inverter→Motor 3-phase wire U.",
         "wire_id": "PHASE-U",
         "wire_color": "Orange"
       },
@@ -2803,14 +2803,14 @@
     },
     {
       "id": "path_357",
-      "name": "Inverter\u2192Motor Phase V",
+      "name": "Inverter→Motor Phase V",
       "tags": [
         "bundle:transcript",
         "system:ts",
         "signal:PHASE_V"
       ],
       "properties": {
-        "notes": "Inverter\u2192Motor 3-phase wire V.",
+        "notes": "Inverter→Motor 3-phase wire V.",
         "wire_id": "PHASE-V",
         "wire_color": "Orange"
       },
@@ -2830,14 +2830,14 @@
     },
     {
       "id": "path_358",
-      "name": "Inverter\u2192Motor Phase W",
+      "name": "Inverter→Motor Phase W",
       "tags": [
         "bundle:transcript",
         "system:ts",
         "signal:PHASE_W"
       ],
       "properties": {
-        "notes": "Inverter\u2192Motor 3-phase wire W.",
+        "notes": "Inverter→Motor 3-phase wire W.",
         "wire_id": "PHASE-W",
         "wire_color": "Orange"
       },
@@ -2857,7 +2857,7 @@
     },
     {
       "id": "path_368",
-      "name": "Charge Board 12V Out.3 \u2192 Precharge/Discharge LV +",
+      "name": "Charge Board 12V Out.3 → Precharge/Discharge LV +",
       "tags": [
         "bundle:Accu_Internal",
         "system:ts",
@@ -2884,7 +2884,7 @@
     },
     {
       "id": "path_369",
-      "name": "CCM J17 Mate.2 \u2192 Thermistor1-C1.1",
+      "name": "CCM J17 Mate.2 → Thermistor1-C1.1",
       "tags": [
         "bundle:CCM_internal",
         "system:cooling",
@@ -2911,7 +2911,7 @@
     },
     {
       "id": "path_370",
-      "name": "CCM J17 Mate.1 \u2192 Thermistor2-C1.1",
+      "name": "CCM J17 Mate.1 → Thermistor2-C1.1",
       "tags": [
         "bundle:CCM_internal",
         "system:cooling",
@@ -2938,7 +2938,7 @@
     },
     {
       "id": "path_371",
-      "name": "CCM J18 Mate.2 \u2192 Thermistor3-C1.1",
+      "name": "CCM J18 Mate.2 → Thermistor3-C1.1",
       "tags": [
         "bundle:CCM_internal",
         "system:cooling",
@@ -2965,7 +2965,7 @@
     },
     {
       "id": "path_372",
-      "name": "CCM J18 Mate.1 \u2192 Thermistor4-C1.1",
+      "name": "CCM J18 Mate.1 → Thermistor4-C1.1",
       "tags": [
         "bundle:CCM_internal",
         "system:cooling",
@@ -2992,7 +2992,7 @@
     },
     {
       "id": "path_373",
-      "name": "CCM J17 Mate.3 \u2192 Thermistor GND splice",
+      "name": "CCM J17 Mate.3 → Thermistor GND splice",
       "tags": [
         "bundle:CCM_internal",
         "system:cooling",
@@ -3017,7 +3017,7 @@
     },
     {
       "id": "path_374",
-      "name": "CCM J17 Mate.4 \u2192 Thermistor GND splice",
+      "name": "CCM J17 Mate.4 → Thermistor GND splice",
       "tags": [
         "bundle:CCM_internal",
         "system:cooling",
@@ -3042,7 +3042,7 @@
     },
     {
       "id": "path_375",
-      "name": "CCM J18 Mate.3 \u2192 Thermistor GND splice",
+      "name": "CCM J18 Mate.3 → Thermistor GND splice",
       "tags": [
         "bundle:CCM_internal",
         "system:cooling",
@@ -3067,7 +3067,7 @@
     },
     {
       "id": "path_376",
-      "name": "CCM J18 Mate.4 \u2192 Thermistor GND splice",
+      "name": "CCM J18 Mate.4 → Thermistor GND splice",
       "tags": [
         "bundle:CCM_internal",
         "system:cooling",
@@ -3092,7 +3092,7 @@
     },
     {
       "id": "path_377",
-      "name": "Thermistor GND splice \u2192 Thermistor1-C1.2",
+      "name": "Thermistor GND splice → Thermistor1-C1.2",
       "tags": [
         "bundle:CCM_internal",
         "system:cooling",
@@ -3117,7 +3117,7 @@
     },
     {
       "id": "path_378",
-      "name": "Thermistor GND splice \u2192 Thermistor2-C1.2",
+      "name": "Thermistor GND splice → Thermistor2-C1.2",
       "tags": [
         "bundle:CCM_internal",
         "system:cooling",
@@ -3142,7 +3142,7 @@
     },
     {
       "id": "path_379",
-      "name": "Thermistor GND splice \u2192 Thermistor3-C1.2",
+      "name": "Thermistor GND splice → Thermistor3-C1.2",
       "tags": [
         "bundle:CCM_internal",
         "system:cooling",
@@ -3167,7 +3167,7 @@
     },
     {
       "id": "path_380",
-      "name": "Thermistor GND splice \u2192 Thermistor4-C1.2",
+      "name": "Thermistor GND splice → Thermistor4-C1.2",
       "tags": [
         "bundle:CCM_internal",
         "system:cooling",
@@ -3556,7 +3556,7 @@
         "bundle:EXT_ROC_H2"
       ],
       "properties": {
-        "notes": "Accumulator bulkhead C1 \u2014 12-pin Deutsch (EXT 1-MZ / ROC H2)."
+        "notes": "Accumulator bulkhead C1 — 12-pin Deutsch (EXT 1-MZ / ROC H2)."
       }
     },
     {
@@ -3591,7 +3591,7 @@
         "bundle:EXT_H4"
       ],
       "properties": {
-        "notes": "HI-BBC board BBC-C1 6-pin Deutsch \u2014 mixes MS HV- and HV MS+ rails. Gigadoc lists as DT04-6P and mating DT06-6S; modeled as one mated pair on BBC."
+        "notes": "HI-BBC board BBC-C1 6-pin Deutsch — mixes MS HV- and HV MS+ rails. Gigadoc lists as DT04-6P and mating DT06-6S; modeled as one mated pair on BBC."
       }
     },
     {
@@ -3671,7 +3671,7 @@
         "bundle:EXT_H4"
       ],
       "properties": {
-        "notes": "Front-of-car C8 \u2014 SDC input from BOTS."
+        "notes": "Front-of-car C8 — SDC input from BOTS."
       }
     },
     {
@@ -3687,7 +3687,7 @@
         "bundle:FOC_H7"
       ],
       "properties": {
-        "notes": "Front-of-car H7 \u2014 3-pin male to the HV current sensor."
+        "notes": "Front-of-car H7 — 3-pin male to the HV current sensor."
       }
     },
     {
@@ -3703,7 +3703,7 @@
         "bundle:EXT_H7"
       ],
       "properties": {
-        "notes": "Accumulator C2 \u2014 3-pin Deutsch to Safety Board current sense."
+        "notes": "Accumulator C2 — 3-pin Deutsch to Safety Board current sense."
       }
     },
     {
@@ -3719,7 +3719,7 @@
         "bundle:EXT_ROC_H1"
       ],
       "properties": {
-        "notes": "Rear-of-car C1 \u2014 12-pin Deutsch bulkhead mating FOC-ROC1."
+        "notes": "Rear-of-car C1 — 12-pin Deutsch bulkhead mating FOC-ROC1."
       }
     },
     {
@@ -3811,13 +3811,13 @@
       "entity_kind": "connector",
       "connector_id": "con_168",
       "connector_type": "generic_multipin",
+      "pin_count": 3,
       "tags": [
         "system:ts"
       ],
       "properties": {
         "notes": "Inverter HV phase output (1=U, 2=V, 3=W). Real PN TBC."
-      },
-      "pin_count": 3
+      }
     },
     {
       "id": "port_con_117",
@@ -3851,7 +3851,7 @@
         "status:needs-verification"
       ],
       "properties": {
-        "notes": "Precharge/Discharge board LV input \u2014 fed by PCC J11 / Charge Board."
+        "notes": "Precharge/Discharge board LV input — fed by PCC J11 / Charge Board."
       }
     },
     {
@@ -3905,5 +3905,7 @@
         "notes": "Placeholder FOC cooling harness; random pin assignment needs fixing."
       }
     }
-  ]
+  ],
+  "name": "Fsae (depricated!)",
+  "signalPropertyDefinitions": []
 }

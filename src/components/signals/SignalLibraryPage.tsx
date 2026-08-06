@@ -57,12 +57,11 @@ function SignalSwatch({
   signal: Signal;
   className?: string;
 }) {
-  const preferred = signal.properties.preferred_wire_color?.trim();
-  const appearance = getWireAppearance(
-    preferred
-      ? { tags: [], properties: { wire_color: preferred } }
-      : { tags: signal.tags, signal_id: signal.id },
-  );
+  const appearance = getWireAppearance({
+    tags: signal.tags,
+    signal_id: signal.id,
+    preferred_wire_color: signal.properties.preferred_wire_color,
+  });
   return (
     <span
       className={`inline-block shrink-0 border ${className}`}

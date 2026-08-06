@@ -133,7 +133,6 @@ function ImageField({
       {open && (
         <ImagePickerPanel
           title={`Pick ${label.toLowerCase()}`}
-          listEndpoint="/api/list-connector-assets"
           onPick={(filename) => onChange(filename)}
           onClose={() => setOpen(false)}
         />
@@ -251,7 +250,11 @@ export function ConnectorLibraryPage() {
         type.male_crimp_part_number ?? '',
         type.female_crimp_part_number ?? '',
         type.wire_gauge,
-        ...(type.cavity_variants ?? []).map((variant) => variant.housing_part_number ?? ''),
+        ...(type.cavity_variants ?? []).flatMap((variant) => [
+          variant.housing_part_number ?? '',
+          variant.male_housing_part_number ?? '',
+          variant.female_housing_part_number ?? '',
+        ]),
       ].some((value) => value.toLowerCase().includes(query)))
       .sort((a, b) => a.name.localeCompare(b.name));
   }, [library, search]);
@@ -621,28 +624,6 @@ export function ConnectorLibraryPage() {
                   </div>
                 </Field>
                 <div className="grid grid-cols-2 gap-3">
-                  <Field label="Male crimp part number" hint="Shared by every housing size in this family.">
-                    <input
-                      value={selectedType.male_crimp_part_number ?? ''}
-                      onChange={(event) => patchType({
-                        male_crimp_part_number: event.target.value || undefined,
-                      })}
-                      placeholder="Male contact PN"
-                      className={`${inputClass} font-mono`}
-                    />
-                  </Field>
-                  <Field label="Female crimp part number" hint="Shared by every housing size in this family.">
-                    <input
-                      value={selectedType.female_crimp_part_number ?? ''}
-                      onChange={(event) => patchType({
-                        female_crimp_part_number: event.target.value || undefined,
-                      })}
-                      placeholder="Female contact PN"
-                      className={`${inputClass} font-mono`}
-                    />
-                  </Field>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
                   <Field label="Legacy crimp specification" hint="Fallback for older catalog entries without structured male/female part numbers.">
                     <input
                       value={selectedType.crimp_spec}
@@ -666,6 +647,80 @@ export function ConnectorLibraryPage() {
                     className={`${inputClass} resize-y`}
                   />
                 </Field>
+              </Section>
+
+              <Section
+                title="Male / female pin families"
+                description="Manufacturing infers the contact, housing, and guide from this family and the selected connector gender."
+              >
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="rounded-lg border border-violet-900/60 bg-violet-950/15 p-3">
+                    <div className="mb-3 flex items-center gap-2">
+                      <span className="text-xl" aria-hidden>🍆</span>
+                      <div>
+                        <div className="text-xs font-semibold text-violet-200">Male pin family</div>
+                        <div className="text-[9px] text-zinc-600">Default manufacturing symbol</div>
+                      </div>
+                    </div>
+                    <Field label="Male crimp part number" hint="Shared by every housing size.">
+                      <input
+                        value={selectedType.male_crimp_part_number ?? ''}
+                        onChange={(event) => patchType({
+                          male_crimp_part_number: event.target.value || undefined,
+                        })}
+                        placeholder="Male contact PN"
+                        className={`${inputClass} font-mono`}
+                      />
+                    </Field>
+                    <div className="mt-3 grid grid-cols-2 gap-3">
+                      <ImageField
+                        label="Male pin guide"
+                        value={selectedType.male_image}
+                        onChange={(maleImage) => patchType({ male_image: maleImage })}
+                      />
+                      <ImageField
+                        label="Male side view"
+                        value={selectedType.male_side_image}
+                        onChange={(maleSideImage) => patchType({
+                          male_side_image: maleSideImage,
+                        })}
+                      />
+                    </div>
+                  </div>
+                  <div className="rounded-lg border border-orange-900/60 bg-orange-950/15 p-3">
+                    <div className="mb-3 flex items-center gap-2">
+                      <span className="text-xl" aria-hidden>🍑</span>
+                      <div>
+                        <div className="text-xs font-semibold text-orange-200">Female pin family</div>
+                        <div className="text-[9px] text-zinc-600">Default manufacturing symbol</div>
+                      </div>
+                    </div>
+                    <Field label="Female crimp part number" hint="Shared by every housing size.">
+                      <input
+                        value={selectedType.female_crimp_part_number ?? ''}
+                        onChange={(event) => patchType({
+                          female_crimp_part_number: event.target.value || undefined,
+                        })}
+                        placeholder="Female contact PN"
+                        className={`${inputClass} font-mono`}
+                      />
+                    </Field>
+                    <div className="mt-3 grid grid-cols-2 gap-3">
+                      <ImageField
+                        label="Female pin guide"
+                        value={selectedType.female_image}
+                        onChange={(femaleImage) => patchType({ female_image: femaleImage })}
+                      />
+                      <ImageField
+                        label="Female side view"
+                        value={selectedType.female_side_image}
+                        onChange={(femaleSideImage) => patchType({
+                          female_side_image: femaleSideImage,
+                        })}
+                      />
+                    </div>
+                  </div>
+                </div>
               </Section>
 
               {isConnectorFamily(selectedType) ? (
@@ -745,23 +800,31 @@ export function ConnectorLibraryPage() {
                             </button>
                           </div>
                           <div className="mt-3 pt-3 border-t border-zinc-800">
-                            <Field label="Housing part number">
-                              <input
-                                value={variant.housing_part_number ?? ''}
-                                onChange={(event) => patchType({
-                                  cavity_variants: (selectedType.cavity_variants ?? []).map(
-                                    (candidate) => candidate === variant
-                                      ? {
-                                          ...candidate,
-                                          housing_part_number: event.target.value || undefined,
-                                        }
-                                      : candidate,
-                                  ),
-                                })}
-                                placeholder="Housing PN"
-                                className={`${inputClass} font-mono`}
-                              />
-                            </Field>
+                            <div className="grid grid-cols-3 gap-3">
+                              {([
+                                ['Housing part number', 'housing_part_number', 'Shared housing PN'],
+                                ['Male housing', 'male_housing_part_number', 'Defaults to shared'],
+                                ['Female housing', 'female_housing_part_number', 'Defaults to shared'],
+                              ] as const).map(([label, field, placeholder]) => (
+                                <Field key={field} label={label}>
+                                  <input
+                                    value={variant[field] ?? ''}
+                                    onChange={(event) => patchType({
+                                      cavity_variants: (selectedType.cavity_variants ?? []).map(
+                                        (candidate) => candidate === variant
+                                          ? {
+                                              ...candidate,
+                                              [field]: event.target.value || undefined,
+                                            }
+                                          : candidate,
+                                      ),
+                                    })}
+                                    placeholder={placeholder}
+                                    className={`${inputClass} font-mono`}
+                                  />
+                                </Field>
+                              ))}
+                            </div>
                           </div>
                           <div className="grid grid-cols-2 gap-3 mt-3">
                             <ImageField
@@ -776,7 +839,7 @@ export function ConnectorLibraryPage() {
                               })}
                             />
                             <ImageField
-                              label="Side view"
+                              label="Side view (on boxes)"
                               value={variant.side_image}
                               onChange={(sideImage) => patchType({
                                 cavity_variants: (selectedType.cavity_variants ?? []).map(
@@ -787,6 +850,63 @@ export function ConnectorLibraryPage() {
                               })}
                             />
                           </div>
+                          <details className="mt-3 rounded border border-zinc-800 bg-zinc-900/40">
+                            <summary className="cursor-pointer px-3 py-2 text-[10px] font-medium text-zinc-400 hover:text-zinc-200">
+                              Gender-specific guide overrides
+                            </summary>
+                            <div className="grid grid-cols-2 gap-3 border-t border-zinc-800 p-3">
+                              <div className="space-y-3">
+                                <div className="text-[10px] font-semibold text-violet-300">🍆 Male</div>
+                                <ImageField
+                                  label="Male pin guide"
+                                  value={variant.male_image}
+                                  onChange={(maleImage) => patchType({
+                                    cavity_variants: (selectedType.cavity_variants ?? []).map(
+                                      (candidate) => candidate === variant
+                                        ? { ...candidate, male_image: maleImage }
+                                        : candidate,
+                                    ),
+                                  })}
+                                />
+                                <ImageField
+                                  label="Male side view"
+                                  value={variant.male_side_image}
+                                  onChange={(maleSideImage) => patchType({
+                                    cavity_variants: (selectedType.cavity_variants ?? []).map(
+                                      (candidate) => candidate === variant
+                                        ? { ...candidate, male_side_image: maleSideImage }
+                                        : candidate,
+                                    ),
+                                  })}
+                                />
+                              </div>
+                              <div className="space-y-3">
+                                <div className="text-[10px] font-semibold text-orange-300">🍑 Female</div>
+                                <ImageField
+                                  label="Female pin guide"
+                                  value={variant.female_image}
+                                  onChange={(femaleImage) => patchType({
+                                    cavity_variants: (selectedType.cavity_variants ?? []).map(
+                                      (candidate) => candidate === variant
+                                        ? { ...candidate, female_image: femaleImage }
+                                        : candidate,
+                                    ),
+                                  })}
+                                />
+                                <ImageField
+                                  label="Female side view"
+                                  value={variant.female_side_image}
+                                  onChange={(femaleSideImage) => patchType({
+                                    cavity_variants: (selectedType.cavity_variants ?? []).map(
+                                      (candidate) => candidate === variant
+                                        ? { ...candidate, female_side_image: femaleSideImage }
+                                        : candidate,
+                                    ),
+                                  })}
+                                />
+                              </div>
+                            </div>
+                          </details>
                         </div>
                       );
                     })}
@@ -811,7 +931,7 @@ export function ConnectorLibraryPage() {
                       onChange={(image) => patchType({ image })}
                     />
                     <ImageField
-                      label="Fallback side view"
+                      label="Fallback side view (on boxes)"
                       value={selectedType.side_image}
                       onChange={(sideImage) => patchType({ side_image: sideImage })}
                     />
@@ -853,7 +973,7 @@ export function ConnectorLibraryPage() {
                       onChange={(image) => patchType({ image })}
                     />
                     <ImageField
-                      label="Side view"
+                      label="Side view (on boxes)"
                       value={selectedType.side_image}
                       onChange={(sideImage) => patchType({ side_image: sideImage })}
                     />

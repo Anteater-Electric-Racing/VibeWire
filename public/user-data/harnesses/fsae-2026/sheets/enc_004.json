@@ -48,7 +48,7 @@
         "system:charging"
       ],
       "properties": {
-        "notes": "Charger-box E-Stop \u2014 two green daisy-chain leads (transcript)."
+        "notes": "Charger-box E-Stop — two green daisy-chain leads (transcript)."
       }
     },
     {
@@ -72,7 +72,7 @@
         "system:charging"
       ],
       "properties": {
-        "notes": "12-pin Deutsch on the face of the Charging Box \u2014 passes through AC-to-DC 12V to the car."
+        "notes": "12-pin Deutsch on the face of the Charging Box — passes through AC-to-DC 12V to the car."
       }
     },
     {
@@ -98,7 +98,7 @@
         "system:charging"
       ],
       "properties": {
-        "notes": "AC-to-DC DC-side terminal block. Pins are arbitrary \u2014 1/2 = +/- to Charge Board, 3/4 = Cooling Pump, 5/6 = Cooling Fan (transcript)."
+        "notes": "AC-to-DC DC-side terminal block. Pins are arbitrary — 1/2 = +/- to Charge Board, 3/4 = Cooling Pump, 5/6 = Cooling Fan (transcript)."
       },
       "pin_count": 6
     },
@@ -233,7 +233,7 @@
         "system:charging"
       ],
       "properties": {
-        "notes": "12-pin Deutsch on Charging Box face \u2014 12V pass-through to car."
+        "notes": "12-pin Deutsch on Charging Box face — 12V pass-through to car."
       },
       "pin_count": 12
     }

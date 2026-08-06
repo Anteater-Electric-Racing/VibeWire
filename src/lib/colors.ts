@@ -231,8 +231,6 @@ export function getWireColorTokens(rawColor: string): string[] {
     .filter((token): token is string => !!token);
 }
 
-export const WIRE_COLOR_PROPERTY_KEYS = ['wire_color', 'color'] as const;
-
 /** Named solid colors available for path `wire_color` / signal `preferred_wire_color`. */
 export const WIRE_COLOR_PRESETS = [
   'black',
@@ -257,12 +255,20 @@ export function getWireAppearance(input: {
   properties?: Record<string, string>;
   tags: string[];
   signal_id?: string;
+  /** Signal preferred wire color used when the path has no explicit wire_color. */
+  preferred_wire_color?: string;
 }): WireAppearance {
   const rawWireColor = (
     input.properties?.wire_color ?? input.properties?.color
   )?.trim();
   if (rawWireColor) {
     const parsed = parsePhysicalWireAppearance(rawWireColor);
+    if (parsed) return parsed;
+  }
+
+  const preferred = input.preferred_wire_color?.trim();
+  if (preferred) {
+    const parsed = parsePhysicalWireAppearance(preferred);
     if (parsed) return parsed;
   }
 

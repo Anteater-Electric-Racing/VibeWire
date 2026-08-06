@@ -12,10 +12,12 @@ dist
 dist-ssr
 *.local
 
-# Editor directories and files
+# Editor and AI assistant directories
 .vscode/*
 !.vscode/extensions.json
 .idea
+.cursor/
+.claude/
 .DS_Store
 *.suo
 *.ntvs*
@@ -23,6 +25,9 @@ dist-ssr
 *.sln
 *.sw?
 
-# VibeWire local identity (do not sync to GitHub)
+# Scratch project roots created by the test scripts
+.tmp-*
+
+# VibeWire local identity and runtime collaboration state (do not sync to GitHub)
 .vibewire-user
 vibewire-state/
