@@ -1155,6 +1155,30 @@
         }
       ],
       "measurements": []
+    },
+    {
+      "id": "path_auto_eb8e9c90781b",
+      "name": "Safety Board J11:1 → RTD SDC:1",
+      "signal_id": "sig_1786050035282_vheeow",
+      "tags": [
+        "signal:1786050035282_vheeow"
+      ],
+      "properties": {
+        "route_request_id": "2f5454ff-b895-45f1-be6a-44b441361067"
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_027",
+          "pin_number": 1
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_094",
+          "pin_number": 1
+        }
+      ],
+      "measurements": []
     }
   ],
   "ports": []

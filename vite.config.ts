@@ -47,6 +47,13 @@ export default defineConfig({
         target: `http://127.0.0.1:${API_PORT}`,
         changeOrigin: true,
       },
+      // Uploads are written after Vite has taken its publicDir snapshot.
+      // Route user data through the API so newly written files are read
+      // directly from disk instead of falling through to the SPA HTML.
+      '/user-data': {
+        target: `http://127.0.0.1:${API_PORT}`,
+        changeOrigin: true,
+      },
     },
   },
 })

@@ -976,6 +976,7 @@ function BundleCutList({
   const manufacturing = useHarnessStore((state) => state.manufacturing);
   const updateNotes = useHarnessStore((state) => state.updateManufacturingNotes);
   const updateTasks = useHarnessStore((state) => state.updateManufacturingTasks);
+  const updatePathSegmentLengths = useHarnessStore((state) => state.updatePathSegmentLengths);
   const updateGender = useHarnessStore(
     (state) => state.updateManufacturingEndpointGender,
   );
@@ -1004,6 +1005,37 @@ function BundleCutList({
     for (const [bundleId, grouped] of byBundle) {
       updateTasks(bundleId, grouped.map((task) => task.update));
     }
+  };
+
+  const applySegmentLengthChange = ({
+    bundleId,
+    wireId,
+    segmentIndex,
+    lengthMm,
+  }: {
+    bundleId: string;
+    wireId: string;
+    segmentIndex: number;
+    lengthMm: number | undefined;
+  }) => {
+    if (!isEditor) return;
+    const bundle = manufacturingHarness.bundles.find((candidate) => candidate.id === bundleId);
+    const wire = bundle?.wires.find((candidate) => candidate.id === wireId);
+    const hop = wire?.hops.find((candidate) => candidate.segmentIndex === segmentIndex);
+    if (!bundle || !wire || !hop || hop.lengthMm === lengthMm) return;
+    const updates: Array<{ pathId: string; segmentIndex: number; lengthMm: number | undefined }> = [{
+      pathId: wire.pathId,
+      segmentIndex: hop.segmentIndex,
+      lengthMm,
+    }];
+    for (const match of confirmMatchBundleHopLengths(bundle, wire, hop, lengthMm)) {
+      updates.push({
+        pathId: match.pathId,
+        segmentIndex: match.segmentIndex,
+        lengthMm,
+      });
+    }
+    updatePathSegmentLengths(updates);
   };
 
   const spliceComplete = (spliceId: string): boolean =>
@@ -1210,6 +1242,8 @@ function BundleCutList({
               onSelect={setSelection}
               onInspectPath={(pathId) => inspectEntityQuiet({ type: 'path', id: pathId })}
               onTasks={applyVisualTasks}
+              onSegmentLengthChange={applySegmentLengthChange}
+              canEditLengths={isEditor}
             />
           </div>
 

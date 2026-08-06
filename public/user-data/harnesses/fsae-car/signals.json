@@ -288,5 +288,13 @@
     },
     "name": "new signal",
     "id": "sig_1785888181268_xnq6jx"
+  },
+  {
+    "id": "sig_1786050035282_vheeow",
+    "name": "demo",
+    "tags": [],
+    "properties": {
+      "preferred_wire_color": "red"
+    }
   }
 ]

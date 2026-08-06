@@ -15,6 +15,10 @@ import {
 import { getWireAppearance, getWireStrokeLayers } from '../../lib/colors';
 import { getWireDiameterPx } from '../../lib/gauge';
 import type { ManufacturingDocument, ManufacturingTaskUpdate } from '../../types';
+import {
+  manufacturingBranchDirection,
+  scaleManufacturingRun,
+} from './manufacturingLayout';
 
 export type ManufacturingVisualSelection =
   | { kind: 'branch'; bundleId: string }
@@ -128,12 +132,7 @@ const MARGIN_X = 150;
 const LANE_GAP = 30;
 /** Vertical step a branch peels away from the trunk for each level of nesting. */
 const BAND_STEP = 26;
-const BRANCH_STEP_MAX = 300;
-const BRANCH_STEP_MIN = 76;
 const NOMINAL_WIDTH = 1200;
-const DEFAULT_EDGE_MM = 150;
-const MIN_SPINE_MM = 60;
-const MAX_SPINE_MM = 420;
 const PAD_TOP = 82;
 const PAD_BOTTOM = 52;
 
@@ -169,8 +168,7 @@ function buildHarnessGraph(routes: WireRoute[]): HarnessGraph {
       labelByNode.set(hop.toKey, stripPinSuffix(hop.toLabel));
       if (hop.lengthMm === undefined) continue;
       const id = edgeId(hop.fromKey, hop.toKey);
-      // Runs disagree when a length was only measured on part of the bundle;
-      // the longest measurement keeps the spine from collapsing.
+      // Parallel wires can disagree; reserve enough room for the longest one.
       lengthByEdge.set(id, Math.max(lengthByEdge.get(id) ?? 0, hop.lengthMm));
     }
     const first = route.nodeKeys[0];
@@ -230,7 +228,9 @@ function buildHarnessTree(graph: HarnessGraph, spine: string[]): HarnessTree {
   return { onSpine, parentOf, offAxisDepth, branchRootOf, childIndexOf };
 }
 
-function buildLayout(harness: ManufacturingHarness): DiagramLayout {
+function buildManufacturingHarnessLayout(
+  harness: ManufacturingHarness,
+): DiagramLayout {
   const routes: WireRoute[] = harness.bundles.flatMap((bundle) =>
     bundle.wires.map((wire) => ({
       bundle,
@@ -254,27 +254,23 @@ function buildLayout(harness: ManufacturingHarness): DiagramLayout {
   const tree = buildHarnessTree(graph, spine);
   const { onSpine, parentOf, offAxisDepth, branchRootOf, childIndexOf } = tree;
 
-  // Trunk nodes spread left to right in proportion to their measured runs.
-  const width = Math.max(
-    NOMINAL_WIDTH,
-    2 * MARGIN_X + Math.max(1, spine.length - 1) * 210,
+  // Trunk nodes spread left to right by a compressed physical-length scale.
+  // The nominal canvas expands for complex spines so no run drops below the
+  // minimum readable stretch.
+  const spineRuns = spine.slice(1).map((key, index) =>
+    scaleManufacturingRun(graph.lengthByEdge.get(edgeId(spine[index], key)))
   );
-  const spineSpan = width - 2 * MARGIN_X;
-  const spineRuns = spine.slice(1).map((key, index) => Math.min(
-    MAX_SPINE_MM,
-    Math.max(
-      MIN_SPINE_MM,
-      graph.lengthByEdge.get(edgeId(spine[index], key)) ?? DEFAULT_EDGE_MM,
-    ),
-  ));
   const spineTotal = Math.max(1, spineRuns.reduce((sum, run) => sum + run, 0));
+  const width = Math.max(NOMINAL_WIDTH, 2 * MARGIN_X + spineTotal);
+  const spineSpan = width - 2 * MARGIN_X;
+  const spineScale = spineSpan / spineTotal;
   const xByKey = new Map<string, number>();
   let travelled = 0;
   spine.forEach((key, index) => {
     if (index > 0) travelled += spineRuns[index - 1];
     xByKey.set(key, spine.length === 1
       ? width / 2
-      : MARGIN_X + travelled / spineTotal * spineSpan);
+      : MARGIN_X + travelled * spineScale);
   });
 
   // A branch is ordered above or below the trunk; alternating keeps the
@@ -372,12 +368,10 @@ function buildLayout(harness: ManufacturingHarness): DiagramLayout {
     laneOfRoute.set(entry.route, lane);
   });
 
-  // Branches grow away from the side their wires arrive on, so a wire never
-  // has to double back on itself to reach its connector.
-  const branchStepCeiling = Math.min(
-    BRANCH_STEP_MAX,
-    Math.max(BRANCH_STEP_MIN, spineSpan / Math.max(1, spine.length - 1)),
-  );
+  // Branches always grow away from the side their wires arrive on. We allow
+  // temporary overflow and fit the finished drawing below; reversing a branch
+  // just because one side is tight creates the overlapping hairpins this
+  // layout is intended to avoid.
   for (const branchRoot of branchRoots) {
     const junction = parentOf.get(branchRoot);
     const junctionX = xByKey.get(junction ?? '');
@@ -386,29 +380,22 @@ function buildLayout(harness: ManufacturingHarness): DiagramLayout {
       (entry) => branchRootOf.get(entry.branchKey) === branchRoot,
     );
     if (members.length === 0) continue;
-    const levels = [...offAxisDepth].reduce(
-      (deepest, [key, depth]) =>
-        branchRootOf.get(key) === branchRoot ? Math.max(deepest, depth) : deepest,
-      1,
-    );
     const arrivalX = members.reduce(
       (sum, entry) => sum + (xByKey.get(entry.otherKey) ?? junctionX),
       0,
     ) / members.length;
-    const leftRoom = junctionX - MARGIN_X;
-    const rightRoom = width - MARGIN_X - junctionX;
-    const preferred = arrivalX > junctionX ? -1 : 1;
-    const preferredRoom = preferred < 0 ? leftRoom : rightRoom;
-    const otherRoom = preferred < 0 ? rightRoom : leftRoom;
-    const direction = preferredRoom >= otherRoom * 0.65 ? preferred : -preferred;
-    const room = direction < 0 ? leftRoom : rightRoom;
-    const step = Math.min(
-      branchStepCeiling,
-      Math.max(BRANCH_STEP_MIN, room / levels),
-    );
-    for (const key of offAxisDepth.keys()) {
-      if (branchRootOf.get(key) !== branchRoot) continue;
-      xByKey.set(key, junctionX + direction * step * nodeDepth(key));
+    const direction = manufacturingBranchDirection(arrivalX, junctionX, width);
+    const branchNodes = [...offAxisDepth.keys()]
+      .filter((key) => branchRootOf.get(key) === branchRoot)
+      .sort((left, right) => nodeDepth(left) - nodeDepth(right));
+    for (const key of branchNodes) {
+      const parent = parentOf.get(key);
+      const parentX = xByKey.get(parent ?? '');
+      if (!parent || parentX === undefined) continue;
+      const runSpan = scaleManufacturingRun(
+        graph.lengthByEdge.get(edgeId(parent, key)),
+      );
+      xByKey.set(key, parentX + direction * runSpan);
     }
   }
 
@@ -483,6 +470,8 @@ export function ManufacturingHarnessVisualizer({
   onSelect,
   onInspectPath,
   onTasks,
+  onSegmentLengthChange,
+  canEditLengths = true,
 }: {
   harness: ManufacturingHarness;
   manufacturing: ManufacturingDocument;
@@ -490,8 +479,34 @@ export function ManufacturingHarnessVisualizer({
   onSelect: (selection: ManufacturingVisualSelection) => void;
   onInspectPath: (pathId: string) => void;
   onTasks: (tasks: ManufacturingVisualTask[]) => void;
+  onSegmentLengthChange?: (change: {
+    bundleId: string;
+    wireId: string;
+    segmentIndex: number;
+    lengthMm: number | undefined;
+  }) => void;
+  canEditLengths?: boolean;
 }) {
-  const layout = useMemo(() => buildLayout(harness), [harness]);
+  const layout = useMemo(() => buildManufacturingHarnessLayout(harness), [harness]);
+  const [lengthEdit, setLengthEdit] = useState<{
+    key: string;
+    draft: string;
+    bundleId: string;
+    wireId: string;
+    segmentIndex: number;
+    previousMm: number | undefined;
+  } | null>(null);
+  const lengthInputRef = useRef<HTMLInputElement>(null);
+  const cancelLengthBlur = useRef(false);
+  const lengthEditKey = lengthEdit?.key;
+
+  useEffect(() => {
+    if (!lengthEditKey) return;
+    const input = lengthInputRef.current;
+    if (!input) return;
+    input.focus();
+    input.select();
+  }, [lengthEditKey]);
   const completionTargets = useMemo(() => {
     const targets = new Map<string, ManufacturingVisualTask>();
     for (const route of layout.routes) {
@@ -665,6 +680,10 @@ export function ManufacturingHarnessVisualizer({
 
   const lengthLabels: Array<{
     key: string;
+    bundleId: string;
+    wireId: string;
+    segmentIndex: number;
+    lengthMm: number | undefined;
     x: number;
     y: number;
     angle: number;
@@ -682,6 +701,10 @@ export function ManufacturingHarnessVisualizer({
       const angle = rawAngle > 90 || rawAngle < -90 ? rawAngle + 180 : rawAngle;
       lengthLabels.push({
         key: `${route.bundle.id}:${route.wire.id}:${hop.segmentIndex}`,
+        bundleId: route.bundle.id,
+        wireId: route.wire.id,
+        segmentIndex: hop.segmentIndex,
+        lengthMm: hop.lengthMm,
         x: (from.x + to.x) / 2,
         y: (from.y + to.y) / 2,
         angle,
@@ -694,6 +717,64 @@ export function ManufacturingHarnessVisualizer({
     });
   }
 
+  const beginLengthEdit = (label: (typeof lengthLabels)[number]) => {
+    if (!canEditLengths || !onSegmentLengthChange) return;
+    onSelect({
+      kind: 'segment',
+      bundleId: label.bundleId,
+      wireId: label.wireId,
+      segmentIndex: label.segmentIndex,
+    });
+    setLengthEdit({
+      key: label.key,
+      draft: label.lengthMm === undefined ? '' : String(label.lengthMm),
+      bundleId: label.bundleId,
+      wireId: label.wireId,
+      segmentIndex: label.segmentIndex,
+      previousMm: label.lengthMm,
+    });
+  };
+
+  const cancelLengthEdit = () => {
+    cancelLengthBlur.current = true;
+    setLengthEdit(null);
+  };
+
+  const commitLengthEdit = () => {
+    if (cancelLengthBlur.current) {
+      cancelLengthBlur.current = false;
+      return;
+    }
+    if (!lengthEdit || !onSegmentLengthChange) return;
+    const trimmed = lengthEdit.draft.trim();
+    if (!trimmed) {
+      if (lengthEdit.previousMm !== undefined) {
+        onSegmentLengthChange({
+          bundleId: lengthEdit.bundleId,
+          wireId: lengthEdit.wireId,
+          segmentIndex: lengthEdit.segmentIndex,
+          lengthMm: undefined,
+        });
+      }
+      setLengthEdit(null);
+      return;
+    }
+    const parsed = Number(trimmed);
+    if (!Number.isFinite(parsed) || parsed < 0) {
+      setLengthEdit(null);
+      return;
+    }
+    if (lengthEdit.previousMm !== parsed) {
+      onSegmentLengthChange({
+        bundleId: lengthEdit.bundleId,
+        wireId: lengthEdit.wireId,
+        segmentIndex: lengthEdit.segmentIndex,
+        lengthMm: parsed,
+      });
+    }
+    setLengthEdit(null);
+  };
+
   return (
     <div
       className="relative h-full min-h-0 select-none overflow-auto bg-[radial-gradient(circle_at_center,_rgba(63,63,70,0.22),_transparent_65%)]"
@@ -704,6 +785,7 @@ export function ManufacturingHarnessVisualizer({
           <span><span className="text-red-400">Red</span> = still to do</span>
           <span><span className="text-emerald-400">Green</span> = complete</span>
           <span>Double-click a pin, splice, or wire to toggle it</span>
+          <span>Double-click a length to edit it</span>
         </div>
         <div className="rounded border-2 border-amber-900/70 bg-amber-950/30 px-2 py-1 text-[9px] text-amber-300">
           ⇧ Shift-click or Shift-drag to invert items
@@ -950,32 +1032,89 @@ export function ManufacturingHarnessVisualizer({
           })
         )}
 
-        {lengthLabels.map((label) => (
-          <g
-            key={`length:${label.key}`}
-            transform={`translate(${label.x} ${label.y}) rotate(${label.angle})`}
-            pointerEvents="none"
-          >
-            <rect
-              x={-34}
-              y={-7}
-              width={68}
-              height={14}
-              rx={5}
-              fill="#09090b"
-              stroke={label.highlighted ? '#f59e0b' : '#3f3f46'}
-              strokeWidth={2}
-            />
-            <text
-              textAnchor="middle"
-              dominantBaseline="middle"
-              fill={label.missing ? '#f59e0b' : '#d4d4d8'}
-              fontSize={8.5}
+        {lengthLabels.map((label) => {
+          const editing = lengthEdit?.key === label.key;
+          return (
+            <g
+              key={`length:${label.key}`}
+              transform={editing
+                ? `translate(${label.x} ${label.y})`
+                : `translate(${label.x} ${label.y}) rotate(${label.angle})`}
+              className={canEditLengths && onSegmentLengthChange ? 'cursor-text' : undefined}
+              onClick={(event) => {
+                event.stopPropagation();
+                onSelect({
+                  kind: 'segment',
+                  bundleId: label.bundleId,
+                  wireId: label.wireId,
+                  segmentIndex: label.segmentIndex,
+                });
+              }}
+              onDoubleClick={(event) => {
+                event.stopPropagation();
+                beginLengthEdit(label);
+              }}
             >
-              {label.text}
-            </text>
-          </g>
-        ))}
+              {editing ? (
+                <foreignObject x={-42} y={-12} width={84} height={24}>
+                  <input
+                    ref={lengthInputRef}
+                    type="number"
+                    min={0}
+                    step="any"
+                    inputMode="decimal"
+                    value={lengthEdit.draft}
+                    aria-label="Segment length in millimeters"
+                    onChange={(event) => setLengthEdit((current) => (
+                      current ? { ...current, draft: event.target.value } : current
+                    ))}
+                    onBlur={commitLengthEdit}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter') {
+                        event.preventDefault();
+                        (event.target as HTMLInputElement).blur();
+                      }
+                      if (event.key === 'Escape') {
+                        event.preventDefault();
+                        cancelLengthEdit();
+                      }
+                    }}
+                    onClick={(event) => event.stopPropagation()}
+                    onDoubleClick={(event) => event.stopPropagation()}
+                    onPointerDown={(event) => event.stopPropagation()}
+                    className="h-full w-full rounded border-2 border-amber-500 bg-zinc-950 px-1 text-center font-mono text-[11px] text-zinc-100 outline-none"
+                  />
+                </foreignObject>
+              ) : (
+                <>
+                  <rect
+                    x={-34}
+                    y={-7}
+                    width={68}
+                    height={14}
+                    rx={5}
+                    fill="#09090b"
+                    stroke={label.highlighted ? '#f59e0b' : '#3f3f46'}
+                    strokeWidth={2}
+                  />
+                  <text
+                    textAnchor="middle"
+                    dominantBaseline="middle"
+                    fill={label.missing ? '#f59e0b' : '#d4d4d8'}
+                    fontSize={8.5}
+                  >
+                    {label.text}
+                  </text>
+                  <title>
+                    {canEditLengths && onSegmentLengthChange
+                      ? 'Double-click to edit length (mm)'
+                      : label.text}
+                  </title>
+                </>
+              )}
+            </g>
+          );
+        })}
 
         {layout.junctions.map((junction) => {
           const target = [...completionTargets.values()].find(

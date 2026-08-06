@@ -3,12 +3,11 @@ import {
   getWireAppearance,
   getWireBackground,
   getWireBorderColor,
-  getWireColorPresetHex,
-  WIRE_COLOR_PRESETS,
 } from '../../lib/colors';
 import { getPathSignalId } from '../../lib/harness';
 import { useHarnessStore } from '../../store';
 import type { Signal, SignalPropertyDefinition } from '../../types';
+import { WireColorEditor } from '../WireColorEditor';
 
 const inputClass = 'w-full rounded border border-zinc-700 bg-zinc-950 px-2.5 py-1.5 text-xs text-zinc-200 placeholder-zinc-600 outline-none transition-colors focus:border-amber-500 disabled:cursor-not-allowed disabled:opacity-50';
 
@@ -695,55 +694,16 @@ export function SignalLibraryPage() {
                   title="Preferred wire color"
                   description="Paths inherit this as design guidance unless they define their own wire color."
                 >
-                  <div className="flex items-center gap-3">
-                    <SignalSwatch signal={selectedSignal} className="h-8 w-8 rounded-md" />
-                    <input
-                      key={`${selectedSignal.id}:${selectedSignal.properties.preferred_wire_color ?? ''}`}
-                      defaultValue={selectedSignal.properties.preferred_wire_color ?? ''}
-                      onBlur={(event) => updateSignalProperty(
-                        selectedSignal.id,
-                        'preferred_wire_color',
-                        event.target.value.trim(),
-                      )}
-                      onKeyDown={(event) => {
-                        if (event.key === 'Enter') event.currentTarget.blur();
-                      }}
-                      placeholder="e.g. red or white/brown"
-                      className={inputClass}
-                    />
-                    {selectedSignal.properties.preferred_wire_color && (
-                      <button
-                        type="button"
-                        onClick={() => updateSignalProperty(selectedSignal.id, 'preferred_wire_color', '')}
-                        className="shrink-0 text-[10px] text-zinc-500 hover:text-red-400"
-                      >
-                        Clear
-                      </button>
+                  <WireColorEditor
+                    key={selectedSignal.id}
+                    value={selectedSignal.properties.preferred_wire_color ?? ''}
+                    onChange={(value) => updateSignalProperty(
+                      selectedSignal.id,
+                      'preferred_wire_color',
+                      value,
                     )}
-                  </div>
-                  <div className="flex flex-wrap gap-1.5">
-                    {WIRE_COLOR_PRESETS.map((color) => (
-                      <button
-                        key={color}
-                        type="button"
-                        onClick={() => updateSignalProperty(selectedSignal.id, 'preferred_wire_color', color)}
-                        className={`flex items-center gap-1.5 rounded border px-2 py-1 text-[9px] capitalize transition-colors ${
-                          selectedSignal.properties.preferred_wire_color === color
-                            ? 'border-amber-600 bg-amber-950/30 text-amber-300'
-                            : 'border-zinc-800 text-zinc-500 hover:border-zinc-700 hover:text-zinc-300'
-                        }`}
-                      >
-                        <span
-                          className="h-2.5 w-2.5 rounded-full border border-white/10"
-                          style={{ backgroundColor: getWireColorPresetHex(color) ?? '#666' }}
-                        />
-                        {color}
-                      </button>
-                    ))}
-                  </div>
-                  <p className="text-[9px] text-zinc-600">
-                    For striped wire, enter colors separated by a slash, such as white/brown.
-                  </p>
+                    clearLabel="Clear preferred color"
+                  />
                 </Section>
 
                 <Section

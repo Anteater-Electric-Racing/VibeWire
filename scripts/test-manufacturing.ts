@@ -14,6 +14,10 @@ import {
   manufacturingBomToCsv,
   matingBundleIdsForConnector,
 } from '../src/lib/manufacturing.js';
+import {
+  manufacturingBranchDirection,
+  scaleManufacturingRun,
+} from '../src/components/manufacturing/manufacturingLayout.js';
 import type {
   ConnectorLibrary,
   HarnessData,
@@ -545,5 +549,16 @@ assert.equal(
   ),
   true,
 );
+
+// Diagram runs retain useful minimum stretches while compressing large values.
+assert(scaleManufacturingRun(220) > scaleManufacturingRun(80));
+assert.equal(scaleManufacturingRun(0), scaleManufacturingRun(1));
+assert(scaleManufacturingRun(100_000) <= 320);
+
+// A crowded side must not make a branch reverse into its incoming connector.
+assert.equal(manufacturingBranchDirection(1000, 400, 1200), -1);
+assert.equal(manufacturingBranchDirection(200, 800, 1200), 1);
+assert.equal(manufacturingBranchDirection(300, 300, 1200), -1);
+assert.equal(manufacturingBranchDirection(900, 900, 1200), 1);
 
 console.log('Manufacturing tests passed.');

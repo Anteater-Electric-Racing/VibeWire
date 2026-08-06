@@ -1388,11 +1388,11 @@ export function GraphView() {
         return;
       }
 
+      // Omit path wire_color so the route inherits the new signal's preferred color.
       const routed = await submitRoute(
         pendingRoute.from,
         pendingRoute.to,
         result.id,
-        { wire_color: 'grey' },
       );
       if (routed) openSignalLibrary(result.id);
     } catch (error) {

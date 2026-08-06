@@ -1369,7 +1369,7 @@
         "signal:GND"
       ],
       "properties": {
-        "wire_color": "black"
+        "wire_color": "black/red"
       },
       "nodes": [
         {
