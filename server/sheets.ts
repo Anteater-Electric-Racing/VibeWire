@@ -967,11 +967,20 @@ export function readSheetedHarness(harnessDir: string): HarnessData {
   return assembleHarnessFromDisk(harnessDir);
 }
 
+export interface SheetedWritePlan {
+  split: SplitResult;
+  staleSheetIds: string[];
+}
+
 /**
- * Splits `harness`, verifies the split round-trips cleanly, and writes it to
- * `harnessDir`. Throws (without touching disk) if the round trip fails.
+ * Splits `harness` and verifies the split round-trips cleanly, returning the
+ * work needed to persist it. Throws if the round trip fails.
+ *
+ * This performs no disk writes, so callers can validate a payload before taking
+ * a history snapshot or bumping the revision -- a rejected save must leave the
+ * harness exactly as it was rather than needing to be rolled back.
  */
-export function writeSheetedHarness(harnessDir: string, harness: HarnessData) {
+export function planSheetedWrite(harnessDir: string, harness: HarnessData): SheetedWritePlan {
   const sheetEnclosureIds = discoverSheetEnclosureIds(harnessDir);
   const liveEnclosureIds = new Set(harness.enclosures.map((enclosure) => enclosure.id));
   const staleSheetIds = [...sheetEnclosureIds].filter((id) => !liveEnclosureIds.has(id));
@@ -981,9 +990,22 @@ export function writeSheetedHarness(harnessDir: string, harness: HarnessData) {
   if (problems.length > 0) {
     throw new Error(`Refusing to save: sheet split failed its round-trip check:\n${problems.join('\n')}`);
   }
-  writeSheetsToDisk(harnessDir, split);
-  for (const staleId of staleSheetIds) {
+  return { split, staleSheetIds };
+}
+
+/** Writes an already-verified plan from `planSheetedWrite` to `harnessDir`. */
+export function commitSheetedWrite(harnessDir: string, plan: SheetedWritePlan) {
+  writeSheetsToDisk(harnessDir, plan.split);
+  for (const staleId of plan.staleSheetIds) {
     const file = childSheetFile(harnessDir, staleId);
     if (fs.existsSync(file)) fs.unlinkSync(file);
   }
+}
+
+/**
+ * Splits `harness`, verifies the split round-trips cleanly, and writes it to
+ * `harnessDir`. Throws (without touching disk) if the round trip fails.
+ */
+export function writeSheetedHarness(harnessDir: string, harness: HarnessData) {
+  commitSheetedWrite(harnessDir, planSheetedWrite(harnessDir, harness));
 }

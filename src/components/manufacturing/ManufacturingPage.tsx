@@ -7,6 +7,7 @@ import {
   deriveManufacturingBom,
   deriveManufacturingBundles,
   deriveManufacturingHarnesses,
+  manufacturingHopsMatch,
   manufacturingTaskCompleted,
   manufacturingComponentSteps,
   manufacturingBomToCsv,
@@ -282,6 +283,69 @@ function confirmMatchBundleLengths(
   ].join('\n'));
 }
 
+function confirmMatchBundleHopLengths(
+  bundle: ManufacturingBundle,
+  sourceWire: ManufacturingWire,
+  hop: ManufacturingLengthHop,
+  lengthMm: number | undefined,
+): Array<{ pathId: string; segmentIndex: number }> {
+  const matches: Array<{
+    pathId: string;
+    wireId: string;
+    segmentIndex: number;
+    lengthMm?: number;
+  }> = [];
+  for (const other of bundle.wires) {
+    if (other.id === sourceWire.id) continue;
+    const match = other.hops.find((candidate) => manufacturingHopsMatch(candidate, hop));
+    if (!match) continue;
+    matches.push({
+      pathId: other.pathId,
+      wireId: other.wireId,
+      segmentIndex: match.segmentIndex,
+      lengthMm: match.lengthMm,
+    });
+  }
+  if (matches.length === 0) return [];
+
+  const hopLabel = `${hop.fromLabel} → ${hop.toLabel}`;
+  if (lengthMm === undefined) {
+    const withLength = matches.filter((candidate) => candidate.lengthMm !== undefined);
+    if (withLength.length === 0) return [];
+    const confirmed = window.confirm([
+      `Clear “${hopLabel}” on the other ${withLength.length} wire${withLength.length === 1 ? '' : 's'} in “${bundle.name}”?`,
+      '',
+      ...withLength.map((candidate) => `• ${candidate.wireId}: ${candidate.lengthMm} mm`),
+      '',
+      'Only this splice/connector section is cleared; other segments stay unchanged.',
+    ].join('\n'));
+    return confirmed
+      ? withLength.map((candidate) => ({
+        pathId: candidate.pathId,
+        segmentIndex: candidate.segmentIndex,
+      }))
+      : [];
+  }
+
+  const differing = matches.filter((candidate) => candidate.lengthMm !== lengthMm);
+  if (differing.length === 0) return [];
+  const confirmed = window.confirm([
+    `Apply ${lengthMm} mm to “${hopLabel}” on the other ${differing.length} wire${differing.length === 1 ? '' : 's'} in “${bundle.name}”?`,
+    '',
+    ...differing.map((candidate) =>
+      `• ${candidate.wireId}: ${candidate.lengthMm === undefined ? 'no length' : `${candidate.lengthMm} mm`}`,
+    ),
+    '',
+    'Only this splice/connector section is updated; other segments stay unchanged.',
+  ].join('\n'));
+  return confirmed
+    ? differing.map((candidate) => ({
+      pathId: candidate.pathId,
+      segmentIndex: candidate.segmentIndex,
+    }))
+    : [];
+}
+
 function WireLengthEditor({
   wire,
   bundle,
@@ -290,7 +354,7 @@ function WireLengthEditor({
   bundle: ManufacturingBundle;
 }) {
   const updatePathSpanLengths = useHarnessStore((state) => state.updatePathSpanLengths);
-  const updatePathSegmentLength = useHarnessStore((state) => state.updatePathSegmentLength);
+  const updatePathSegmentLengths = useHarnessStore((state) => state.updatePathSegmentLengths);
   const isEditor = useHarnessStore((state) => state.session.isEditor);
   const initialTotal = wire.lengthMm === undefined ? '' : String(wire.lengthMm);
   const [totalDraft, setTotalDraft] = useState(initialTotal);
@@ -361,7 +425,19 @@ function WireLengthEditor({
     const previous = hop.lengthMm;
     if (!trimmed) {
       if (previous === undefined) return;
-      updatePathSegmentLength(wire.pathId, hop.segmentIndex, undefined);
+      const updates: Array<{ pathId: string; segmentIndex: number; lengthMm: number | undefined }> = [{
+        pathId: wire.pathId,
+        segmentIndex: hop.segmentIndex,
+        lengthMm: undefined,
+      }];
+      for (const match of confirmMatchBundleHopLengths(bundle, wire, hop, undefined)) {
+        updates.push({
+          pathId: match.pathId,
+          segmentIndex: match.segmentIndex,
+          lengthMm: undefined,
+        });
+      }
+      updatePathSegmentLengths(updates);
       return;
     }
     const parsed = Number(trimmed);
@@ -377,27 +453,20 @@ function WireLengthEditor({
       return;
     }
 
-    updatePathSegmentLength(wire.pathId, hop.segmentIndex, parsed);
-
-    const nextTotal = wire.hops.reduce((sum, candidate) => {
-      if (candidate.segmentIndex === hop.segmentIndex) return sum + parsed;
-      if (candidate.lengthMm === undefined) return Number.NaN;
-      return sum + candidate.lengthMm;
-    }, 0);
-    if (!Number.isFinite(nextTotal)) return;
-
-    if (confirmMatchBundleLengths(bundle, wire, nextTotal)) {
-      updatePathSpanLengths(
-        bundle.wires
-          .filter((other) => other.id !== wire.id)
-          .map((other) => ({
-            pathId: other.pathId,
-            fromNodeIndex: other.fromNodeIndex,
-            toNodeIndex: other.toNodeIndex,
-            lengthMm: nextTotal,
-          })),
-      );
+    setHopDrafts((current) => ({ ...current, [hop.segmentIndex]: String(parsed) }));
+    const updates: Array<{ pathId: string; segmentIndex: number; lengthMm: number | undefined }> = [{
+      pathId: wire.pathId,
+      segmentIndex: hop.segmentIndex,
+      lengthMm: parsed,
+    }];
+    for (const match of confirmMatchBundleHopLengths(bundle, wire, hop, parsed)) {
+      updates.push({
+        pathId: match.pathId,
+        segmentIndex: match.segmentIndex,
+        lengthMm: parsed,
+      });
     }
+    updatePathSegmentLengths(updates);
   };
 
   const missingHop = wire.hops.some((hop) => hop.lengthMm === undefined);

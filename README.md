@@ -157,14 +157,22 @@ app and let the splitter place things.
 ## Development
 
 ```bash
-npm run dev         # Vite dev server with the persistence API mounted
+npm run dev         # Vite dev server + the persistence API, run as two processes together
+npm run dev:web     # Vite dev server only (proxies /api to dev:api)
+npm run dev:api     # persistence API only, restarts itself (via tsx watch) on server/ edits
 npm run build       # typecheck (app, server, scripts) and build the frontend
 npm run typecheck   # typecheck only
 npm run lint        # ESLint
 npm test            # full test suite
-npm run api         # standalone API server, for serving a production build
+npm run api         # standalone API server (no watch), for serving a production build
 npm run validate    # structural harness validation (needs Python 3)
 ```
+
+`npm run dev` runs the frontend and the API as separate processes (via `concurrently`), proxying
+`/api/*` from Vite to the API process. This keeps the two independent: editing a file under `server/`
+restarts only the API process, not Vite, so it never disconnects the browser's HMR socket or forces a
+full page reload. `npm run dev:web` and `npm run dev:api` can also be run in separate terminals if you
+want them in their own logs.
 
 `npm run build` produces a static frontend. Persistence needs the API, so outside dev you must run
 `npm run api` (or an equivalent backend implementing the same endpoints) alongside it.

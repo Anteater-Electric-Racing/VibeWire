@@ -6,7 +6,8 @@ import {
   isSheetedHarness,
   sheetHarnessDir,
   readSheetedHarness,
-  writeSheetedHarness,
+  planSheetedWrite,
+  commitSheetedWrite,
   discoverSheetEnclosureIds,
   type Connector,
   type Enclosure,
@@ -817,14 +818,23 @@ export function createApiMiddleware(projectRoot: string) {
     return normalizeHarness(readJSON<any>(harnessFile(name)));
   }
 
-  function writeHarness(data: HarnessData, name?: string) {
+  /**
+   * Validates `data` and returns the deferred write for it.
+   *
+   * Anything that can reject a payload has to run here, before the caller takes
+   * a history snapshot or bumps the revision, so a refused save never reaches
+   * the rollback path -- restoring a payload that was never modified is pure
+   * downside risk, since it replaces live files via rename.
+   */
+  function prepareHarnessWrite(data: HarnessData, name?: string): { commit: () => void } {
     const resolved = sanitizeName(name ?? 'fsae-car');
     const normalized = normalizeHarness(data);
     if (isSheetedHarness(projectRoot, resolved)) {
-      writeSheetedHarness(sheetHarnessDir(projectRoot, resolved), normalized);
-      return;
+      const harnessDir = sheetHarnessDir(projectRoot, resolved);
+      const plan = planSheetedWrite(harnessDir, normalized);
+      return { commit: () => commitSheetedWrite(harnessDir, plan) };
     }
-    writeJSONAtomic(harnessFile(name), normalized);
+    return { commit: () => writeJSONAtomic(harnessFile(name), normalized) };
   }
 
   function readLibrary(): ConnectorLibrary | null {
@@ -1325,22 +1335,35 @@ export function createApiMiddleware(projectRoot: string) {
       const before = validateHarnessData(previous, validationLibrary);
       const built = await build(structuredClone(previous));
       const next = normalizeHarness(built.next);
+
+      // Both rejection checks run before the snapshot, the revision bump, and
+      // any disk write. They used to run against an already-written payload and
+      // undo it, but a save that never lands needs no rollback -- and rolling
+      // back re-installs live files via rename, so doing it for a write that
+      // never happened is pure downside risk. Leaving the revision alone also
+      // keeps the client's next save from colliding with a bump it never saw.
+      const after = validateHarnessData(next, validationLibrary);
+      if (after.error_count > before.error_count) {
+        throw new ApiWriteError(500, {
+          error: 'validation-degradation',
+          errors: after.errors,
+        });
+      }
+      const pendingWrite = prepareHarnessWrite(next, harness);
+
       const snapshot = existed ? await snapshotToHistory(harness, currentRev) : null;
       const rev = await bumpRev(harness, writer);
       try {
-        writeHarness(next, harness);
+        pendingWrite.commit();
         built.sidecarWrite?.write();
       } catch (writeFailure) {
-        const candidateValidation = validateHarnessData(next, validationLibrary);
         try {
           if (snapshot) restoreManagedPayload(snapshot, harness);
           else removePath(harnessFile(harness));
         } catch (rollbackError) {
           throw new ApiWriteError(500, {
-            error: candidateValidation.error_count > before.error_count
-              ? 'validation-degradation'
-              : 'write-failed',
-            errors: candidateValidation.errors,
+            error: 'write-failed',
+            errors: after.errors,
             writeError: writeFailure instanceof Error
               ? writeFailure.message
               : String(writeFailure),
@@ -1349,32 +1372,7 @@ export function createApiMiddleware(projectRoot: string) {
               : String(rollbackError),
           });
         }
-        if (candidateValidation.error_count > before.error_count) {
-          throw new ApiWriteError(500, {
-            error: 'validation-degradation',
-            errors: candidateValidation.errors,
-          });
-        }
         throw writeFailure;
-      }
-      const after = validateHarnessData(next, validationLibrary);
-      if (after.error_count > before.error_count) {
-        try {
-          if (snapshot) restoreManagedPayload(snapshot, harness);
-          else removePath(harnessFile(harness));
-        } catch (rollbackError) {
-          throw new ApiWriteError(500, {
-            error: 'validation-degradation',
-            errors: after.errors,
-            rollbackError: rollbackError instanceof Error
-              ? rollbackError.message
-              : String(rollbackError),
-          });
-        }
-        throw new ApiWriteError(500, {
-          error: 'validation-degradation',
-          errors: after.errors,
-        });
       }
       const harnessDiff = diffHarness(previous, next);
       const diff = built.sidecarWrite

@@ -74,6 +74,7 @@ import {
   dissolveMergePoint,
   mergeConnectors,
   moveHierarchyEntity as relocateHierarchyEntity,
+  removePathNodeAt,
   renumberConnectorPins,
   splicePathWithMerge,
   type BulkheadWireSide,
@@ -323,6 +324,13 @@ export interface HarnessStore {
     side?: BulkheadWireSide,
   ) => void;
   updatePathSegmentLength: (pathId: string, segmentIndex: number, lengthMm: number | undefined) => void;
+  updatePathSegmentLengths: (
+    updates: Array<{
+      pathId: string;
+      segmentIndex: number;
+      lengthMm: number | undefined;
+    }>,
+  ) => void;
   updatePathSpanLengths: (
     updates: Array<{
       pathId: string;
@@ -1400,7 +1408,7 @@ export const useHarnessStore = create<HarnessStore>(readOnlyMiddleware((set, get
           }
         : null;
       // A remembered cookie tells us who you are so the UI can offer
-      // "Continue as <name>", but editing stays disarmed until you activate it.
+      // "Continue as <name>" / E, but editing stays disarmed until you activate it.
       const previous = get().session;
       const stillSameUser = !!user && previous.user?.id === user.id;
       const editSessionActive = stillSameUser && previous.editSessionActive;
@@ -2831,6 +2839,29 @@ export const useHarnessStore = create<HarnessStore>(readOnlyMiddleware((set, get
       `path:${pathId}:segment:${segmentIndex}:length`,
     );
   }),
+  updatePathSegmentLengths: (updates) => set((state) => {
+    if (!state.harness || updates.length === 0) return state;
+    for (const update of updates) {
+      if (update.lengthMm !== undefined && (!Number.isFinite(update.lengthMm) || update.lengthMm < 0)) {
+        return { mutationError: 'Stretch length must be a non-negative number.' };
+      }
+    }
+
+    const harness = structuredClone(state.harness);
+    let changed = false;
+    for (const update of updates) {
+      const path = harness.paths.find((item) => item.id === update.pathId);
+      if (!path || !path.nodes[update.segmentIndex + 1]) continue;
+      changed = setPathSegmentLength(path, update.segmentIndex, update.lengthMm) || changed;
+    }
+    return changed
+      ? historyPatch(
+          state,
+          { harness, isDirty: true, mutationError: null },
+          `paths:${updates.map((update) => update.pathId).sort().join(',')}:segment-lengths`,
+        )
+      : state;
+  }),
   updatePathSpanLengths: (updates) => set((state) => {
     if (!state.harness || updates.length === 0) return state;
     for (const update of updates) {
@@ -3776,7 +3807,7 @@ export const useHarnessStore = create<HarnessStore>(readOnlyMiddleware((set, get
               (prevKey === parsed.sourceRefKey && nextKey === parsed.targetRefKey) ||
               (prevKey === parsed.targetRefKey && nextKey === parsed.sourceRefKey);
             if (matches) {
-              return { ...path, nodes: [...nodes.slice(0, i), ...nodes.slice(i + 1)] };
+              return removePathNodeAt(path, i);
             }
           }
           return path;

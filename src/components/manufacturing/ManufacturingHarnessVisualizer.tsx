@@ -633,13 +633,6 @@ export function ManufacturingHarnessVisualizer({
         || (selection?.kind === 'segment' && selection.wireId === route.wire.id)
         || (selection?.kind === 'endpoint' && selection.wireId === route.wire.id)
       ),
-      showLengths: (
-        selection?.kind === 'branch' && selection.bundleId === route.bundle.id
-      ) || (
-        selection
-        && 'wireId' in selection
-        && selection.wireId === route.wire.id
-      ) || route.bundle.wires[0]?.id === route.wire.id,
     };
   });
 
@@ -674,20 +667,24 @@ export function ManufacturingHarnessVisualizer({
     key: string;
     x: number;
     y: number;
+    angle: number;
     text: string;
     missing: boolean;
     highlighted: boolean;
   }> = [];
-  for (const { route, showLengths } of drawn) {
-    if (!showLengths) continue;
+  for (const { route } of drawn) {
     route.wire.hops.forEach((hop, hopIndex) => {
       const from = route.points[hopIndex];
       const to = route.points[hopIndex + 1];
       if (!from || !to) return;
+      // Sit the tag on the stretch itself, reading left-to-right along the wire.
+      const rawAngle = Math.atan2(to.y - from.y, to.x - from.x) * (180 / Math.PI);
+      const angle = rawAngle > 90 || rawAngle < -90 ? rawAngle + 180 : rawAngle;
       lengthLabels.push({
         key: `${route.bundle.id}:${route.wire.id}:${hop.segmentIndex}`,
         x: (from.x + to.x) / 2,
-        y: (from.y + to.y) / 2 - 15,
+        y: (from.y + to.y) / 2,
+        angle,
         text: formatLength(hop.lengthMm),
         missing: hop.lengthMm === undefined,
         highlighted: selection?.kind === 'segment'
@@ -695,30 +692,6 @@ export function ManufacturingHarnessVisualizer({
           && selection.segmentIndex === hop.segmentIndex,
       });
     });
-  }
-  // Lift length tags clear of connector names, splice markers, and each other.
-  const occupied = [
-    ...[...connectorColumns.values()].map((column) => ({
-      x: column.x,
-      y: column.top - 21,
-      halfWidth: column.name.length * 3.1 + 8,
-      halfHeight: 9,
-    })),
-    ...layout.junctions.map((junction) => ({
-      x: junction.x,
-      y: junction.topY - 42,
-      halfWidth: 46,
-      halfHeight: 28,
-    })),
-  ];
-  const collides = (label: { x: number; y: number }) => occupied.some((other) =>
-    Math.abs(other.x - label.x) < other.halfWidth + 36
-    && Math.abs(other.y - label.y) < other.halfHeight + 8);
-  for (const label of lengthLabels) {
-    for (let attempt = 0; attempt < 6 && collides(label); attempt += 1) {
-      label.y -= 18;
-    }
-    occupied.push({ x: label.x, y: label.y, halfWidth: 36, halfHeight: 8 });
   }
 
   return (
@@ -767,7 +740,7 @@ export function ManufacturingHarnessVisualizer({
               className="cursor-pointer"
             >
               <title>
-                {bundle.name} · {bundle.wires.length} wires · click for branch lengths
+                {bundle.name} · {bundle.wires.length} wires
               </title>
             </path>
           );
@@ -980,7 +953,7 @@ export function ManufacturingHarnessVisualizer({
         {lengthLabels.map((label) => (
           <g
             key={`length:${label.key}`}
-            transform={`translate(${label.x} ${label.y})`}
+            transform={`translate(${label.x} ${label.y}) rotate(${label.angle})`}
             pointerEvents="none"
           >
             <rect

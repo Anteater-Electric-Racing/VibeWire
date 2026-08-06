@@ -421,7 +421,7 @@ try {
     assert(mergePoints.shared_context.mp_client_b);
   });
 
-  await check('validation degradation rolls back byte-exact data', async () => {
+  await check('validation degradation is refused without touching the harness', async () => {
     const state = (await api<StateResponse>(`/api/state?harness=${harnessName}`)).body;
     const before = harnessBytes();
     const invalid = structuredClone(state.harness);
@@ -448,10 +448,83 @@ try {
     assert.equal(response.status, 500);
     assert.equal(response.body.error, 'validation-degradation');
     assert(response.body.errors.some((error) => error.includes('missing connector')));
-    assertBytesEqual(harnessBytes(), before, 'validation rollback was not byte exact');
+    assertBytesEqual(harnessBytes(), before, 'a refused save must not touch the payload');
     const after = (await api<StateResponse>(`/api/state?harness=${harnessName}`)).body;
-    assert.equal(after.rev, state.rev + 1, 'failed write must leave the revision safely ahead');
+    // The payload is rejected before anything is written, so there is nothing to
+    // roll back and no reason to advance the revision. Bumping it here would
+    // leave the client's base revision stale and turn every later save into a
+    // conflict.
+    assert.equal(after.rev, state.rev, 'a refused save must leave the revision untouched');
     assert(!after.harness.paths.some((wirePath) => wirePath.id === 'path_validation_degradation_test'));
+
+    // A later save from the same base revision must still be accepted.
+    const recovery = structuredClone(state.harness);
+    recovery.connectors[0].name = `${recovery.connectors[0].name} ok`;
+    const retry = await api<{ rev: number }>(`/api/save-harness?harness=${harnessName}`, {
+      method: 'POST',
+      cookie: editorCookie,
+      headers: { 'X-Base-Rev': String(state.rev) },
+      body: recovery,
+    });
+    assert.equal(retry.status, 200, 'a refused save must not poison the next one');
+  });
+
+  // A measurement between two non-adjacent nodes passes validation (both
+  // endpoints exist on the path) but cannot be placed on any sheet, so the
+  // splitter drops it and the round-trip check refuses the save. Splicing a
+  // measured hop used to produce exactly this shape.
+  await check('an unsaveable sheet split is refused without touching the harness', async () => {
+    const state = (await api<StateResponse>(`/api/state?harness=${harnessName}`)).body;
+    const parentById = new Map(state.harness.enclosures.map((enc) => [enc.id, enc.parent]));
+    const topLevelOf = (start: string | null): string | null => {
+      let current = start;
+      while (current !== null && parentById.get(current)) current = parentById.get(current) ?? null;
+      return current;
+    };
+    const scopeOfNode = (node: { kind: string; connector_id?: string }): string | null => {
+      if (node.kind !== 'connector') return null;
+      const connector = state.harness.connectors.find((item) => item.id === node.connector_id);
+      return connector ? topLevelOf(connector.parent) : null;
+    };
+    // Needs a path whose ends sit on different sheets, so the span cannot land
+    // in a single fragment.
+    const spanning = state.harness.paths.find((item) => {
+      if (item.nodes.length < 3) return false;
+      const scopes = item.nodes.map(scopeOfNode);
+      return new Set(scopes).size >= 3 && scopes.every((scope) => scope !== null);
+    });
+    assert(spanning, 'expected a path crossing three sheets in the fixture harness');
+
+    const before = harnessBytes();
+    const unsaveable = structuredClone(state.harness);
+    const target = unsaveable.paths.find((item) => item.id === spanning.id)!;
+    target.measurements = [
+      ...target.measurements,
+      {
+        from: structuredClone(target.nodes[0]),
+        to: structuredClone(target.nodes[target.nodes.length - 1]),
+        length_mm: 123,
+      },
+    ];
+    const response = await api<{ error: string }>(`/api/save-harness?harness=${harnessName}`, {
+      method: 'POST',
+      cookie: editorCookie,
+      headers: { 'X-Base-Rev': String(state.rev) },
+      body: unsaveable,
+    });
+    assert.equal(response.status, 500);
+    assert(
+      response.body.error.includes('measurement count mismatch'),
+      `expected a round-trip refusal, got '${response.body.error}'`,
+    );
+    assertBytesEqual(harnessBytes(), before, 'a refused split must not touch the payload');
+    const after = (await api<StateResponse>(`/api/state?harness=${harnessName}`)).body;
+    assert.equal(after.rev, state.rev, 'a refused split must leave the revision untouched');
+    assert.equal(
+      after.harness.paths.find((item) => item.id === spanning.id)?.measurements.length,
+      spanning.measurements.length,
+      'a refused split must leave the path measurements untouched',
+    );
   });
 
   await check('checkpoint restore is reversible by restoring the restore', async () => {

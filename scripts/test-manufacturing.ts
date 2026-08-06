@@ -9,6 +9,7 @@ import {
   deriveManufacturingBundles,
   deriveManufacturingHarnesses,
   manufacturingComponentSteps,
+  manufacturingHopsMatch,
   manufacturingTaskCompleted,
   manufacturingBomToCsv,
   matingBundleIdsForConnector,
@@ -344,6 +345,29 @@ assert.equal(
 assert.equal(
   scaled.measurements.find((measurement) => measurement.to.kind === 'connector')?.length_mm,
   1700,
+);
+
+// Matching splice sections is undirected and segment-keyed (not total-length based).
+assert.equal(
+  manufacturingHopsMatch(
+    { fromKey: 'connector:con_a', toKey: 'merge:mp_1' },
+    { fromKey: 'connector:con_a', toKey: 'merge:mp_1' },
+  ),
+  true,
+);
+assert.equal(
+  manufacturingHopsMatch(
+    { fromKey: 'connector:con_a', toKey: 'merge:mp_1' },
+    { fromKey: 'merge:mp_1', toKey: 'connector:con_a' },
+  ),
+  true,
+);
+assert.equal(
+  manufacturingHopsMatch(
+    { fromKey: 'connector:con_a', toKey: 'merge:mp_1' },
+    { fromKey: 'merge:mp_1', toKey: 'connector:con_b' },
+  ),
+  false,
 );
 
 // Stub legs remain explicit connector-to-splice runs instead of inventing a mate.

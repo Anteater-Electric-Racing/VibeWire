@@ -102,8 +102,12 @@ export function CollaborationControls({ harness }: CollaborationControlsProps) {
               type="button"
               onClick={activateEditSession}
               className="rounded border border-amber-700/70 bg-amber-950/30 px-2 py-1 text-xs text-amber-300 transition-colors hover:bg-amber-950/60 hover:text-amber-200"
+              title={`Continue as ${session.user.displayName} (E)`}
             >
               Continue as {session.user.displayName}
+              <span className="ml-1.5 inline-flex min-w-[1.1rem] items-center justify-center rounded border border-amber-700/50 bg-amber-950/50 px-1 py-px font-mono text-[10px] leading-none text-amber-400/90">
+                E
+              </span>
             </button>
             <LogoutButton onLogout={() => void logout()} />
           </div>

@@ -47,7 +47,7 @@ export interface CollaborationSession {
   /**
    * Whether this browser session has been explicitly activated for editing.
    * A remembered cookie identifies you but never arms editing on its own —
-   * you have to click "Continue as <name>". This is the accidental-edit guard.
+   * you have to click "Continue as <name>" or press E. This is the accidental-edit guard.
    */
   editSessionActive: boolean;
   isEditor: boolean;

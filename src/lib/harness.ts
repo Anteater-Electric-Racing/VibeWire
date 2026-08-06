@@ -8,6 +8,7 @@ import type {
   HarnessData,
   MergePoint,
   Path,
+  PathMeasurement,
   PathNode,
   SelectedItem,
 } from '../types';
@@ -654,11 +655,61 @@ export function findPathSegmentForBundle(
   return null;
 }
 
+/** Round to the 3 decimal places `applySpanTotalLength` also stores hop runs at. */
+function roundMm(value: number): number {
+  return Math.round(value * 1000) / 1000;
+}
+
+/**
+ * Split the measurement recorded for the `A -> B` hop into `A -> mid` and
+ * `mid -> B` runs, so inserting `mid` between them keeps every measurement
+ * attached to an adjacent node pair.
+ *
+ * Persistence requires that invariant: a measurement whose endpoints are no
+ * longer neighbors cannot be placed on any sheet, so the storage layer drops it
+ * and then refuses the whole save. Length is halved (the splice's true position
+ * along the run is not known here) with the remainder pushed onto the second
+ * run so the two still sum to the original.
+ */
+function splitHopMeasurements(
+  measurements: PathMeasurement[],
+  from: PathNode,
+  to: PathNode,
+  mid: PathNode,
+): PathMeasurement[] {
+  const fromKey = getPathNodeRefKey(from);
+  const toKey = getPathNodeRefKey(to);
+  const next: PathMeasurement[] = [];
+  for (const measurement of measurements) {
+    const measurementFromKey = getPathNodeRefKey(measurement.from);
+    const measurementToKey = getPathNodeRefKey(measurement.to);
+    const isHop =
+      (measurementFromKey === fromKey && measurementToKey === toKey)
+      || (measurementFromKey === toKey && measurementToKey === fromKey);
+    if (!isHop) {
+      next.push(measurement);
+      continue;
+    }
+    const head = roundMm((measurement.length_mm ?? 0) / 2);
+    const tail = roundMm((measurement.length_mm ?? 0) - head);
+    const carry = (length: number) => ({
+      ...(measurement.length_mm !== undefined ? { length_mm: length } : {}),
+      ...(measurement.note !== undefined ? { note: measurement.note } : {}),
+    });
+    next.push(
+      { from: structuredClone(measurement.from), to: structuredClone(mid), ...carry(head) },
+      { from: structuredClone(mid), to: structuredClone(measurement.to), ...carry(tail) },
+    );
+  }
+  return next;
+}
+
 /**
  * Insert a merge-point node into a path's node list inside the segment that
  * matches `bundleId`.  Because promoting a junction always splits its bundle
  * into sub-bundles (so no two coupled merges ever coexist on the same
  * segment), we always insert directly between the two endpoint nodes.
+ * Any measurement recorded for that segment is split across the two new hops.
  * Returns a new Path with updated `nodes[]`; the original is not mutated.
  */
 export function splicePathWithMerge(
@@ -668,9 +719,91 @@ export function splicePathWithMerge(
 ): Path {
   const match = findPathSegmentForBundle(path, bundleId);
   if (!match) return path;
+  const mid: PathNode = { kind: 'merge', merge_point_id: mergePointId };
   const nextNodes = [...path.nodes];
-  nextNodes.splice(match.index + 1, 0, { kind: 'merge', merge_point_id: mergePointId });
-  return { ...path, nodes: nextNodes };
+  nextNodes.splice(match.index + 1, 0, mid);
+  return {
+    ...path,
+    nodes: nextNodes,
+    measurements: splitHopMeasurements(
+      path.measurements,
+      path.nodes[match.index],
+      path.nodes[match.index + 1],
+      mid,
+    ),
+  };
+}
+
+/**
+ * Inverse of `splitHopMeasurements`: fold the `A -> mid` and `mid -> B` runs
+ * back into a single `A -> B` run so dropping `mid` leaves every measurement on
+ * an adjacent node pair.
+ *
+ * A joined length is only produced when both runs were measured -- the codebase
+ * treats a total derived from partially measured hops as unknown rather than
+ * understating the run (see `spanLengthMm`).
+ */
+function joinHopMeasurements(
+  measurements: PathMeasurement[],
+  from: PathNode,
+  mid: PathNode,
+  to: PathNode,
+): PathMeasurement[] {
+  const fromKey = getPathNodeRefKey(from);
+  const midKey = getPathNodeRefKey(mid);
+  const toKey = getPathNodeRefKey(to);
+  const spans = (measurement: PathMeasurement, a: string, b: string) => {
+    const measurementFromKey = getPathNodeRefKey(measurement.from);
+    const measurementToKey = getPathNodeRefKey(measurement.to);
+    return (
+      (measurementFromKey === a && measurementToKey === b)
+      || (measurementFromKey === b && measurementToKey === a)
+    );
+  };
+
+  const head = measurements.find((measurement) => spans(measurement, fromKey, midKey));
+  const tail = measurements.find((measurement) => spans(measurement, midKey, toKey));
+  const next = measurements.filter(
+    (measurement) =>
+      getPathNodeRefKey(measurement.from) !== midKey
+      && getPathNodeRefKey(measurement.to) !== midKey,
+  );
+  if (!head && !tail) return next;
+
+  const length = head?.length_mm !== undefined && tail?.length_mm !== undefined
+    ? roundMm(head.length_mm + tail.length_mm)
+    : undefined;
+  const note = head?.note ?? tail?.note;
+  if (length === undefined && note === undefined) return next;
+  next.push({
+    from: structuredClone(from),
+    to: structuredClone(to),
+    ...(length !== undefined ? { length_mm: length } : {}),
+    ...(note !== undefined ? { note } : {}),
+  });
+  return next;
+}
+
+/**
+ * Drop the node at `index`, rejoining the measurements on either side of it.
+ * Interior removals collapse `A -> node -> B` into `A -> B`; removing an
+ * endpoint just discards the runs that referenced it.
+ */
+export function removePathNodeAt(path: Path, index: number): Path {
+  const mid = path.nodes[index];
+  if (!mid) return path;
+  const from = path.nodes[index - 1];
+  const to = path.nodes[index + 1];
+  const nodes = [...path.nodes.slice(0, index), ...path.nodes.slice(index + 1)];
+  const midKey = getPathNodeRefKey(mid);
+  const measurements = from && to
+    ? joinHopMeasurements(path.measurements, from, mid, to)
+    : path.measurements.filter(
+      (measurement) =>
+        getPathNodeRefKey(measurement.from) !== midKey
+        && getPathNodeRefKey(measurement.to) !== midKey,
+    );
+  return { ...path, nodes, measurements };
 }
 
 /**
@@ -678,18 +811,14 @@ export function splicePathWithMerge(
  * new Path even when nothing changed, to keep call sites simple.
  */
 export function removeMergeFromPath(path: Path, mergePointId: string): Path {
-  const filtered = path.nodes.filter(
-    (node) => !(node.kind === 'merge' && node.merge_point_id === mergePointId),
-  );
-  if (filtered.length === path.nodes.length) return path;
-  const measurements = path.measurements.filter(
-    (measurement) =>
-      !(
-        (measurement.from.kind === 'merge' && measurement.from.merge_point_id === mergePointId) ||
-        (measurement.to.kind === 'merge' && measurement.to.merge_point_id === mergePointId)
-      ),
-  );
-  return { ...path, nodes: filtered, measurements };
+  let next = path;
+  for (let index = next.nodes.length - 1; index >= 0; index -= 1) {
+    const node = next.nodes[index];
+    if (node.kind === 'merge' && node.merge_point_id === mergePointId) {
+      next = removePathNodeAt(next, index);
+    }
+  }
+  return next;
 }
 
 /**
@@ -699,7 +828,7 @@ export function removeMergeFromPath(path: Path, mergePointId: string): Path {
  * - Exactly two stub paths that only meet at the splice are stitched into one
  *   continuous path.
  * - Unpairable stubs (0 or 3+ one-sided remnants) are dropped.
- * - Measurements that referenced the splice are removed.
+ * - The runs on either side of the splice are folded back into one measurement.
  */
 export function dissolveMergePoint(harness: HarnessData, mergePointId: string): HarnessData {
   if (!harness.mergePoints.some((mergePoint) => mergePoint.id === mergePointId)) {

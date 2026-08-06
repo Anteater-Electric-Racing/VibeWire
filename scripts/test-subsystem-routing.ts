@@ -12,6 +12,7 @@ import {
   type HarnessData,
 } from '../server/sheets.js';
 import {
+  dissolveMergePoint,
   getConnectorOccupancy,
   getPathSignalId,
   mergeConnectors,
@@ -95,6 +96,10 @@ localHarness.paths = [{
 const localSplit = splitHarness(localHarness, sheetIds);
 assert.deepEqual(verifyRoundTrip(localHarness, localSplit, sheetIds), []);
 
+// Splicing a measured hop must keep the run attached to adjacent node pairs.
+// Leaving the original `con_wall_a -> con_wall_b` measurement in place once a
+// splice sits between them makes it unplaceable on any sheet, which used to
+// silently drop it and then fail the round-trip check, blocking every save.
 const measuredSpliceHarness = structuredClone(harness);
 measuredSpliceHarness.mergePoints = [{
   id: 'mp_measured',
@@ -114,24 +119,83 @@ measuredSpliceHarness.paths = [{
     from: { kind: 'connector', connector_id: 'con_wall_a', pin_number: 1 },
     to: { kind: 'connector', connector_id: 'con_wall_b', pin_number: 1 },
     length_mm: 22,
+    note: 'sleeve this run',
   }],
 }];
+const unsplicedMeasuredPath = structuredClone(measuredSpliceHarness.paths[0]);
 measuredSpliceHarness.paths[0] = splicePathWithMerge(
   measuredSpliceHarness.paths[0],
   'bundle:connector:con_wall_a|connector:con_wall_b',
   'mp_measured',
 );
-const measuredSpliceProblems = verifyRoundTrip(
-  measuredSpliceHarness,
-  splitHarness(measuredSpliceHarness, sheetIds),
-  sheetIds,
+assert.deepEqual(
+  measuredSpliceHarness.paths[0].measurements,
+  [
+    {
+      from: { kind: 'connector', connector_id: 'con_wall_a', pin_number: 1 },
+      to: { kind: 'merge', merge_point_id: 'mp_measured' },
+      length_mm: 11,
+      note: 'sleeve this run',
+    },
+    {
+      from: { kind: 'merge', merge_point_id: 'mp_measured' },
+      to: { kind: 'connector', connector_id: 'con_wall_b', pin_number: 1 },
+      length_mm: 11,
+      note: 'sleeve this run',
+    },
+  ],
+  'splicing a measured hop splits the run across the two new hops',
 );
-assert(
-  measuredSpliceProblems.some((problem) =>
-    problem.includes("path 'path_measured_splice' measurement count mismatch"),
+assert.deepEqual(
+  verifyRoundTrip(
+    measuredSpliceHarness,
+    splitHarness(measuredSpliceHarness, sheetIds),
+    sheetIds,
   ),
-  'a splice that invalidates an existing measured hop must fail the sheet round-trip check',
+  [],
+  'a splice on a measured hop must stay saveable',
 );
+
+// Dissolving that splice folds the two runs back into the original hop.
+const dissolved = dissolveMergePoint(measuredSpliceHarness, 'mp_measured');
+assert.deepEqual(
+  dissolved.paths[0].nodes,
+  unsplicedMeasuredPath.nodes,
+  'dissolving the splice restores the original node sequence',
+);
+assert.deepEqual(
+  dissolved.paths[0].measurements,
+  unsplicedMeasuredPath.measurements,
+  'dissolving the splice restores the original measured run',
+);
+assert.deepEqual(
+  verifyRoundTrip(dissolved, splitHarness(dissolved, sheetIds), sheetIds),
+  [],
+  'dissolving a splice must stay saveable',
+);
+
+// An odd length still round-trips to the exact original total.
+const oddPath = splicePathWithMerge(
+  {
+    ...unsplicedMeasuredPath,
+    measurements: [{ ...unsplicedMeasuredPath.measurements[0], length_mm: 25 }],
+  },
+  'bundle:connector:con_wall_a|connector:con_wall_b',
+  'mp_measured',
+);
+assert.deepEqual(
+  oddPath.measurements.map((measurement) => measurement.length_mm),
+  [12.5, 12.5],
+  'an odd run splits without losing millimetres',
+);
+
+// A splice on an unmeasured hop must not invent measurements.
+const unmeasured = splicePathWithMerge(
+  { ...unsplicedMeasuredPath, measurements: [] },
+  'bundle:connector:con_wall_a|connector:con_wall_b',
+  'mp_measured',
+);
+assert.deepEqual(unmeasured.measurements, [], 'splicing an unmeasured hop adds no measurements');
 
 assert.equal(getPathSignalId({ signal_id: 'sig_TEST', tags: [] }), 'sig_TEST');
 assert.equal(getPathSignalId({ signal_id: undefined, tags: ['signal:LEGACY'] }), 'sig_LEGACY');

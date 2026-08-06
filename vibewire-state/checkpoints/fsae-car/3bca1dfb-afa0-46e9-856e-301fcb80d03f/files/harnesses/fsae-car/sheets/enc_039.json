@@ -1,0 +1,236 @@
+{
+  "schema_version": "0.2.0-sheets",
+  "sheet_enclosure_id": "enc_039",
+  "enclosures": [
+    {
+      "id": "enc_040",
+      "name": "Charge Board",
+      "parent": "enc_039",
+      "container": false,
+      "tags": [
+        "system:charging"
+      ],
+      "properties": {
+        "description": "Charger PCB inside Charging Box. Supports both Valeo and Orion chargers. Molex Minifit Jr connectors."
+      }
+    },
+    {
+      "id": "enc_041",
+      "name": "AC-to-DC",
+      "parent": "enc_039",
+      "container": false,
+      "tags": [
+        "system:charging"
+      ],
+      "properties": {
+        "description": "AC-to-DC power converter inside Charging Box. 3 ports: (1) Live+Neutral, (2) Chassis GND, (3) DC Output terminal block."
+      }
+    },
+    {
+      "id": "enc_042",
+      "name": "DC-to-DC",
+      "parent": "enc_039",
+      "container": false,
+      "tags": [
+        "system:charging"
+      ],
+      "properties": {
+        "description": "DC-to-DC converter inside Charging Box. Provides charge-enable 12V power."
+      }
+    },
+    {
+      "id": "enc_043",
+      "name": "Orion BMS",
+      "parent": "enc_039",
+      "container": false,
+      "tags": [
+        "system:charging",
+        "system:can"
+      ],
+      "properties": {
+        "description": "Orion BMS inside Charging Box. 3-pin CAN connector (outward-facing). Discharge enable = 12V GLV+ from PCC."
+      }
+    },
+    {
+      "id": "enc_044",
+      "name": "Charger Box E-Stop",
+      "parent": "enc_039",
+      "container": false,
+      "tags": [
+        "system:safety",
+        "system:sdc"
+      ],
+      "properties": {
+        "description": "E-stop button inside Charging Box. 2 green cables in safety daisy chain."
+      }
+    }
+  ],
+  "connectors": [
+    {
+      "id": "con_107",
+      "name": "CB J1 Face Conn",
+      "parent": "enc_040",
+      "connector_type": "deutsch_dt",
+      "tags": [
+        "system:charging"
+      ],
+      "properties": {
+        "description": "12-pin Deutsch DT15 face connector on Charging Box (DT15-12PA). Car-facing passthrough."
+      },
+      "pin_count": 12
+    },
+    {
+      "id": "con_108",
+      "name": "CB J2 E-Stop",
+      "parent": "enc_040",
+      "connector_type": "molex_minifit_jr",
+      "tags": [
+        "system:safety",
+        "system:sdc"
+      ],
+      "properties": {
+        "description": "E-stop connection."
+      },
+      "pin_count": 2
+    },
+    {
+      "id": "con_109",
+      "name": "CB J3 HVIL",
+      "parent": "enc_040",
+      "connector_type": "molex_minifit_jr",
+      "tags": [
+        "system:hv",
+        "system:safety"
+      ],
+      "properties": {
+        "description": "High Voltage Interlock Loop."
+      },
+      "pin_count": 2
+    },
+    {
+      "id": "con_110",
+      "name": "CB J4 Lead Acid",
+      "parent": "enc_040",
+      "connector_type": "generic_multipin",
+      "tags": [
+        "system:charging",
+        "system:lv"
+      ],
+      "properties": {
+        "description": "Lead acid battery input (always-on 12V source)."
+      },
+      "pin_count": 2
+    },
+    {
+      "id": "con_111",
+      "name": "CB J5 Battery Tender",
+      "parent": "enc_040",
+      "connector_type": "generic_multipin",
+      "tags": [
+        "system:charging"
+      ],
+      "properties": {
+        "description": "Battery tender port."
+      },
+      "pin_count": 2
+    },
+    {
+      "id": "con_112",
+      "name": "CB J7 J1772",
+      "parent": "enc_040",
+      "connector_type": "generic_multipin",
+      "tags": [
+        "system:charging"
+      ],
+      "properties": {
+        "description": "J1772 output — CP and CC signals. Goes to J1772 port connector."
+      },
+      "pin_count": 4
+    },
+    {
+      "id": "con_113",
+      "name": "CB J8 Car Side",
+      "parent": "enc_040",
+      "connector_type": "molex_minifit_jr",
+      "tags": [
+        "system:charging",
+        "system:can"
+      ],
+      "properties": {
+        "description": "Molex Minifit Jr car-side umbilical (874271042). Carries CAN, SDC signals, Core_12v to vehicle."
+      },
+      "pin_count": 4
+    },
+    {
+      "id": "con_114",
+      "name": "CB 12V Placeholder",
+      "parent": "enc_040",
+      "connector_type": "generic_multipin",
+      "tags": [
+        "system:charging",
+        "system:lv"
+      ],
+      "properties": {
+        "description": "Placeholder: 12V passthrough from AC-to-DC to car. Red/black wire."
+      },
+      "pin_count": 6
+    },
+    {
+      "id": "con_115",
+      "name": "AC-DC Port1 AC In",
+      "parent": "enc_041",
+      "connector_type": "generic_multipin",
+      "tags": [
+        "system:charging"
+      ],
+      "properties": {
+        "description": "AC input. Live and Neutral."
+      },
+      "pin_count": 6
+    },
+    {
+      "id": "con_116",
+      "name": "AC-DC Port2 Chassis GND",
+      "parent": "enc_041",
+      "connector_type": "generic_multipin",
+      "tags": [
+        "system:charging"
+      ],
+      "properties": {
+        "description": "Chassis ground connection."
+      },
+      "pin_count": 6
+    },
+    {
+      "id": "con_117",
+      "name": "AC-DC Port3 DC Out",
+      "parent": "enc_041",
+      "connector_type": "generic_multipin",
+      "tags": [
+        "system:charging",
+        "system:lv"
+      ],
+      "properties": {
+        "description": "DC output terminal block. 12V positive and negative."
+      },
+      "pin_count": 6
+    },
+    {
+      "id": "con_118",
+      "name": "Orion BMS CAN",
+      "parent": "enc_043",
+      "connector_type": "generic_multipin",
+      "tags": [
+        "system:can",
+        "system:charging"
+      ],
+      "properties": {
+        "description": "3-pin CAN connector (outward-facing). CANH, CANL, GND. 12V discharge enable = GLV+ from PCC."
+      },
+      "pin_count": 3
+    }
+  ],
+  "mergePoints": [],
+  "paths": [],
+  "ports": []
+}

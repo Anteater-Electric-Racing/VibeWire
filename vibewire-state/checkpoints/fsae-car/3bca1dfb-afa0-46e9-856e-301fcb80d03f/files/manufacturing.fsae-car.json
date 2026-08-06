@@ -2042,19 +2042,23 @@
       "wire_progress": {
         "path_106:0-3": {
           "ends": {
-            "from": true
+            "from": true,
+            "to": true
           }
         },
         "path_107:0-3": {
           "ends": {
-            "from": true
-          }
+            "from": true,
+            "to": true
+          },
+          "cut": true
         },
         "path_108:0-3": {
           "ends": {
             "from": true,
             "to": true
-          }
+          },
+          "cut": true
         }
       },
       "component_steps": {
@@ -2075,14 +2079,17 @@
         },
         "wire:path_106:0-3:end:to": {
           "ordered": true,
-          "cut": true
+          "cut": true,
+          "crimped": true
         },
         "wire:path_107:0-3:end:to": {
           "ordered": true,
-          "cut": true
+          "cut": true,
+          "crimped": true
         },
         "wire:path_107:0-3": {
-          "ordered": true
+          "ordered": true,
+          "cut": true
         },
         "wire:path_108:0-3:end:to": {
           "ordered": true,
@@ -2090,13 +2097,8 @@
           "crimped": true
         },
         "wire:path_108:0-3": {
-          "ordered": true
-        },
-        "wire:path_106:0-3": {
-          "ordered": true
-        },
-        "splice:mp_004": {
-          "ordered": true
+          "ordered": true,
+          "cut": true
         }
       },
       "task_attribution": {
@@ -2115,7 +2117,27 @@
           "user_name": "Gabe",
           "day": "2026-08-05"
         },
+        "wire:path_106:0-3:end:to": {
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05"
+        },
+        "wire:path_107:0-3:end:to": {
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05"
+        },
+        "wire:path_107:0-3:cut": {
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05"
+        },
         "wire:path_108:0-3:end:to": {
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05"
+        },
+        "wire:path_108:0-3:cut": {
           "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
           "user_name": "Gabe",
           "day": "2026-08-05"
@@ -2205,126 +2227,6 @@
           "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
           "user_name": "Gabe",
           "day": "2026-08-05"
-        },
-        {
-          "id": "work:bundle:connectors:con_002|con_077:1786045488974:8",
-          "task_key": "wire:path_106:0-3:cut",
-          "kind": "wire-cut",
-          "action": "complete",
-          "quantity": 95,
-          "unit": "mm",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-06"
-        },
-        {
-          "id": "work:bundle:connectors:con_002|con_077:1786048482835:9",
-          "task_key": "wire:path_106:0-3:end:to",
-          "kind": "wire-end",
-          "action": "reopen",
-          "quantity": 1,
-          "unit": "ea",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-06"
-        },
-        {
-          "id": "work:bundle:connectors:con_002|con_077:1786048482835:10",
-          "task_key": "wire:path_107:0-3:end:to",
-          "kind": "wire-end",
-          "action": "reopen",
-          "quantity": 1,
-          "unit": "ea",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-06"
-        },
-        {
-          "id": "work:bundle:connectors:con_002|con_077:1786048486923:11",
-          "task_key": "wire:path_106:0-3:cut",
-          "kind": "wire-cut",
-          "action": "reopen",
-          "quantity": 95,
-          "unit": "mm",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-06"
-        },
-        {
-          "id": "work:bundle:connectors:con_002|con_077:1786048488006:12",
-          "task_key": "wire:path_106:0-3:cut",
-          "kind": "wire-cut",
-          "action": "complete",
-          "quantity": 95,
-          "unit": "mm",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-06"
-        },
-        {
-          "id": "work:bundle:connectors:con_002|con_077:1786048488532:13",
-          "task_key": "wire:path_106:0-3:cut",
-          "kind": "wire-cut",
-          "action": "reopen",
-          "quantity": 95,
-          "unit": "mm",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-06"
-        },
-        {
-          "id": "work:bundle:connectors:con_002|con_077:1786048489324:14",
-          "task_key": "splice:mp_004:measured",
-          "kind": "splice-measured",
-          "action": "complete",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-06"
-        },
-        {
-          "id": "work:bundle:connectors:con_002|con_077:1786048490489:15",
-          "task_key": "splice:mp_004:measured",
-          "kind": "splice-measured",
-          "action": "reopen",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-06"
-        },
-        {
-          "id": "work:bundle:connectors:con_002|con_077:1786048491572:16",
-          "task_key": "splice:mp_004:measured",
-          "kind": "splice-measured",
-          "action": "complete",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-06"
-        },
-        {
-          "id": "work:bundle:connectors:con_002|con_077:1786048492222:17",
-          "task_key": "splice:mp_004:measured",
-          "kind": "splice-measured",
-          "action": "reopen",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-06"
-        },
-        {
-          "id": "work:bundle:connectors:con_002|con_077:1786048493664:18",
-          "task_key": "wire:path_107:0-3:cut",
-          "kind": "wire-cut",
-          "action": "reopen",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-06"
-        },
-        {
-          "id": "work:bundle:connectors:con_002|con_077:1786048493664:19",
-          "task_key": "wire:path_108:0-3:cut",
-          "kind": "wire-cut",
-          "action": "reopen",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-06"
         }
       ]
     },
@@ -2335,19 +2237,22 @@
           "ends": {
             "from": true,
             "to": true
-          }
+          },
+          "cut": true
         },
         "path_116:0-3": {
           "ends": {
             "from": true,
             "to": true
-          }
+          },
+          "cut": true
         },
         "path_117:0-3": {
           "ends": {
             "from": true,
             "to": true
-          }
+          },
+          "cut": true
         }
       },
       "component_steps": {
@@ -2367,7 +2272,8 @@
           "crimped": true
         },
         "wire:path_115:0-3": {
-          "ordered": true
+          "ordered": true,
+          "cut": true
         },
         "wire:path_115:0-3:end:to": {
           "ordered": true,
@@ -2375,7 +2281,8 @@
           "crimped": true
         },
         "wire:path_116:0-3": {
-          "ordered": true
+          "ordered": true,
+          "cut": true
         },
         "wire:path_116:0-3:end:to": {
           "ordered": true,
@@ -2383,7 +2290,8 @@
           "crimped": true
         },
         "wire:path_117:0-3": {
-          "ordered": true
+          "ordered": true,
+          "cut": true
         },
         "wire:path_117:0-3:end:to": {
           "ordered": true,
@@ -2407,12 +2315,27 @@
           "user_name": "Gabe",
           "day": "2026-08-05"
         },
+        "wire:path_115:0-3:cut": {
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05"
+        },
         "wire:path_115:0-3:end:to": {
           "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
           "user_name": "Gabe",
           "day": "2026-08-05"
         },
+        "wire:path_116:0-3:cut": {
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05"
+        },
         "wire:path_116:0-3:end:to": {
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05"
+        },
+        "wire:path_117:0-3:cut": {
           "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
           "user_name": "Gabe",
           "day": "2026-08-05"
@@ -2516,33 +2439,6 @@
           "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
           "user_name": "Gabe",
           "day": "2026-08-05"
-        },
-        {
-          "id": "work:bundle:connectors:con_002|con_078:1786048493665:9",
-          "task_key": "wire:path_115:0-3:cut",
-          "kind": "wire-cut",
-          "action": "reopen",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-06"
-        },
-        {
-          "id": "work:bundle:connectors:con_002|con_078:1786048494640:10",
-          "task_key": "wire:path_116:0-3:cut",
-          "kind": "wire-cut",
-          "action": "reopen",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-06"
-        },
-        {
-          "id": "work:bundle:connectors:con_002|con_078:1786048494972:11",
-          "task_key": "wire:path_117:0-3:cut",
-          "kind": "wire-cut",
-          "action": "reopen",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-06"
         }
       ]
     }

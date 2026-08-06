@@ -66,6 +66,9 @@ export function SettingsModal() {
       </Section>
 
       <Section title="Editing">
+        <Shortcut keys={<Kbd>E</Kbd>}>
+          Continue as the last logged-in user (arms editing after a cookie restore)
+        </Shortcut>
         <Shortcut keys={<><Kbd>⌘</Kbd><Kbd>Z</Kbd></>}>
           Undo (Ctrl+Z on Windows/Linux)
         </Shortcut>

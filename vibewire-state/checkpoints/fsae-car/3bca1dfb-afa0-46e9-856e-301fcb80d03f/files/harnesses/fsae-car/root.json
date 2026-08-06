@@ -1346,7 +1346,7 @@
             "kind": "merge",
             "merge_point_id": "mp_006"
           },
-          "length_mm": 116.456
+          "length_mm": 120
         },
         {
           "from": {
@@ -1358,7 +1358,7 @@
             "port_id": "port_con_002",
             "pin_number": 4
           },
-          "length_mm": 113.544
+          "length_mm": 117
         }
       ]
     },
@@ -1398,7 +1398,7 @@
             "kind": "merge",
             "merge_point_id": "mp_006"
           },
-          "length_mm": 113.58
+          "length_mm": 120
         },
         {
           "from": {
@@ -1410,7 +1410,7 @@
             "port_id": "port_con_002",
             "pin_number": 6
           },
-          "length_mm": 116.42
+          "length_mm": 123
         }
       ]
     },
@@ -1448,7 +1448,7 @@
             "kind": "merge",
             "merge_point_id": "mp_006"
           },
-          "length_mm": 116.456
+          "length_mm": 120
         },
         {
           "from": {
@@ -1460,7 +1460,7 @@
             "port_id": "port_con_002",
             "pin_number": 8
           },
-          "length_mm": 113.544
+          "length_mm": 117
         }
       ]
     },
@@ -1498,7 +1498,7 @@
             "kind": "merge",
             "merge_point_id": "mp_006"
           },
-          "length_mm": 116.456
+          "length_mm": 120
         },
         {
           "from": {
@@ -1510,7 +1510,7 @@
             "port_id": "port_con_002",
             "pin_number": 9
           },
-          "length_mm": 113.544
+          "length_mm": 117
         }
       ]
     },
@@ -1548,7 +1548,7 @@
             "kind": "merge",
             "merge_point_id": "mp_006"
           },
-          "length_mm": 116.456
+          "length_mm": 120
         },
         {
           "from": {
@@ -1560,7 +1560,7 @@
             "port_id": "port_con_002",
             "pin_number": 7
           },
-          "length_mm": 113.544
+          "length_mm": 117
         }
       ]
     },
@@ -1598,7 +1598,7 @@
             "kind": "merge",
             "merge_point_id": "mp_006"
           },
-          "length_mm": 116.456
+          "length_mm": 120
         },
         {
           "from": {
@@ -1610,7 +1610,7 @@
             "port_id": "port_con_002",
             "pin_number": 5
           },
-          "length_mm": 113.544
+          "length_mm": 117
         }
       ]
     },

@@ -127,21 +127,39 @@ Consequences:
 - In static-only hosting there is no persistence API, so edits stay in memory and surface an autosave
   failure.
 - For a sheeted harness, `POST /api/save-harness` can also fail if the sheet-split round-trip check
-  in `server/sheets.ts#writeSheetedHarness` fails. The API returns a descriptive error and leaves the
-  on-disk sheet files untouched.
+  in `server/sheets.ts#planSheetedWrite` fails. The API returns a descriptive error and leaves the
+  on-disk sheet files, the history, and the revision untouched.
 - Flat harness saves use atomic temporary-file replacement. Sheeted saves prepare and verify the
   complete split before replacing their files.
 
 ### Production caveat
 
 `npm run build` produces a static frontend, but file persistence requires the API contract. In dev,
-Vite mounts the API middleware directly. Outside dev you need `npm run api` (`server/index.ts`) or an
-equivalent backend implementing the same endpoints.
+the API runs as its own process (`server/index.ts`, started by `npm run dev:api` / `npm run dev`).
+Outside dev you need `npm run api` or an equivalent backend implementing the same endpoints.
 
 ## Dev Server And Asset Routing
 
-`vite.config.ts` mounts `createApiMiddleware(__dirname)` for `/api/*`, and excludes
-`public/user-data/**` from file watching so that auto-saves do not trigger reload loops.
+`npm run dev` runs two processes via `concurrently`: `dev:web` (Vite) and `dev:api` (`tsx watch
+server/index.ts`, so it restarts itself on `server/` edits). `vite.config.ts` proxies `/api/*` to the
+API process instead of mounting it in-process.
+
+This split matters for HMR: Vite treats any file statically or dynamically reachable from
+`vite.config.ts` as a "config dependency" and does a full dev-server restart when one changes, which
+in turn forces every connected browser tab to hard-reload (Vite's client reloads once its WebSocket
+reconnects after a restart). `server/api.ts` transitively imports nearly everything under `server/`,
+so when it was imported directly by `vite.config.ts`, editing *any* backend file reloaded the browser.
+Proxying instead of importing keeps `server/` completely out of Vite's config dependency graph — a
+backend edit only restarts the (separate) API process, and the frontend/browser are untouched.
+
+`vite.config.ts` also excludes `public/user-data/**` and `vibewire-state/**` from file watching so
+that auto-saves do not trigger reload loops. Vite treats changes under `publicDir` conservatively and
+full-reloads for them by default; `vibewire-state/` isn't under `publicDir`, but every save also
+appends to its edit log and rewrites its revision/attribution files via write-temp-then-rename, and
+Vite's watcher forwards those add/unlink events into the same full-reload broadcast. Without both
+exclusions, the app hard-reloads the browser on every single edit — confirmed by reproducing it with a
+bare `fs.rename` into `vibewire-state/` with no app or browser request involved at all. If you add a
+new directory that autosave writes to outside of these two, add it here too.
 
 ## Domain Model
 
@@ -341,6 +359,14 @@ Before writing anything to disk, `writeSheetedHarness` re-assembles its own spli
 and compares it against the original `HarnessData` (`verifyRoundTrip`). If they don't match, it throws
 instead of writing — the harness files are only ever updated by the full, freshly-computed split,
 never patched incrementally.
+
+#### Measurements must stay on adjacent node pairs
+
+A `PathMeasurement` is only placeable if its `from`/`to` are neighbors in `Path.nodes`. A measurement
+spanning non-adjacent nodes fits in no fragment, so the splitter drops it and `verifyRoundTrip` then
+refuses the entire save. Any edit that inserts or removes a node mid-path has to maintain that
+invariant: `splicePathWithMerge` splits the affected run in two, and `removePathNodeAt` folds the two
+runs back into one. Reach for those helpers rather than splicing `Path.nodes` directly.
 
 ### General multi-boundary splitting
 
@@ -677,9 +703,17 @@ without updating the store's save flow.
 ### Writes, validation, and rollback
 
 Harness and sidecar writes go through `commitHarnessDocument`/`commitHarnessSidecar`, which take the
-per-harness lock, check the client's revision (CAS), snapshot to history, apply the mutation, and
-validate. If validation gets worse than it was before the write, the payload is rolled back
-byte-exactly via `restoreManagedPayload` and the request fails with `validation-degradation`.
+per-harness lock, check the client's revision (CAS), snapshot to history, and apply the mutation.
+
+Every check that can reject a payload runs *before* the snapshot, the revision bump, and any disk
+write: first validation (`validation-degradation` if the payload has more errors than the current
+one), then the sheet split (`planSheetedWrite`, which verifies the round trip without writing). A
+rejected save therefore leaves the files, the history, and the revision exactly as they were. Keep
+new rejection checks in that pre-write phase — advancing the revision for a save that never landed
+strands the client on a stale base revision and turns each of its later saves into a CAS conflict.
+
+Rollback via `restoreManagedPayload` is reserved for a write that actually failed part way through
+(`write-failed`), since restoring re-installs live files through renames and is not free of risk.
 
 `restoreManagedPayload` and `checkpointPayloadDir` live in `server/history.ts` and are the single
 implementation used for both write rollback and checkpoint restore. `payloadArtifacts` there is the

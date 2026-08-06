@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { openManufacturingPicker, openSubsystemPicker, Topbar } from './Topbar';
+import { Topbar } from './Topbar';
+import { enterSubsystem, openManufacturingPicker, openSubsystemPicker } from '../../lib/topbarEvents';
 import { SettingsModal } from './SettingsModal';
 import { GraphView } from '../graph/GraphView';
 import { TreeView } from '../tree/TreeView';
@@ -43,6 +44,9 @@ export function AppShell() {
   const openConnectorLibrary = useHarnessStore((s) => s.openConnectorLibrary);
   const openSignalLibrary = useHarnessStore((s) => s.openSignalLibrary);
   const isEditor = useHarnessStore((s) => s.session.isEditor);
+  const sessionUser = useHarnessStore((s) => s.session.user);
+  const editSessionActive = useHarnessStore((s) => s.session.editSessionActive);
+  const activateEditSession = useHarnessStore((s) => s.activateEditSession);
   const inspectorDismissed = useHarnessStore((s) => s.inspectorDismissed);
   const showInspector = !inspectorDismissed && !!(
     selectedItem || (selectedBundle && selectedBundle.pathIds.length > 0) || selectedTextBoxId
@@ -149,6 +153,21 @@ export function AppShell() {
         return;
       }
 
+      // E: continue as the remembered user (arm editing after cookie restore).
+      if (
+        !isTyping
+        && !mod
+        && !e.altKey
+        && !e.shiftKey
+        && e.key === 'e'
+        && sessionUser
+        && !editSessionActive
+      ) {
+        e.preventDefault();
+        activateEditSession();
+        return;
+      }
+
       // View shortcuts: 1 System, 2 Subsystem (again → picker),
       // 3 Manufacturing (again → harness / Build-Progress-BOM menu),
       // 4 Connectors, 5 Signals
@@ -164,8 +183,7 @@ export function AppShell() {
           if (appView === 'canvas' && editingSurface === 'subsystem') {
             openSubsystemPicker();
           } else {
-            closeConnectorLibrary();
-            setEditingSurface('subsystem');
+            enterSubsystem();
           }
           return;
         }
@@ -256,7 +274,7 @@ export function AppShell() {
     }
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [showInspector, inspectorDismissed, drillDownEnclosure, harness, selectItem, selectTextBox, setSelectedBundle, setDrillDown, redo, selectedItem, selectedBundle, rotateConnector, rotateEnclosure, editingSurface, appView, getDeleteImpact, deleteEntityCascade, deletePathBundle, removeEntityFromActiveSubsystem, isEditor, closeConnectorLibrary, setEditingSurface, openManufacturing, openConnectorLibrary, openSignalLibrary]);
+  }, [showInspector, inspectorDismissed, drillDownEnclosure, harness, selectItem, selectTextBox, setSelectedBundle, setDrillDown, redo, selectedItem, selectedBundle, rotateConnector, rotateEnclosure, editingSurface, appView, getDeleteImpact, deleteEntityCascade, deletePathBundle, removeEntityFromActiveSubsystem, isEditor, sessionUser, editSessionActive, activateEditSession, closeConnectorLibrary, setEditingSurface, openManufacturing, openConnectorLibrary, openSignalLibrary]);
 
   return (
     <div className="h-screen w-screen flex flex-col bg-zinc-950 text-zinc-100 overflow-hidden">

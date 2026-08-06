@@ -6,20 +6,14 @@ import {
 } from '../../lib/manufacturing';
 import { CollaborationControls } from '../collab/CollaborationControls';
 import { UndoStalenessChip } from '../collab/UndoStalenessChip';
+import {
+  ENTER_SUBSYSTEM_EVENT,
+  OPEN_MANUFACTURING_PICKER_EVENT,
+  OPEN_SUBSYSTEM_PICKER_EVENT,
+} from '../../lib/topbarEvents';
 
 function requestUndoWithWarning() {
   window.dispatchEvent(new CustomEvent('vibewire:request-undo'));
-}
-
-const OPEN_SUBSYSTEM_PICKER_EVENT = 'vibewire:open-subsystem-picker';
-const OPEN_MANUFACTURING_PICKER_EVENT = 'vibewire:open-manufacturing-picker';
-
-export function openSubsystemPicker() {
-  window.dispatchEvent(new CustomEvent(OPEN_SUBSYSTEM_PICKER_EVENT));
-}
-
-export function openManufacturingPicker() {
-  window.dispatchEvent(new CustomEvent(OPEN_MANUFACTURING_PICKER_EVENT));
 }
 
 const MANUFACTURING_TABS = [
@@ -317,6 +311,10 @@ export function Topbar() {
   const subsystemPickerRef = useRef<HTMLDivElement>(null);
   const subsystemListRef = useRef(subsystemList);
   subsystemListRef.current = subsystemList;
+  const isEditorRef = useRef(isEditor);
+  isEditorRef.current = isEditor;
+  const handleNewSubsystemRef = useRef(handleNewSubsystem);
+  handleNewSubsystemRef.current = handleNewSubsystem;
 
   const systemList = useMemo(() => {
     if (availableHarnesses.length > 0) {
@@ -335,6 +333,21 @@ export function Topbar() {
       activeHarnessName,
       harness?.name,
     );
+
+  function promptCreateSubsystemIfEmpty() {
+    if (subsystemListRef.current.length > 0) return;
+    if (isEditorRef.current) {
+      void handleNewSubsystemRef.current();
+      return;
+    }
+    setSystemMenuOpen(false);
+    setSubsystemMenuOpen(true);
+  }
+
+  function enterSubsystemSurface() {
+    showCanvasSurface('subsystem');
+    promptCreateSubsystemIfEmpty();
+  }
 
   function openSubsystemMenu() {
     setSystemMenuOpen(false);
@@ -368,14 +381,34 @@ export function Topbar() {
   }
 
   useEffect(() => {
+    function onEnterEvent() {
+      closeConnectorLibrary();
+      setEditingSurface('subsystem');
+      if (subsystemListRef.current.length === 0) {
+        if (isEditorRef.current) {
+          void handleNewSubsystemRef.current();
+        } else {
+          setSystemMenuOpen(false);
+          setSubsystemMenuOpen(true);
+        }
+      }
+    }
     function onOpenEvent() {
       closeConnectorLibrary();
       setEditingSurface('subsystem');
       setSystemMenuOpen(false);
+      if (subsystemListRef.current.length === 0 && isEditorRef.current) {
+        void handleNewSubsystemRef.current();
+        return;
+      }
       setSubsystemMenuOpen(true);
     }
+    window.addEventListener(ENTER_SUBSYSTEM_EVENT, onEnterEvent);
     window.addEventListener(OPEN_SUBSYSTEM_PICKER_EVENT, onOpenEvent);
-    return () => window.removeEventListener(OPEN_SUBSYSTEM_PICKER_EVENT, onOpenEvent);
+    return () => {
+      window.removeEventListener(ENTER_SUBSYSTEM_EVENT, onEnterEvent);
+      window.removeEventListener(OPEN_SUBSYSTEM_PICKER_EVENT, onOpenEvent);
+    };
   }, [closeConnectorLibrary, setEditingSurface]);
 
   useEffect(() => {
@@ -606,9 +639,13 @@ export function Topbar() {
                     return;
                   }
                   if (appView === 'canvas' && editingSurface === 'subsystem') {
+                    if (subsystemList.length === 0 && isEditor) {
+                      void handleNewSubsystem();
+                      return;
+                    }
                     openSubsystemMenu();
                   } else {
-                    showCanvasSurface('subsystem');
+                    enterSubsystemSurface();
                   }
                 }}
                 aria-haspopup="listbox"

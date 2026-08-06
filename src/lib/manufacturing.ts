@@ -85,6 +85,15 @@ export interface ManufacturingLengthHop {
   lengthMm?: number;
 }
 
+/** True when two hops describe the same undirected connector/splice run. */
+export function manufacturingHopsMatch(
+  a: Pick<ManufacturingLengthHop, 'fromKey' | 'toKey'>,
+  b: Pick<ManufacturingLengthHop, 'fromKey' | 'toKey'>,
+): boolean {
+  return (a.fromKey === b.fromKey && a.toKey === b.toKey)
+    || (a.fromKey === b.toKey && a.toKey === b.fromKey);
+}
+
 export interface ManufacturingWire {
   id: string;
   pathId: string;
