@@ -16,13 +16,14 @@ import type {
   TextBoxTextAlign,
 } from '../../types';
 import {
-  getWireAppearance,
   getPreferredWireColorDeviation,
+  type WireAppearance,
 } from '../../lib/colors';
 import {
   countPathsTouchingConnectors,
   getBundleSegments,
   getConnectorPairSegments,
+  getEntityRevealContext,
   formatConnectorOccupancySummary,
   getConnectorOccupancy,
   getConnectorPinGuideImage,
@@ -34,9 +35,11 @@ import {
   getNextConnectorPinCount,
   getPreviousConnectorPinCount,
   getEnclosureConnectors,
+  getLengthSplitDetail,
   getPathsTouchingConnector,
   isBulkheadConnector,
   isConnectorFamily,
+  isInlineConnector,
   getPathNodeLabel,
   getPathNodeRefKey,
   getPathSegmentMeasurement,
@@ -45,9 +48,17 @@ import {
   getPathWireAppearance,
   parseBundleId,
   type BulkheadWireSide,
+  type LengthSplitDetail,
 } from '../../lib/harness';
 import { WIRE_GAUGE_PRESETS } from '../../lib/gauge';
-import { deriveManufacturingBundles, getPathInferredGauge } from '../../lib/manufacturing';
+import {
+  deriveManufacturingBundles,
+  getPathInferredGauge,
+  manufacturingGenderBundleRelationship,
+  type ManufacturingBundle,
+  type ManufacturingEndpoint,
+  type ManufacturingWire,
+} from '../../lib/manufacturing';
 import { normalizeDisplayName } from '../../lib/rename';
 import { WireColorEditor, WireColorSwatch } from '../WireColorEditor';
 
@@ -1228,11 +1239,11 @@ function EnclosureInspector({ enc }: { enc: Enclosure }) {
 
       <div className="mt-2 pt-2 border-t border-zinc-700/50">
         <div className="text-[10px] text-zinc-500 font-medium mb-1">
-          {isDevice ? 'Connectors' : 'Bulkheads'}
+          {isDevice ? 'Connectors' : 'Bulkheads & inline connectors'}
         </div>
         {directConnectors.length === 0 ? (
           <div className="text-[10px] text-zinc-600 italic">
-            {isDevice ? 'No connectors' : 'No bulkheads'}
+            No connectors
           </div>
         ) : (
           <div className="space-y-0.5">
@@ -1251,7 +1262,14 @@ function EnclosureInspector({ enc }: { enc: Enclosure }) {
                   item={{ type: 'connector', id: c.id }}
                   className="w-full text-left flex items-center justify-between py-0.5 px-1.5 rounded hover:bg-zinc-800 transition-colors"
                 >
-                  <span className="text-[11px] text-amber-400 hover:text-amber-300">{c.name}</span>
+                  <span className="min-w-0 truncate text-[11px] text-amber-400 hover:text-amber-300">
+                    {c.name}
+                    {isInlineConnector(harness, c) && (
+                      <span className="ml-1 rounded bg-violet-950/70 px-1 py-0.5 text-[8px] uppercase tracking-wide text-violet-300">
+                        inline
+                      </span>
+                    )}
+                  </span>
                   <span className="text-zinc-500 text-[10px]">{occupancySummary}</span>
                 </EntityLink>
               );
@@ -1291,6 +1309,642 @@ function EnclosureInspector({ enc }: { enc: Enclosure }) {
       </div>
     </>
   );
+}
+
+type ContactGender = 'male' | 'female';
+
+interface ConnectorGenderPath {
+  key: string;
+  pathId: string;
+  pathName: string;
+  otherLabel: string;
+  otherItem: { type: EntityType; id: string } | null;
+  sheetId: string | null;
+  sheetName: string;
+}
+
+interface ConnectorGenderSide {
+  bundle: ManufacturingBundle;
+  bundleNames: string[];
+  endpoint?: ManufacturingEndpoint;
+  gender?: ContactGender;
+  genderMixed: boolean;
+  assignable: boolean;
+  bulkheadSide: 'internal' | 'external' | 'mixed' | null;
+  paths: ConnectorGenderPath[];
+}
+
+function connectorRelationForWire(
+  wire: ManufacturingWire,
+  connectorId: string,
+): {
+  endpoint: ManufacturingEndpoint;
+  otherEndpoint: ManufacturingEndpoint;
+} | null {
+  if (wire.from.connectorId === connectorId) {
+    return {
+      endpoint: wire.from,
+      otherEndpoint: wire.to,
+    };
+  }
+  if (wire.to.connectorId === connectorId) {
+    return {
+      endpoint: wire.to,
+      otherEndpoint: wire.from,
+    };
+  }
+  return null;
+}
+
+function ConnectorGenderEditor({ connector }: { connector: Connector }) {
+  const harness = useHarnessStore((s) => s.harness);
+  const connectorLibrary = useHarnessStore((s) => s.connectorLibrary);
+  const manufacturing = useHarnessStore((s) => s.manufacturing);
+  const updateGender = useHarnessStore((s) => s.updateManufacturingEndpointGender);
+  const isEditor = useHarnessStore((s) => s.session.isEditor);
+
+  const bundles = useMemo(
+    () => harness
+      ? deriveManufacturingBundles(harness, connectorLibrary, manufacturing)
+      : [],
+    [harness, connectorLibrary, manufacturing],
+  );
+  const sides = useMemo<ConnectorGenderSide[]>(() => {
+    if (!harness) return [];
+    const bulkhead = isBulkheadConnector(harness, connector.id);
+    const sideOrder = { internal: 0, external: 1, mixed: 2 } as const;
+
+    const bundleSides = bundles
+      .filter((bundle) => bundle.connectorIds.includes(connector.id))
+      .map((bundle) => {
+        let endpoint: ManufacturingEndpoint | undefined;
+        const pathByKey = new Map<string, ConnectorGenderPath>();
+
+        for (const wire of bundle.wires) {
+          const relation = connectorRelationForWire(wire, connector.id);
+          if (!relation) continue;
+          endpoint ??= relation.endpoint;
+
+          const otherItem: ConnectorGenderPath['otherItem'] =
+            relation.otherEndpoint.connectorId
+              ? { type: 'connector', id: relation.otherEndpoint.connectorId }
+              : relation.otherEndpoint.mergePointId
+                ? { type: 'mergePoint', id: relation.otherEndpoint.mergePointId }
+                : null;
+          const otherLabel = relation.otherEndpoint.connectorName
+            ?? relation.otherEndpoint.label
+            ?? 'Unresolved endpoint';
+          const sheetId = getEntityRevealContext(
+            harness,
+            otherItem ?? { type: 'path', id: wire.pathId },
+            null,
+          );
+          const sheetName = sheetId
+            ? harness.enclosures.find((item) => item.id === sheetId)?.name ?? sheetId
+            : harness.name ?? 'Root';
+          const key = `${wire.pathId}:${otherItem?.type ?? 'endpoint'}:${otherItem?.id ?? otherLabel}`;
+          if (!pathByKey.has(key)) {
+            pathByKey.set(key, {
+              key,
+              pathId: wire.pathId,
+              pathName: wire.pathName || wire.pathId,
+              otherLabel,
+              otherItem,
+              sheetId,
+              sheetName,
+            });
+          }
+        }
+
+        const relationship = manufacturingGenderBundleRelationship(
+          harness,
+          bundles,
+          bundle.id,
+          connector.id,
+        );
+        const bulkheadSide = bulkhead ? relationship.physicalSide ?? null : null;
+        return {
+          bundle,
+          endpoint,
+          gender:
+            manufacturing.bundles[bundle.id]?.endpoint_genders?.[connector.id]
+            ?? endpoint?.terminalGender,
+          assignable: relationship.assignable,
+          bulkheadSide,
+          paths: [...pathByKey.values()].sort(
+            (a, b) => a.pathName.localeCompare(b.pathName, undefined, { numeric: true })
+              || a.otherLabel.localeCompare(b.otherLabel, undefined, { numeric: true }),
+          ),
+        };
+      });
+
+    const groupedSides: ConnectorGenderSide[] = [];
+    if (bulkhead) {
+      const groups = new Map<string, typeof bundleSides>();
+      for (const side of bundleSides) {
+        const groupKey = side.bulkheadSide === 'internal' || side.bulkheadSide === 'external'
+          ? side.bulkheadSide
+          : `bundle:${side.bundle.id}`;
+        groups.set(groupKey, [...(groups.get(groupKey) ?? []), side]);
+      }
+      for (const group of groups.values()) {
+        const first = group[0];
+        if (!first) continue;
+        const genderKeys = new Set(
+          group.map((side) => side.gender ?? 'unassigned'),
+        );
+        const pathByKey = new Map<string, ConnectorGenderPath>();
+        for (const side of group) {
+          for (const path of side.paths) pathByKey.set(path.key, path);
+        }
+        groupedSides.push({
+          bundle: first.bundle,
+          bundleNames: group.map((side) => side.bundle.name),
+          endpoint: first.endpoint,
+          gender: genderKeys.size === 1 ? first.gender : undefined,
+          genderMixed: genderKeys.size > 1,
+          assignable: group.every((side) => side.assignable),
+          bulkheadSide: first.bulkheadSide,
+          paths: [...pathByKey.values()].sort(
+            (a, b) => a.pathName.localeCompare(b.pathName, undefined, { numeric: true })
+              || a.otherLabel.localeCompare(b.otherLabel, undefined, { numeric: true }),
+          ),
+        });
+      }
+    } else {
+      groupedSides.push(...bundleSides.map((side) => ({
+        ...side,
+        bundleNames: [side.bundle.name],
+        genderMixed: false,
+      })));
+    }
+
+    return groupedSides.sort((a, b) => {
+      if (a.bulkheadSide && b.bulkheadSide) {
+        const sideComparison = sideOrder[a.bulkheadSide] - sideOrder[b.bulkheadSide];
+        if (sideComparison !== 0) return sideComparison;
+      } else if (a.bulkheadSide) {
+        return -1;
+      } else if (b.bulkheadSide) {
+        return 1;
+      }
+      return a.bundle.name.localeCompare(b.bundle.name, undefined, { numeric: true });
+    });
+  }, [bundles, connector, harness, manufacturing]);
+
+  if (!harness) return null;
+
+  const bulkhead = isBulkheadConnector(harness, connector.id);
+  const connectorKind = bulkhead
+    ? 'Bulkhead connector'
+    : sides.length > 1
+      ? 'Inline connector'
+      : 'Connector end';
+  const assignGender = (
+    side: ConnectorGenderSide,
+    gender: ContactGender | undefined,
+  ) => {
+    if (!side.assignable) {
+      if (gender !== undefined) return;
+      updateGender(side.bundle.id, connector.id, undefined, [], []);
+      return;
+    }
+    const relationship = manufacturingGenderBundleRelationship(
+      harness,
+      bundles,
+      side.bundle.id,
+      connector.id,
+    );
+    updateGender(
+      side.bundle.id,
+      connector.id,
+      gender,
+      relationship.mateBundleIds,
+      relationship.sameSideBundleIds,
+    );
+  };
+
+  return (
+    <div className="mt-2 pt-2 border-t border-zinc-700/50 space-y-2">
+      <div className="text-[10px] text-zinc-500 font-medium">Contact gender</div>
+      <div className="text-[9px] leading-relaxed text-zinc-600">
+        {connectorKind}
+        {sides.length > 1
+          ? ' · choosing one side sets the opposite gender on the mating side'
+          : sides.length === 1
+            ? ' · only one manufacturable side is connected'
+            : ''}
+      </div>
+
+      {sides.length === 0 ? (
+        <div className="rounded border border-dashed border-zinc-700 bg-zinc-900/30 px-2 py-3 text-center text-[10px] text-zinc-500">
+          No manufacturable path ends at this connector.
+        </div>
+      ) : (
+        sides.map((side, index) => {
+          const sideLabel = side.bulkheadSide === 'internal'
+            ? 'Internal side'
+            : side.bulkheadSide === 'external'
+              ? 'External side'
+              : side.bulkheadSide === 'mixed'
+                ? 'Mixed bulkhead side'
+              : bulkhead
+                ? 'Unresolved bulkhead side'
+                : sides.length > 1
+                  ? `Side ${index + 1}`
+                  : 'Harness side';
+          const contactPart = side.gender === 'male'
+            ? side.endpoint?.maleCrimpPartNumber
+            : side.gender === 'female'
+              ? side.endpoint?.femaleCrimpPartNumber
+              : undefined;
+
+          return (
+            <section
+              key={side.bundle.id}
+              className="overflow-hidden rounded border border-zinc-700/70 bg-zinc-950/40"
+            >
+              <div className="flex items-start gap-2 border-b border-zinc-800 px-2 py-1.5">
+                <div className="min-w-0 flex-1">
+                  <div className="text-[10px] font-semibold text-zinc-200">{sideLabel}</div>
+                  <div
+                    className="truncate text-[9px] text-zinc-500"
+                    title={side.bundleNames.join('\n')}
+                  >
+                    {side.bundleNames.length === 1
+                      ? side.bundleNames[0]
+                      : `${side.bundleNames.length} harness runs`}
+                  </div>
+                </div>
+                <select
+                  disabled={
+                    !isEditor
+                    || (!side.assignable && !side.gender && !side.genderMixed)
+                  }
+                  title={side.assignable
+                    ? undefined
+                    : 'This side is ambiguous; only clearing an existing assignment is allowed'}
+                  value={side.genderMixed ? '__mixed__' : side.gender ?? ''}
+                  onChange={(event) => assignGender(
+                    side,
+                    (event.target.value || undefined) as ContactGender | undefined,
+                  )}
+                  aria-label={`${connector.name} ${sideLabel} contact gender`}
+                  className={`shrink-0 rounded border bg-zinc-900 px-1.5 py-1 text-[10px] focus:border-amber-500 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 ${
+                    side.gender
+                      ? 'border-zinc-700 text-zinc-200'
+                      : 'border-amber-800 text-amber-300'
+                  }`}
+                >
+                  {side.genderMixed && <option value="__mixed__" disabled>Mixed assignments</option>}
+                  <option value="">Unassigned</option>
+                  <option value="male" disabled={!side.assignable}>Male</option>
+                  <option value="female" disabled={!side.assignable}>Female</option>
+                </select>
+              </div>
+
+              <div className="space-y-1 p-2">
+                {side.paths.map((path) => (
+                  <div key={path.key} className="rounded bg-zinc-900/60 px-1.5 py-1">
+                    <div className="flex min-w-0 items-center gap-1.5">
+                      <span className="shrink-0 text-[8px] uppercase tracking-wide text-zinc-600">
+                        Path
+                      </span>
+                      <EntityLink
+                        item={{ type: 'path', id: path.pathId }}
+                        className="truncate text-[10px] text-amber-400 hover:text-amber-300 underline underline-offset-2"
+                        title={`Reveal ${path.pathName}`}
+                      >
+                        {path.pathName}
+                      </EntityLink>
+                    </div>
+                    <div className="mt-0.5 flex min-w-0 items-center gap-1.5 text-[9px]">
+                      <span className="shrink-0 text-zinc-600">Connector</span>
+                      {path.otherItem ? (
+                        <EntityLink
+                          item={path.otherItem}
+                          className="truncate text-zinc-300 hover:text-amber-300 underline underline-offset-2"
+                          title={`Reveal ${path.otherLabel}`}
+                        >
+                          {path.otherLabel}
+                        </EntityLink>
+                      ) : (
+                        <span className="truncate text-zinc-400">{path.otherLabel}</span>
+                      )}
+                    </div>
+                    <div className="mt-0.5 flex min-w-0 items-center gap-1.5 text-[9px]">
+                      <span className="shrink-0 text-zinc-600">Sheet</span>
+                      {path.sheetId ? (
+                        <EntityLink
+                          item={{ type: 'enclosure', id: path.sheetId }}
+                          className="truncate text-zinc-400 hover:text-amber-300 underline underline-offset-2"
+                          title={`Reveal ${path.sheetName}`}
+                        >
+                          {path.sheetName}
+                        </EntityLink>
+                      ) : (
+                        <span className="truncate text-zinc-400">{path.sheetName}</span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="border-t border-zinc-800 px-2 py-1 text-[9px]">
+                {!side.assignable ? (
+                  <span className="text-red-400">
+                    Ambiguous bulkhead side · clear any saved assignment or fix the paths
+                  </span>
+                ) : side.genderMixed ? (
+                  <span className="text-red-400">
+                    Conflicting assignments on this physical side
+                  </span>
+                ) : side.gender ? (
+                  <span className={contactPart ? 'text-zinc-400' : 'text-zinc-600'}>
+                    {contactPart ? `Manufacturing contact · ${contactPart}` : 'No contact part configured'}
+                  </span>
+                ) : (
+                  <span className="text-amber-500">Choose a contact gender for manufacturing</span>
+                )}
+              </div>
+            </section>
+          );
+        })
+      )}
+    </div>
+  );
+}
+
+type HopLengthMode = 'specific' | 'keepTotal' | 'reset';
+
+type HopLengthSummary =
+  | { state: 'none' }
+  | { state: 'uniform'; value: number }
+  | { state: 'mixed' };
+
+function summarizeHopLengths(values: Array<number | undefined>): HopLengthSummary {
+  const defined = values.filter((value): value is number => value !== undefined);
+  if (defined.length === 0) return { state: 'none' };
+  const unique = [...new Set(defined)];
+  if (defined.length === values.length && unique.length === 1) {
+    return { state: 'uniform', value: unique[0] };
+  }
+  return { state: 'mixed' };
+}
+
+function describeHopLengthSummary(summary: HopLengthSummary): string {
+  if (summary.state === 'none') return 'not set';
+  if (summary.state === 'uniform') return `${summary.value} mm`;
+  return 'mixed';
+}
+
+/** Blank clears the hop; otherwise it must be a non-negative number. */
+function parseHopLengthField(raw: string): number | undefined | 'invalid' {
+  const trimmed = raw.trim();
+  if (!trimmed) return undefined;
+  const parsed = Number(trimmed);
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : 'invalid';
+}
+
+function roundHopLengthMm(value: number): number {
+  return Math.round(value * 1000) / 1000;
+}
+
+/**
+ * Lets the user redistribute the hop lengths on either side of an inline
+ * connector or splice: reset both sides, set exact values, or fix one side
+ * while the other keeps each wire's original total. Rendered directly in the
+ * connector/merge-point inspector (see `ConnectorLengthSplitEditor` and
+ * `MergePointLengthSplitEditor` below), keyed by the node's id so switching
+ * between nodes resets the form.
+ */
+function HopLengthsEditor({ detail }: { detail: LengthSplitDetail }) {
+  const isEditor = useHarnessStore((s) => s.session.isEditor);
+  const updatePathSegmentLengths = useHarnessStore((s) => s.updatePathSegmentLengths);
+  const isTwoSided = detail.sides.length === 2;
+  const sideSummaries = detail.sides.map((side) => summarizeHopLengths(side.instances.map((i) => i.lengthMm)));
+
+  const [mode, setMode] = useState<HopLengthMode>('specific');
+  const [specificValues, setSpecificValues] = useState<string[]>(
+    sideSummaries.map((summary) => (summary.state === 'uniform' ? String(summary.value) : '')),
+  );
+  const [keepTotalSideIndex, setKeepTotalSideIndex] = useState(0);
+  const [keepTotalValue, setKeepTotalValue] = useState('');
+  const [error, setError] = useState<string | null>(null);
+
+  const buildUpdates = ():
+    | Array<{ pathId: string; segmentIndex: number; lengthMm: number | undefined }>
+    | null => {
+    if (mode === 'reset') {
+      return detail.sides.flatMap((side) =>
+        side.instances.map((instance) => ({
+          pathId: instance.pathId,
+          segmentIndex: instance.segmentIndex,
+          lengthMm: undefined,
+        })),
+      );
+    }
+
+    if (mode === 'specific') {
+      const parsed = specificValues.map(parseHopLengthField);
+      const invalidIndex = parsed.findIndex((value) => value === 'invalid');
+      if (invalidIndex !== -1) {
+        setError(`Enter a non-negative length for "${detail.sides[invalidIndex]?.chain[0]?.label}", or leave it blank to clear it.`);
+        return null;
+      }
+      return detail.sides.flatMap((side, sideIndex) =>
+        side.instances.map((instance) => ({
+          pathId: instance.pathId,
+          segmentIndex: instance.segmentIndex,
+          lengthMm: parsed[sideIndex] as number | undefined,
+        })),
+      );
+    }
+
+    // keepTotal
+    const parsedValue = parseHopLengthField(keepTotalValue);
+    if (parsedValue === undefined || parsedValue === 'invalid') {
+      setError('Enter the length for the side you are defining.');
+      return null;
+    }
+    const otherIndex = keepTotalSideIndex === 0 ? 1 : 0;
+    const fixedSide = detail.sides[keepTotalSideIndex];
+    const otherSide = detail.sides[otherIndex];
+    const otherByPath = new Map(otherSide.instances.map((instance) => [instance.pathId, instance]));
+    const updates: Array<{ pathId: string; segmentIndex: number; lengthMm: number | undefined }> = [];
+    for (const instance of fixedSide.instances) {
+      updates.push({ pathId: instance.pathId, segmentIndex: instance.segmentIndex, lengthMm: parsedValue });
+      const counterpart = otherByPath.get(instance.pathId);
+      if (counterpart) {
+        const total = (instance.lengthMm ?? 0) + (counterpart.lengthMm ?? 0);
+        updates.push({
+          pathId: counterpart.pathId,
+          segmentIndex: counterpart.segmentIndex,
+          lengthMm: roundHopLengthMm(Math.max(0, total - parsedValue)),
+        });
+      }
+    }
+    return updates;
+  };
+
+  const handleApply = () => {
+    setError(null);
+    const updates = buildUpdates();
+    if (!updates) return;
+    updatePathSegmentLengths(updates);
+  };
+
+  return (
+    <div className="mb-2 p-1.5 rounded border border-zinc-700/50 bg-zinc-800/40">
+      <div className="text-[9px] text-zinc-500 uppercase tracking-wide mb-1.5">Hop lengths</div>
+
+      <div className="space-y-1 mb-1.5">
+        {detail.sides.map((side, index) => (
+          <div key={side.key} className="rounded border border-zinc-700/40 bg-zinc-900/40 px-1.5 py-1">
+            <div
+              className="text-[10px] font-medium text-zinc-200 truncate"
+              title={side.chain.map((entry) => entry.label).join(' → ')}
+            >
+              {side.chain[0]?.label}
+            </div>
+            {side.chain.length > 1 && (
+              <div className="text-[9px] text-zinc-500 truncate">
+                via {side.chain.slice(1).map((entry) => entry.label).join(' → ')}
+              </div>
+            )}
+            <div className="text-[9px] text-zinc-600">
+              {side.chain[0]?.sheetName}
+              {' · '}
+              {describeHopLengthSummary(sideSummaries[index])}
+              {' · '}
+              {side.instances.length} wire{side.instances.length === 1 ? '' : 's'}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="flex flex-wrap gap-1 mb-1.5">
+        {([
+          ['specific', 'Specific value'],
+          ...(isTwoSided ? [['keepTotal', 'Keep total'] as const] : []),
+          ['reset', 'Uninitialized'],
+        ] as const).map(([value, label]) => (
+          <button
+            key={value}
+            type="button"
+            onClick={() => setMode(value)}
+            className={`px-1.5 py-0.5 rounded border text-[9px] transition-colors ${
+              mode === value
+                ? 'border-amber-500 text-amber-300 bg-amber-950/40'
+                : 'border-zinc-700 text-zinc-400 hover:border-zinc-500'
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {mode === 'specific' && (
+        <div className="space-y-1 mb-1.5">
+          {detail.sides.map((side, index) => (
+            <label key={side.key} className="flex items-center gap-1.5">
+              <span
+                className="w-16 shrink-0 truncate text-[9px] text-zinc-500 text-right"
+                title={side.chain[0]?.label}
+              >
+                {side.chain[0]?.label}
+              </span>
+              <input
+                type="number"
+                min={0}
+                step="any"
+                inputMode="decimal"
+                disabled={!isEditor}
+                value={specificValues[index] ?? ''}
+                onChange={(event) => setSpecificValues((previous) => {
+                  const next = [...previous];
+                  next[index] = event.target.value;
+                  return next;
+                })}
+                placeholder="—"
+                aria-label={`Length toward ${side.chain[0]?.label}, in millimeters`}
+                className="w-16 bg-zinc-800 border border-zinc-700 rounded px-1.5 py-0.5 text-right font-mono text-[10px] text-zinc-200 placeholder-zinc-600 focus:border-amber-500 focus:outline-none disabled:opacity-50"
+              />
+              <span className="w-4 text-[9px] text-zinc-500">mm</span>
+            </label>
+          ))}
+        </div>
+      )}
+
+      {mode === 'keepTotal' && isTwoSided && (
+        <div className="space-y-1 mb-1.5">
+          <div className="flex flex-wrap items-center gap-1">
+            <span className="text-[9px] text-zinc-500">Set</span>
+            <select
+              value={keepTotalSideIndex}
+              disabled={!isEditor}
+              onChange={(event) => setKeepTotalSideIndex(Number(event.target.value))}
+              className="bg-zinc-800 border border-zinc-700 rounded px-1 py-0.5 text-[9px] text-zinc-200 focus:border-amber-500 focus:outline-none disabled:opacity-50"
+            >
+              {detail.sides.map((side, index) => (
+                <option key={side.key} value={index}>{side.chain[0]?.label}</option>
+              ))}
+            </select>
+            <input
+              type="number"
+              min={0}
+              step="any"
+              inputMode="decimal"
+              disabled={!isEditor}
+              value={keepTotalValue}
+              onChange={(event) => setKeepTotalValue(event.target.value)}
+              placeholder="0"
+              aria-label="Length for the defined side, in millimeters"
+              className="w-16 bg-zinc-800 border border-zinc-700 rounded px-1.5 py-0.5 text-right font-mono text-[10px] text-zinc-200 placeholder-zinc-600 focus:border-amber-500 focus:outline-none disabled:opacity-50"
+            />
+            <span className="text-[9px] text-zinc-500">mm</span>
+          </div>
+          <div className="text-[9px] text-zinc-600">
+            {detail.sides[keepTotalSideIndex === 0 ? 1 : 0]?.chain[0]?.label} keeps what's left of
+            each wire's own total.
+          </div>
+        </div>
+      )}
+
+      {mode === 'reset' && (
+        <div className="mb-1.5 text-[9px] text-zinc-600">
+          Every wire through this node will be left unmeasured on every side.
+        </div>
+      )}
+
+      {error && <div className="mb-1.5 text-[9px] text-red-400">{error}</div>}
+
+      <button
+        type="button"
+        onClick={handleApply}
+        disabled={!isEditor}
+        className="rounded bg-amber-600 px-2 py-0.5 text-[10px] font-medium text-white transition-colors hover:bg-amber-500 disabled:cursor-not-allowed disabled:opacity-40"
+      >
+        Apply
+      </button>
+    </div>
+  );
+}
+
+function ConnectorLengthSplitEditor({ connector }: { connector: Connector }) {
+  const harness = useHarnessStore((s) => s.harness);
+  if (!harness || !isInlineConnector(harness, connector)) return null;
+  const detail = getLengthSplitDetail(harness, { kind: 'connector', connectorId: connector.id });
+  if (!detail) return null;
+  return <HopLengthsEditor key={connector.id} detail={detail} />;
+}
+
+function MergePointLengthSplitEditor({ mergePoint }: { mergePoint: MergePoint }) {
+  const harness = useHarnessStore((s) => s.harness);
+  if (!harness) return null;
+  const detail = getLengthSplitDetail(harness, { kind: 'merge', mergePointId: mergePoint.id });
+  if (!detail) return null;
+  return <HopLengthsEditor key={mergePoint.id} detail={detail} />;
 }
 
 function ConnectorInspector({ con }: { con: Connector }) {
@@ -1358,6 +2012,11 @@ function ConnectorInspector({ con }: { con: Connector }) {
         {con.derived && (
           <span className="text-[9px] px-1.5 py-0.5 rounded bg-sky-900/50 text-sky-300 border border-sky-800/50">
             Derived
+          </span>
+        )}
+        {isInlineConnector(harness, con) && (
+          <span className="rounded border border-violet-800/50 bg-violet-950/60 px-1.5 py-0.5 text-[9px] text-violet-300">
+            Inline
           </span>
         )}
       </div>
@@ -1560,6 +2219,8 @@ function ConnectorInspector({ con }: { con: Connector }) {
 
       <ConnectorOccupancyTable connector={con} />
       <ConnectorGaugeBulkEditor connector={con} />
+      <ConnectorGenderEditor connector={con} />
+      <ConnectorLengthSplitEditor connector={con} />
 
       <div ref={cavityControlsRef} className="mt-3 pt-2 border-t border-zinc-700/50 flex gap-1.5">
         <button
@@ -1623,6 +2284,10 @@ function MergePointInspector({ mergePoint }: { mergePoint: MergePoint }) {
       {Object.entries(mergePoint.properties).map(([key, value]) => (
         <PropertyRow key={key} label={key} value={value} />
       ))}
+
+      <div className="mt-2">
+        <MergePointLengthSplitEditor mergePoint={mergePoint} />
+      </div>
 
       <div className="mt-2 pt-2 border-t border-zinc-700/50">
         <TagEditor entityType="mergePoint" entityId={mergePoint.id} tags={mergePoint.tags} />

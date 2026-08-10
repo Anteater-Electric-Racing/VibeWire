@@ -9,6 +9,7 @@ import { ConnectorLibraryPage } from '../connectors/ConnectorLibraryPage';
 import { SignalLibraryPage } from '../signals/SignalLibraryPage';
 import { ManufacturingPage } from '../manufacturing/ManufacturingPage';
 import { useHarnessStore } from '../../store';
+import { isInlineConnector } from '../../lib/harness';
 
 const LEFT_WIDTH_MIN = 160;
 const LEFT_WIDTH_MAX = 520;
@@ -112,6 +113,23 @@ export function AppShell() {
             : '';
           if (window.confirm(
             `Delete splice ${selectedItem.id}?\n\nPaths through it will reconnect as if the splice was never there.${orphanNote}`,
+          )) {
+            e.preventDefault();
+            deleteEntityCascade(selectedItem.type, selectedItem.id);
+          }
+          return;
+        }
+        if (
+          selectedItem.type === 'connector'
+          && harness
+          && isInlineConnector(harness, selectedItem.id)
+        ) {
+          const impact = getDeleteImpact(selectedItem.type, selectedItem.id);
+          const orphanNote = impact.pathIds.length > 0
+            ? `\n\n${impact.pathIds.length} incomplete path${impact.pathIds.length === 1 ? '' : 's'} will be removed.`
+            : '';
+          if (window.confirm(
+            `Delete inline connector ${selectedItem.id}?\n\nEvery complete wire will reconnect as if the connector was never there.${orphanNote}`,
           )) {
             e.preventDefault();
             deleteEntityCascade(selectedItem.type, selectedItem.id);

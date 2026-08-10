@@ -18,6 +18,9 @@ import {
   getPathSegmentMeasurement,
   getPathSignalId,
   getPathSignalName,
+  isBulkheadConnector,
+  isInlineConnector,
+  isInteriorToEnclosure,
 } from './harness';
 import {
   getConnectorCavityVariant,
@@ -833,29 +836,41 @@ export function deriveManufacturingBom(
     const type = connectorTypeFor(connector, typeById);
     const variant = getConnectorCavityVariant(connector, type);
     const pinCount = getEffectivePinCount(connector, type);
-    const terminalGender = bundles
-      .flatMap((bundle) => bundle.wires)
-      .flatMap((wire) => [wire.from, wire.to])
-      .find((endpoint) => endpoint.connectorId === connector.id)?.terminalGender;
-    const partNumber =
-      clean(connector.properties.housing_part_number)
-      ?? clean(connector.properties.part_number)
-      ?? clean(getConnectorHousingPartNumber(connector, type, terminalGender))
-      ?? clean(variant?.housing_part_number)
-      ?? '';
-    const key = `housing:${partNumber || `${connector.connector_type}:${pinCount}:${connector.keying ?? ''}`}`;
-    const familyName = type?.name ?? connector.connector_type ?? 'Unknown connector';
-    const description = `${familyName || 'Unknown connector'} · ${pinCount}-cavity housing`;
-    addBomQuantity(rows, key, {
-      id: key,
-      category: 'Housing',
-      description,
-      partNumber,
-      color: '',
-      quantity: 0,
-      unit: 'ea',
-      notes: connector.keying ? `Keying ${connector.keying}` : '',
-    }, 1);
+    const endpointGenders = bundles
+      .filter((bundle) => bundle.connectorIds.includes(connector.id))
+      .map((bundle) =>
+        bundle.wires
+          .flatMap((wire) => [wire.from, wire.to])
+          .find((endpoint) => endpoint.connectorId === connector.id)?.terminalGender
+      );
+    const housingGenders: Array<'male' | 'female' | undefined> =
+      isInlineConnector(harness, connector)
+        ? [...endpointGenders.slice(0, 2), ...Array(Math.max(0, 2 - endpointGenders.length)).fill(undefined)]
+        : [endpointGenders[0]];
+    for (const terminalGender of housingGenders) {
+      const partNumber =
+        clean(connector.properties.housing_part_number)
+        ?? clean(connector.properties.part_number)
+        ?? clean(getConnectorHousingPartNumber(connector, type, terminalGender))
+        ?? clean(variant?.housing_part_number)
+        ?? '';
+      const key = `housing:${partNumber || `${connector.connector_type}:${pinCount}:${connector.keying ?? ''}`}`;
+      const familyName = type?.name ?? connector.connector_type ?? 'Unknown connector';
+      const description = `${familyName || 'Unknown connector'} · ${pinCount}-cavity housing`;
+      addBomQuantity(rows, key, {
+        id: key,
+        category: 'Housing',
+        description,
+        partNumber,
+        color: '',
+        quantity: 0,
+        unit: 'ea',
+        notes: [
+          connector.keying ? `Keying ${connector.keying}` : '',
+          isInlineConnector(harness, connector) ? 'Inline mating interface' : '',
+        ].filter(Boolean).join(' · '),
+      }, 1);
+    }
   }
 
   for (const endpoint of bundles.flatMap((bundle) =>
@@ -944,25 +959,134 @@ export function matingBundleIdsForConnector(
     .map((bundle) => bundle.id);
 }
 
+export type ManufacturingConnectorPhysicalSide = 'internal' | 'external' | 'mixed';
+
+export interface ManufacturingGenderBundleRelationship {
+  physicalSide?: ManufacturingConnectorPhysicalSide;
+  assignable: boolean;
+  sameSideBundleIds: string[];
+  mateBundleIds: string[];
+}
+
+function manufacturingBundleBulkheadSide(
+  harness: HarnessData,
+  bundle: ManufacturingBundle,
+  connectorId: string,
+): ManufacturingConnectorPhysicalSide | undefined {
+  const connector = harness.connectors.find((item) => item.id === connectorId);
+  if (!connector?.parent || !isBulkheadConnector(harness, connectorId)) return undefined;
+  const sides = new Set<'internal' | 'external'>();
+
+  for (const wire of bundle.wires) {
+    const selectedNodeIndex = wire.from.connectorId === connectorId
+      ? wire.fromNodeIndex
+      : wire.to.connectorId === connectorId
+        ? wire.toNodeIndex
+        : undefined;
+    const otherNodeIndex = wire.from.connectorId === connectorId
+      ? wire.toNodeIndex
+      : wire.to.connectorId === connectorId
+        ? wire.fromNodeIndex
+        : undefined;
+    if (selectedNodeIndex === undefined || otherNodeIndex === undefined) continue;
+    const direction = Math.sign(otherNodeIndex - selectedNodeIndex);
+    const path = harness.paths.find((item) => item.id === wire.pathId);
+    const neighbor = direction ? path?.nodes[selectedNodeIndex + direction] : undefined;
+    if (!neighbor) continue;
+    sides.add(
+      isInteriorToEnclosure(harness, neighbor, connector.parent)
+        ? 'internal'
+        : 'external',
+    );
+  }
+
+  if (sides.size > 1) return 'mixed';
+  return [...sides][0];
+}
+
+/**
+ * Resolve bundle relationships at a connector. Bulkhead bundles on the same
+ * physical side share a contact gender; bundles across the wall get the
+ * opposite. Non-bulkhead connectors retain the legacy one-bundle-per-side
+ * behavior.
+ */
+export function manufacturingGenderBundleRelationship(
+  harness: HarnessData,
+  bundles: ManufacturingBundle[],
+  bundleId: string,
+  connectorId: string,
+): ManufacturingGenderBundleRelationship {
+  const owner = bundles.find((bundle) => bundle.id === bundleId);
+  const otherBundles = bundles.filter((bundle) =>
+    bundle.id !== bundleId && bundle.connectorIds.includes(connectorId)
+  );
+  if (!owner || !isBulkheadConnector(harness, connectorId)) {
+    return {
+      assignable: true,
+      sameSideBundleIds: [],
+      mateBundleIds: otherBundles.map((bundle) => bundle.id),
+    };
+  }
+
+  const physicalSide = manufacturingBundleBulkheadSide(harness, owner, connectorId);
+  if (physicalSide !== 'internal' && physicalSide !== 'external') {
+    return {
+      physicalSide,
+      assignable: false,
+      sameSideBundleIds: [],
+      mateBundleIds: [],
+    };
+  }
+
+  const sameSideBundleIds: string[] = [];
+  const mateBundleIds: string[] = [];
+  for (const bundle of otherBundles) {
+    const otherSide = manufacturingBundleBulkheadSide(harness, bundle, connectorId);
+    if (otherSide === physicalSide) {
+      sameSideBundleIds.push(bundle.id);
+    } else if (otherSide === 'internal' || otherSide === 'external') {
+      mateBundleIds.push(bundle.id);
+    }
+  }
+  return {
+    physicalSide,
+    assignable: true,
+    sameSideBundleIds,
+    mateBundleIds,
+  };
+}
+
 export function assignManufacturingEndpointGender(
   document: ManufacturingDocument,
   bundleId: string,
   connectorId: string,
   gender: 'male' | 'female' | undefined,
   mateBundleIds: string[],
+  sameSideBundleIds: string[] = [],
 ): ManufacturingDocument {
   const next = structuredClone(document);
   next.schema_version = '1.2.0';
+  const sameSideIds = [...new Set(sameSideBundleIds)]
+    .filter((sameSideBundleId) => sameSideBundleId !== bundleId);
+  const sameSideIdSet = new Set(sameSideIds);
   const assignments = [
     { bundleId, gender },
-    ...mateBundleIds.map((mateBundleId) => ({
-      bundleId: mateBundleId,
-      gender: gender === 'male'
-        ? 'female' as const
-        : gender === 'female'
-          ? 'male' as const
-          : undefined,
+    ...sameSideIds.map((sameSideBundleId) => ({
+      bundleId: sameSideBundleId,
+      gender,
     })),
+    ...[...new Set(mateBundleIds)]
+      .filter((mateBundleId) =>
+        mateBundleId !== bundleId && !sameSideIdSet.has(mateBundleId)
+      )
+      .map((mateBundleId) => ({
+        bundleId: mateBundleId,
+        gender: gender === 'male'
+          ? 'female' as const
+          : gender === 'female'
+            ? 'male' as const
+            : undefined,
+      })),
   ];
 
   for (const assignment of assignments) {

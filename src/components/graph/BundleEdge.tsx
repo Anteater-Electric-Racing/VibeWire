@@ -83,6 +83,7 @@ type BundleEdgeData = {
   bundleColor: string;
   resolvedWaypoints: Point[];
   junctionMeta: Array<{ junctionId: string | null; isOwner: boolean; memberCount: number }>;
+  inlineDropTarget?: boolean;
 };
 
 type BundleEdgeType = Edge<BundleEdgeData, 'bundle'>;
@@ -483,6 +484,19 @@ export function BundleEdge(props: EdgeProps<BundleEdgeType>) {
       className="cursor-pointer"
     >
       {/* ── Layer 1: all visuals (no events) ── */}
+
+      {data?.inlineDropTarget && (
+        <path
+          d={edgePath}
+          fill="none"
+          stroke="#f59e0b"
+          strokeWidth={bundleW + 18}
+          opacity={0.55}
+          pointerEvents="none"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      )}
 
       {isNearbyDrag && (
         <path

@@ -139,16 +139,6 @@
         "boundary_enclosure": "enc_en1",
         "boundary_sheet": "enc_en1"
       }
-    },
-    {
-      "id": "con_007",
-      "name": "New Inline Connector",
-      "parent": null,
-      "connector_type": "generic_multipin",
-      "mounting": "inline",
-      "pin_count": 2,
-      "tags": [],
-      "properties": {}
     }
   ],
   "mergePoints": [
@@ -169,19 +159,13 @@
         "signal:1786051876896_qfe6kr"
       ],
       "properties": {
-        "route_request_id": "e7f6c55c-45b7-423f-9893-161962a74724",
-        "wire_gauge": "12 AWG"
+        "route_request_id": "e7f6c55c-45b7-423f-9893-161962a74724"
       },
       "nodes": [
         {
           "kind": "connector",
           "connector_id": "con_003",
           "pin_number": 1
-        },
-        {
-          "kind": "connector",
-          "connector_id": "con_007",
-          "pin_number": 2
         },
         {
           "kind": "connector",
@@ -204,6 +188,19 @@
         }
       ],
       "measurements": [
+        {
+          "from": {
+            "kind": "connector",
+            "connector_id": "con_003",
+            "pin_number": 1
+          },
+          "to": {
+            "kind": "connector",
+            "connector_id": "con_auto_574cae58f04f_1",
+            "pin_number": 2
+          },
+          "length_mm": 300
+        },
         {
           "from": {
             "kind": "connector",
@@ -240,32 +237,6 @@
             "pin_number": 1
           },
           "length_mm": 10
-        },
-        {
-          "from": {
-            "kind": "connector",
-            "connector_id": "con_003",
-            "pin_number": 1
-          },
-          "to": {
-            "kind": "connector",
-            "connector_id": "con_007",
-            "pin_number": 2
-          },
-          "length_mm": 200
-        },
-        {
-          "from": {
-            "kind": "connector",
-            "connector_id": "con_007",
-            "pin_number": 2
-          },
-          "to": {
-            "kind": "connector",
-            "connector_id": "con_auto_574cae58f04f_1",
-            "pin_number": 2
-          },
-          "length_mm": 150
         }
       ]
     },
@@ -277,8 +248,7 @@
         "signal:1786051962639_lfhzli"
       ],
       "properties": {
-        "route_request_id": "66de5aea-b2a5-4834-b967-fbd02f0d6636",
-        "wire_gauge": "12 AWG"
+        "route_request_id": "66de5aea-b2a5-4834-b967-fbd02f0d6636"
       },
       "nodes": [
         {
@@ -297,16 +267,24 @@
         },
         {
           "kind": "connector",
-          "connector_id": "con_007",
-          "pin_number": 1
-        },
-        {
-          "kind": "connector",
           "connector_id": "con_003",
           "pin_number": 2
         }
       ],
       "measurements": [
+        {
+          "from": {
+            "kind": "connector",
+            "connector_id": "con_auto_574cae58f04f_1",
+            "pin_number": 1
+          },
+          "to": {
+            "kind": "connector",
+            "connector_id": "con_003",
+            "pin_number": 2
+          },
+          "length_mm": 300
+        },
         {
           "from": {
             "kind": "connector",
@@ -330,32 +308,6 @@
             "pin_number": 1
           },
           "length_mm": 1234
-        },
-        {
-          "from": {
-            "kind": "connector",
-            "connector_id": "con_auto_574cae58f04f_1",
-            "pin_number": 1
-          },
-          "to": {
-            "kind": "connector",
-            "connector_id": "con_007",
-            "pin_number": 1
-          },
-          "length_mm": 150
-        },
-        {
-          "from": {
-            "kind": "connector",
-            "connector_id": "con_007",
-            "pin_number": 1
-          },
-          "to": {
-            "kind": "connector",
-            "connector_id": "con_003",
-            "pin_number": 2
-          },
-          "length_mm": 200
         }
       ]
     }

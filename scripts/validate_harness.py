@@ -96,6 +96,15 @@ def main(name_or_path: str) -> int:
         p = c.get("parent")
         if p and p not in enclosures:
             errors.append(f"Connector '{c['id']}' parent '{p}' missing")
+        mounting = c.get("mounting")
+        if mounting not in (None, "inline", "bulkhead"):
+            errors.append(f"Connector '{c['id']}' has invalid mounting {mounting!r}")
+        if mounting == "bulkhead" and (
+            not p or not enclosures.get(p, {}).get("container")
+        ):
+            errors.append(
+                f"Connector '{c['id']}' is marked bulkhead without a container parent"
+            )
         t = c.get("connector_type")
         if t and t not in types:
             errors.append(f"Connector '{c['id']}' type '{t}' not in library")

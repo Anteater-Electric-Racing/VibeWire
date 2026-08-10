@@ -1,17 +1,16 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useHarnessStore } from '../../store';
-import type { ManufacturingTab } from '../../types';
 import {
   MANUFACTURING_STEPS,
   completedManufacturingComponentStepCount,
   deriveManufacturingBom,
   deriveManufacturingBundles,
   deriveManufacturingHarnesses,
+  manufacturingGenderBundleRelationship,
   manufacturingHopsMatch,
   manufacturingTaskCompleted,
   manufacturingComponentSteps,
   manufacturingBomToCsv,
-  matingBundleIdsForConnector,
   type ManufacturingBundle,
   type ManufacturingEndpoint,
   type ManufacturingHarness,
@@ -59,8 +58,6 @@ function InspectorLink({
     </button>
   );
 }
-
-type PageTab = ManufacturingTab;
 
 interface WorkComponent {
   key: string;
@@ -777,6 +774,7 @@ function ComponentWorkCard({
   bundles: ManufacturingBundle[];
   component: WorkComponent;
 }) {
+  const harness = useHarnessStore((state) => state.harness);
   const manufacturing = useHarnessStore((state) => state.manufacturing);
   const updateStep = useHarnessStore((state) => state.updateManufacturingStep);
   const updateGender = useHarnessStore(
@@ -800,35 +798,55 @@ function ComponentWorkCard({
     : gender === 'female'
       ? endpoint?.femaleCrimpPartNumber
       : endpoint?.crimpPartNumber;
-  const mateBundleIds = component.kind === 'connector'
-    ? matingBundleIdsForConnector(bundles, bundle.id, component.entityId)
-    : [];
+  const genderRelationship = component.kind === 'connector' && harness
+    ? manufacturingGenderBundleRelationship(
+        harness,
+        bundles,
+        bundle.id,
+        component.entityId,
+      )
+    : { assignable: true, sameSideBundleIds: [], mateBundleIds: [] };
+  const { assignable, sameSideBundleIds, mateBundleIds } = genderRelationship;
   const changeGender = (nextGender: 'male' | 'female' | undefined) => {
+    if (!isEditor || (!assignable && nextGender !== undefined)) return;
     const expectedMate = nextGender === 'male'
       ? 'female'
       : nextGender === 'female'
         ? 'male'
         : undefined;
-    const conflicts = mateBundleIds.filter((mateBundleId) => {
+    const mateConflicts = mateBundleIds.filter((mateBundleId) => {
       const assigned =
         manufacturing.bundles[mateBundleId]?.endpoint_genders?.[component.entityId];
       return assigned !== undefined && assigned !== expectedMate;
     });
-    if (conflicts.length === 0) {
-      updateGender(bundle.id, component.entityId, nextGender, mateBundleIds);
+    const sameSideConflicts = sameSideBundleIds.filter((sameSideBundleId) => {
+      const assigned =
+        manufacturing.bundles[sameSideBundleId]?.endpoint_genders?.[component.entityId];
+      return assigned !== undefined && assigned !== nextGender;
+    });
+    const conflictCount = mateConflicts.length + sameSideConflicts.length;
+    if (conflictCount === 0) {
+      updateGender(
+        bundle.id,
+        component.entityId,
+        nextGender,
+        mateBundleIds,
+        sameSideBundleIds,
+      );
       return;
     }
     const changeMate = window.confirm([
-      `${conflicts.length} mating connector assignment${conflicts.length === 1 ? '' : 's'} conflict.`,
+      `${conflictCount} related connector assignment${conflictCount === 1 ? '' : 's'} conflict.`,
       '',
-      `OK: change the mating side${conflicts.length === 1 ? '' : 's'} to ${expectedMate ?? 'unassigned'}.`,
-      'Cancel: keep the other side and leave an unresolved flag.',
+      'OK: synchronize this physical side and its mating side.',
+      'Cancel: keep the other assignments and leave an unresolved flag.',
     ].join('\n'));
     updateGender(
       bundle.id,
       component.entityId,
       nextGender,
       changeMate ? mateBundleIds : [],
+      changeMate ? sameSideBundleIds : [],
     );
   };
   const inspectorItem: SelectedItem = component.kind === 'connector'
@@ -866,7 +884,10 @@ function ComponentWorkCard({
         </div>
         {component.kind === 'connector' && endpoint && (
           <select
-            disabled={!isEditor}
+            disabled={!isEditor || (!assignable && !gender)}
+            title={assignable
+              ? undefined
+              : 'This side is ambiguous; only clearing an existing assignment is allowed'}
             value={gender ?? ''}
             onChange={(event) => changeGender(
               (event.target.value || undefined) as 'male' | 'female' | undefined,
@@ -877,8 +898,8 @@ function ComponentWorkCard({
             aria-label={`${component.label} contact gender`}
           >
             <option value="">Contact…</option>
-            <option value="male">Male</option>
-            <option value="female">Female</option>
+            <option value="male" disabled={!assignable}>Male</option>
+            <option value="female" disabled={!assignable}>Female</option>
           </select>
         )}
       </div>
@@ -1060,17 +1081,32 @@ function BundleCutList({
       manufacturing.bundles[ownerBundleId]?.endpoint_genders?.[connectorId];
     if (!ownerGender) return undefined;
     const expected = ownerGender === 'male' ? 'female' : 'male';
-    const conflicting = matingBundleIdsForConnector(
+    const relationship = manufacturingGenderBundleRelationship(
+      harness,
       bundles,
       ownerBundleId,
       connectorId,
-    ).filter((bundleId) => {
+    );
+    if (!relationship.assignable) {
+      return 'Bulkhead side is mixed or cannot be classified';
+    }
+    const conflictingMates = relationship.mateBundleIds.filter((bundleId) => {
       const gender = manufacturing.bundles[bundleId]?.endpoint_genders?.[connectorId];
       return gender && gender !== expected;
     });
-    return conflicting.length > 0
-      ? `${conflicting.length} mating side${conflicting.length === 1 ? '' : 's'} should be ${expected}`
-      : undefined;
+    const conflictingSameSide = relationship.sameSideBundleIds.filter((bundleId) => {
+      const gender = manufacturing.bundles[bundleId]?.endpoint_genders?.[connectorId];
+      return gender && gender !== ownerGender;
+    });
+    const messages = [
+      conflictingSameSide.length > 0
+        ? `${conflictingSameSide.length} same-side assignment${conflictingSameSide.length === 1 ? '' : 's'} should be ${ownerGender}`
+        : '',
+      conflictingMates.length > 0
+        ? `${conflictingMates.length} mating side${conflictingMates.length === 1 ? '' : 's'} should be ${expected}`
+        : '',
+    ].filter(Boolean);
+    return messages.length > 0 ? messages.join(' · ') : undefined;
   };
 
   const changeGender = (
@@ -1079,7 +1115,14 @@ function BundleCutList({
     gender: 'male' | 'female' | undefined,
   ) => {
     if (!isEditor) return;
-    const mateBundleIds = matingBundleIdsForConnector(bundles, bundleId, connectorId);
+    const relationship = manufacturingGenderBundleRelationship(
+      harness,
+      bundles,
+      bundleId,
+      connectorId,
+    );
+    if (!relationship.assignable && gender !== undefined) return;
+    const { sameSideBundleIds, mateBundleIds } = relationship;
     const expectedMate = gender === 'male'
       ? 'female'
       : gender === 'female'
@@ -1090,21 +1133,28 @@ function BundleCutList({
         manufacturing.bundles[mateBundleId]?.endpoint_genders?.[connectorId];
       return assigned !== undefined && assigned !== expectedMate;
     });
-    if (assignedConflicts.length === 0) {
-      updateGender(bundleId, connectorId, gender, mateBundleIds);
+    const sameSideConflicts = sameSideBundleIds.filter((sameSideBundleId) => {
+      const assigned =
+        manufacturing.bundles[sameSideBundleId]?.endpoint_genders?.[connectorId];
+      return assigned !== undefined && assigned !== gender;
+    });
+    const conflictCount = assignedConflicts.length + sameSideConflicts.length;
+    if (conflictCount === 0) {
+      updateGender(bundleId, connectorId, gender, mateBundleIds, sameSideBundleIds);
       return;
     }
     const changeMate = window.confirm([
-      `${assignedConflicts.length} mating side${assignedConflicts.length === 1 ? ' is' : 's are'} already assigned.`,
+      `${conflictCount} related side${conflictCount === 1 ? ' is' : 's are'} already assigned.`,
       '',
-      `OK: set the other side${assignedConflicts.length === 1 ? '' : 's'} to ${expectedMate ?? 'unassigned'}.`,
-      'Cancel: keep the other assignment and leave a visible unresolved flag.',
+      'OK: synchronize this physical side and its mating side.',
+      'Cancel: keep the other assignments and leave a visible unresolved flag.',
     ].join('\n'));
     updateGender(
       bundleId,
       connectorId,
       gender,
       changeMate ? mateBundleIds : [],
+      changeMate ? sameSideBundleIds : [],
     );
   };
 
@@ -1299,6 +1349,12 @@ function BundleCutList({
             {manufacturingHarness.connectorIds.map((connectorId) => {
               const ownerBundle = ownerBundleForConnector(connectorId);
               if (!ownerBundle) return null;
+              const genderRelationship = manufacturingGenderBundleRelationship(
+                harness,
+                bundles,
+                ownerBundle.id,
+                connectorId,
+              );
               return (
                 <ManufacturingConnectorGuide
                   key={connectorId}
@@ -1309,6 +1365,7 @@ function BundleCutList({
                   library={connectorLibrary}
                   manufacturing={manufacturing}
                   isEditor={isEditor}
+                  genderAssignable={genderRelationship.assignable}
                   genderConflict={genderConflictFor(connectorId, ownerBundle.id)}
                   onInspect={inspectEntityQuiet}
                   onOpenLibrary={openConnectorLibrary}

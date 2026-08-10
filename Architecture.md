@@ -169,8 +169,8 @@ The canonical frontend types live in `src/types/index.ts`.
 
 - `HarnessData` — optional mutable system display `name`; its storage key is managed separately.
 - `Enclosure` — `id`, `name`, `parent`, `container`, `tags`, `properties`
-- `Connector` — `id`, `name`, `parent`, `connector_type`, optional `pin_count`, optional `keying`,
-  `tags`, `properties`
+- `Connector` — `id`, `name`, `parent`, `connector_type`, optional `mounting`
+  (`inline`/`bulkhead`), optional `pin_count`, optional `keying`, `tags`, `properties`
 - `MergePoint` — `id`, `name`, `parent`, `tags`, `properties`
 - `Path` — `id`, `name`, optional `signal_id`, `tags`, `properties`, `nodes`, `measurements`
 - `Signal` — `id`, `name`, `tags`, `properties`
@@ -194,6 +194,11 @@ The canonical frontend types live in `src/types/index.ts`.
   within the same path. Overlapping measurements are allowed.
 - Connectors reference a connector type by `connector_type`; enclosure hierarchy is expressed through
   `parent`.
+- Connector placement is resolved independently from hierarchy when `mounting` is present.
+  `mounting: "inline"` is a free-hanging pass-through at root or inside its parent enclosure;
+  `mounting: "bulkhead"` is wall-mounted. Missing values retain the legacy behavior: a connector
+  directly owned by a container is a bulkhead, while every other connector is an endpoint. The field
+  is additive and optional so old flat and sheeted harnesses require no rewrite.
 - Tags are first-class metadata on every entity type.
 - `container: false` marks a device (a non-container enclosure), and remains the compatibility path
   for legacy PCB-like surfaces.
@@ -255,8 +260,9 @@ in-box splice) versus outside the box.
 
 Male/female crimp selection never guesses from connector names. Gender is assigned to a
 `(bundle, connector)` endpoint in `ManufacturingDocument`, which applies to every wire at that bundle
-end. Other bundles sharing the same connector are treated as its mating side and automatically
-receive the opposite gender. Unresolved genders remain manufacturing issues.
+end. At a bulkhead, bundles on the same physical side share a gender and bundles across the wall
+automatically receive the opposite; at free-hanging inline connectors, each other bundle is the mating
+side. Unresolved genders remain manufacturing issues.
 
 The BOM is also derived: wire is grouped by part number or gauge/color, housings by family, cavity
 count and part number, and crimps by family/contact gender/part number. Missing cut lengths remain
@@ -561,6 +567,8 @@ For the current `spaceId`:
 - Direct child connectors of those enclosures become connector child nodes inside enclosure
   rectangles.
 - Connectors whose `parent === spaceId` become free-floating connector nodes.
+- An explicit inline connector owned by a child container is only visible in that container's
+  interior sheet; it is not surfaced as a wall port in the parent view.
 - Merge points visible in the current context become graph nodes, nested or free-floating.
 - Background image and text boxes for the current context are added as nodes.
 - Visible path segments are derived from `paths[].nodes[]`, then bundled into graph edges.
@@ -630,10 +638,11 @@ offer a rename shortcut; system and subsystem names are edited from the top bar.
 Connector occupancy, bundle membership, and signal context are all derived from paths at render time
 rather than stored as dedicated pin or wire entities.
 
-The inspector can add connectors under devices and bulkheads under container enclosures. New entities
-are owned solely by setting `Connector.parent` to that enclosure/device id; sheet file placement and
-`BulkheadPort` derivation remain save-time concerns in `writeSheetedHarness`, not client-side
-inventorship.
+The inspector can add connectors under devices and bulkheads under container enclosures. The system
+canvas can add an inline connector at root or in the current drilled enclosure, then insert it into a
+bundle. Spatial ownership still comes from `Connector.parent`; `mounting` only overrides endpoint vs.
+wall/inline behavior. Sheet file placement and `BulkheadPort` derivation remain save-time concerns in
+`writeSheetedHarness`, not client-side inventorship.
 
 ## Tags
 

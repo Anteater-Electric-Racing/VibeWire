@@ -1169,11 +1169,25 @@ async function testRouteEndpoint() {
   routeHarness.enclosures.push(
     { id: 'dev_external_1', name: 'External 1', parent: null, container: false, tags: [], properties: {} },
     { id: 'dev_external_2', name: 'External 2', parent: null, container: false, tags: [], properties: {} },
+    { id: 'dev_inline_left', name: 'Inline left', parent: null, container: false, tags: [], properties: {} },
+    { id: 'dev_inline_right', name: 'Inline right', parent: null, container: false, tags: [], properties: {} },
     { id: 'dev_internal', name: 'Internal', parent: 'enc_a', container: false, tags: [], properties: {} },
   );
   routeHarness.connectors.push(
     { id: 'con_external_1', name: 'External 1', parent: 'dev_external_1', connector_type: 'generic', tags: [], properties: {} },
     { id: 'con_external_2', name: 'External 2', parent: 'dev_external_2', connector_type: 'generic', tags: [], properties: {} },
+    { id: 'con_inline_left', name: 'Inline left', parent: 'dev_inline_left', connector_type: 'generic', tags: [], properties: {} },
+    { id: 'con_inline_right', name: 'Inline right', parent: 'dev_inline_right', connector_type: 'generic', tags: [], properties: {} },
+    {
+      id: 'con_inline',
+      name: 'Inline disconnect',
+      parent: null,
+      connector_type: 'generic_multipin',
+      mounting: 'inline',
+      pin_count: 1,
+      tags: [],
+      properties: {},
+    },
     { id: 'con_internal', name: 'Internal', parent: 'dev_internal', connector_type: 'generic', tags: [], properties: {} },
     {
       id: 'con_bulkhead',
@@ -1382,6 +1396,53 @@ async function testRouteEndpoint() {
     );
 
     assert.equal(readSheetedHarness(harnessDir).paths.length, 2);
+
+    const inlineLeft = await fetch(`${base}/api/paths/route?harness=test`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Cookie: cookie },
+      body: JSON.stringify({
+        from: { connector_id: 'con_inline_left', pin_number: 1 },
+        to: { connector_id: 'con_inline', pin_number: 1 },
+        signal_id: 'sig_TEST',
+        request_id: 'inline-left-half',
+      }),
+    });
+    assert.equal(inlineLeft.status, 201);
+    const inlineRight = await fetch(`${base}/api/paths/route?harness=test`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Cookie: cookie },
+      body: JSON.stringify({
+        from: { connector_id: 'con_inline', pin_number: 1 },
+        to: { connector_id: 'con_inline_right', pin_number: 1 },
+        signal_id: 'sig_TEST',
+        request_id: 'inline-right-half',
+      }),
+    });
+    assert.equal(inlineRight.status, 201);
+    const inlineResult = await inlineRight.json() as {
+      path: { nodes: Array<{ connector_id?: string }> };
+    };
+    assert.deepEqual(
+      inlineResult.path.nodes.map((node) => node.connector_id),
+      ['con_inline_left', 'con_inline', 'con_inline_right'],
+      'the second side of an inline connector must extend the existing logical path',
+    );
+    const inlineThirdSide = await fetch(`${base}/api/paths/route?harness=test`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Cookie: cookie },
+      body: JSON.stringify({
+        from: { connector_id: 'con_inline', pin_number: 1 },
+        to: { connector_id: 'con_external_2', pin_number: 1 },
+        signal_id: 'sig_TEST',
+        request_id: 'inline-third-side',
+      }),
+    });
+    assert.equal(inlineThirdSide.status, 409);
+    assert.match(
+      ((await inlineThirdSide.json()) as { error: string }).error,
+      /already has both connections/,
+    );
+    assert.equal(readSheetedHarness(harnessDir).paths.length, 3);
 
     const afterDelete = readSheetedHarness(harnessDir);
     const deletedEnclosures = new Set(['enc_a', 'enc_a1', 'dev_a1', 'dev_internal']);

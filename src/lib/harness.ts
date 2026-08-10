@@ -6,6 +6,7 @@ import type {
   DerivedSegment,
   Enclosure,
   HarnessData,
+  LengthSplitTarget,
   MergePoint,
   Path,
   PathMeasurement,
@@ -51,16 +52,19 @@ export function getChildEnclosures(
 
 /**
  * Connectors that should appear as port tabs on a given enclosure when
- * viewed from the parent space.  This is any connector whose parent is
- * this enclosure, OR whose parent is a non-container child of this
- * enclosure (i.e. connectors on a "PCB" surface are surfaced as ports
- * on the PCB enclosure node).
+ * viewed from the parent space. Device-owned connectors remain ordinary child
+ * ports; container-owned connectors are exposed only when they resolve to a
+ * wall-mounted bulkhead. Explicit inline connectors stay inside the container.
  */
 export function getEnclosurePorts(
   harness: HarnessData,
   encId: string,
 ): Connector[] {
-  return harness.connectors.filter((c) => c.parent === encId);
+  const enclosure = harness.enclosures.find((candidate) => candidate.id === encId);
+  return harness.connectors.filter((connector) =>
+    connector.parent === encId
+    && (!enclosure?.container || isBulkheadConnector(harness, connector.id))
+  );
 }
 
 /**
@@ -240,6 +244,32 @@ export function getConnectorOccupancy(
 /** Side of a bulkhead wall: wires inside the box, outside, or both. */
 export type BulkheadWireSide = 'internal' | 'external' | 'both';
 
+/** Runtime role resolved from the optional placement override plus legacy hierarchy rules. */
+export type ConnectorRole = 'endpoint' | 'inline' | 'bulkhead';
+
+export function getConnectorRole(
+  harness: Pick<HarnessData, 'connectors' | 'enclosures'>,
+  connectorOrId: Connector | string,
+): ConnectorRole {
+  const connector = typeof connectorOrId === 'string'
+    ? harness.connectors.find((candidate) => candidate.id === connectorOrId)
+    : connectorOrId;
+  if (!connector) return 'endpoint';
+  if (connector.mounting === 'inline') return 'inline';
+  if (connector.mounting === 'bulkhead') return 'bulkhead';
+  if (!connector.parent) return 'endpoint';
+  return harness.enclosures.find((candidate) => candidate.id === connector.parent)?.container
+    ? 'bulkhead'
+    : 'endpoint';
+}
+
+export function isInlineConnector(
+  harness: Pick<HarnessData, 'connectors' | 'enclosures'>,
+  connectorOrId: Connector | string,
+): boolean {
+  return getConnectorRole(harness, connectorOrId) === 'inline';
+}
+
 /**
  * True when a connector is mounted on a container enclosure wall (a bulkhead).
  * Device-mounted connectors and free/root connectors are not bulkheads.
@@ -248,10 +278,15 @@ export function isBulkheadConnector(
   harness: HarnessData,
   connectorId: string,
 ): boolean {
-  const connector = harness.connectors.find((item) => item.id === connectorId);
-  if (!connector?.parent) return false;
-  const parent = harness.enclosures.find((item) => item.id === connector.parent);
-  return parent?.container === true;
+  return getConnectorRole(harness, connectorId) === 'bulkhead';
+}
+
+export function isPassThroughConnector(
+  harness: Pick<HarnessData, 'connectors' | 'enclosures'>,
+  connectorOrId: Connector | string,
+): boolean {
+  const role = getConnectorRole(harness, connectorOrId);
+  return role === 'inline' || role === 'bulkhead';
 }
 
 /** True when `ancestorId` is `nodeId` or an ancestor enclosure of `nodeId`. */
@@ -281,7 +316,9 @@ export function isInteriorToEnclosure(
     const connector = harness.connectors.find((item) => item.id === node.connector_id);
     if (!connector?.parent) return false;
     // Wall-mounted siblings share the enclosure as parent — treat as exterior.
-    if (connector.parent === enclosureId) return false;
+    if (connector.parent === enclosureId) {
+      return isInlineConnector(harness, connector);
+    }
     return enclosureContains(harness, enclosureId, connector.parent);
   }
   const mergePoint = harness.mergePoints.find((item) => item.id === node.merge_point_id);
@@ -429,10 +466,10 @@ function getVisibleConnectorIds(
   harness: HarnessData,
   spaceId: string | null,
 ): Set<string> {
-  const childEncIds = new Set(
+  const childEnclosures = new Map(
     harness.enclosures
-      .filter((e) => e.parent === spaceId)
-      .map((e) => e.id),
+      .filter((enclosure) => enclosure.parent === spaceId)
+      .map((enclosure) => [enclosure.id, enclosure]),
   );
   const visible = new Set<string>();
   for (const connector of harness.connectors) {
@@ -440,7 +477,11 @@ function getVisibleConnectorIds(
       visible.add(connector.id);
       continue;
     }
-    if (connector.parent !== null && childEncIds.has(connector.parent)) {
+    const parent = connector.parent ? childEnclosures.get(connector.parent) : undefined;
+    if (
+      parent
+      && (!parent.container || isBulkheadConnector(harness, connector.id))
+    ) {
       visible.add(connector.id);
     }
   }
@@ -505,6 +546,9 @@ export function getEntityRevealContext(
   if (item.type === 'connector') {
     const connector = harness.connectors.find((candidate) => candidate.id === item.id);
     if (!connector) return currentSpaceId;
+    if (isInlineConnector(harness, connector)) {
+      return connector.parent;
+    }
     const owner = connector.parent
       ? harness.enclosures.find((candidate) => candidate.id === connector.parent)
       : undefined;
@@ -735,6 +779,203 @@ export function splicePathWithMerge(
 }
 
 /**
+ * Insert a connector cavity into the concrete path segment represented by a
+ * graph bundle. The logical Path and its identity remain intact; manufacturing
+ * derives two physical runs from the new intermediate connector stop.
+ */
+export function splicePathWithConnector(
+  path: Path,
+  bundleId: string,
+  connectorId: string,
+  pinNumber: number,
+): Path {
+  const match = findPathSegmentForBundle(path, bundleId);
+  if (!match) return path;
+  const mid: ConnectorPathNode = {
+    kind: 'connector',
+    connector_id: connectorId,
+    pin_number: normalizeOccupiedPinNumber(pinNumber),
+  };
+  const nextNodes = [...path.nodes];
+  nextNodes.splice(match.index + 1, 0, mid);
+  return {
+    ...path,
+    nodes: nextNodes,
+    measurements: splitHopMeasurements(
+      path.measurements,
+      path.nodes[match.index],
+      path.nodes[match.index + 1],
+      mid,
+    ),
+  };
+}
+
+/** Which sheet (root harness, or a hierarchy enclosure) a path node's device lives on. */
+export function getPathNodeSheetName(harness: HarnessData, node: PathNode): string {
+  const parentId = node.kind === 'connector'
+    ? harness.connectors.find((candidate) => candidate.id === node.connector_id)?.parent ?? null
+    : harness.mergePoints.find((candidate) => candidate.id === node.merge_point_id)?.parent ?? null;
+  if (!parentId) return harness.name || 'Root';
+  return harness.enclosures.find((candidate) => candidate.id === parentId)?.name ?? parentId;
+}
+
+function describeLengthSplitNode(harness: HarnessData, node: PathNode): LengthSplitSideNode {
+  if (node.kind === 'connector') {
+    const connector = harness.connectors.find((candidate) => candidate.id === node.connector_id);
+    return {
+      label: connector?.name ?? node.connector_id,
+      sheetName: getPathNodeSheetName(harness, node),
+      kind: 'connector',
+    };
+  }
+  const mergePoint = harness.mergePoints.find((candidate) => candidate.id === node.merge_point_id);
+  return {
+    label: mergePoint?.name ?? node.merge_point_id,
+    sheetName: getPathNodeSheetName(harness, node),
+    kind: 'merge',
+  };
+}
+
+function buildLengthSplitChain(
+  harness: HarnessData,
+  path: Path,
+  startIndex: number,
+  direction: 1 | -1,
+): LengthSplitSideNode[] {
+  const chain: LengthSplitSideNode[] = [];
+  for (let index = startIndex; index >= 0 && index < path.nodes.length; index += direction) {
+    chain.push(describeLengthSplitNode(harness, path.nodes[index]));
+  }
+  return chain;
+}
+
+/** One device (or chain of devices, when it leads through further splices) on a side of a split node. */
+export interface LengthSplitSideNode {
+  label: string;
+  sheetName: string;
+  kind: 'connector' | 'merge';
+}
+
+/** One wire's hop toward a particular side of the node being adjusted. */
+export interface LengthSplitSideInstance {
+  pathId: string;
+  pathName: string;
+  segmentIndex: number;
+  lengthMm?: number;
+}
+
+/** One neighboring bundle around the split node: the route toward it, plus every wire's hop there. */
+export interface LengthSplitSide {
+  /** Bundle key of the neighboring node, stable across wires that traverse this node in either direction. */
+  key: string;
+  /** Breadcrumb of devices from the split node outward to the end of a representative wire's route, nearest first. */
+  chain: LengthSplitSideNode[];
+  instances: LengthSplitSideInstance[];
+}
+
+export interface LengthSplitDetail {
+  targetLabel: string;
+  targetKind: 'connector' | 'merge';
+  sides: LengthSplitSide[];
+}
+
+/**
+ * Describe the hop lengths on every side of an inline connector or splice, so a
+ * UI can offer to redistribute them (e.g. right after the node was spliced into
+ * a bundle that already had a length, or whenever the node is opened directly).
+ * Returns `null` when the node isn't currently a mid-route stop on any wire, or
+ * when it only has one distinct neighbor (nothing to redistribute between).
+ */
+export function getLengthSplitDetail(
+  harness: HarnessData,
+  target: LengthSplitTarget,
+): LengthSplitDetail | null {
+  const matchesTarget = (node: PathNode): boolean =>
+    target.kind === 'connector'
+      ? node.kind === 'connector' && node.connector_id === target.connectorId
+      : node.kind === 'merge' && node.merge_point_id === target.mergePointId;
+
+  interface RawEntry {
+    pathId: string;
+    pathName: string;
+    segmentIndex: number;
+    lengthMm?: number;
+    neighborKey: string;
+    path: Path;
+    neighborIndex: number;
+    direction: 1 | -1;
+  }
+  const raw: RawEntry[] = [];
+  let targetNode: PathNode | undefined;
+
+  for (const path of harness.paths) {
+    path.nodes.forEach((node, index) => {
+      if (!matchesTarget(node)) return;
+      if (index <= 0 || index >= path.nodes.length - 1) return;
+      targetNode ??= node;
+      const beforeIndex = index - 1;
+      const afterIndex = index + 1;
+      raw.push({
+        pathId: path.id,
+        pathName: path.name,
+        segmentIndex: beforeIndex,
+        lengthMm: getPathSegmentMeasurement(path, beforeIndex)?.length_mm,
+        neighborKey: getPathNodeBundleKey(path.nodes[beforeIndex]),
+        path,
+        neighborIndex: beforeIndex,
+        direction: -1,
+      });
+      raw.push({
+        pathId: path.id,
+        pathName: path.name,
+        segmentIndex: index,
+        lengthMm: getPathSegmentMeasurement(path, index)?.length_mm,
+        neighborKey: getPathNodeBundleKey(path.nodes[afterIndex]),
+        path,
+        neighborIndex: afterIndex,
+        direction: 1,
+      });
+    });
+  }
+
+  if (!targetNode || raw.length === 0) return null;
+
+  const sidesByKey = new Map<string, LengthSplitSide>();
+  for (const entry of raw) {
+    let side = sidesByKey.get(entry.neighborKey);
+    if (!side) {
+      side = {
+        key: entry.neighborKey,
+        chain: buildLengthSplitChain(harness, entry.path, entry.neighborIndex, entry.direction),
+        instances: [],
+      };
+      sidesByKey.set(entry.neighborKey, side);
+    }
+    side.instances.push({
+      pathId: entry.pathId,
+      pathName: entry.pathName,
+      segmentIndex: entry.segmentIndex,
+      lengthMm: entry.lengthMm,
+    });
+  }
+
+  const sides = [...sidesByKey.values()];
+  if (sides.length < 2) return null;
+
+  return {
+    targetLabel: describeLengthSplitNode(harness, targetNode).label,
+    targetKind: targetNode.kind === 'connector' ? 'connector' : 'merge',
+    sides,
+  };
+}
+
+/** True when at least one wire already has a measured length on any side of the split node. */
+export function lengthSplitHasExistingLength(detail: LengthSplitDetail): boolean {
+  return detail.sides.some((side) =>
+    side.instances.some((instance) => instance.lengthMm !== undefined));
+}
+
+/**
  * Inverse of `splitHopMeasurements`: fold the `A -> mid` and `mid -> B` runs
  * back into a single `A -> B` run so dropping `mid` leaves every measurement on
  * an adjacent node pair.
@@ -804,6 +1045,40 @@ export function removePathNodeAt(path: Path, index: number): Path {
         && getPathNodeRefKey(measurement.to) !== midKey,
     );
   return { ...path, nodes, measurements };
+}
+
+/** Remove every occurrence of a connector from a path while rejoining each hop. */
+export function removeConnectorFromPath(path: Path, connectorId: string): Path {
+  let next = path;
+  for (let index = next.nodes.length - 1; index >= 0; index -= 1) {
+    const node = next.nodes[index];
+    if (node.kind === 'connector' && node.connector_id === connectorId) {
+      next = removePathNodeAt(next, index);
+    }
+  }
+  return next;
+}
+
+/**
+ * Delete an inline connector without deleting the wires routed through it.
+ * Valid through-paths retain their identity as `A -> inline -> B` collapses
+ * back to `A -> B`; one-node remnants from half-wired cavities are discarded.
+ */
+export function dissolveInlineConnector(
+  harness: HarnessData,
+  connectorId: string,
+): HarnessData {
+  if (!harness.connectors.some((connector) => connector.id === connectorId)) {
+    return harness;
+  }
+  const paths = harness.paths
+    .map((path) => removeConnectorFromPath(path, connectorId))
+    .filter((path) => path.nodes.length >= 2);
+  return {
+    ...harness,
+    connectors: harness.connectors.filter((connector) => connector.id !== connectorId),
+    paths,
+  };
 }
 
 /**

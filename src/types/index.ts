@@ -4,6 +4,15 @@ export interface Connector {
   parent: string | null;
   connector_type: string;
   /**
+   * Optional physical placement override.
+   *
+   * Legacy connectors omit this field: a connector directly owned by a
+   * container is treated as a bulkhead, while every other connector remains a
+   * normal endpoint. New free-hanging pass-through connectors persist
+   * `inline`, even when their spatial parent is a container enclosure.
+   */
+  mounting?: 'inline' | 'bulkhead';
+  /**
    * Selected cavity capacity. Family connectors persist one of their declared
    * housing sizes here; fixed types only use this as an optional override.
    * Occupancy is still derived from path nodes.
@@ -197,6 +206,11 @@ export interface SelectedBundle {
   id: string;
   pathIds: string[];
 }
+
+/** An inline connector or splice whose neighboring hop lengths can be redistributed. */
+export type LengthSplitTarget =
+  | { kind: 'connector'; connectorId: string }
+  | { kind: 'merge'; mergePointId: string };
 
 export interface NodeLayout {
   [nodeId: string]: { x: number; y: number };

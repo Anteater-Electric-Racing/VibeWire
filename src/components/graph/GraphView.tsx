@@ -23,7 +23,7 @@ import {
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { useHarnessStore } from '../../store';
-import type { ConnectorType } from '../../types';
+import type { ConnectorType, SelectedBundle, WaypointItem } from '../../types';
 import type { PresenceTargetKind } from '../../types/collab';
 import { EnclosureNode } from './EnclosureNode';
 import { ConnectorNode } from './ConnectorNode';
@@ -48,6 +48,9 @@ import {
   getSpaceFreeConnectors,
   getSpaceFreeMergePoints,
   getVisibleSegments,
+  isBulkheadConnector,
+  isInlineConnector,
+  isPassThroughConnector,
 } from '../../lib/harness';
 import { nearestOnPolyline, type Point } from '../../lib/paths';
 import {
@@ -88,6 +91,36 @@ const FREE_MERGE_PREFIX = '__freemerge_';
 const ORIGIN_ARM_PX = 56;
 const ORIGIN_SIZE = ORIGIN_ARM_PX * 2;
 const STANDARD_ZOOM = 1;
+const INLINE_DROP_RADIUS_PX = 32;
+
+function pointAtPolylineMidpoint(points: Point[]): Point | null {
+  if (points.length < 2) return points[0] ?? null;
+  const lengths = points.slice(0, -1).map((point, index) =>
+    Math.hypot(
+      points[index + 1].x - point.x,
+      points[index + 1].y - point.y,
+    )
+  );
+  const total = lengths.reduce((sum, length) => sum + length, 0);
+  if (total <= 0) return points[0];
+  const target = total / 2;
+  let traversed = 0;
+  for (let index = 0; index < lengths.length; index += 1) {
+    const length = lengths[index];
+    if (traversed + length < target) {
+      traversed += length;
+      continue;
+    }
+    const start = points[index];
+    const end = points[index + 1];
+    const ratio = length > 0 ? (target - traversed) / length : 0;
+    return {
+      x: start.x + (end.x - start.x) * ratio,
+      y: start.y + (end.y - start.y) * ratio,
+    };
+  }
+  return points[points.length - 1];
+}
 
 const OriginNode = memo(function OriginNode() {
   const c = ORIGIN_ARM_PX;
@@ -409,6 +442,10 @@ export function GraphView() {
   const updateNodePosition = useHarnessStore((s) => s.updateNodePosition);
   const updatePortLayout = useHarnessStore((s) => s.updatePortLayout);
   const updateFreePortLayout = useHarnessStore((s) => s.updateFreePortLayout);
+  const addInlineConnector = useHarnessStore((s) => s.addInlineConnector);
+  const insertInlineConnectorOnBundle = useHarnessStore(
+    (s) => s.insertInlineConnectorOnBundle,
+  );
   const updateBackground = useHarnessStore((s) => s.updateBackground);
   const backgroundLayouts = useHarnessStore((s) => s.backgroundLayouts);
   const selectedItem = useHarnessStore((s) => s.selectedItem);
@@ -452,12 +489,21 @@ export function GraphView() {
 
   const prevDragging = useRef(useHarnessStore.getState().draggingEdgeInfo);
   const reactFlowInstance = useRef<ReactFlowInstance<Node, Edge> | null>(null);
+  const graphContainerRef = useRef<HTMLDivElement | null>(null);
   const draggingNodes = useRef(new Set<string>());
   const didPushSnapshotForDrag = useRef(false);
   const nodesRef = useRef<Node[]>([]);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [lassoMode, setLassoMode] = useState(false);
   const [placingRoutePoints, setPlacingRoutePoints] = useState(false);
+  const inlineDropTarget = useRef<{
+    bundle: SelectedBundle;
+    point: Point;
+    bundleLayout: {
+      before: WaypointItem[];
+      after: WaypointItem[];
+    };
+  } | null>(null);
   const [pendingRoute, setPendingRoute] = useState<{
     from: { connector_id: string; pin_number: number };
     to: { connector_id: string; pin_number: number };
@@ -567,7 +613,7 @@ export function GraphView() {
           getConnectorTablePinCount(con, conType, occupiedPins.map((pin) => pin.pinNumber)),
           expandedSizeOverrides[con.id],
         );
-        const wallMounted = enc.container;
+        const wallMounted = isBulkheadConnector(harness, con.id);
 
         gNodes.push({
           id: `${ENC_CON_PREFIX}${con.id}`,
@@ -596,6 +642,7 @@ export function GraphView() {
             connectorTypeId: con.connector_type,
             instanceImage: getConnectorSchematicImage(con, conType, { bulkhead: wallMounted }) || '',
             wallMounted,
+            passThrough: isPassThroughConnector(harness, con),
           },
         } as Node);
       });
@@ -643,6 +690,7 @@ export function GraphView() {
           wireAppearance: getPortWireAppearance(harness, con),
           connectorTypeId: con.connector_type,
           instanceImage: getConnectorSchematicImage(con, conType, { bulkhead: false }) || '',
+          passThrough: isPassThroughConnector(harness, con),
         },
       } as Node);
     }
@@ -906,6 +954,172 @@ export function GraphView() {
     });
   }, [graphNodes, setNodes]);
   useEffect(() => { setEdges(graphEdges); }, [graphEdges, setEdges]);
+
+  const setInlineDropHighlight = useCallback((edgeId: string | null) => {
+    setEdges((current) => current.map((edge) => {
+      const highlighted = edge.id === edgeId;
+      if (!!edge.data?.inlineDropTarget === highlighted) return edge;
+      return {
+        ...edge,
+        data: { ...(edge.data ?? {}), inlineDropTarget: highlighted },
+      };
+    }));
+  }, [setEdges]);
+
+  const onNodeDrag = useCallback((_event: React.MouseEvent, node: Node) => {
+    if (
+      editingSurface !== 'hierarchy'
+      || !harness
+      || !node.id.startsWith(FREE_CON_PREFIX)
+    ) {
+      inlineDropTarget.current = null;
+      setInlineDropHighlight(null);
+      return;
+    }
+    const connectorId = node.id.slice(FREE_CON_PREFIX.length);
+    if (
+      !isInlineConnector(harness, connectorId)
+      || getConnectorOccupancy(harness, connectorId).length > 0
+    ) {
+      inlineDropTarget.current = null;
+      setInlineDropHighlight(null);
+      return;
+    }
+
+    const liveNodes = nodesRef.current.map((candidate) =>
+      candidate.id === node.id ? node : candidate
+    );
+    const connectorCenter = getAbsoluteNodeCenter(node.id, liveNodes);
+    if (!connectorCenter) return;
+    const zoom = reactFlowInstance.current?.getZoom() ?? 1;
+    const threshold = INLINE_DROP_RADIUS_PX / Math.max(zoom, 0.001);
+    let nearest: {
+      edge: Edge;
+      distance: number;
+      point: Point;
+      pathIds: string[];
+      segmentIndex: number;
+    } | null = null;
+
+    for (const edge of edges) {
+      if (edge.type !== 'bundle' || edge.source === node.id || edge.target === node.id) continue;
+      const source = getAbsoluteNodeCenter(edge.source, liveNodes);
+      const target = getAbsoluteNodeCenter(edge.target, liveNodes);
+      const pathIds = (edge.data?.pathIds as string[] | undefined) ?? [];
+      if (!source || !target || pathIds.length === 0) continue;
+      const waypoints = (edge.data?.resolvedWaypoints as Point[] | undefined) ?? [];
+      const result = nearestOnPolyline(connectorCenter, [source, ...waypoints, target]);
+      if (
+        result.dist <= threshold
+        && (!nearest || result.dist < nearest.distance)
+      ) {
+        nearest = {
+          edge,
+          distance: result.dist,
+          point: result.nearest,
+          pathIds,
+          segmentIndex: result.segIndex,
+        };
+      }
+    }
+
+    inlineDropTarget.current = nearest
+      ? {
+          bundle: { id: nearest.edge.id, pathIds: nearest.pathIds },
+          point: nearest.point,
+          bundleLayout: {
+            before: (waypointLayouts[nearest.edge.id] ?? []).slice(0, nearest.segmentIndex),
+            after: (waypointLayouts[nearest.edge.id] ?? []).slice(nearest.segmentIndex),
+          },
+        }
+      : null;
+    setInlineDropHighlight(nearest?.edge.id ?? null);
+  }, [editingSurface, edges, harness, setInlineDropHighlight, waypointLayouts]);
+
+  const onNodeDragStop = useCallback((_event: React.MouseEvent, node: Node) => {
+    const target = inlineDropTarget.current;
+    inlineDropTarget.current = null;
+    setInlineDropHighlight(null);
+    if (!target || !node.id.startsWith(FREE_CON_PREFIX)) return;
+    const style = node.style as { width?: number; height?: number } | undefined;
+    const width = node.measured?.width ?? node.width ?? style?.width ?? 140;
+    const height = node.measured?.height ?? node.height ?? style?.height ?? 32;
+    insertInlineConnectorOnBundle(
+      node.id.slice(FREE_CON_PREFIX.length),
+      target.bundle,
+      {
+        x: target.point.x - Number(width) / 2,
+        y: target.point.y - Number(height) / 2,
+      },
+      target.bundleLayout,
+    );
+  }, [insertInlineConnectorOnBundle, setInlineDropHighlight]);
+
+  const createInlineAtVisiblePosition = useCallback((bundle?: SelectedBundle) => {
+    if (editingSurface !== 'hierarchy') {
+      setMutationError('Inline connectors can only be inserted from the system hierarchy view.');
+      return;
+    }
+    const instance = reactFlowInstance.current;
+    if (!instance) return;
+    const rect = graphContainerRef.current?.getBoundingClientRect();
+    const visibleCenter = rect
+      ? instance.screenToFlowPosition({
+          x: rect.left + rect.width / 2,
+          y: rect.top + rect.height / 2,
+        })
+      : null;
+    let center: Point | null = visibleCenter;
+    let bundleLayout:
+      | {
+          before: WaypointItem[];
+          after: WaypointItem[];
+        }
+      | undefined;
+    if (bundle) {
+      const edge = edges.find((candidate) => candidate.id === bundle.id);
+      if (!edge) {
+        setMutationError('The selected bundle is no longer visible.');
+        return;
+      }
+      const source = getAbsoluteNodeCenter(edge.source, nodes);
+      const target = getAbsoluteNodeCenter(edge.target, nodes);
+      if (source && target) {
+        const waypoints = (edge.data?.resolvedWaypoints as Point[] | undefined) ?? [];
+        const polyline = [source, ...waypoints, target];
+        center = visibleCenter
+          ? nearestOnPolyline(visibleCenter, polyline).nearest
+          : pointAtPolylineMidpoint(polyline);
+        if (center) {
+          const splitIndex = nearestOnPolyline(center, polyline).segIndex;
+          const rawWaypoints = waypointLayouts[edge.id] ?? [];
+          bundleLayout = {
+            before: rawWaypoints.slice(0, splitIndex),
+            after: rawWaypoints.slice(splitIndex),
+          };
+        }
+      }
+    }
+    if (!center) {
+      setMutationError('Could not find a visible position for the inline connector.');
+      return;
+    }
+    setPlacingRoutePoints(false);
+    addInlineConnector({
+      parent: spaceId,
+      position: { x: center.x - 70, y: center.y - 16 },
+      ...(bundle ? { bundle } : {}),
+      ...(bundleLayout ? { bundleLayout } : {}),
+    });
+  }, [
+    addInlineConnector,
+    editingSurface,
+    edges,
+    nodes,
+    setMutationError,
+    spaceId,
+    waypointLayouts,
+  ]);
 
   // Auto-create junction when a waypoint is dropped near another edge
   useEffect(() => {
@@ -1341,10 +1555,7 @@ export function GraphView() {
     }
     const existingBulkheadSignalId = [from, to].map((endpoint) => {
       const connector = harness.connectors.find((item) => item.id === endpoint.connector_id);
-      const parent = connector?.parent
-        ? harness.enclosures.find((item) => item.id === connector.parent)
-        : undefined;
-      if (!connector || !parent?.container) return null;
+      if (!connector || !isPassThroughConnector(harness, connector)) return null;
       const stub = harness.paths.find((path) => {
         const nodeIndex = path.nodes.findIndex((node) =>
           node.kind === 'connector'
@@ -1410,11 +1621,13 @@ export function GraphView() {
   ]);
 
   return (
-    <div className="w-full h-full bg-zinc-950">
+    <div ref={graphContainerRef} className="w-full h-full bg-zinc-950">
       <ReactFlow
         nodes={nodes}
         edges={edges}
         onNodesChange={onNodesChange}
+        onNodeDrag={onNodeDrag}
+        onNodeDragStop={onNodeDragStop}
         onNodeClick={onNodeClick}
         onPaneClick={onPaneClick}
         onConnect={onConnect}
@@ -1479,6 +1692,22 @@ export function GraphView() {
         <Panel position="top-right">
           <div className="flex flex-col gap-1 items-end">
             <div className="flex gap-1">
+              {editingSurface === 'hierarchy' && (
+                <button
+                  type="button"
+                  disabled={!isEditor}
+                  className="flex items-center gap-1.5 rounded border border-zinc-600 bg-zinc-800/90 px-2 py-1 text-[11px] text-zinc-300 shadow transition-colors hover:border-amber-500 hover:bg-zinc-700 hover:text-amber-300 disabled:cursor-not-allowed disabled:opacity-40"
+                  onClick={() => createInlineAtVisiblePosition()}
+                  title={
+                    isEditor
+                      ? `Add a free-hanging connector ${spaceId ? 'inside this enclosure' : 'at system root'}`
+                      : 'Log in to add an inline connector'
+                  }
+                >
+                  <span>+</span>
+                  <span>Inline connector</span>
+                </button>
+              )}
               <button
                 className={`flex items-center gap-1.5 px-2 py-1 text-[11px] border rounded shadow transition-colors ${
                   lassoMode
@@ -1554,6 +1783,16 @@ export function GraphView() {
         {selectedBundle && isEditor && (
           <Panel position="bottom-center">
             <div className="flex items-center gap-2 px-3 py-1.5 bg-zinc-800/95 border border-zinc-600 rounded-lg shadow-lg">
+              {editingSurface === 'hierarchy' && (
+                <button
+                  type="button"
+                  className="rounded border border-zinc-600 bg-zinc-900 px-2 py-1 text-[10px] font-medium text-zinc-200 transition-colors hover:border-amber-500 hover:text-amber-300"
+                  onClick={() => createInlineAtVisiblePosition(selectedBundle)}
+                  title="Insert a free-hanging connector into every wire in this bundle"
+                >
+                  + Inline connector
+                </button>
+              )}
               <button
                 className={`rounded border px-2 py-1 text-[10px] font-medium transition-colors ${
                   placingRoutePoints

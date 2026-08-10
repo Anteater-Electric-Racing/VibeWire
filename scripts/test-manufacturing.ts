@@ -9,6 +9,7 @@ import {
   deriveManufacturingBundles,
   deriveManufacturingHarnesses,
   manufacturingComponentSteps,
+  manufacturingGenderBundleRelationship,
   manufacturingHopsMatch,
   manufacturingTaskCompleted,
   manufacturingBomToCsv,
@@ -229,6 +230,170 @@ assert.equal(
   cleared.bundles['bundle:connectors:con_b|con_c'].endpoint_genders?.con_b,
   undefined,
 );
+
+// A bulkhead has two physical sides even when one side spans several bundles.
+// Same-side bundles share a gender; bundles across the wall get the opposite.
+const bulkheadHarness: HarnessData = {
+  ...structuredClone(harness),
+  enclosures: [
+    {
+      id: 'enc_box',
+      name: 'Accumulator',
+      parent: null,
+      container: true,
+      tags: [],
+      properties: {},
+    },
+    {
+      id: 'dev_inside',
+      name: 'Internal PCB',
+      parent: 'enc_box',
+      container: false,
+      tags: [],
+      properties: {},
+    },
+  ],
+  connectors: [
+    {
+      ...structuredClone(harness.connectors[0]),
+      id: 'con_outside',
+      name: 'Outside Connector',
+      parent: null,
+    },
+    {
+      ...structuredClone(harness.connectors[0]),
+      id: 'con_bulkhead',
+      name: 'Bulkhead Connector',
+      parent: 'enc_box',
+    },
+    {
+      ...structuredClone(harness.connectors[1]),
+      id: 'con_inside',
+      name: 'Inside Connector',
+      parent: 'dev_inside',
+    },
+    {
+      ...structuredClone(harness.connectors[1]),
+      id: 'con_inside_2',
+      name: 'Second Inside Connector',
+      parent: 'dev_inside',
+    },
+  ],
+  paths: [
+    {
+      id: 'path_outside',
+      name: 'Outside leg',
+      tags: [],
+      properties: { wire_gauge: '20 AWG' },
+      nodes: [
+        { kind: 'connector', connector_id: 'con_outside', pin_number: 1 },
+        { kind: 'connector', connector_id: 'con_bulkhead', pin_number: 1 },
+      ],
+      measurements: [],
+    },
+    {
+      id: 'path_inside',
+      name: 'Inside leg',
+      tags: [],
+      properties: { wire_gauge: '20 AWG' },
+      nodes: [
+        { kind: 'connector', connector_id: 'con_bulkhead', pin_number: 2 },
+        { kind: 'connector', connector_id: 'con_inside', pin_number: 1 },
+      ],
+      measurements: [],
+    },
+    {
+      id: 'path_inside_2',
+      name: 'Second inside leg',
+      tags: [],
+      properties: { wire_gauge: '20 AWG' },
+      nodes: [
+        { kind: 'connector', connector_id: 'con_bulkhead', pin_number: 1 },
+        { kind: 'connector', connector_id: 'con_inside_2', pin_number: 1 },
+      ],
+      measurements: [],
+    },
+  ],
+};
+const bulkheadBundles = deriveManufacturingBundles(bulkheadHarness, library);
+const outsideBundle = bulkheadBundles.find((bundle) =>
+  bundle.connectorIds.includes('con_outside')
+);
+const insideBundle = bulkheadBundles.find((bundle) =>
+  bundle.connectorIds.includes('con_inside')
+);
+const secondInsideBundle = bulkheadBundles.find((bundle) =>
+  bundle.connectorIds.includes('con_inside_2')
+);
+assert.ok(outsideBundle);
+assert.ok(insideBundle);
+assert.ok(secondInsideBundle);
+const insideRelationship = manufacturingGenderBundleRelationship(
+  bulkheadHarness,
+  bulkheadBundles,
+  insideBundle.id,
+  'con_bulkhead',
+);
+assert.equal(insideRelationship.physicalSide, 'internal');
+assert.equal(insideRelationship.assignable, true);
+assert.deepEqual(insideRelationship.sameSideBundleIds, [secondInsideBundle.id]);
+assert.deepEqual(insideRelationship.mateBundleIds, [outsideBundle.id]);
+const mixedBulkheadBundle = {
+  ...outsideBundle,
+  id: 'bundle:test:mixed-bulkhead',
+  name: 'Mixed bulkhead topology',
+  wires: [...outsideBundle.wires, ...insideBundle.wires],
+};
+const mixedRelationship = manufacturingGenderBundleRelationship(
+  bulkheadHarness,
+  [mixedBulkheadBundle, secondInsideBundle],
+  mixedBulkheadBundle.id,
+  'con_bulkhead',
+);
+assert.equal(mixedRelationship.physicalSide, 'mixed');
+assert.equal(mixedRelationship.assignable, false);
+assert.deepEqual(mixedRelationship.sameSideBundleIds, []);
+assert.deepEqual(mixedRelationship.mateBundleIds, []);
+const bulkheadMates = matingBundleIdsForConnector(
+  bulkheadBundles,
+  outsideBundle.id,
+  'con_bulkhead',
+);
+assert.deepEqual(
+  [...bulkheadMates].sort(),
+  [insideBundle.id, secondInsideBundle.id].sort(),
+);
+const bulkheadGenderDocument = assignManufacturingEndpointGender(
+  { schema_version: '1.2.0', bundles: {} },
+  insideBundle.id,
+  'con_bulkhead',
+  'female',
+  [outsideBundle.id],
+  [secondInsideBundle.id],
+);
+const resolvedBulkheadBundles = deriveManufacturingBundles(
+  bulkheadHarness,
+  library,
+  bulkheadGenderDocument,
+);
+const outsideBulkheadEndpoint = resolvedBulkheadBundles
+  .find((bundle) => bundle.id === outsideBundle.id)
+  ?.wires.flatMap((wire) => [wire.from, wire.to])
+  .find((endpoint) => endpoint.connectorId === 'con_bulkhead');
+const insideBulkheadEndpoint = resolvedBulkheadBundles
+  .find((bundle) => bundle.id === insideBundle.id)
+  ?.wires.flatMap((wire) => [wire.from, wire.to])
+  .find((endpoint) => endpoint.connectorId === 'con_bulkhead');
+const secondInsideBulkheadEndpoint = resolvedBulkheadBundles
+  .find((bundle) => bundle.id === secondInsideBundle.id)
+  ?.wires.flatMap((wire) => [wire.from, wire.to])
+  .find((endpoint) => endpoint.connectorId === 'con_bulkhead');
+assert.equal(outsideBulkheadEndpoint?.terminalGender, 'male');
+assert.equal(outsideBulkheadEndpoint?.crimpPartNumber, 'CONTACT-M');
+assert.equal(insideBulkheadEndpoint?.terminalGender, 'female');
+assert.equal(insideBulkheadEndpoint?.crimpPartNumber, 'CONTACT-F');
+assert.equal(secondInsideBulkheadEndpoint?.terminalGender, 'female');
+assert.equal(secondInsideBulkheadEndpoint?.crimpPartNumber, 'CONTACT-F');
 
 // A path crossing a connector is two independent harness runs.
 const serialHarness = structuredClone(harness);

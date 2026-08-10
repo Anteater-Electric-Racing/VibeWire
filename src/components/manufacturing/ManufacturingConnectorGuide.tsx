@@ -33,6 +33,7 @@ export function ManufacturingConnectorGuide({
   library,
   manufacturing,
   isEditor,
+  genderAssignable,
   genderConflict,
   onInspect,
   onOpenLibrary,
@@ -46,6 +47,7 @@ export function ManufacturingConnectorGuide({
   library: ConnectorLibrary | null;
   manufacturing: ManufacturingDocument;
   isEditor: boolean;
+  genderAssignable: boolean;
   genderConflict?: string;
   onInspect: (item: SelectedItem) => void;
   onOpenLibrary: (typeId: string) => void;
@@ -112,7 +114,10 @@ export function ManufacturingConnectorGuide({
           </div>
         </button>
         <select
-          disabled={!isEditor}
+          disabled={!isEditor || (!genderAssignable && !gender)}
+          title={genderAssignable
+            ? undefined
+            : 'This side is ambiguous; only clearing an existing assignment is allowed'}
           value={gender ?? ''}
           onChange={(event) => onGenderChange(
             connectorId,
@@ -125,8 +130,8 @@ export function ManufacturingConnectorGuide({
           aria-label={`${connector.name} contact gender`}
         >
           <option value="">Choose gender…</option>
-          <option value="male">🍆 Male</option>
-          <option value="female">🍑 Female</option>
+          <option value="male" disabled={!genderAssignable}>🍆 Male</option>
+          <option value="female" disabled={!genderAssignable}>🍑 Female</option>
         </select>
       </div>
 

@@ -23,6 +23,8 @@ import {
   getPathSignalId,
   getPathWireAppearance,
   getPortWireAppearance,
+  isBulkheadConnector,
+  isPassThroughConnector,
 } from '../../lib/harness';
 import type { Point } from '../../lib/paths';
 import {
@@ -584,7 +586,7 @@ export function buildSubsystemGraphModel(
         : connector.parent;
       if (connectorFrameId !== enclosureId) continue;
       const connectorNodeId = `${SUBSYSTEM_CONNECTOR_PREFIX}${connector.id}`;
-      const wallMounted = parentEntity?.container === true;
+      const wallMounted = isBulkheadConnector(harness, connector.id);
       connectorNodeIds.set(connector.id, connectorNodeId);
       const resolved = resolveSubsystemConnectorLayout(
         connector.id,
@@ -604,7 +606,7 @@ export function buildSubsystemGraphModel(
         selectedItem?.type === 'connector' && selectedItem.id === connector.id,
         expandedSizeOverrides[connector.id],
         connectorTypesById.get(connector.connector_type),
-        false,
+        !wallMounted,
         wallMounted ? { w: layout.w ?? 520, h: layout.h ?? 360 } : undefined,
       ));
     }
@@ -817,6 +819,7 @@ function connectorNode(
       connectorTypeId: connector.connector_type,
       instanceImage: getConnectorSchematicImage(connector, connectorType, { bulkhead: wallMounted }) || '',
       wallMounted,
+      passThrough: isPassThroughConnector(harness, connector),
     },
   };
 }

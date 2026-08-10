@@ -66,7 +66,9 @@ The top bar switches between five surfaces:
 visible path segments between the same two endpoints collapse into a single bundle edge. Double-click
 a container enclosure in the tree to drill into it, and use the breadcrumbs to come back out. Wires
 support bend points and shared junctions. You can drop background images and text-box annotations
-onto any view.
+onto any view. **Inline connector** creates a free-hanging connector at root or in the current
+enclosure; drag an unused one onto a bundle, or select a bundle and choose **+ Inline connector**, to
+populate one cavity per wire without changing the underlying path identities.
 
 **Subsystem canvas** — a flat projection of one electrical subsystem (cooling, wheelspeed, and so
 on). Add enclosures, devices, and connectors from the hierarchy tree, arrange them freely, and drag

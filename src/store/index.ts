@@ -42,6 +42,7 @@ import {
   applyManufacturingTaskUpdates,
   applySpanTotalLength,
   assignManufacturingEndpointGender,
+  deriveManufacturingBundles,
   EMPTY_MANUFACTURING_DOCUMENT,
   MANUFACTURING_STEPS,
 } from '../lib/manufacturing';
@@ -67,15 +68,19 @@ import {
   getPathsTouchingConnector,
   getPreviousConnectorPinCount,
   getVisibleSegments,
+  isBulkheadConnector,
   isConnectorFamily,
+  isInlineConnector,
   nextMergePointId,
   normalizeConnectorKeying,
   parseBundleId,
+  dissolveInlineConnector,
   dissolveMergePoint,
   mergeConnectors,
   moveHierarchyEntity as relocateHierarchyEntity,
   removePathNodeAt,
   renumberConnectorPins,
+  splicePathWithConnector,
   splicePathWithMerge,
   type BulkheadWireSide,
   type HierarchyEntityKind,
@@ -179,6 +184,11 @@ export interface DeleteImpact {
   mergePointIds: string[];
   pathIds: string[];
   signalIds: string[];
+}
+
+interface InlineBundleSplitLayout {
+  before: WaypointItem[];
+  after: WaypointItem[];
 }
 
 const MAX_HISTORY = 60;
@@ -289,6 +299,18 @@ export interface HarnessStore {
   deleteSignalPropertyDefinition: (id: string) => void;
   addEnclosure: (input: Pick<Enclosure, 'name' | 'parent' | 'container'>) => string | null;
   addConnector: (parentId: string) => string | null;
+  addInlineConnector: (input: {
+    parent: string | null;
+    position: { x: number; y: number };
+    bundle?: SelectedBundle;
+    bundleLayout?: InlineBundleSplitLayout;
+  }) => string | null;
+  insertInlineConnectorOnBundle: (
+    connectorId: string,
+    bundle: SelectedBundle,
+    position: { x: number; y: number },
+    bundleLayout?: InlineBundleSplitLayout,
+  ) => boolean;
   /**
    * Reparent and/or reorder an enclosure, connector, or merge point in the
    * hierarchy tree. `beforeId` inserts before that same-kind sibling under
@@ -307,6 +329,7 @@ export interface HarnessStore {
     connectorId: string,
     gender: 'male' | 'female' | undefined,
     mateBundleIds: string[],
+    sameSideBundleIds?: string[],
   ) => void;
   addConnectorCavity: (connectorId: string) => void;
   removeConnectorCavity: (connectorId: string) => void;
@@ -560,6 +583,270 @@ function normalizeHarness(data: HarnessData): HarnessData {
   }
 
   return normalized;
+}
+
+function nextConnectorId(harness: HarnessData): string {
+  const existingIds = new Set([
+    ...harness.enclosures.map((item) => item.id),
+    ...harness.connectors.map((item) => item.id),
+    ...harness.mergePoints.map((item) => item.id),
+    ...harness.paths.map((item) => item.id),
+    ...harness.signals.map((item) => item.id),
+  ]);
+  let index = harness.connectors.length + 1;
+  let connectorId = `con_${String(index).padStart(3, '0')}`;
+  while (existingIds.has(connectorId)) {
+    index += 1;
+    connectorId = `con_${String(index).padStart(3, '0')}`;
+  }
+  return connectorId;
+}
+
+function nextInlineConnectorName(harness: HarnessData, parent: string | null): string {
+  const siblingNames = new Set(
+    harness.connectors
+      .filter((connector) => connector.parent === parent)
+      .map((connector) => connector.name),
+  );
+  const baseName = 'New Inline Connector';
+  if (!siblingNames.has(baseName)) return baseName;
+  let suffix = 2;
+  while (siblingNames.has(`${baseName} ${suffix}`)) suffix += 1;
+  return `${baseName} ${suffix}`;
+}
+
+function insertInlineConnectorIntoHarness(
+  source: HarnessData,
+  connectorId: string,
+  bundle: SelectedBundle,
+  connectorLibrary: ConnectorLibrary | null,
+): { harness?: HarnessData; error?: string } {
+  if (!parseBundleId(bundle.id)) {
+    return { error: 'This projected bundle cannot accept an inline connector.' };
+  }
+  const segments = getBundleSegments(source, bundle.id, bundle.pathIds)
+    .sort(
+      (left, right) =>
+        left.path.id.localeCompare(right.path.id, undefined, { numeric: true })
+        || left.segmentIndex - right.segmentIndex,
+    );
+  if (segments.length === 0) {
+    return { error: 'The selected bundle no longer contains any insertable wires.' };
+  }
+
+  const harness = structuredClone(source);
+  const connector = harness.connectors.find((candidate) => candidate.id === connectorId);
+  if (!connector || !isInlineConnector(harness, connector)) {
+    return { error: 'Only a free-hanging inline connector can be inserted into a bundle.' };
+  }
+  if (getConnectorOccupancy(harness, connector.id).length > 0) {
+    return { error: 'This inline connector is already populated.' };
+  }
+  if (segments.some((segment) =>
+    segment.path.nodes.some(
+      (node) => node.kind === 'connector' && node.connector_id === connector.id,
+    )
+  )) {
+    return { error: 'The selected bundle already passes through this connector.' };
+  }
+
+  const connectorType = connectorLibrary?.connector_types.find(
+    (candidate) => candidate.id === connector.connector_type,
+  );
+  applyConnectorPinCount(connector, connectorType, segments.length);
+  normalizeConnectorKeying(connector, connectorType);
+  if (getEffectivePinCount(connector, connectorType) < segments.length) {
+    return {
+      error: `${connector.name} cannot fit this ${segments.length}-wire bundle. Choose a larger connector type.`,
+    };
+  }
+
+  const pinByPathId = new Map(
+    segments.map((segment, index) => [segment.path.id, index + 1]),
+  );
+  let changedCount = 0;
+  harness.paths = harness.paths.map((path) => {
+    const pinNumber = pinByPathId.get(path.id);
+    if (pinNumber === undefined) return path;
+    const next = splicePathWithConnector(
+      path,
+      bundle.id,
+      connector.id,
+      pinNumber,
+    );
+    if (next !== path) changedCount += 1;
+    return next;
+  });
+  if (changedCount !== segments.length) {
+    return { error: 'The bundle changed before every wire could be populated.' };
+  }
+  return { harness };
+}
+
+function removeBundlePresentation(
+  waypointLayouts: WaypointLayouts,
+  junctionLayouts: JunctionLayouts,
+  edgeIds: ReadonlySet<string>,
+): { waypointLayouts: WaypointLayouts; junctionLayouts: JunctionLayouts } {
+  if (edgeIds.size === 0) return { waypointLayouts, junctionLayouts };
+  const nextWaypoints = { ...waypointLayouts };
+  for (const edgeId of edgeIds) delete nextWaypoints[edgeId];
+  const nextJunctions = structuredClone(junctionLayouts);
+  for (const [junctionId, junction] of Object.entries(nextJunctions)) {
+    junction.memberEdgeIds = junction.memberEdgeIds.filter((edgeId) => !edgeIds.has(edgeId));
+    if (junction.memberEdgeIds.length === 0) delete nextJunctions[junctionId];
+  }
+  return { waypointLayouts: nextWaypoints, junctionLayouts: nextJunctions };
+}
+
+function bundleIdForRefs(left: string, right: string): string {
+  return left < right
+    ? `bundle:${left}|${right}`
+    : `bundle:${right}|${left}`;
+}
+
+function replaceBundlePresentationForInline(
+  waypointLayouts: WaypointLayouts,
+  junctionLayouts: JunctionLayouts,
+  oldEdgeId: string,
+  connectorId: string,
+  split: InlineBundleSplitLayout | undefined,
+): { waypointLayouts: WaypointLayouts; junctionLayouts: JunctionLayouts } {
+  const parsed = parseBundleId(oldEdgeId);
+  if (!parsed || !split) {
+    return removeBundlePresentation(
+      waypointLayouts,
+      junctionLayouts,
+      new Set([oldEdgeId]),
+    );
+  }
+
+  const connectorRef = `connector:${connectorId}`;
+  const beforeId = bundleIdForRefs(parsed.sourceRefKey, connectorRef);
+  const afterId = bundleIdForRefs(connectorRef, parsed.targetRefKey);
+  const before = parsed.sourceRefKey < connectorRef
+    ? [...split.before]
+    : [...split.before].reverse();
+  const after = connectorRef < parsed.targetRefKey
+    ? [...split.after]
+    : [...split.after].reverse();
+  const nextWaypoints = { ...waypointLayouts };
+  delete nextWaypoints[oldEdgeId];
+  if (before.length > 0) nextWaypoints[beforeId] = before;
+  if (after.length > 0) nextWaypoints[afterId] = after;
+
+  const junctionIdsFor = (waypoints: WaypointItem[]) => new Set(
+    waypoints.flatMap((waypoint) => (
+      'junctionId' in waypoint ? [waypoint.junctionId] : []
+    )),
+  );
+  const beforeJunctionIds = junctionIdsFor(before);
+  const afterJunctionIds = junctionIdsFor(after);
+  const nextJunctions = structuredClone(junctionLayouts);
+  for (const [junctionId, junction] of Object.entries(nextJunctions)) {
+    if (!junction.memberEdgeIds.includes(oldEdgeId)) continue;
+    const members = junction.memberEdgeIds.filter((edgeId) => edgeId !== oldEdgeId);
+    if (beforeJunctionIds.has(junctionId)) members.push(beforeId);
+    if (afterJunctionIds.has(junctionId)) members.push(afterId);
+    junction.memberEdgeIds = [...new Set(members)];
+    if (junction.memberEdgeIds.length === 0) delete nextJunctions[junctionId];
+  }
+  return { waypointLayouts: nextWaypoints, junctionLayouts: nextJunctions };
+}
+
+function rejoinBundlePresentationAfterInline(
+  waypointLayouts: WaypointLayouts,
+  junctionLayouts: JunctionLayouts,
+  harness: HarnessData,
+  connectorId: string,
+): { waypointLayouts: WaypointLayouts; junctionLayouts: JunctionLayouts } {
+  const connectorRef = `connector:${connectorId}`;
+  const pairs = new Map<string, { left: string; right: string }>();
+  for (const path of harness.paths) {
+    path.nodes.forEach((node, index) => {
+      if (
+        node.kind !== 'connector'
+        || node.connector_id !== connectorId
+        || index === 0
+        || index === path.nodes.length - 1
+      ) {
+        return;
+      }
+      const left = getPathNodeBundleKey(path.nodes[index - 1]);
+      const right = getPathNodeBundleKey(path.nodes[index + 1]);
+      const key = [left, right].sort().join('|');
+      pairs.set(key, { left, right });
+    });
+  }
+  if (pairs.size === 0) return { waypointLayouts, junctionLayouts };
+
+  const nextWaypoints = { ...waypointLayouts };
+  const nextJunctions = structuredClone(junctionLayouts);
+  const oriented = (edgeId: string, from: string): WaypointItem[] => {
+    const parsed = parseBundleId(edgeId);
+    const waypoints = nextWaypoints[edgeId] ?? [];
+    return parsed?.sourceRefKey === from ? [...waypoints] : [...waypoints].reverse();
+  };
+
+  for (const { left, right } of pairs.values()) {
+    const leftEdgeId = bundleIdForRefs(left, connectorRef);
+    const rightEdgeId = bundleIdForRefs(connectorRef, right);
+    const joinedEdgeId = bundleIdForRefs(left, right);
+    const joinedInPathOrder = [
+      ...oriented(leftEdgeId, left),
+      ...oriented(rightEdgeId, connectorRef),
+    ];
+    const joined = left < right
+      ? joinedInPathOrder
+      : [...joinedInPathOrder].reverse();
+    delete nextWaypoints[leftEdgeId];
+    delete nextWaypoints[rightEdgeId];
+    if (joined.length > 0) nextWaypoints[joinedEdgeId] = joined;
+
+    const joinedJunctionIds = new Set(
+      joined.flatMap((waypoint) => (
+        'junctionId' in waypoint ? [waypoint.junctionId] : []
+      )),
+    );
+    for (const [junctionId, junction] of Object.entries(nextJunctions)) {
+      const touched =
+        junction.memberEdgeIds.includes(leftEdgeId)
+        || junction.memberEdgeIds.includes(rightEdgeId);
+      if (!touched) continue;
+      const members = junction.memberEdgeIds.filter(
+        (edgeId) => edgeId !== leftEdgeId && edgeId !== rightEdgeId,
+      );
+      if (joinedJunctionIds.has(junctionId)) members.push(joinedEdgeId);
+      junction.memberEdgeIds = [...new Set(members)];
+      if (junction.memberEdgeIds.length === 0) delete nextJunctions[junctionId];
+    }
+  }
+  return { waypointLayouts: nextWaypoints, junctionLayouts: nextJunctions };
+}
+
+function pruneReplacedManufacturingBundles(
+  document: ManufacturingDocument,
+  before: HarnessData,
+  after: HarnessData,
+  connectorLibrary: ConnectorLibrary | null,
+  affectedPathIds: Iterable<string>,
+): ManufacturingDocument {
+  const affected = new Set(affectedPathIds);
+  if (affected.size === 0) return document;
+  const replacedIds = new Set(
+    deriveManufacturingBundles(before, connectorLibrary, document)
+      .filter((bundle) => bundle.wires.some((wire) => affected.has(wire.pathId)))
+      .map((bundle) => bundle.id),
+  );
+  const validAfterIds = new Set(
+    deriveManufacturingBundles(after, connectorLibrary, document)
+      .map((bundle) => bundle.id),
+  );
+  const removedIds = [...replacedIds].filter((bundleId) => !validAfterIds.has(bundleId));
+  if (removedIds.length === 0) return document;
+  const bundles = { ...document.bundles };
+  for (const bundleId of removedIds) delete bundles[bundleId];
+  return { ...document, bundles };
 }
 
 function setPathSegmentLength(
@@ -1780,7 +2067,7 @@ export const useHarnessStore = create<HarnessStore>(readOnlyMiddleware((set, get
             connectorLayout,
             { w: 96, h: 36 },
           ),
-          wallMounted: parentEntity?.container === true,
+          wallMounted: isBulkheadConnector(harness, connector.id),
         });
       }
     }
@@ -1898,7 +2185,8 @@ export const useHarnessStore = create<HarnessStore>(readOnlyMiddleware((set, get
       };
     };
     const nextConnectorLayout = (connectorId: string) => {
-      const systemPort = state.portLayouts[connectorId];
+      const systemPort =
+        state.portLayouts[connectorId] ?? state.freePortLayouts[connectorId];
       const systemSize = state.sizeLayouts[connectorId];
       if (systemPort) {
         return {
@@ -2083,6 +2371,13 @@ export const useHarnessStore = create<HarnessStore>(readOnlyMiddleware((set, get
       set({ mutationError: 'Both bulkheads must exist to merge.' });
       return null;
     }
+    if (
+      !isBulkheadConnector(state.harness, sourceConnector.id)
+      || !isBulkheadConnector(state.harness, targetConnector.id)
+    ) {
+      set({ mutationError: 'Only wall-mounted bulkheads can be merged.' });
+      return null;
+    }
     // Prefer keeping authored hardware over a generated placeholder.
     let absorbId = sourceId;
     let keepId = targetId;
@@ -2161,10 +2456,22 @@ export const useHarnessStore = create<HarnessStore>(readOnlyMiddleware((set, get
     const mergePointIds = new Set(impact.mergePointIds);
     const pathIds = new Set(impact.pathIds);
     const signalIds = new Set(impact.signalIds);
+    const dissolveInline =
+      type === 'connector' && isInlineConnector(state.harness, id);
+    const dissolvedPathIds = dissolveInline
+      ? state.harness.paths
+          .filter((path) => path.nodes.some(
+            (node) => node.kind === 'connector' && node.connector_id === id,
+          ))
+          .map((path) => path.id)
+      : [];
 
-    // Dissolve splices first so neighbors reconnect (A–splice–B → A–B) instead
-    // of wiping every path that touched the merge point.
+    // Dissolve semantic pass-throughs first so their neighbors reconnect
+    // instead of wiping every path that touched them.
     let harness = structuredClone(state.harness);
+    if (dissolveInline) {
+      harness = dissolveInlineConnector(harness, id);
+    }
     for (const mergePointId of impact.mergePointIds) {
       harness = dissolveMergePoint(harness, mergePointId);
     }
@@ -2177,7 +2484,48 @@ export const useHarnessStore = create<HarnessStore>(readOnlyMiddleware((set, get
       signals: harness.signals.filter((item) => !signalIds.has(item.id)),
     };
 
-    const layoutCleanup = cleanLayoutsForRemovedMergePoints(state, impact.mergePointIds);
+    const inlinePresentation = dissolveInline
+      ? rejoinBundlePresentationAfterInline(
+          state.waypointLayouts,
+          state.junctionLayouts,
+          state.harness,
+          id,
+        )
+      : {
+          waypointLayouts: state.waypointLayouts,
+          junctionLayouts: state.junctionLayouts,
+        };
+    const mergeLayoutCleanup = cleanLayoutsForRemovedMergePoints({
+      mergePointLayouts: state.mergePointLayouts,
+      ...inlinePresentation,
+    }, impact.mergePointIds);
+    const removedConnectorRefs = new Set(
+      [...connectorIds].map((connectorId) => `connector:${connectorId}`),
+    );
+    const removedEdgeIds = new Set(
+      Object.keys(mergeLayoutCleanup.waypointLayouts).filter((edgeId) => {
+        const parsed = parseBundleId(edgeId);
+        return !!parsed && (
+          removedConnectorRefs.has(parsed.sourceRefKey)
+          || removedConnectorRefs.has(parsed.targetRefKey)
+        );
+      }),
+    );
+    const presentationCleanup = removeBundlePresentation(
+      mergeLayoutCleanup.waypointLayouts,
+      mergeLayoutCleanup.junctionLayouts,
+      removedEdgeIds,
+    );
+    const portLayouts = { ...state.portLayouts };
+    const freePortLayouts = { ...state.freePortLayouts };
+    const sizeLayouts = { ...state.sizeLayouts };
+    const rotationLayouts = { ...state.rotationLayouts };
+    for (const connectorId of connectorIds) {
+      delete portLayouts[connectorId];
+      delete freePortLayouts[connectorId];
+      delete sizeLayouts[connectorId];
+      delete rotationLayouts[connectorId];
+    }
     const subsystems = Object.fromEntries(Object.entries(state.subsystems).map(([subsystemId, subsystem]) => [
       subsystemId,
       {
@@ -2185,12 +2533,30 @@ export const useHarnessStore = create<HarnessStore>(readOnlyMiddleware((set, get
         enclosures: Object.fromEntries(Object.entries(subsystem.enclosures).filter(([entityId]) => !enclosureIds.has(entityId))),
         devices: Object.fromEntries(Object.entries(subsystem.devices).filter(([entityId]) => !enclosureIds.has(entityId))),
         connectors: Object.fromEntries(Object.entries(subsystem.connectors).filter(([entityId]) => !connectorIds.has(entityId))),
+        hidden_connectors: (subsystem.hidden_connectors ?? []).filter(
+          (connectorId) => !connectorIds.has(connectorId),
+        ),
       },
     ]));
+    const manufacturing = dissolveInline
+      ? pruneReplacedManufacturingBundles(
+          state.manufacturing,
+          state.harness,
+          harness,
+          state.connectorLibrary,
+          dissolvedPathIds,
+        )
+      : state.manufacturing;
     return historyPatch(state, {
       harness,
+      manufacturing,
       subsystems,
-      ...layoutCleanup,
+      mergePointLayouts: mergeLayoutCleanup.mergePointLayouts,
+      ...presentationCleanup,
+      portLayouts,
+      freePortLayouts,
+      sizeLayouts,
+      rotationLayouts,
       selectedItem: null,
       selectedBundle: null,
       isDirty: true,
@@ -2574,6 +2940,7 @@ export const useHarnessStore = create<HarnessStore>(readOnlyMiddleware((set, get
       name,
       parent: parentId,
       connector_type: GENERIC_MULTIPIN_TYPE_ID,
+      ...(isBulkhead ? { mounting: 'bulkhead' as const } : {}),
       pin_count: 1,
       tags: isBulkhead ? ['zone:bulkhead'] : [],
       properties: { ...genericDefaults },
@@ -2640,11 +3007,150 @@ export const useHarnessStore = create<HarnessStore>(readOnlyMiddleware((set, get
 
     return connectorId;
   },
+  addInlineConnector: (input) => {
+    const state = get();
+    if (!state.harness) return null;
+    if (state.collabAvailable && !state.session.isEditor) {
+      set({ mutationError: 'Log in to edit' });
+      return null;
+    }
+    if (input.parent !== null) {
+      const parent = state.harness.enclosures.find(
+        (candidate) => candidate.id === input.parent,
+      );
+      if (!parent?.container) {
+        set({ mutationError: 'Inline connectors can only float at root or inside an enclosure.' });
+        return null;
+      }
+    }
+
+    const connectorId = nextConnectorId(state.harness);
+    const genericDefaults = state.connectorLibrary?.connector_types.find(
+      (type) => type.id === GENERIC_MULTIPIN_TYPE_ID,
+    )?.default_properties ?? {};
+    const connector: Connector = {
+      id: connectorId,
+      name: nextInlineConnectorName(state.harness, input.parent),
+      parent: input.parent,
+      connector_type: GENERIC_MULTIPIN_TYPE_ID,
+      mounting: 'inline',
+      pin_count: 1,
+      tags: [],
+      properties: { ...genericDefaults },
+    };
+    const withConnector = structuredClone(state.harness);
+    withConnector.connectors.push(connector);
+    const insertion = input.bundle
+      ? insertInlineConnectorIntoHarness(
+          withConnector,
+          connectorId,
+          input.bundle,
+          state.connectorLibrary,
+        )
+      : { harness: withConnector };
+    if (!insertion.harness) {
+      set({ mutationError: insertion.error ?? 'Could not insert the inline connector.' });
+      return null;
+    }
+
+    const presentation = input.bundle
+      ? replaceBundlePresentationForInline(
+          state.waypointLayouts,
+          state.junctionLayouts,
+          input.bundle.id,
+          connectorId,
+          input.bundleLayout,
+        )
+      : {
+          waypointLayouts: state.waypointLayouts,
+          junctionLayouts: state.junctionLayouts,
+        };
+    const manufacturing = input.bundle
+      ? pruneReplacedManufacturingBundles(
+          state.manufacturing,
+          state.harness,
+          insertion.harness,
+          state.connectorLibrary,
+          input.bundle.pathIds,
+        )
+      : state.manufacturing;
+    set((current) => historyPatch(current, {
+      harness: insertion.harness!,
+      manufacturing,
+      freePortLayouts: {
+        ...current.freePortLayouts,
+        [connectorId]: input.position,
+      },
+      ...presentation,
+      selectedItem: { type: 'connector', id: connectorId },
+      selectedBundle: null,
+      selectedTextBoxId: null,
+      mutationError: null,
+      isDirty: true,
+    }, `connector:${connectorId}:add-inline`));
+    return connectorId;
+  },
+  insertInlineConnectorOnBundle: (connectorId, bundle, position, bundleLayout) => {
+    const state = get();
+    if (!state.harness) return false;
+    if (state.collabAvailable && !state.session.isEditor) {
+      set({ mutationError: 'Log in to edit' });
+      return false;
+    }
+    const insertion = insertInlineConnectorIntoHarness(
+      state.harness,
+      connectorId,
+      bundle,
+      state.connectorLibrary,
+    );
+    if (!insertion.harness) {
+      set({ mutationError: insertion.error ?? 'Could not populate the inline connector.' });
+      return false;
+    }
+    const presentation = replaceBundlePresentationForInline(
+      state.waypointLayouts,
+      state.junctionLayouts,
+      bundle.id,
+      connectorId,
+      bundleLayout,
+    );
+    const manufacturing = pruneReplacedManufacturingBundles(
+      state.manufacturing,
+      state.harness,
+      insertion.harness,
+      state.connectorLibrary,
+      bundle.pathIds,
+    );
+    set((current) => historyPatch(current, {
+      harness: insertion.harness!,
+      manufacturing,
+      freePortLayouts: {
+        ...current.freePortLayouts,
+        [connectorId]: position,
+      },
+      ...presentation,
+      selectedItem: { type: 'connector', id: connectorId },
+      selectedBundle: null,
+      selectedTextBoxId: null,
+      mutationError: null,
+      isDirty: true,
+    }, `connector:${connectorId}:insert-inline`));
+    return true;
+  },
   moveHierarchyEntity: (type, id, newParentId, beforeId = null) => {
     const state = get();
     if (!state.harness) return false;
     if (state.collabAvailable && !state.session.isEditor) {
       set({ mutationError: 'Log in to edit' });
+      return false;
+    }
+    if (
+      type === 'connector'
+      && isInlineConnector(state.harness, id)
+      && newParentId !== null
+      && !state.harness.enclosures.find((candidate) => candidate.id === newParentId)?.container
+    ) {
+      set({ mutationError: 'Inline connectors can only float at root or inside an enclosure.' });
       return false;
     }
     try {
@@ -3080,6 +3586,7 @@ export const useHarnessStore = create<HarnessStore>(readOnlyMiddleware((set, get
     connectorId,
     gender,
     mateBundleIds,
+    sameSideBundleIds,
   ) => set((state) => historyPatch(state, {
     manufacturing: assignManufacturingEndpointGender(
       state.manufacturing,
@@ -3087,6 +3594,7 @@ export const useHarnessStore = create<HarnessStore>(readOnlyMiddleware((set, get
       connectorId,
       gender,
       mateBundleIds,
+      sameSideBundleIds,
     ),
     isDirty: true,
   }, `manufacturing:${bundleId}:gender:${connectorId}`)),
@@ -3569,7 +4077,9 @@ export const useHarnessStore = create<HarnessStore>(readOnlyMiddleware((set, get
       }
 
       const directConnectors = harness.connectors.filter(
-        (connector) => connector.parent === nodeId,
+        (connector) =>
+          connector.parent === nodeId
+          && (!entity.container || isBulkheadConnector(harness, connector.id)),
       );
       const connectorInputs = directConnectors.map((connector, index) => {
         const position = state.portLayouts[connector.id] ?? {
@@ -3585,7 +4095,7 @@ export const useHarnessStore = create<HarnessStore>(readOnlyMiddleware((set, get
             state.sizeLayouts[connector.id],
             { w: 100, h: 32 },
           ),
-          wallMounted: entity.container,
+          wallMounted: isBulkheadConnector(harness, connector.id),
         } satisfies ParentResizeConnector;
       });
       const resolvedResize = resolveParentResizeWithConnectorShove(
@@ -4210,17 +4720,29 @@ function collectDeleteImpact(
     pathIds.add(id);
   }
 
-  // Paths are cascade-deleted when they touch deleted connectors. Merge points
-  // are dissolved instead — only unpairable remnants disappear.
-  for (const wirePath of harness.paths) {
-    if (wirePath.nodes.some((node) =>
-      node.kind === 'connector' && connectorIds.has(node.connector_id),
-    )) {
-      pathIds.add(wirePath.id);
+  const dissolvesInline =
+    type === 'connector' && isInlineConnector(harness, id);
+  // Endpoint connectors cascade their paths. A directly deleted inline
+  // connector is dissolved instead; enclosure cascades retain the old behavior.
+  if (!dissolvesInline) {
+    for (const wirePath of harness.paths) {
+      if (wirePath.nodes.some((node) =>
+        node.kind === 'connector' && connectorIds.has(node.connector_id),
+      )) {
+        pathIds.add(wirePath.id);
+      }
     }
   }
 
-  let harnessAfterDissolve = harness;
+  let harnessAfterDissolve = dissolvesInline
+    ? dissolveInlineConnector(harness, id)
+    : harness;
+  if (dissolvesInline) {
+    const remainingPathIds = new Set(harnessAfterDissolve.paths.map((path) => path.id));
+    for (const path of harness.paths) {
+      if (!remainingPathIds.has(path.id)) pathIds.add(path.id);
+    }
+  }
   for (const mergePointId of mergePointIds) {
     const beforeIds = new Set(harnessAfterDissolve.paths.map((path) => path.id));
     harnessAfterDissolve = dissolveMergePoint(harnessAfterDissolve, mergePointId);

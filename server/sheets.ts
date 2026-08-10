@@ -47,6 +47,11 @@ export interface Connector {
   name: string;
   parent: string | null;
   connector_type: string;
+  /**
+   * Optional placement override. Missing values preserve the legacy rule that
+   * direct children of container enclosures are bulkheads.
+   */
+  mounting?: 'inline' | 'bulkhead';
   /** Selected family housing capacity, or an optional fixed-type override. */
   pin_count?: number;
   /** Optional mechanical key selected for a family housing. */
@@ -147,6 +152,8 @@ export interface BulkheadPort {
   entity_kind: 'connector' | 'merge';
   connector_id?: string;
   connector_type?: string;
+  /** Placement override copied from a connector when present. */
+  mounting?: 'inline' | 'bulkhead';
   /** Instance cavity override copied from the derived connector when present. */
   pin_count?: number;
   /** Mechanical key copied from the derived connector when present. */
@@ -397,6 +404,7 @@ function assembleFromLoader(
           name: port.name,
           parent: port.entity_parent ?? port.target_child_id,
           connector_type: port.connector_type ?? '',
+          ...(port.mounting ? { mounting: port.mounting } : {}),
           ...(port.pin_count != null ? { pin_count: port.pin_count } : {}),
           ...(port.keying ? { keying: port.keying } : {}),
           tags: port.tags ?? [],
@@ -597,6 +605,7 @@ export function splitHarness(harness: HarnessData, sheetEnclosureIds: Set<string
           entity_kind: 'connector',
           connector_id: con.id,
           connector_type: con.connector_type || undefined,
+          ...(con.mounting ? { mounting: con.mounting } : {}),
           ...(con.pin_count != null ? { pin_count: con.pin_count } : {}),
           ...(con.keying ? { keying: con.keying } : {}),
           tags: con.tags,
@@ -912,6 +921,7 @@ export function verifyRoundTrip(original: HarnessData, split: SplitResult, sheet
       con.parent !== next.parent
       || con.name !== next.name
       || (con.connector_type || '') !== (next.connector_type || '')
+      || (con.mounting ?? null) !== (next.mounting ?? null)
       || origPinCount !== nextPinCount
       || (con.keying ?? null) !== (next.keying ?? null)
     ) {

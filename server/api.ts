@@ -403,10 +403,20 @@ function getPathNodeRefKey(node: PathNode): string {
 type BulkheadSide = 'internal' | 'external';
 
 function isBulkheadConnector(harness: HarnessData, connector: Connector): boolean {
+  if (connector.mounting === 'inline') return false;
+  if (connector.mounting === 'bulkhead') return true;
   return connector.parent !== null
     && harness.enclosures.some(
       (enclosure) => enclosure.id === connector.parent && enclosure.container,
     );
+}
+
+function isInlineConnector(connector: Connector): boolean {
+  return connector.mounting === 'inline';
+}
+
+function isPassThroughConnector(harness: HarnessData, connector: Connector): boolean {
+  return isInlineConnector(connector) || isBulkheadConnector(harness, connector);
 }
 
 function isParentInsideEnclosure(
@@ -563,6 +573,21 @@ export function validateHarnessData(harness: HarnessData, library: ConnectorLibr
   for (const connector of harness.connectors) {
     if (connector.parent && !enclosureIds.has(connector.parent)) {
       warnings.push(`Connector '${connector.id}' parent '${connector.parent}' is not an enclosure`);
+    }
+    if (
+      connector.mounting !== undefined
+      && connector.mounting !== 'inline'
+      && connector.mounting !== 'bulkhead'
+    ) {
+      errors.push(`Connector '${connector.id}' has invalid mounting '${String(connector.mounting)}'`);
+    }
+    if (connector.mounting === 'bulkhead') {
+      const parent = connector.parent
+        ? harness.enclosures.find((enclosure) => enclosure.id === connector.parent)
+        : undefined;
+      if (!parent?.container) {
+        errors.push(`Connector '${connector.id}' is marked as a bulkhead without a container parent`);
+      }
     }
     if (connector.connector_type && !connectorTypeById.has(connector.connector_type)) {
       warnings.push(`Connector '${connector.id}' references unknown connector type '${connector.connector_type}'`);
@@ -2269,7 +2294,7 @@ export function createApiMiddleware(projectRoot: string) {
             && !(isBulkheadConnector(harness, toConnector) && toConnector.parent === scope)
           );
 
-          type BulkheadJoin = {
+          type PassThroughJoin = {
             pathId: string;
             nodeIndex: number;
           };
@@ -2277,7 +2302,7 @@ export function createApiMiddleware(projectRoot: string) {
             connector: Connector,
             pinNumber: number,
             otherConnector: Connector,
-          ): BulkheadJoin | null => {
+          ): PassThroughJoin | null => {
             const uses = harness.paths.flatMap((wirePath) =>
               wirePath.nodes.flatMap((node, nodeIndex) =>
                 node.kind === 'connector'
@@ -2288,7 +2313,7 @@ export function createApiMiddleware(projectRoot: string) {
               )
             );
             if (uses.length === 0) return null;
-            if (!isBulkheadConnector(harness, connector) || uses.length !== 1) {
+            if (!isPassThroughConnector(harness, connector) || uses.length !== 1) {
               throw new ApiWriteError(409, {
                 error: `Cannot route from or to occupied cavity ${connector.name}:${pinNumber}`,
               });
@@ -2297,26 +2322,28 @@ export function createApiMiddleware(projectRoot: string) {
             const [{ wirePath, nodeIndex }] = uses;
             if (nodeIndex !== 0 && nodeIndex !== wirePath.nodes.length - 1) {
               throw new ApiWriteError(409, {
-                error: `Bulkhead cavity ${connector.name}:${pinNumber} already has internal and external connections`,
+                error: `${isInlineConnector(connector) ? 'Inline connector' : 'Bulkhead'} cavity ${connector.name}:${pinNumber} already has both connections`,
               });
             }
             const neighbor = wirePath.nodes[nodeIndex === 0 ? 1 : nodeIndex - 1];
             if (!neighbor) {
               throw new ApiWriteError(409, {
-                error: `Bulkhead cavity ${connector.name}:${pinNumber} has an invalid existing path`,
+                error: `Pass-through cavity ${connector.name}:${pinNumber} has an invalid existing path`,
               });
             }
-            const existingSide = getBulkheadConnectionSide(harness, connector, neighbor);
-            const requestedSide = getBulkheadConnectionSide(harness, connector, otherConnector);
-            if (existingSide === requestedSide) {
-              throw new ApiWriteError(409, {
-                error: `Bulkhead cavity ${connector.name}:${pinNumber} already has an ${requestedSide} connection`,
-              });
+            if (isBulkheadConnector(harness, connector)) {
+              const existingSide = getBulkheadConnectionSide(harness, connector, neighbor);
+              const requestedSide = getBulkheadConnectionSide(harness, connector, otherConnector);
+              if (existingSide === requestedSide) {
+                throw new ApiWriteError(409, {
+                  error: `Bulkhead cavity ${connector.name}:${pinNumber} already has an ${requestedSide} connection`,
+                });
+              }
             }
             const existingSignalId = getPathSignalId(wirePath);
             if (existingSignalId && existingSignalId !== body.signal_id) {
               throw new ApiWriteError(409, {
-                error: `The opposite side of bulkhead cavity ${connector.name}:${pinNumber} uses signal ${existingSignalId}`,
+                error: `The opposite side of ${connector.name}:${pinNumber} uses signal ${existingSignalId}`,
               });
             }
             return { pathId: wirePath.id, nodeIndex };
@@ -2335,6 +2362,7 @@ export function createApiMiddleware(projectRoot: string) {
             name: `Unresolved bulkhead — ${enclosureById.get(childScope)?.name ?? childScope}`,
             parent: childScope,
             connector_type: GENERIC_MULTIPIN_TYPE_ID,
+            mounting: 'bulkhead',
             pin_count: 1,
             tags: ['generated', 'unresolved', 'bulkhead'],
             properties: {

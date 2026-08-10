@@ -31,6 +31,7 @@ type ConnectorNodeData = {
   connectorTypeId?: string;
   instanceImage?: string;
   wallMounted?: boolean;
+  passThrough?: boolean;
 };
 
 const DARK_TAG_TEXT = '#09090b';
@@ -309,41 +310,62 @@ export const ConnectorNode = memo(function ConnectorNode({
         </>
       )}
 
-      <div
-        className="bg-zinc-800 px-2 py-1 cursor-pointer flex items-center gap-1.5"
-        onClick={(e) => {
-          e.stopPropagation();
-          selectItem({ type: 'connector', id: data.connectorId });
-        }}
-      >
-        <button
-          className="text-zinc-500 hover:text-zinc-300 w-3 shrink-0"
-          style={{ fontSize: subSize }}
+      {!isExpanded && data.instanceImage ? (
+        <div
+          className="absolute inset-0 cursor-pointer overflow-hidden rounded"
           onClick={(e) => {
             e.stopPropagation();
-            toggleExpanded(data.connectorId);
+            selectItem({ type: 'connector', id: data.connectorId });
           }}
+          title={data.label}
         >
-          {isExpanded ? '▼' : '▶'}
-        </button>
-        <div className="min-w-0">
-          <div className="font-bold text-zinc-100 leading-tight truncate" style={{ fontSize: labelSize }}>
-            {data.label}
-          </div>
-          {data.parentName && (
-            <div className="text-zinc-400 leading-tight truncate" style={{ fontSize: subSize }}>
-              {data.parentName}
-            </div>
-          )}
-        </div>
-        {!isExpanded && data.instanceImage && (
           <img
             src={`/user-data/images/${data.instanceImage}`}
-            alt=""
-            className="ml-auto h-6 w-8 shrink-0 rounded object-contain bg-zinc-900/60"
+            alt={data.label}
+            draggable={false}
+            className="absolute inset-0 h-full w-full object-contain bg-zinc-900 select-none"
           />
-        )}
-      </div>
+          <button
+            className="absolute left-1 top-1 z-10 text-zinc-300 hover:text-zinc-100 w-3 shrink-0 rounded bg-zinc-900/70"
+            style={{ fontSize: subSize }}
+            onClick={(e) => {
+              e.stopPropagation();
+              toggleExpanded(data.connectorId);
+            }}
+          >
+            ▶
+          </button>
+        </div>
+      ) : (
+        <div
+          className="bg-zinc-800 px-2 py-1 cursor-pointer flex items-center gap-1.5"
+          onClick={(e) => {
+            e.stopPropagation();
+            selectItem({ type: 'connector', id: data.connectorId });
+          }}
+        >
+          <button
+            className="text-zinc-500 hover:text-zinc-300 w-3 shrink-0"
+            style={{ fontSize: subSize }}
+            onClick={(e) => {
+              e.stopPropagation();
+              toggleExpanded(data.connectorId);
+            }}
+          >
+            {isExpanded ? '▼' : '▶'}
+          </button>
+          <div className="min-w-0">
+            <div className="font-bold text-zinc-100 leading-tight truncate" style={{ fontSize: labelSize }}>
+              {data.label}
+            </div>
+            {data.parentName && (
+              <div className="text-zinc-400 leading-tight truncate" style={{ fontSize: subSize }}>
+                {data.parentName}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {isExpanded && (
         <div className="border-t border-zinc-700/50 overflow-y-auto" style={{ maxHeight: 'calc(100% - 36px)' }}>
@@ -370,12 +392,12 @@ export const ConnectorNode = memo(function ConnectorNode({
               && node.connector_id === data.connectorId
               && node.pin_number === row.pinNumber
             ) ?? -1;
-            const isThroughBulkhead = data.wallMounted
+            const isThroughConnector = data.passThrough
               && connectorNodeIndex > 0
               && connectorNodeIndex < (signalPath?.nodes.length ?? 0) - 1;
             const cavityStatus = !pin
               ? ''
-              : data.wallMounted && !isThroughBulkhead
+              : data.passThrough && !isThroughConnector
                 ? ' (one side connected; opposite side available)'
                 : ' (occupied)';
             const isDragSource = cavityDrag?.fromPin === row.pinNumber;
