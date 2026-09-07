@@ -9,5 +9,6 @@
   "devices": {},
   "connectors": {},
   "device_connector_mode": {},
-  "rev": 431
+  "rev": 431,
+  "hidden_connectors": []
 }

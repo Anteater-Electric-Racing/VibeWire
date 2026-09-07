@@ -1,13 +1,14 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   getWireAppearance,
   getWireBackground,
   getWireBorderColor,
 } from '../../lib/colors';
-import { getPathSignalId } from '../../lib/harness';
-import { useHarnessStore } from '../../store';
+import { getPathSignalId } from '../../lib/systemTopology';
+import { useSystemStore } from '../../store';
 import type { Signal, SignalPropertyDefinition } from '../../types';
 import { WireColorEditor } from '../WireColorEditor';
+import { PresenceBadge, PresenceEditingRegion } from '../collab/PresenceBadge';
 
 const inputClass = 'w-full rounded border border-zinc-700 bg-zinc-950 px-2.5 py-1.5 text-xs text-zinc-200 placeholder-zinc-600 outline-none transition-colors focus:border-amber-500 disabled:cursor-not-allowed disabled:opacity-50';
 
@@ -81,7 +82,7 @@ function NameField({
   autoFocus?: boolean;
   onAutoFocus?: () => void;
 }) {
-  const updateSignalName = useHarnessStore((state) => state.updateSignalName);
+  const updateSignalName = useSystemStore((state) => state.updateSignalName);
 
   return (
     <input
@@ -113,9 +114,9 @@ function NameField({
 }
 
 function TagsEditor({ signal }: { signal: Signal }) {
-  const addTag = useHarnessStore((state) => state.addTag);
-  const removeTag = useHarnessStore((state) => state.removeTag);
-  const isEditor = useHarnessStore((state) => state.session.isEditor);
+  const addTag = useSystemStore((state) => state.addTag);
+  const removeTag = useSystemStore((state) => state.removeTag);
+  const isEditor = useSystemStore((state) => state.session.isEditor);
   const [draft, setDraft] = useState('');
 
   const addDraftTags = () => {
@@ -186,8 +187,8 @@ function PropertyEditor({
   value: string;
   existingKeys: string[];
 }) {
-  const updateSignalProperty = useHarnessStore((state) => state.updateSignalProperty);
-  const setMutationError = useHarnessStore((state) => state.setMutationError);
+  const updateSignalProperty = useSystemStore((state) => state.updateSignalProperty);
+  const setMutationError = useSystemStore((state) => state.setMutationError);
 
   return (
     <div className="grid grid-cols-[minmax(140px,0.8fr)_minmax(180px,1.4fr)_auto] gap-2">
@@ -248,10 +249,10 @@ function DropdownDefinitionEditor({
   definition: SignalPropertyDefinition;
   usageCount: number;
 }) {
-  const updateDefinition = useHarnessStore(
+  const updateDefinition = useSystemStore(
     (state) => state.updateSignalPropertyDefinition,
   );
-  const deleteDefinition = useHarnessStore(
+  const deleteDefinition = useSystemStore(
     (state) => state.deleteSignalPropertyDefinition,
   );
 
@@ -328,21 +329,22 @@ function DropdownDefinitionEditor({
 }
 
 export function SignalLibraryPage() {
-  const harness = useHarnessStore((state) => state.harness);
-  const targetId = useHarnessStore((state) => state.signalLibraryTargetId);
-  const activeHarnessName = useHarnessStore((state) => state.activeHarnessName);
-  const addSignal = useHarnessStore((state) => state.addSignal);
-  const addSignalPropertyDefinition = useHarnessStore(
+  const system = useSystemStore((state) => state.system);
+  const targetId = useSystemStore((state) => state.signalLibraryTargetId);
+  const activeSystemName = useSystemStore((state) => state.activeSystemName);
+  const addSignal = useSystemStore((state) => state.addSignal);
+  const addSignalPropertyDefinition = useSystemStore(
     (state) => state.addSignalPropertyDefinition,
   );
-  const deleteEntityCascade = useHarnessStore((state) => state.deleteEntityCascade);
-  const getDeleteImpact = useHarnessStore((state) => state.getDeleteImpact);
-  const inspectEntity = useHarnessStore((state) => state.inspectEntity);
-  const closeConnectorLibrary = useHarnessStore((state) => state.closeConnectorLibrary);
-  const updateSignalProperty = useHarnessStore((state) => state.updateSignalProperty);
-  const mutationError = useHarnessStore((state) => state.mutationError);
-  const setMutationError = useHarnessStore((state) => state.setMutationError);
-  const isEditor = useHarnessStore((state) => state.session.isEditor);
+  const deleteEntityCascade = useSystemStore((state) => state.deleteEntityCascade);
+  const getDeleteImpact = useSystemStore((state) => state.getDeleteImpact);
+  const inspectEntity = useSystemStore((state) => state.inspectEntity);
+  const closeConnectorLibrary = useSystemStore((state) => state.closeConnectorLibrary);
+  const updateSignalProperty = useSystemStore((state) => state.updateSignalProperty);
+  const mutationError = useSystemStore((state) => state.mutationError);
+  const setMutationError = useSystemStore((state) => state.setMutationError);
+  const setSignalLibraryTarget = useSystemStore((state) => state.setSignalLibraryTarget);
+  const isEditor = useSystemStore((state) => state.session.isEditor);
 
   const [selectedId, setSelectedId] = useState<string | null>(targetId);
   const [focusSignalId, setFocusSignalId] = useState<string | null>(targetId);
@@ -357,8 +359,8 @@ export function SignalLibraryPage() {
   const [newDropdownName, setNewDropdownName] = useState('');
   const [newDropdownOptions, setNewDropdownOptions] = useState('');
 
-  const allSignals = useMemo(() => harness?.signals ?? [], [harness]);
-  const propertyDefinitions = harness?.signalPropertyDefinitions ?? [];
+  const allSignals = useMemo(() => system?.signals ?? [], [system]);
+  const propertyDefinitions = system?.signalPropertyDefinitions ?? [];
 
   const visibleSignals = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -375,13 +377,16 @@ export function SignalLibraryPage() {
 
   const selectedSignal = allSignals.find((signal) => signal.id === selectedId)
     ?? [...allSignals].sort((a, b) => a.name.localeCompare(b.name))[0];
+  useEffect(() => {
+    setSignalLibraryTarget(selectedSignal?.id ?? null);
+  }, [selectedSignal?.id, setSignalLibraryTarget]);
   const usedPaths = useMemo(
-    () => selectedSignal && harness
-      ? harness.paths
+    () => selectedSignal && system
+      ? system.paths
           .filter((path) => getPathSignalId(path) === selectedSignal.id)
           .sort((left, right) => left.name.localeCompare(right.name))
       : [],
-    [harness, selectedSignal],
+    [system, selectedSignal],
   );
   const connectionCount = usedPaths.reduce((total, path) => total + path.nodes.length, 0);
 
@@ -479,7 +484,7 @@ export function SignalLibraryPage() {
             </span>
           </div>
           <p className="mt-0.5 text-[10px] text-zinc-500">
-            Configures {harness?.name ?? activeHarnessName} · {isEditor ? 'changes save automatically' : 'log in to edit'}
+            Configures {system?.name ?? activeSystemName} · {isEditor ? 'changes save automatically' : 'log in to edit'}
           </p>
         </div>
         <button
@@ -581,7 +586,7 @@ export function SignalLibraryPage() {
           <div className="min-h-0 flex-1 overflow-y-auto p-2">
             <div className="space-y-1">
               {visibleSignals.map((signal) => {
-                const usage = harness?.paths.filter((path) => getPathSignalId(path) === signal.id).length ?? 0;
+                const usage = system?.paths.filter((path) => getPathSignalId(path) === signal.id).length ?? 0;
                 return (
                   <button
                     key={signal.id}
@@ -596,6 +601,7 @@ export function SignalLibraryPage() {
                     <div className="flex items-center gap-2">
                       <SignalSwatch signal={signal} />
                       <span className="min-w-0 flex-1 truncate text-xs text-zinc-200">{signal.name}</span>
+                      <PresenceBadge kind="signal" id={signal.id} className="shrink-0" />
                       <span className="shrink-0 rounded bg-zinc-800 px-1.5 py-0.5 text-[9px] text-zinc-500">
                         {usage} path{usage === 1 ? '' : 's'}
                       </span>
@@ -632,11 +638,17 @@ export function SignalLibraryPage() {
               </p>
             </div>
           ) : (
-            <div className="mx-auto max-w-5xl space-y-4 p-5">
+            <PresenceEditingRegion
+              target={{ kind: 'signal', id: selectedSignal.id }}
+              className="mx-auto max-w-5xl space-y-4 p-5"
+            >
               <div className="flex items-start gap-3">
                 <SignalSwatch signal={selectedSignal} className="mt-1 h-8 w-2 rounded-full" />
                 <div className="min-w-0 flex-1">
-                  <h2 className="truncate text-lg font-semibold text-zinc-100">{selectedSignal.name}</h2>
+                  <div className="flex items-center gap-2">
+                    <h2 className="truncate text-lg font-semibold text-zinc-100">{selectedSignal.name}</h2>
+                    <PresenceBadge kind="signal" id={selectedSignal.id} />
+                  </div>
                   <div className="mt-1 flex flex-wrap items-center gap-2 text-[10px] text-zinc-500">
                     <span className="font-mono">{selectedSignal.id}</span>
                     <span>·</span>
@@ -902,7 +914,7 @@ export function SignalLibraryPage() {
                   </div>
                 )}
               </Section>
-            </div>
+            </PresenceEditingRegion>
           )}
         </main>
       </div>

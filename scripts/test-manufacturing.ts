@@ -21,7 +21,7 @@ import {
 } from '../src/components/manufacturing/manufacturingLayout.js';
 import type {
   ConnectorLibrary,
-  HarnessData,
+  SystemData,
   ManufacturingDocument,
 } from '../src/types/index.js';
 
@@ -43,10 +43,10 @@ const library: ConnectorLibrary = {
   }],
 };
 
-const harness: HarnessData = {
+const system: SystemData = {
   signalPropertyDefinitions: [],
   schema_version: '0.2.0-sheets',
-  enclosures: [],
+  hierarchy: [],
   connectors: [
     {
       id: 'con_a',
@@ -67,7 +67,7 @@ const harness: HarnessData = {
       properties: {},
     },
   ],
-  mergePoints: [],
+  branchPoints: [],
   paths: [{
     id: 'path_1',
     name: 'CAN high',
@@ -108,17 +108,17 @@ const manufacturing: ManufacturingDocument = {
     },
   },
 };
-const bundles = deriveManufacturingBundles(harness, library, manufacturing);
+const bundles = deriveManufacturingBundles(system, library, manufacturing);
 assert.equal(bundles.length, 1);
 assert.equal(bundles[0].id, 'bundle:connectors:con_a|con_b');
 assert.equal(bundles[0].wires.length, 1);
-assert.equal(bundles[0].wires[0].segmentIndex, 0);
+assert.equal(bundles[0].wires[0].wireIndex, 0);
 assert.equal(bundles[0].knownLengthMm, 1250);
 assert.equal(bundles[0].issueCount, 0);
 assert.equal(bundles[0].wires[0].from.crimpPartNumber, 'CONTACT-M');
 assert.equal(bundles[0].wires[0].to.crimpPartNumber, 'CONTACT-F');
 
-const bom = deriveManufacturingBom(harness, library, bundles);
+const bom = deriveManufacturingBom(system, library, bundles);
 assert.equal(bom.find((row) => row.category === 'Wire')?.quantity, 1.25);
 assert.equal(bom.find((row) => row.category === 'Wire')?.color, 'Yellow');
 assert.equal(bom.find((row) => row.partNumber === 'HOUSING-2')?.quantity, 2);
@@ -129,7 +129,7 @@ const csv = manufacturingBomToCsv(bom);
 assert(csv.startsWith('Category,Description,Part number,Color,Quantity,Unit,Notes'));
 assert(csv.includes('CONTACT-M'));
 
-const unresolved = structuredClone(harness);
+const unresolved = structuredClone(system);
 delete unresolved.paths[0].properties.wire_gauge;
 delete unresolved.paths[0].properties.wire_color;
 unresolved.paths[0].measurements = [];
@@ -148,11 +148,11 @@ const mixedLibrary: ConnectorLibrary = {
     { ...library.connector_types[0], id: 'family_b', wire_gauge: '20-16 AWG' },
   ],
 };
-const mixedHarness = structuredClone(unresolved);
-mixedHarness.connectors[0].connector_type = 'family_a';
-mixedHarness.connectors[1].connector_type = 'family_b';
+const mixedSystem = structuredClone(unresolved);
+mixedSystem.connectors[0].connector_type = 'family_a';
+mixedSystem.connectors[1].connector_type = 'family_b';
 const mixedBundle = deriveManufacturingBundles(
-  mixedHarness,
+  mixedSystem,
   mixedLibrary,
   { schema_version: '1.1.0', bundles: {} },
 )[0];
@@ -168,8 +168,8 @@ assert.equal(
 assert(unresolvedBundle.wires[0].issues.some((issue) => issue.includes('contact gender missing')));
 assert(unresolvedBundle.wires[0].issues.includes('Cut length missing'));
 
-const chainHarness = structuredClone(harness);
-chainHarness.connectors.push({
+const chainSystem = structuredClone(system);
+chainSystem.connectors.push({
   id: 'con_c',
   name: 'Connector C',
   parent: null,
@@ -178,7 +178,7 @@ chainHarness.connectors.push({
   tags: [],
   properties: {},
 });
-chainHarness.paths.push({
+chainSystem.paths.push({
   id: 'path_2',
   name: 'CAN return',
   tags: ['bundle:Next Harness'],
@@ -193,7 +193,7 @@ chainHarness.paths.push({
   ],
   measurements: [],
 });
-const chainBundles = deriveManufacturingBundles(chainHarness, library);
+const chainBundles = deriveManufacturingBundles(chainSystem, library);
 const mateBundleIds = matingBundleIdsForConnector(
   chainBundles,
   'bundle:connectors:con_a|con_b',
@@ -233,14 +233,14 @@ assert.equal(
 
 // A bulkhead has two physical sides even when one side spans several bundles.
 // Same-side bundles share a gender; bundles across the wall get the opposite.
-const bulkheadHarness: HarnessData = {
-  ...structuredClone(harness),
-  enclosures: [
+const bulkheadSystem: SystemData = {
+  ...structuredClone(system),
+  hierarchy: [
     {
       id: 'enc_box',
       name: 'Accumulator',
       parent: null,
-      container: true,
+      kind: 'enclosure',
       tags: [],
       properties: {},
     },
@@ -248,32 +248,32 @@ const bulkheadHarness: HarnessData = {
       id: 'dev_inside',
       name: 'Internal PCB',
       parent: 'enc_box',
-      container: false,
+      kind: 'device',
       tags: [],
       properties: {},
     },
   ],
   connectors: [
     {
-      ...structuredClone(harness.connectors[0]),
+      ...structuredClone(system.connectors[0]),
       id: 'con_outside',
       name: 'Outside Connector',
       parent: null,
     },
     {
-      ...structuredClone(harness.connectors[0]),
+      ...structuredClone(system.connectors[0]),
       id: 'con_bulkhead',
       name: 'Bulkhead Connector',
       parent: 'enc_box',
     },
     {
-      ...structuredClone(harness.connectors[1]),
+      ...structuredClone(system.connectors[1]),
       id: 'con_inside',
       name: 'Inside Connector',
       parent: 'dev_inside',
     },
     {
-      ...structuredClone(harness.connectors[1]),
+      ...structuredClone(system.connectors[1]),
       id: 'con_inside_2',
       name: 'Second Inside Connector',
       parent: 'dev_inside',
@@ -315,7 +315,7 @@ const bulkheadHarness: HarnessData = {
     },
   ],
 };
-const bulkheadBundles = deriveManufacturingBundles(bulkheadHarness, library);
+const bulkheadBundles = deriveManufacturingBundles(bulkheadSystem, library);
 const outsideBundle = bulkheadBundles.find((bundle) =>
   bundle.connectorIds.includes('con_outside')
 );
@@ -329,7 +329,7 @@ assert.ok(outsideBundle);
 assert.ok(insideBundle);
 assert.ok(secondInsideBundle);
 const insideRelationship = manufacturingGenderBundleRelationship(
-  bulkheadHarness,
+  bulkheadSystem,
   bulkheadBundles,
   insideBundle.id,
   'con_bulkhead',
@@ -345,7 +345,7 @@ const mixedBulkheadBundle = {
   wires: [...outsideBundle.wires, ...insideBundle.wires],
 };
 const mixedRelationship = manufacturingGenderBundleRelationship(
-  bulkheadHarness,
+  bulkheadSystem,
   [mixedBulkheadBundle, secondInsideBundle],
   mixedBulkheadBundle.id,
   'con_bulkhead',
@@ -372,7 +372,7 @@ const bulkheadGenderDocument = assignManufacturingEndpointGender(
   [secondInsideBundle.id],
 );
 const resolvedBulkheadBundles = deriveManufacturingBundles(
-  bulkheadHarness,
+  bulkheadSystem,
   library,
   bulkheadGenderDocument,
 );
@@ -396,14 +396,14 @@ assert.equal(secondInsideBulkheadEndpoint?.terminalGender, 'female');
 assert.equal(secondInsideBulkheadEndpoint?.crimpPartNumber, 'CONTACT-F');
 
 // A path crossing a connector is two independent harness runs.
-const serialHarness = structuredClone(harness);
-serialHarness.connectors.push(structuredClone(chainHarness.connectors[2]));
-serialHarness.paths[0].nodes = [
+const serialSystem = structuredClone(system);
+serialSystem.connectors.push(structuredClone(chainSystem.connectors[2]));
+serialSystem.paths[0].nodes = [
   { kind: 'connector', connector_id: 'con_a', pin_number: 1 },
   { kind: 'connector', connector_id: 'con_b', pin_number: 2 },
   { kind: 'connector', connector_id: 'con_c', pin_number: 1 },
 ];
-serialHarness.paths[0].measurements = [
+serialSystem.paths[0].measurements = [
   {
     from: { kind: 'connector', connector_id: 'con_a', pin_number: 1 },
     to: { kind: 'connector', connector_id: 'con_b', pin_number: 2 },
@@ -415,7 +415,7 @@ serialHarness.paths[0].measurements = [
     length_mm: 600,
   },
 ];
-const serialBundles = deriveManufacturingBundles(serialHarness, library);
+const serialBundles = deriveManufacturingBundles(serialSystem, library);
 assert.deepEqual(
   serialBundles.map((bundle) => bundle.id),
   ['bundle:connectors:con_a|con_b', 'bundle:connectors:con_b|con_c'],
@@ -455,57 +455,57 @@ assert.equal(
   2,
 );
 
-// Through-path with a mid-span splice collapses to one connector↔connector cut.
-const splicedHarness = structuredClone(harness);
-splicedHarness.mergePoints = [{
+// Through-path with a mid-span branch point collapses to one connector↔connector cut.
+const branchedSystem = structuredClone(system);
+branchedSystem.branchPoints = [{
   id: 'mp_1',
-  name: 'Tap splice',
+  name: 'Tap branch',
   parent: null,
   tags: [],
   properties: {},
 }];
-splicedHarness.paths[0] = {
-  ...splicedHarness.paths[0],
+branchedSystem.paths[0] = {
+  ...branchedSystem.paths[0],
   tags: [],
   nodes: [
     { kind: 'connector', connector_id: 'con_a', pin_number: 1 },
-    { kind: 'merge', merge_point_id: 'mp_1' },
+    { kind: 'branch', branch_point_id: 'mp_1' },
     { kind: 'connector', connector_id: 'con_b', pin_number: 2 },
   ],
   measurements: [
     {
       from: { kind: 'connector', connector_id: 'con_a', pin_number: 1 },
-      to: { kind: 'merge', merge_point_id: 'mp_1' },
+      to: { kind: 'branch', branch_point_id: 'mp_1' },
       length_mm: 400,
     },
     {
-      from: { kind: 'merge', merge_point_id: 'mp_1' },
+      from: { kind: 'branch', branch_point_id: 'mp_1' },
       to: { kind: 'connector', connector_id: 'con_b', pin_number: 2 },
       length_mm: 850,
     },
   ],
 };
-const splicedBundles = deriveManufacturingBundles(splicedHarness, library);
-assert.equal(splicedBundles.length, 1);
-assert.equal(splicedBundles[0].wires.length, 1);
-assert.equal(splicedBundles[0].wires[0].from.connectorId, 'con_a');
-assert.equal(splicedBundles[0].wires[0].to.connectorId, 'con_b');
-assert.equal(splicedBundles[0].wires[0].lengthMm, 1250);
-assert.equal(splicedBundles[0].wires[0].hops.length, 2);
-assert.equal(splicedBundles[0].wires[0].hops[0].lengthMm, 400);
-assert.equal(splicedBundles[0].wires[0].hops[1].lengthMm, 850);
-assert.equal(splicedBundles[0].wires[0].hops[0].toKind, 'merge');
-assert.equal(splicedBundles[0].wires[0].hops[1].fromKind, 'merge');
-assert.equal(splicedBundles[0].wires[0].hops[0].fromKey, 'connector:con_a');
-assert.equal(splicedBundles[0].wires[0].hops[0].toKey, 'merge:mp_1');
+const branchedBundles = deriveManufacturingBundles(branchedSystem, library);
+assert.equal(branchedBundles.length, 1);
+assert.equal(branchedBundles[0].wires.length, 1);
+assert.equal(branchedBundles[0].wires[0].from.connectorId, 'con_a');
+assert.equal(branchedBundles[0].wires[0].to.connectorId, 'con_b');
+assert.equal(branchedBundles[0].wires[0].lengthMm, 1250);
+assert.equal(branchedBundles[0].wires[0].hops.length, 2);
+assert.equal(branchedBundles[0].wires[0].hops[0].lengthMm, 400);
+assert.equal(branchedBundles[0].wires[0].hops[1].lengthMm, 850);
+assert.equal(branchedBundles[0].wires[0].hops[0].toKind, 'branch');
+assert.equal(branchedBundles[0].wires[0].hops[1].fromKind, 'branch');
+assert.equal(branchedBundles[0].wires[0].hops[0].fromKey, 'connector:con_a');
+assert.equal(branchedBundles[0].wires[0].hops[0].toKey, 'branch:mp_1');
 assert.deepEqual(
-  splicedBundles[0].wires[0].viaSplices.map((splice) => splice.id),
+  branchedBundles[0].wires[0].viaBranchPoints.map((point) => point.id),
   ['mp_1'],
 );
-assert.equal(splicedBundles[0].wires[0].fromCrimpOnly, false);
+assert.equal(branchedBundles[0].wires[0].fromCrimpOnly, false);
 
 // Applying a new total preserves hop proportions.
-const scaled = structuredClone(splicedHarness.paths[0]);
+const scaled = structuredClone(branchedSystem.paths[0]);
 assert.equal(applySpanTotalLength(scaled, 0, 2, 2500), true);
 assert.equal(
   scaled.measurements.find((measurement) => measurement.from.kind === 'connector')?.length_mm,
@@ -516,34 +516,34 @@ assert.equal(
   1700,
 );
 
-// Matching splice sections is undirected and segment-keyed (not total-length based).
+// Matching branch-point sections is undirected and segment-keyed (not total-length based).
 assert.equal(
   manufacturingHopsMatch(
-    { fromKey: 'connector:con_a', toKey: 'merge:mp_1' },
-    { fromKey: 'connector:con_a', toKey: 'merge:mp_1' },
+    { fromKey: 'connector:con_a', toKey: 'branch:mp_1' },
+    { fromKey: 'connector:con_a', toKey: 'branch:mp_1' },
   ),
   true,
 );
 assert.equal(
   manufacturingHopsMatch(
-    { fromKey: 'connector:con_a', toKey: 'merge:mp_1' },
-    { fromKey: 'merge:mp_1', toKey: 'connector:con_a' },
+    { fromKey: 'connector:con_a', toKey: 'branch:mp_1' },
+    { fromKey: 'branch:mp_1', toKey: 'connector:con_a' },
   ),
   true,
 );
 assert.equal(
   manufacturingHopsMatch(
-    { fromKey: 'connector:con_a', toKey: 'merge:mp_1' },
-    { fromKey: 'merge:mp_1', toKey: 'connector:con_b' },
+    { fromKey: 'connector:con_a', toKey: 'branch:mp_1' },
+    { fromKey: 'branch:mp_1', toKey: 'connector:con_b' },
   ),
   false,
 );
 
-// Stub legs remain explicit connector-to-splice runs instead of inventing a mate.
-const stubHarness: HarnessData = {
+// Stub legs remain explicit connector-to-branch-point runs instead of inventing a mate.
+const stubSystem: SystemData = {
   signalPropertyDefinitions: [],
   schema_version: '0.2.0-sheets',
-  enclosures: [],
+  hierarchy: [],
   connectors: [
     {
       id: 'con_a',
@@ -573,9 +573,9 @@ const stubHarness: HarnessData = {
       properties: {},
     },
   ],
-  mergePoints: [{
+  branchPoints: [{
     id: 'mp_star',
-    name: 'Star splice',
+    name: 'Star branch',
     parent: null,
     tags: [],
     properties: {},
@@ -589,11 +589,11 @@ const stubHarness: HarnessData = {
       properties: { wire_id: 'WA', wire_color: 'Black', wire_gauge: '20 AWG' },
       nodes: [
         { kind: 'connector', connector_id: 'con_a', pin_number: 1 },
-        { kind: 'merge', merge_point_id: 'mp_star' },
+        { kind: 'branch', branch_point_id: 'mp_star' },
       ],
       measurements: [{
         from: { kind: 'connector', connector_id: 'con_a', pin_number: 1 },
-        to: { kind: 'merge', merge_point_id: 'mp_star' },
+        to: { kind: 'branch', branch_point_id: 'mp_star' },
         length_mm: 100,
       }],
     },
@@ -605,11 +605,11 @@ const stubHarness: HarnessData = {
       properties: { wire_id: 'WB', wire_color: 'Black', wire_gauge: '20 AWG' },
       nodes: [
         { kind: 'connector', connector_id: 'con_b', pin_number: 1 },
-        { kind: 'merge', merge_point_id: 'mp_star' },
+        { kind: 'branch', branch_point_id: 'mp_star' },
       ],
       measurements: [{
         from: { kind: 'connector', connector_id: 'con_b', pin_number: 1 },
-        to: { kind: 'merge', merge_point_id: 'mp_star' },
+        to: { kind: 'branch', branch_point_id: 'mp_star' },
         length_mm: 200,
       }],
     },
@@ -621,11 +621,11 @@ const stubHarness: HarnessData = {
       properties: { wire_id: 'WC', wire_color: 'Black', wire_gauge: '20 AWG' },
       nodes: [
         { kind: 'connector', connector_id: 'con_c', pin_number: 1 },
-        { kind: 'merge', merge_point_id: 'mp_star' },
+        { kind: 'branch', branch_point_id: 'mp_star' },
       ],
       measurements: [{
         from: { kind: 'connector', connector_id: 'con_c', pin_number: 1 },
-        to: { kind: 'merge', merge_point_id: 'mp_star' },
+        to: { kind: 'branch', branch_point_id: 'mp_star' },
         length_mm: 300,
       }],
     },
@@ -637,7 +637,7 @@ const stubHarness: HarnessData = {
     properties: {},
   }],
 };
-const stubBundles = deriveManufacturingBundles(stubHarness, library);
+const stubBundles = deriveManufacturingBundles(stubSystem, library);
 assert.equal(stubBundles.length, 3);
 assert.ok(stubBundles.every((bundle) => bundle.wires.length === 1));
 assert.deepEqual(
@@ -645,7 +645,7 @@ assert.deepEqual(
   ['con_a', 'con_b', 'con_c'],
 );
 assert.ok(stubBundles.every((bundle) => bundle.wires[0].from.kind === 'connector'));
-assert.ok(stubBundles.every((bundle) => bundle.wires[0].to.kind === 'merge'));
+assert.ok(stubBundles.every((bundle) => bundle.wires[0].to.kind === 'branch'));
 assert.ok(stubBundles.every((bundle) => bundle.wires[0].fromCrimpOnly));
 assert.equal(
   stubBundles.flatMap((bundle) => bundle.wires)
@@ -653,11 +653,11 @@ assert.equal(
   100,
 );
 
-// Splice-connected branches are one operator-facing physical harness.
+// Branch-point-connected runs are one operator-facing physical harness.
 const groupedStubHarnesses = deriveManufacturingHarnesses(stubBundles);
 assert.equal(groupedStubHarnesses.length, 1);
 assert.equal(groupedStubHarnesses[0].bundles.length, 3);
-assert.deepEqual(groupedStubHarnesses[0].spliceIds, ['mp_star']);
+assert.deepEqual(groupedStubHarnesses[0].branchPointIds, ['mp_star']);
 assert.equal(groupedStubHarnesses[0].wireCount, 3);
 
 // Visual task transitions retain current attribution and an append-only day log.

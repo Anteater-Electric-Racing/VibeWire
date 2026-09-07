@@ -3,24 +3,34 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
 import {
-  isSheetedHarness,
-  sheetHarnessDir,
-  readSheetedHarness,
+  isSheetedSystem,
+  sheetSystemDir,
+  flatSystemFile,
+  readSheetedSystem,
   planSheetedWrite,
   commitSheetedWrite,
   type Connector,
   type Enclosure,
-  type MergePoint,
+  type BranchPoint,
   type ConnectorPathNode,
-  type MergePointPathNode,
+  type BranchPointPathNode,
   type PathNode,
   type PathMeasurement,
   type PathEntity,
   type Signal,
-  type HarnessData,
+  type SystemData,
 } from './sheets.js';
-import { planEnclosureRoute, routeRequestToken } from './routing.js';
+import {
+  AUTO_BULKHEAD_REASON,
+  BULKHEAD_DISPLAY_PROPERTY,
+  BULKHEAD_DOT_DISPLAY,
+  ensureEnclosureBulkheadPlaceholders,
+  isTerminalVisualDot,
+  routeRequestToken,
+  unmergeNonTerminalVisualDots,
+} from './routing.js';
 import { ensureSubsystemAncestorFrames } from '../src/lib/subsystem.js';
+import { normalizeSystemData, normalizeLayouts, normalizeManufacturingDocument } from '../src/lib/systemNormalize.js';
 import { createAuth, type PublicUser, type User } from './auth.js';
 import {
   LIBRARY_REVISION_KEY,
@@ -30,7 +40,7 @@ import {
   getCollaborationPaths,
   getRev,
   getRevisionState,
-  withHarnessLock,
+  withSystemLock,
   type RevisionWriter,
 } from './revisions.js';
 import {
@@ -46,10 +56,10 @@ import {
 import { aggregateActivity, appendEditLog, type EditKind } from './editlog.js';
 import { applyDiffToAttribution, getAttribution } from './attribution.js';
 import {
-  diffHarness,
+  diffSystem,
   diffKeyedMap,
   type EntityDiff,
-} from './harnessDiff.js';
+} from './systemDiff.js';
 import { createPresenceHandler } from './presence.js';
 import { addClient, broadcast } from './sse.js';
 import {
@@ -60,7 +70,7 @@ import {
   isConnectorFamily,
 } from '../src/lib/connectorFamily.js';
 
-export type { Connector, Enclosure, MergePoint, ConnectorPathNode, MergePointPathNode, PathNode, PathMeasurement, PathEntity, Signal, HarnessData };
+export type { Connector, Enclosure, BranchPoint, ConnectorPathNode, BranchPointPathNode, PathNode, PathMeasurement, PathEntity, Signal, SystemData };
 
 type PathNodeRef = PathNode;
 
@@ -115,7 +125,7 @@ interface ManufacturingDocument {
       cut?: boolean;
       ends?: Partial<Record<'from' | 'to', boolean>>;
     }>;
-    splice_measured?: Record<string, boolean>;
+    branch_measured?: Record<string, boolean>;
     connector_guide_states?: Record<string, 'checking' | 'verified'>;
     task_attribution?: Record<string, {
       user_id: string;
@@ -128,7 +138,7 @@ interface ManufacturingDocument {
       kind:
         | 'wire-cut'
         | 'wire-end'
-        | 'splice-measured'
+        | 'branch-measured'
         | 'connector-guide'
         | 'component-step';
       action: 'complete' | 'reopen';
@@ -262,12 +272,15 @@ interface LayoutData {
   sizes?: Record<string, { w: number; h: number }>;
   free?: Record<string, { x: number; y: number }>;
   backgrounds?: Record<string, any>;
+  images?: Record<string, any>;
   connectorTypeSizes?: Record<string, { w: number; h: number }>;
   textBoxes?: Record<string, any>;
   waypoints?: Record<string, any>;
-  junctions?: Record<string, any>;
-  mergePoints?: Record<string, Record<string, { x: number; y: number }>>;
+  sharedAnchors?: Record<string, any>;
+  branchPoints?: Record<string, Record<string, { x: number; y: number }>>;
   rotations?: Record<string, number>;
+  routeStyles?: Record<string, 'grid' | 'straight'>;
+  viewRouteStyles?: Record<string, 'grid' | 'straight'>;
 }
 
 interface SubsystemDocument {
@@ -298,94 +311,9 @@ interface Route {
   handler: Handler;
 }
 
-function normalizeHarness(raw: any): HarnessData {
-  const harness = structuredClone(raw ?? {}) as Partial<HarnessData> & { pcbs?: any[] };
-  harness.schema_version ??= '0.1.0';
-  harness.enclosures ??= [];
-  harness.connectors ??= [];
-  harness.mergePoints ??= [];
-  harness.paths ??= [];
-  harness.signals ??= [];
-  harness.signalPropertyDefinitions ??= [];
-
-  if (Array.isArray(harness.pcbs)) {
-    for (const pcb of harness.pcbs) {
-      harness.enclosures.push({
-        id: pcb.id,
-        name: pcb.name,
-        parent: pcb.parent ?? null,
-        container: false,
-        tags: pcb.tags ?? [],
-        properties: pcb.properties ?? {},
-      });
-    }
-    delete harness.pcbs;
-  }
-
-  for (const enclosure of harness.enclosures) {
-    enclosure.parent ??= null;
-    enclosure.container ??= true;
-    enclosure.tags ??= [];
-    enclosure.properties ??= {};
-  }
-  for (const connector of harness.connectors) {
-    connector.parent ??= null;
-    connector.connector_type ??= '';
-    connector.tags ??= [];
-    connector.properties ??= {};
-    if ('pins' in connector) delete (connector as any).pins;
-  }
-  for (const mergePoint of harness.mergePoints) {
-    mergePoint.name ??= mergePoint.id;
-    mergePoint.parent ??= null;
-    mergePoint.tags ??= [];
-    mergePoint.properties ??= {};
-  }
-  for (const pathItem of harness.paths) {
-    pathItem.name ??= pathItem.id;
-    pathItem.tags ??= [];
-    pathItem.properties ??= {};
-    const rawNodes = (pathItem.nodes ?? []) as Array<any>;
-    const legacyNodeById = new Map<string, any>();
-    for (const rawNode of rawNodes) {
-      if (typeof rawNode?.id === 'string') legacyNodeById.set(rawNode.id, rawNode);
-    }
-    pathItem.nodes = rawNodes.map((rawNode) => {
-      const nodeWithoutId = { ...(rawNode ?? {}) };
-      delete nodeWithoutId.id;
-      return nodeWithoutId;
-    });
-    pathItem.measurements = (pathItem.measurements ?? []).map((measurement: any) => {
-      if (measurement?.from && measurement?.to) return measurement;
-      const fromNode = typeof measurement?.from_node_id === 'string'
-        ? legacyNodeById.get(measurement.from_node_id)
-        : null;
-      const toNode = typeof measurement?.to_node_id === 'string'
-        ? legacyNodeById.get(measurement.to_node_id)
-        : null;
-      if (!fromNode || !toNode) return measurement;
-      return {
-        from: fromNode.kind === 'connector'
-          ? { kind: 'connector', connector_id: fromNode.connector_id, pin_number: fromNode.pin_number }
-          : { kind: 'merge', merge_point_id: fromNode.merge_point_id },
-        to: toNode.kind === 'connector'
-          ? { kind: 'connector', connector_id: toNode.connector_id, pin_number: toNode.pin_number }
-          : { kind: 'merge', merge_point_id: toNode.merge_point_id },
-        ...(measurement.length_mm !== undefined ? { length_mm: measurement.length_mm } : {}),
-        ...(measurement.note !== undefined ? { note: measurement.note } : {}),
-      };
-    });
-  }
-  for (const signal of harness.signals) {
-    signal.tags ??= [];
-    signal.properties ??= {};
-  }
-  for (const definition of harness.signalPropertyDefinitions) {
-    definition.type = 'select';
-    definition.options = Array.isArray(definition.options) ? definition.options : [];
-  }
-
-  return harness as HarnessData;
+/** Dual-read incoming payloads (legacy or canonical) into canonical SystemData. */
+function normalizeSystem(raw: unknown): SystemData {
+  return ensureEnclosureBulkheadPlaceholders(normalizeSystemData(raw)).system;
 }
 
 function getPathSignalId(pathItem: Pick<PathEntity, 'signal_id' | 'tags'>): string | null {
@@ -397,17 +325,17 @@ function getPathSignalId(pathItem: Pick<PathEntity, 'signal_id' | 'tags'>): stri
 function getPathNodeRefKey(node: PathNode): string {
   return node.kind === 'connector'
     ? `connector:${node.connector_id}:${node.pin_number}`
-    : `merge:${node.merge_point_id}`;
+    : `branch:${node.branch_point_id}`;
 }
 
 type BulkheadSide = 'internal' | 'external';
 
-function isBulkheadConnector(harness: HarnessData, connector: Connector): boolean {
+function isBulkheadConnector(system: SystemData, connector: Connector): boolean {
   if (connector.mounting === 'inline') return false;
   if (connector.mounting === 'bulkhead') return true;
   return connector.parent !== null
-    && harness.enclosures.some(
-      (enclosure) => enclosure.id === connector.parent && enclosure.container,
+    && system.hierarchy.some(
+      (enclosure) => enclosure.id === connector.parent && enclosure.kind === 'enclosure',
     );
 }
 
@@ -415,17 +343,17 @@ function isInlineConnector(connector: Connector): boolean {
   return connector.mounting === 'inline';
 }
 
-function isPassThroughConnector(harness: HarnessData, connector: Connector): boolean {
-  return isInlineConnector(connector) || isBulkheadConnector(harness, connector);
+function isPassThroughConnector(system: SystemData, connector: Connector): boolean {
+  return isInlineConnector(connector) || isBulkheadConnector(system, connector);
 }
 
 function isParentInsideEnclosure(
-  harness: HarnessData,
+  system: SystemData,
   parentId: string | null,
   enclosureId: string,
 ): boolean {
   const enclosureById = new Map(
-    harness.enclosures.map((enclosure) => [enclosure.id, enclosure]),
+    system.hierarchy.map((enclosure) => [enclosure.id, enclosure]),
   );
   let current = parentId;
   while (current) {
@@ -436,22 +364,35 @@ function isParentInsideEnclosure(
 }
 
 function getBulkheadConnectionSide(
-  harness: HarnessData,
+  system: SystemData,
   bulkhead: Connector,
   other: Connector | PathNode,
 ): BulkheadSide {
-  const parentId = 'kind' in other
-    ? other.kind === 'connector'
-      ? harness.connectors.find((connector) => connector.id === other.connector_id)?.parent ?? null
-      : harness.mergePoints.find((mergePoint) => mergePoint.id === other.merge_point_id)?.parent ?? null
-    : other.parent;
-  return bulkhead.parent && isParentInsideEnclosure(harness, parentId, bulkhead.parent)
+  const otherConnector = 'kind' in other
+    ? (other.kind === 'connector'
+        ? system.connectors.find((connector) => connector.id === other.connector_id)
+        : undefined)
+    : other;
+  if (otherConnector && otherConnector.id !== bulkhead.id && otherConnector.parent === bulkhead.parent) {
+    // A sibling connector mounted directly on this bulkhead's own enclosure
+    // (e.g. another visual dot on the same wall) is a peer feed-through, not
+    // something physically inside it — the parent-chain walk below would
+    // otherwise misclassify it as internal on the very first step. Matches
+    // the client-side isInteriorToEnclosure convention in src/lib/systemTopology.ts.
+    return isInlineConnector(otherConnector) ? 'internal' : 'external';
+  }
+  const parentId = otherConnector
+    ? otherConnector.parent
+    : ('kind' in other && other.kind === 'branch'
+        ? system.branchPoints.find((branchPoint) => branchPoint.id === other.branch_point_id)?.parent ?? null
+        : null);
+  return bulkhead.parent && isParentInsideEnclosure(system, parentId, bulkhead.parent)
     ? 'internal'
     : 'external';
 }
 
-function derivePathSegments(harness: HarnessData) {
-  return harness.paths.flatMap((pathItem) =>
+function derivePathSegments(system: SystemData) {
+  return system.paths.flatMap((pathItem) =>
     pathItem.nodes.slice(0, -1).map((node, index) => ({
       id: `${pathItem.id}::${index}`,
       pathId: pathItem.id,
@@ -461,8 +402,8 @@ function derivePathSegments(harness: HarnessData) {
   );
 }
 
-function getOccupiedPinNumbers(harness: HarnessData, connectorId: string): number[] {
-  return harness.paths.flatMap((pathItem) =>
+function getOccupiedPinNumbers(system: SystemData, connectorId: string): number[] {
+  return system.paths.flatMap((pathItem) =>
     pathItem.nodes
       .filter((node): node is ConnectorPathNode => node.kind === 'connector' && node.connector_id === connectorId)
       // Missing/invalid pin_number (legacy ring terminals) counts as cavity 1.
@@ -471,11 +412,11 @@ function getOccupiedPinNumbers(harness: HarnessData, connectorId: string): numbe
 }
 
 export function migrateConnectorTypeToGeneric(
-  harness: HarnessData,
+  system: SystemData,
   removedType: ConnectorType,
   genericType: ConnectorType,
-): { harness: HarnessData; migrated: number } {
-  const next = structuredClone(harness);
+): { system: SystemData; migrated: number } {
+  const next = structuredClone(system);
   let migrated = 0;
   for (const connector of next.connectors) {
     if (connector.connector_type !== removedType.id) continue;
@@ -494,7 +435,7 @@ export function migrateConnectorTypeToGeneric(
     };
     migrated += 1;
   }
-  return { harness: next, migrated };
+  return { system: next, migrated };
 }
 
 function countPathNodeRefMatches(pathItem: Pick<PathEntity, 'nodes'>, ref: PathNodeRef): number {
@@ -502,10 +443,10 @@ function countPathNodeRefMatches(pathItem: Pick<PathEntity, 'nodes'>, ref: PathN
   return pathItem.nodes.filter((node) => getPathNodeRefKey(node) === refKey).length;
 }
 
-export function validateHarnessData(harness: HarnessData, library: ConnectorLibrary | null) {
+export function validateSystemData(system: SystemData, library: ConnectorLibrary | null) {
   const errors: string[] = [];
   const warnings: string[] = [];
-  const signalPropertyDefinitions = harness.signalPropertyDefinitions ?? [];
+  const signalPropertyDefinitions = system.signalPropertyDefinitions ?? [];
   const allIds = new Map<string, string>();
   const registerId = (entityType: string, id: string) => {
     const existing = allIds.get(id);
@@ -513,19 +454,19 @@ export function validateHarnessData(harness: HarnessData, library: ConnectorLibr
     else allIds.set(id, entityType);
   };
 
-  harness.enclosures.forEach((entity) => registerId('enclosure', entity.id));
-  harness.connectors.forEach((entity) => registerId('connector', entity.id));
-  harness.mergePoints.forEach((entity) => registerId('mergePoint', entity.id));
-  harness.paths.forEach((entity) => registerId('path', entity.id));
-  harness.signals.forEach((entity) => registerId('signal', entity.id));
+  system.hierarchy.forEach((entity) => registerId('enclosure', entity.id));
+  system.connectors.forEach((entity) => registerId('connector', entity.id));
+  system.branchPoints.forEach((entity) => registerId('branchPoint', entity.id));
+  system.paths.forEach((entity) => registerId('path', entity.id));
+  system.signals.forEach((entity) => registerId('signal', entity.id));
   signalPropertyDefinitions.forEach((entity) =>
     registerId('signal property definition', entity.id)
   );
 
-  const enclosureIds = new Set(harness.enclosures.map((entity) => entity.id));
-  const connectorIds = new Set(harness.connectors.map((entity) => entity.id));
-  const mergePointIds = new Set(harness.mergePoints.map((entity) => entity.id));
-  const signalIds = new Set(harness.signals.map((entity) => entity.id));
+  const enclosureIds = new Set(system.hierarchy.map((entity) => entity.id));
+  const connectorIds = new Set(system.connectors.map((entity) => entity.id));
+  const branchPointIds = new Set(system.branchPoints.map((entity) => entity.id));
+  const signalIds = new Set(system.signals.map((entity) => entity.id));
   const signalPropertyKeys = new Set<string>();
   const connectorTypeById = new Map((library?.connector_types ?? []).map((item) => [item.id, item]));
   const occupancy = new Map<string, string[]>();
@@ -553,7 +494,7 @@ export function validateHarnessData(harness: HarnessData, library: ConnectorLibr
       errors.push(`Signal property definition '${definition.id}' contains duplicate options`);
     }
   }
-  for (const signal of harness.signals) {
+  for (const signal of system.signals) {
     for (const definition of signalPropertyDefinitions) {
       const value = signal.properties[definition.key];
       if (value !== undefined && !definition.options.includes(value)) {
@@ -564,13 +505,13 @@ export function validateHarnessData(harness: HarnessData, library: ConnectorLibr
     }
   }
 
-  for (const enclosure of harness.enclosures) {
+  for (const enclosure of system.hierarchy) {
     if (enclosure.parent && !enclosureIds.has(enclosure.parent)) {
       errors.push(`Enclosure '${enclosure.id}' references missing parent enclosure '${enclosure.parent}'`);
     }
   }
 
-  for (const connector of harness.connectors) {
+  for (const connector of system.connectors) {
     if (connector.parent && !enclosureIds.has(connector.parent)) {
       warnings.push(`Connector '${connector.id}' parent '${connector.parent}' is not an enclosure`);
     }
@@ -583,9 +524,9 @@ export function validateHarnessData(harness: HarnessData, library: ConnectorLibr
     }
     if (connector.mounting === 'bulkhead') {
       const parent = connector.parent
-        ? harness.enclosures.find((enclosure) => enclosure.id === connector.parent)
+        ? system.hierarchy.find((enclosure) => enclosure.id === connector.parent)
         : undefined;
-      if (!parent?.container) {
+      if (parent?.kind !== 'enclosure') {
         errors.push(`Connector '${connector.id}' is marked as a bulkhead without a container parent`);
       }
     }
@@ -619,13 +560,13 @@ export function validateHarnessData(harness: HarnessData, library: ConnectorLibr
       warnings.push(`Connector '${connector.id}' has key '${connector.keying}' but its type is not a connector family`);
     }
   }
-  for (const mergePoint of harness.mergePoints) {
-    if (mergePoint.parent && !enclosureIds.has(mergePoint.parent)) {
-      warnings.push(`Merge point '${mergePoint.id}' parent '${mergePoint.parent}' is not an enclosure`);
+  for (const branchPoint of system.branchPoints) {
+    if (branchPoint.parent && !enclosureIds.has(branchPoint.parent)) {
+      warnings.push(`Branch point '${branchPoint.id}' parent '${branchPoint.parent}' is not an enclosure`);
     }
   }
 
-  for (const pathItem of harness.paths) {
+  for (const pathItem of system.paths) {
     if (pathItem.nodes.length < 2) {
       warnings.push(`Path '${pathItem.id}' has fewer than 2 nodes`);
     }
@@ -635,7 +576,7 @@ export function validateHarnessData(harness: HarnessData, library: ConnectorLibr
           errors.push(`Path '${pathItem.id}' references missing connector '${node.connector_id}'`);
           continue;
         }
-        const connector = harness.connectors.find((item) => item.id === node.connector_id);
+        const connector = system.connectors.find((item) => item.id === node.connector_id);
         const connectorType = connector?.connector_type ? connectorTypeById.get(connector.connector_type) : undefined;
         if (!Number.isInteger(node.pin_number) || node.pin_number <= 0) {
           errors.push(`Path '${pathItem.id}' uses missing or invalid pin number '${node.pin_number}' on connector '${node.connector_id}'`);
@@ -654,8 +595,8 @@ export function validateHarnessData(harness: HarnessData, library: ConnectorLibr
         const refs = occupancy.get(key) ?? [];
         refs.push(pathItem.id);
         occupancy.set(key, refs);
-      } else if (!mergePointIds.has(node.merge_point_id)) {
-        errors.push(`Path '${pathItem.id}' references missing merge point '${node.merge_point_id}'`);
+      } else if (!branchPointIds.has(node.branch_point_id)) {
+        errors.push(`Path '${pathItem.id}' references missing branch point '${node.branch_point_id}'`);
       }
     }
     for (const measurement of pathItem.measurements) {
@@ -679,7 +620,7 @@ export function validateHarnessData(harness: HarnessData, library: ConnectorLibr
     if (signalId && !signalIds.has(signalId)) {
       warnings.push(`Path '${pathItem.id}' references signal '${signalId}' with no matching signal entity`);
     }
-    const signal = signalId ? harness.signals.find((item) => item.id === signalId) : undefined;
+    const signal = signalId ? system.signals.find((item) => item.id === signalId) : undefined;
     const preferredColor = signal?.properties.preferred_wire_color?.trim().toLowerCase();
     const actualColor = (pathItem.properties.wire_color ?? pathItem.properties.color)?.trim().toLowerCase();
     if (preferredColor && actualColor && preferredColor !== actualColor) {
@@ -693,13 +634,13 @@ export function validateHarnessData(harness: HarnessData, library: ConnectorLibr
     }
   }
 
-  for (const mergePoint of harness.mergePoints) {
-    const incidentSegments = derivePathSegments(harness).filter((segment) =>
-      (segment.from.kind === 'merge' && segment.from.merge_point_id === mergePoint.id) ||
-      (segment.to.kind === 'merge' && segment.to.merge_point_id === mergePoint.id),
+  for (const branchPoint of system.branchPoints) {
+    const incidentSegments = derivePathSegments(system).filter((segment) =>
+      (segment.from.kind === 'branch' && segment.from.branch_point_id === branchPoint.id) ||
+      (segment.to.kind === 'branch' && segment.to.branch_point_id === branchPoint.id),
     );
     if (incidentSegments.length < 2) {
-      warnings.push(`Merge point '${mergePoint.id}' has fewer than 2 incident path segments`);
+      warnings.push(`Branch point '${branchPoint.id}' has fewer than 2 incident path segments`);
     }
   }
 
@@ -745,45 +686,50 @@ export function createApiMiddleware(projectRoot: string) {
     return name.replace(/[^a-zA-Z0-9_-]/g, '');
   }
 
-  function harnessFile(name = 'fsae-car') {
-    return path.join(projectRoot, 'public', 'user-data', 'harnesses', `${sanitizeName(name)}.json`);
+  function systemFile(name = 'fsae-car') {
+    return flatSystemFile(projectRoot, sanitizeName(name));
   }
 
-  function harnessExists(name: string): boolean {
+  function systemExists(name: string): boolean {
     const resolved = sanitizeName(name);
-    return (
-      isSheetedHarness(projectRoot, resolved)
-      || fs.existsSync(harnessFile(resolved))
-    );
+    return isSheetedSystem(projectRoot, resolved) || fs.existsSync(systemFile(resolved));
   }
 
-  function listHarnessNames(): string[] {
-    const dir = path.join(projectRoot, 'public', 'user-data', 'harnesses');
+  function listNamesInDir(dir: string): string[] {
     try {
       const entries = fs.readdirSync(dir, { withFileTypes: true });
       const flatNames = entries
         .filter((entry) => entry.isFile() && entry.name.endsWith('.json'))
         .map((entry) => entry.name.replace('.json', ''));
       const sheetedNames = entries
-        .filter((entry) => entry.isDirectory() && isSheetedHarness(projectRoot, entry.name))
+        .filter((entry) => entry.isDirectory() && (
+          fs.existsSync(path.join(dir, entry.name, 'root.json'))
+        ))
         .map((entry) => entry.name);
-      return [...new Set([...flatNames, ...sheetedNames])].sort();
+      return [...flatNames, ...sheetedNames];
     } catch {
       return [];
     }
   }
 
-  /** Display name from harness data; falls back to storage key when unset. */
-  function readHarnessDisplayName(name: string): string {
+  function listSystemNames(): string[] {
+    return [...new Set([
+      ...listNamesInDir(path.join(projectRoot, 'public', 'user-data', 'systems')),
+      ...listNamesInDir(path.join(projectRoot, 'public', 'user-data', 'harnesses')),
+    ])].sort();
+  }
+
+  /** Display name from System data; falls back to storage key when unset. */
+  function readSystemDisplayName(name: string): string {
     const resolved = sanitizeName(name);
     try {
-      if (isSheetedHarness(projectRoot, resolved)) {
+      if (isSheetedSystem(projectRoot, resolved)) {
         const root = readJSON<{ name?: unknown }>(
-          path.join(sheetHarnessDir(projectRoot, resolved), 'root.json'),
+          path.join(sheetSystemDir(projectRoot, resolved), 'root.json'),
         );
         if (typeof root.name === 'string' && root.name.trim()) return root.name.trim();
       } else {
-        const data = readJSON<{ name?: unknown }>(harnessFile(resolved));
+        const data = readJSON<{ name?: unknown }>(systemFile(resolved));
         if (typeof data.name === 'string' && data.name.trim()) return data.name.trim();
       }
     } catch {
@@ -792,10 +738,10 @@ export function createApiMiddleware(projectRoot: string) {
     return resolved;
   }
 
-  function listHarnesses(): Array<{ id: string; name: string }> {
-    return listHarnessNames().map((id) => ({
+  function listSystems(): Array<{ id: string; name: string }> {
+    return listSystemNames().map((id) => ({
       id,
-      name: readHarnessDisplayName(id),
+      name: readSystemDisplayName(id),
     }));
   }
 
@@ -820,8 +766,8 @@ export function createApiMiddleware(projectRoot: string) {
     return path.join(projectRoot, 'public', 'user-data', 'subsystems', sanitizeName(name));
   }
 
-  function subsystemFile(harness: string, subsystemId: string) {
-    return path.join(subsystemDir(harness), `${sanitizeName(subsystemId)}.json`);
+  function subsystemFile(systemKey: string, subsystemId: string) {
+    return path.join(subsystemDir(systemKey), `${sanitizeName(subsystemId)}.json`);
   }
 
   function readJSON<T>(filePath: string): T {
@@ -835,12 +781,12 @@ export function createApiMiddleware(projectRoot: string) {
     fs.renameSync(temp, filePath);
   }
 
-  function readHarness(name?: string): HarnessData {
+  function readSystem(name?: string): SystemData {
     const resolved = sanitizeName(name ?? 'fsae-car');
-    if (isSheetedHarness(projectRoot, resolved)) {
-      return normalizeHarness(readSheetedHarness(sheetHarnessDir(projectRoot, resolved)));
+    if (isSheetedSystem(projectRoot, resolved)) {
+      return normalizeSystem(readSheetedSystem(sheetSystemDir(projectRoot, resolved)));
     }
-    return normalizeHarness(readJSON<any>(harnessFile(name)));
+    return normalizeSystem(readJSON<any>(systemFile(name)));
   }
 
   /**
@@ -851,15 +797,15 @@ export function createApiMiddleware(projectRoot: string) {
    * the rollback path -- restoring a payload that was never modified is pure
    * downside risk, since it replaces live files via rename.
    */
-  function prepareHarnessWrite(data: HarnessData, name?: string): { commit: () => void } {
+  function prepareSystemWrite(data: SystemData, name?: string): { commit: () => void } {
     const resolved = sanitizeName(name ?? 'fsae-car');
-    const normalized = normalizeHarness(data);
-    if (isSheetedHarness(projectRoot, resolved)) {
-      const harnessDir = sheetHarnessDir(projectRoot, resolved);
-      const plan = planSheetedWrite(harnessDir, normalized);
-      return { commit: () => commitSheetedWrite(harnessDir, plan) };
+    const normalized = normalizeSystem(data);
+    if (isSheetedSystem(projectRoot, resolved)) {
+      const systemDir = sheetSystemDir(projectRoot, resolved);
+      const plan = planSheetedWrite(systemDir, normalized);
+      return { commit: () => commitSheetedWrite(systemDir, plan) };
     }
-    return { commit: () => writeJSONAtomic(harnessFile(name), normalized) };
+    return { commit: () => writeJSONAtomic(systemFile(name), normalized) };
   }
 
   function readLibrary(): ConnectorLibrary | null {
@@ -872,7 +818,7 @@ export function createApiMiddleware(projectRoot: string) {
 
   function readLayouts(name = 'fsae-car'): LayoutData {
     try {
-      return readJSON<LayoutData>(layoutsFile(name));
+      return normalizeLayouts(readJSON<unknown>(layoutsFile(name))) as LayoutData;
     } catch {
       return {};
     }
@@ -884,11 +830,7 @@ export function createApiMiddleware(projectRoot: string) {
 
   function readManufacturing(name = 'fsae-car'): ManufacturingDocument {
     try {
-      const data = readJSON<Partial<ManufacturingDocument>>(manufacturingFile(name));
-      return {
-        schema_version: '1.2.0',
-        bundles: data.bundles && typeof data.bundles === 'object' ? data.bundles : {},
-      };
+      return normalizeManufacturingDocument(readJSON<unknown>(manufacturingFile(name)));
     } catch {
       return { schema_version: '1.2.0', bundles: {} };
     }
@@ -970,15 +912,15 @@ export function createApiMiddleware(projectRoot: string) {
         }
       }
       if (
-        progress.splice_measured !== undefined
+        progress.branch_measured !== undefined
         && (
-          !isRecord(progress.splice_measured)
-          || Object.entries(progress.splice_measured).some(
-            ([spliceId, completed]) => !spliceId || typeof completed !== 'boolean',
+          !isRecord(progress.branch_measured)
+          || Object.entries(progress.branch_measured).some(
+            ([branchPointId, completed]) => !branchPointId || typeof completed !== 'boolean',
           )
         )
       ) {
-        throw new Error(`Invalid splice measurements for bundle '${bundleId}'.`);
+        throw new Error(`Invalid branch-point measurements for bundle '${bundleId}'.`);
       }
       if (
         progress.connector_guide_states !== undefined
@@ -1018,7 +960,7 @@ export function createApiMiddleware(projectRoot: string) {
             || ![
               'wire-cut',
               'wire-end',
-              'splice-measured',
+              'branch-measured',
               'connector-guide',
               'component-step',
             ].includes(
@@ -1047,10 +989,10 @@ export function createApiMiddleware(projectRoot: string) {
     });
   }
 
-  function harnessName(query: URLSearchParams) {
-    const value = query.get('harness');
-    if (value !== null && (!value || sanitizeName(value) !== value)) {
-      throw new Error(`Invalid harness name '${value}'.`);
+  function systemName(query: URLSearchParams) {
+    const value = query.get('system') ?? query.get('harness');
+    if (value !== null && value !== undefined && (!value || sanitizeName(value) !== value)) {
+      throw new Error(`Invalid system name '${value}'.`);
     }
     return value ?? undefined;
   }
@@ -1197,33 +1139,39 @@ export function createApiMiddleware(projectRoot: string) {
     if (fs.existsSync(filePath)) fs.rmSync(filePath, { recursive: true, force: true });
   }
 
-  function historySnapshotRoot(harness: string, rev: number): string {
+  function historySnapshotRoot(systemKey: string, rev: number): string {
     return path.join(
       getCollaborationPaths().stateRoot,
       'history',
-      harness,
+      systemKey,
       String(rev),
     );
   }
 
-  function readHarnessFromPayloadRoot(root: string, harness: string): HarnessData {
-    const directory = path.join(root, 'harnesses', harness);
-    const flatFile = path.join(root, 'harnesses', `${harness}.json`);
-    if (fs.existsSync(path.join(directory, 'root.json'))) {
-      return normalizeHarness(readSheetedHarness(directory));
+  function readSystemFromPayloadRoot(root: string, systemKey: string): SystemData {
+    const canonicalDir = path.join(root, 'systems', systemKey);
+    const canonicalFlat = path.join(root, 'systems', `${systemKey}.json`);
+    const legacyDir = path.join(root, 'harnesses', systemKey);
+    const legacyFlat = path.join(root, 'harnesses', `${systemKey}.json`);
+    if (fs.existsSync(path.join(canonicalDir, 'root.json'))) {
+      return normalizeSystem(readSheetedSystem(canonicalDir));
     }
+    if (fs.existsSync(path.join(legacyDir, 'root.json'))) {
+      return normalizeSystem(readSheetedSystem(legacyDir));
+    }
+    const flatFile = fs.existsSync(canonicalFlat) ? canonicalFlat : legacyFlat;
     if (!fs.existsSync(flatFile)) {
-      throw new Error(`Harness snapshot '${harness}' is unavailable.`);
+      throw new Error(`System snapshot '${systemKey}' is unavailable.`);
     }
-    return normalizeHarness(readJSON<unknown>(flatFile));
+    return normalizeSystem(readJSON<unknown>(flatFile));
   }
 
-  function harnessChangesSince(harness: string, baseRev: number, currentRev: number): string[] {
+  function systemChangesSince(systemKey: string, baseRev: number, currentRev: number): string[] {
     if (baseRev === currentRev) return [];
     if (!Number.isSafeInteger(baseRev) || baseRev < 0 || baseRev > currentRev) return [];
     try {
-      const previous = readHarnessFromPayloadRoot(historySnapshotRoot(harness, baseRev), harness);
-      return changedIds(diffHarness(previous, readHarness(harness)));
+      const previous = readSystemFromPayloadRoot(historySnapshotRoot(systemKey, baseRev), systemKey);
+      return changedIds(diffSystem(previous, readSystem(systemKey)));
     } catch {
       return [];
     }
@@ -1280,16 +1228,16 @@ export function createApiMiddleware(projectRoot: string) {
     }
   }
 
-  async function recordHarnessWrite(
-    harness: string,
+  async function recordSystemWrite(
+    systemKey: string,
     kind: EditKind,
     rev: number,
     diff: EntityDiff,
     writer: RevisionWriter,
   ): Promise<void> {
     const entityIds = changedIds(diff);
-    await applyDiffToAttribution(harness, diff, writer, rev);
-    appendEditLog(harness, {
+    await applyDiffToAttribution(systemKey, diff, writer, rev);
+    appendEditLog(systemKey, {
       user: writer.id,
       displayName: writer.displayName,
       kind,
@@ -1299,15 +1247,15 @@ export function createApiMiddleware(projectRoot: string) {
       removed: diff.removed.length,
       entityIds,
     });
-    await pruneHistory(harness);
+    await pruneHistory(systemKey);
     try {
-      await ensureDailyCheckpoint(harness, writer);
+      await ensureDailyCheckpoint(systemKey, writer);
     } catch (error) {
       // Best-effort: a failure here must never take down the write it rode
-      // in on. It will simply retry on the next edit to this harness.
-      console.error(`Daily checkpoint failed for '${harness}':`, error);
+      // in on. It will simply retry on the next edit to this System.
+      console.error(`Daily checkpoint failed for '${systemKey}':`, error);
     }
-    broadcast(harness, 'rev', {
+    broadcast(systemKey, 'rev', {
       rev,
       kind,
       by: writer,
@@ -1315,8 +1263,8 @@ export function createApiMiddleware(projectRoot: string) {
     });
   }
 
-  interface HarnessWriteBuild<T> {
-    next: HarnessData;
+  interface SystemWriteBuild<T> {
+    next: SystemData;
     value: T;
     sidecarWrite?: {
       write: () => void;
@@ -1324,42 +1272,42 @@ export function createApiMiddleware(projectRoot: string) {
     };
   }
 
-  async function commitHarnessDocument<T>(
+  async function commitSystemDocument<T>(
     req: IncomingMessage,
-    harness: string,
+    systemKey: string,
     kind: EditKind,
-    build: (previous: HarnessData) => HarnessWriteBuild<T> | Promise<HarnessWriteBuild<T>>,
+    build: (previous: SystemData) => SystemWriteBuild<T> | Promise<SystemWriteBuild<T>>,
     baseRev: number | null = null,
     allowCreate = false,
   ): Promise<{ rev: number; value: T; diff: EntityDiff }> {
     const writer = writerFor(req);
-    return await withHarnessLock(harness, async () => {
+    return await withSystemLock(systemKey, async () => {
       let currentRev: number;
       if (baseRev !== null) {
-        const cas = checkCas(harness, baseRev);
+        const cas = checkCas(systemKey, baseRev);
         if (!cas.ok) {
           throw new ApiWriteError(409, {
             error: 'conflict',
             currentRev: cas.currentRev,
             baseRev: Number.isSafeInteger(cas.baseRev) ? cas.baseRev : null,
             lastWriter: cas.lastWriter,
-            changedEntityIds: harnessChangesSince(harness, cas.baseRev, cas.currentRev),
+            changedEntityIds: systemChangesSince(systemKey, cas.baseRev, cas.currentRev),
           });
         }
         currentRev = cas.currentRev;
       } else {
-        currentRev = getRev(harness);
+        currentRev = getRev(systemKey);
       }
 
-      const existed = harnessExists(harness);
+      const existed = systemExists(systemKey);
       if (!existed && !allowCreate) {
-        throw new ApiWriteError(404, { error: `Harness '${harness}' does not exist.` });
+        throw new ApiWriteError(404, { error: `System '${systemKey}' does not exist.` });
       }
-      const previous = existed ? readHarness(harness) : normalizeHarness(undefined);
+      const previous = existed ? readSystem(systemKey) : normalizeSystem(undefined);
       const validationLibrary = readLibrary();
-      const before = validateHarnessData(previous, validationLibrary);
+      const before = validateSystemData(previous, validationLibrary);
       const built = await build(structuredClone(previous));
-      const next = normalizeHarness(built.next);
+      const next = normalizeSystem(built.next);
 
       // Both rejection checks run before the snapshot, the revision bump, and
       // any disk write. They used to run against an already-written payload and
@@ -1367,24 +1315,24 @@ export function createApiMiddleware(projectRoot: string) {
       // back re-installs live files via rename, so doing it for a write that
       // never happened is pure downside risk. Leaving the revision alone also
       // keeps the client's next save from colliding with a bump it never saw.
-      const after = validateHarnessData(next, validationLibrary);
+      const after = validateSystemData(next, validationLibrary);
       if (after.error_count > before.error_count) {
         throw new ApiWriteError(500, {
           error: 'validation-degradation',
           errors: after.errors,
         });
       }
-      const pendingWrite = prepareHarnessWrite(next, harness);
+      const pendingWrite = prepareSystemWrite(next, systemKey);
 
-      const snapshot = existed ? await snapshotToHistory(harness, currentRev) : null;
-      const rev = await bumpRev(harness, writer);
+      const snapshot = existed ? await snapshotToHistory(systemKey, currentRev) : null;
+      const rev = await bumpRev(systemKey, writer);
       try {
         pendingWrite.commit();
         built.sidecarWrite?.write();
       } catch (writeFailure) {
         try {
-          if (snapshot) restoreManagedPayload(snapshot, harness);
-          else removePath(harnessFile(harness));
+          if (snapshot) restoreManagedPayload(snapshot, systemKey);
+          else removePath(systemFile(systemKey));
         } catch (rollbackError) {
           throw new ApiWriteError(500, {
             error: 'write-failed',
@@ -1399,11 +1347,11 @@ export function createApiMiddleware(projectRoot: string) {
         }
         throw writeFailure;
       }
-      const harnessDiff = diffHarness(previous, next);
+      const systemDiff = diffSystem(previous, next);
       const diff = built.sidecarWrite
-        ? combineDiffs([harnessDiff, built.sidecarWrite.diff])
-        : harnessDiff;
-      await recordHarnessWrite(harness, kind, rev, diff, writer);
+        ? combineDiffs([systemDiff, built.sidecarWrite.diff])
+        : systemDiff;
+      await recordSystemWrite(systemKey, kind, rev, diff, writer);
       return { rev, value: built.value, diff };
     });
   }
@@ -1414,9 +1362,9 @@ export function createApiMiddleware(projectRoot: string) {
     diff: EntityDiff;
   }
 
-  async function commitHarnessSidecar<TDocument, TValue>(
+  async function commitSystemSidecar<TDocument, TValue>(
     req: IncomingMessage,
-    harness: string,
+    systemKey: string,
     kind: EditKind,
     readDocument: () => TDocument,
     build: (
@@ -1425,20 +1373,20 @@ export function createApiMiddleware(projectRoot: string) {
     writeDocument: (next: TDocument) => void,
   ): Promise<{ rev: number; value: TValue; diff: EntityDiff }> {
     const writer = writerFor(req);
-    return await withHarnessLock(harness, async () => {
-      const currentRev = getRev(harness);
-      const previousHarness = readHarness(harness);
+    return await withSystemLock(systemKey, async () => {
+      const currentRev = getRev(systemKey);
+      const previousSystem = readSystem(systemKey);
       const validationLibrary = readLibrary();
-      const before = validateHarnessData(previousHarness, validationLibrary);
+      const before = validateSystemData(previousSystem, validationLibrary);
       const previousDocument = readDocument();
       const built = await build(structuredClone(previousDocument));
-      const snapshot = await snapshotToHistory(harness, currentRev);
-      const rev = await bumpRev(harness, writer);
+      const snapshot = await snapshotToHistory(systemKey, currentRev);
+      const rev = await bumpRev(systemKey, writer);
       writeDocument(built.next);
-      const after = validateHarnessData(readHarness(harness), validationLibrary);
+      const after = validateSystemData(readSystem(systemKey), validationLibrary);
       if (after.error_count > before.error_count) {
         try {
-          restoreManagedPayload(snapshot, harness);
+          restoreManagedPayload(snapshot, systemKey);
         } catch (rollbackError) {
           throw new ApiWriteError(500, {
             error: 'validation-degradation',
@@ -1453,7 +1401,7 @@ export function createApiMiddleware(projectRoot: string) {
           errors: after.errors,
         });
       }
-      await recordHarnessWrite(harness, kind, rev, built.diff, writer);
+      await recordSystemWrite(systemKey, kind, rev, built.diff, writer);
       return { rev, value: built.value, diff: built.diff };
     });
   }
@@ -1464,7 +1412,7 @@ export function createApiMiddleware(projectRoot: string) {
     baseRev: number | null,
   ): Promise<{ rev: number; library: ConnectorLibrary; diff: EntityDiff }> {
     const writer = writerFor(req);
-    return await withHarnessLock(LIBRARY_REVISION_KEY, async () => {
+    return await withSystemLock(LIBRARY_REVISION_KEY, async () => {
       let currentRev: number;
       if (baseRev !== null) {
         const cas = checkCas(LIBRARY_REVISION_KEY, baseRev);
@@ -1506,8 +1454,8 @@ export function createApiMiddleware(projectRoot: string) {
         entityIds,
       });
       await pruneHistory(LIBRARY_REVISION_KEY);
-      for (const harness of listHarnessNames()) {
-        broadcast(harness, 'rev', {
+      for (const systemKey of listSystemNames()) {
+        broadcast(systemKey, 'rev', {
           rev,
           kind: 'library',
           by: writer,
@@ -1524,11 +1472,14 @@ export function createApiMiddleware(projectRoot: string) {
     'sizes',
     'free',
     'backgrounds',
+    'images',
     'connectorTypeSizes',
     'textBoxes',
     'waypoints',
-    'junctions',
+    'sharedAnchors',
     'rotations',
+    'routeStyles',
+    'viewRouteStyles',
   ] as const;
 
   function isRecord(value: unknown): value is Record<string, unknown> {
@@ -1578,48 +1529,48 @@ export function createApiMiddleware(projectRoot: string) {
       });
     }
 
-    if (patch.mergePoints !== undefined || removed.mergePoints !== undefined) {
-      if (patch.mergePoints !== undefined && !isRecord(patch.mergePoints)) {
-        throw new ApiWriteError(400, { error: 'mergePoints patch must be an object map' });
+    if (patch.branchPoints !== undefined || removed.branchPoints !== undefined) {
+      if (patch.branchPoints !== undefined && !isRecord(patch.branchPoints)) {
+        throw new ApiWriteError(400, { error: 'branchPoints patch must be an object map' });
       }
-      const mergePoints = structuredClone(current.mergePoints ?? {});
+      const branchPoints = structuredClone(current.branchPoints ?? {});
       for (const [contextKey, contextPatch] of Object.entries(
-        (patch.mergePoints ?? {}) as Record<string, unknown>,
+        (patch.branchPoints ?? {}) as Record<string, unknown>,
       )) {
         if (!isRecord(contextPatch)) {
           throw new ApiWriteError(400, {
-            error: `mergePoints patch '${contextKey}' must be an object map`,
+            error: `branchPoints patch '${contextKey}' must be an object map`,
           });
         }
-        mergePoints[contextKey] = {
-          ...(mergePoints[contextKey] ?? {}),
+        branchPoints[contextKey] = {
+          ...(branchPoints[contextKey] ?? {}),
           ...(contextPatch as Record<string, { x: number; y: number }>),
         };
       }
 
-      if (Array.isArray(removed.mergePoints)) {
-        for (const contextKey of removed.mergePoints) {
+      if (Array.isArray(removed.branchPoints)) {
+        for (const contextKey of removed.branchPoints) {
           if (typeof contextKey !== 'string') {
-            throw new ApiWriteError(400, { error: 'Removed merge-point contexts must be strings' });
+            throw new ApiWriteError(400, { error: 'Removed branch-point contexts must be strings' });
           }
-          delete mergePoints[contextKey];
+          delete branchPoints[contextKey];
         }
-      } else if (removed.mergePoints !== undefined) {
-        if (!isRecord(removed.mergePoints)) {
-          throw new ApiWriteError(400, { error: 'Removed merge points must be an object map' });
+      } else if (removed.branchPoints !== undefined) {
+        if (!isRecord(removed.branchPoints)) {
+          throw new ApiWriteError(400, { error: 'Removed branch points must be an object map' });
         }
-        for (const [contextKey, ids] of Object.entries(removed.mergePoints)) {
+        for (const [contextKey, ids] of Object.entries(removed.branchPoints)) {
           if (!Array.isArray(ids) || ids.some((id) => typeof id !== 'string')) {
             throw new ApiWriteError(400, {
-              error: `Removed merge points for '${contextKey}' must be a string array`,
+              error: `Removed branch points for '${contextKey}' must be a string array`,
             });
           }
-          const context = { ...(mergePoints[contextKey] ?? {}) };
+          const context = { ...(branchPoints[contextKey] ?? {}) };
           for (const id of ids) delete context[id];
-          mergePoints[contextKey] = context;
+          branchPoints[contextKey] = context;
         }
       }
-      next.mergePoints = mergePoints;
+      next.branchPoints = branchPoints;
     }
     return next;
   }
@@ -1639,28 +1590,28 @@ export function createApiMiddleware(projectRoot: string) {
         (next[key] ?? {}) as Record<string, unknown>,
       )
     );
-    const previousMergePoints = Object.fromEntries(
-      Object.entries(previous.mergePoints ?? {}).flatMap(([context, points]) =>
+    const previousBranchPoints = Object.fromEntries(
+      Object.entries(previous.branchPoints ?? {}).flatMap(([context, points]) =>
         Object.entries(points).map(([id, value]) => [`${context}:${id}`, value])
       ),
     );
-    const nextMergePoints = Object.fromEntries(
-      Object.entries(next.mergePoints ?? {}).flatMap(([context, points]) =>
+    const nextBranchPoints = Object.fromEntries(
+      Object.entries(next.branchPoints ?? {}).flatMap(([context, points]) =>
         Object.entries(points).map(([id, value]) => [`${context}:${id}`, value])
       ),
     );
-    const mergePointDiff = diffKeyedMap(previousMergePoints, nextMergePoints);
+    const branchPointDiff = diffKeyedMap(previousBranchPoints, nextBranchPoints);
     const stripContext = (id: string) => id.slice(id.indexOf(':') + 1);
     diffs.push({
-      added: mergePointDiff.added.map(stripContext),
-      modified: mergePointDiff.modified.map(stripContext),
-      removed: mergePointDiff.removed.map(stripContext),
+      added: branchPointDiff.added.map(stripContext),
+      modified: branchPointDiff.modified.map(stripContext),
+      removed: branchPointDiff.removed.map(stripContext),
     });
     return combineDiffs(diffs);
   }
 
-  function listSubsystemDocuments(harness: string, root = getCollaborationPaths().userDataRoot) {
-    const directory = path.join(root, 'subsystems', harness);
+  function listSubsystemDocuments(systemKey: string, root = getCollaborationPaths().userDataRoot) {
+    const directory = path.join(root, 'subsystems', systemKey);
     if (!fs.existsSync(directory)) return [] as SubsystemDocument[];
     return fs.readdirSync(directory)
       .filter((file) => file.endsWith('.json'))
@@ -1725,13 +1676,13 @@ export function createApiMiddleware(projectRoot: string) {
     return document;
   }
 
-  function readLayoutsFromRoot(root: string, harness: string): LayoutData {
-    const file = path.join(root, `layouts.${harness}.json`);
+  function readLayoutsFromRoot(root: string, systemKey: string): LayoutData {
+    const file = path.join(root, `layouts.${systemKey}.json`);
     return fs.existsSync(file) ? readJSON<LayoutData>(file) : {};
   }
 
-  function readManufacturingFromRoot(root: string, harness: string): ManufacturingDocument {
-    const file = path.join(root, `manufacturing.${harness}.json`);
+  function readManufacturingFromRoot(root: string, systemKey: string): ManufacturingDocument {
+    const file = path.join(root, `manufacturing.${systemKey}.json`);
     if (!fs.existsSync(file)) return { schema_version: '1.2.0', bundles: {} };
     const data = readJSON<Partial<ManufacturingDocument>>(file);
     return {
@@ -1753,7 +1704,7 @@ export function createApiMiddleware(projectRoot: string) {
   function layoutPatch(previous: LayoutData, next: LayoutData) {
     const patch: Record<string, unknown> = {};
     const removed: Record<string, string[]> = {};
-    for (const key of [...LAYOUT_MAP_KEYS, 'mergePoints'] as const) {
+    for (const key of [...LAYOUT_MAP_KEYS, 'branchPoints'] as const) {
       const delta = recordPatch(
         (previous[key] ?? {}) as Record<string, unknown>,
         (next[key] ?? {}) as Record<string, unknown>,
@@ -1768,23 +1719,23 @@ export function createApiMiddleware(projectRoot: string) {
     return JSON.stringify(left) === JSON.stringify(right);
   }
 
-  function fullState(harness: string) {
-    const revision = getRevisionState(harness);
+  function fullState(systemKey: string) {
+    const revision = getRevisionState(systemKey);
     return {
       rev: revision.rev,
       libraryRev: getRev(LIBRARY_REVISION_KEY),
       connectorLibrary: readLibrary() ?? { connector_types: [] },
-      harness: readHarness(harness),
-      layouts: readLayouts(harness),
-      manufacturing: readManufacturing(harness),
-      subsystems: listSubsystemDocuments(harness),
-      attribution: getAttribution(harness),
+      system: readSystem(systemKey),
+      layouts: readLayouts(systemKey),
+      manufacturing: readManufacturing(systemKey),
+      subsystems: listSubsystemDocuments(systemKey),
+      attribution: getAttribution(systemKey),
       lastWriter: revision.lastWriter,
     };
   }
 
-  function syncDelta(harness: string, since: number) {
-    const current = fullState(harness);
+  function syncDelta(systemKey: string, since: number) {
+    const current = fullState(systemKey);
     if (since === current.rev) {
       return {
         rev: current.rev,
@@ -1794,7 +1745,7 @@ export function createApiMiddleware(projectRoot: string) {
         changedEntityIds: [],
       };
     }
-    const snapshotRoot = historySnapshotRoot(harness, since);
+    const snapshotRoot = historySnapshotRoot(systemKey, since);
     if (
       !Number.isSafeInteger(since)
       || since < 0
@@ -1805,13 +1756,13 @@ export function createApiMiddleware(projectRoot: string) {
       return { ...current, full: true };
     }
 
-    const previousHarness = readHarnessFromPayloadRoot(snapshotRoot, harness);
-    const previousLayouts = readLayoutsFromRoot(snapshotRoot, harness);
-    const previousManufacturing = readManufacturingFromRoot(snapshotRoot, harness);
-    const previousSubsystems = subsystemRecord(listSubsystemDocuments(harness, snapshotRoot));
+    const previousSystem = readSystemFromPayloadRoot(snapshotRoot, systemKey);
+    const previousLayouts = readLayoutsFromRoot(snapshotRoot, systemKey);
+    const previousManufacturing = readManufacturingFromRoot(snapshotRoot, systemKey);
+    const previousSubsystems = subsystemRecord(listSubsystemDocuments(systemKey, snapshotRoot));
     const currentSubsystems = subsystemRecord(current.subsystems);
     const changed: Record<string, unknown> = {};
-    const harnessDiff = diffHarness(previousHarness, current.harness);
+    const systemDiff = diffSystem(previousSystem, current.system);
     const layoutDelta = layoutPatch(previousLayouts, current.layouts);
     const manufacturingDelta = recordPatch(
       previousManufacturing.bundles,
@@ -1819,7 +1770,7 @@ export function createApiMiddleware(projectRoot: string) {
     );
     const subsystemDelta = recordPatch(previousSubsystems, currentSubsystems);
 
-    if (!jsonEqual(previousHarness, current.harness)) changed.harness = current.harness;
+    if (!jsonEqual(previousSystem, current.system)) changed.system = current.system;
     if (Object.keys(layoutDelta.patch).length > 0 || Object.keys(layoutDelta.removed).length > 0) {
       changed.layouts = layoutDelta;
     }
@@ -1845,7 +1796,7 @@ export function createApiMiddleware(projectRoot: string) {
       full: false,
       changed,
       changedEntityIds: changedIds(combineDiffs([
-        harnessDiff,
+        systemDiff,
         diffLayouts(previousLayouts, current.layouts),
         manufacturingDelta.diff,
         subsystemDelta.diff,
@@ -1900,7 +1851,7 @@ export function createApiMiddleware(projectRoot: string) {
   addRoute('POST', '/api/users', hideLoginInUserResponse(auth.handlers.createUser));
 
   addRoute('GET', '/api/state', (_req, res, _params, query) => {
-    const name = sanitizeName(harnessName(query) ?? 'fsae-car');
+    const name = sanitizeName(systemName(query) ?? 'fsae-car');
     try {
       json(res, fullState(name));
     } catch (error) {
@@ -1909,7 +1860,7 @@ export function createApiMiddleware(projectRoot: string) {
   });
 
   addRoute('GET', '/api/sync', (_req, res, _params, query) => {
-    const name = sanitizeName(harnessName(query) ?? 'fsae-car');
+    const name = sanitizeName(systemName(query) ?? 'fsae-car');
     const rawSince = query.get('since');
     const since = rawSince !== null && /^(0|[1-9]\d*)$/.test(rawSince)
       ? Number(rawSince)
@@ -1926,14 +1877,14 @@ export function createApiMiddleware(projectRoot: string) {
       err(res, 'Authentication required', 401);
       return;
     }
-    const name = sanitizeName(harnessName(query) ?? 'fsae-car');
+    const name = sanitizeName(systemName(query) ?? 'fsae-car');
     addClient(req, res, name);
   });
 
   addRoute('POST', '/api/presence', presenceHandler);
 
   addRoute('GET', '/api/checkpoints', (_req, res, _params, query) => {
-    const name = sanitizeName(harnessName(query) ?? 'fsae-car');
+    const name = sanitizeName(systemName(query) ?? 'fsae-car');
     try {
       json(res, listCheckpoints(name));
     } catch (error) {
@@ -1942,7 +1893,7 @@ export function createApiMiddleware(projectRoot: string) {
   });
 
   addEditorRoute('POST', '/api/checkpoints', async (req, res, _params, query) => {
-    const name = sanitizeName(harnessName(query) ?? 'fsae-car');
+    const name = sanitizeName(systemName(query) ?? 'fsae-car');
     try {
       const body = await parseBody(req);
       if (!isRecord(body) || typeof body.label !== 'string' || !body.label.trim()) {
@@ -1957,7 +1908,7 @@ export function createApiMiddleware(projectRoot: string) {
   });
 
   addRoute('GET', '/api/checkpoints/:id', (_req, res, params, query) => {
-    const name = sanitizeName(harnessName(query) ?? 'fsae-car');
+    const name = sanitizeName(systemName(query) ?? 'fsae-car');
     try {
       json(res, getCheckpoint(name, params.id));
     } catch (error) {
@@ -1969,16 +1920,16 @@ export function createApiMiddleware(projectRoot: string) {
     'POST',
     '/api/checkpoints/:id/restore',
     async (req, res, params, query) => {
-      const name = sanitizeName(harnessName(query) ?? 'fsae-car');
+      const name = sanitizeName(systemName(query) ?? 'fsae-car');
       const writer = writerFor(req);
       try {
-        const result = await withHarnessLock(name, async () => {
-          const previousHarness = readHarness(name);
+        const result = await withSystemLock(name, async () => {
+          const previousSystem = readSystem(name);
           const previousLayouts = readLayouts(name);
           const previousManufacturing = readManufacturing(name);
           const previousSubsystems = subsystemRecord(listSubsystemDocuments(name));
           const validationLibrary = readLibrary();
-          const before = validateHarnessData(previousHarness, validationLibrary);
+          const before = validateSystemData(previousSystem, validationLibrary);
           const restored = getCheckpoint(name, params.id);
           const automaticCheckpoint = await createCheckpoint(
             name,
@@ -2007,8 +1958,8 @@ export function createApiMiddleware(projectRoot: string) {
             }
             throw restoreError;
           }
-          const nextHarness = readHarness(name);
-          const after = validateHarnessData(nextHarness, validationLibrary);
+          const nextSystem = readSystem(name);
+          const after = validateSystemData(nextSystem, validationLibrary);
           if (after.error_count > before.error_count) {
             try {
               restoreManagedPayload(snapshot, name);
@@ -2027,7 +1978,7 @@ export function createApiMiddleware(projectRoot: string) {
             });
           }
           const diff = combineDiffs([
-            diffHarness(previousHarness, nextHarness),
+            diffSystem(previousSystem, nextSystem),
             diffLayouts(previousLayouts, readLayouts(name)),
             diffKeyedMap(
               previousManufacturing.bundles,
@@ -2038,7 +1989,7 @@ export function createApiMiddleware(projectRoot: string) {
               subsystemRecord(listSubsystemDocuments(name)),
             ),
           ]);
-          await recordHarnessWrite(name, 'restore', rev, diff, writer);
+          await recordSystemWrite(name, 'restore', rev, diff, writer);
           return { restored, automaticCheckpoint, rev };
         });
         setRevisionHeader(res, result.rev);
@@ -2050,7 +2001,7 @@ export function createApiMiddleware(projectRoot: string) {
   );
 
   addRoute('GET', '/api/activity', (_req, res, _params, query) => {
-    const name = sanitizeName(harnessName(query) ?? 'fsae-car');
+    const name = sanitizeName(systemName(query) ?? 'fsae-car');
     const rawDays = query.get('days') ?? '30';
     const days = /^(0|[1-9]\d*)$/.test(rawDays) ? Number(rawDays) : Number.NaN;
     try {
@@ -2060,44 +2011,72 @@ export function createApiMiddleware(projectRoot: string) {
     }
   });
 
+  addRoute('GET', '/api/systems', (_req, res) => {
+    json(res, listSystems());
+  });
   addRoute('GET', '/api/harnesses', (_req, res) => {
-    json(res, listHarnesses());
+    json(res, listSystems());
   });
 
   addRoute('GET', '/api/manufacturing', (_req, res, _params, query) => {
-    json(res, readManufacturing(harnessName(query) ?? 'fsae-car'));
+    json(res, readManufacturing(systemName(query) ?? 'fsae-car'));
   });
 
+  addRoute('GET', '/api/system', (_req, res, _params, query) => {
+    try {
+      json(res, readSystem(systemName(query) ?? 'fsae-car'));
+    } catch (error: any) {
+      err(res, error.message, 404);
+    }
+  });
   addRoute('GET', '/api/harness', (_req, res, _params, query) => {
     try {
-      json(res, readHarness(harnessName(query)));
+      json(res, readSystem(systemName(query) ?? 'fsae-car'));
     } catch (error: any) {
       err(res, error.message, 404);
     }
   });
 
-  addEditorRoute('PUT', '/api/harness', async (req, res, _params, query) => {
+  addEditorRoute('PUT', '/api/system', async (req, res, _params, query) => {
     const body = await parseBody(req);
     if (!body?.schema_version) {
-      err(res, 'Invalid harness data — must include schema_version');
+      err(res, 'Invalid system data — must include schema_version');
       return;
     }
-    const name = sanitizeName(harnessName(query) ?? 'fsae-car');
+    const name = sanitizeName(systemName(query) ?? 'fsae-car');
     try {
-      const result = await commitHarnessDocument(req, name, 'harness', () => ({
-        next: body as HarnessData,
+      const result = await commitSystemDocument(req, name, 'system', () => ({
+        next: body as SystemData,
         value: undefined,
       }), null, true);
       setRevisionHeader(res, result.rev);
       json(res, { ok: true, rev: result.rev });
     } catch (error) {
-      writeError(res, error, 'Failed to save harness');
+      writeError(res, error, 'Failed to save system');
+    }
+  });
+  addEditorRoute('PUT', '/api/harness', async (req, res, _params, query) => {
+    const body = await parseBody(req);
+    if (!body?.schema_version) {
+      err(res, 'Invalid system data — must include schema_version');
+      return;
+    }
+    const name = sanitizeName(systemName(query) ?? 'fsae-car');
+    try {
+      const result = await commitSystemDocument(req, name, 'system', () => ({
+        next: body as SystemData,
+        value: undefined,
+      }), null, true);
+      setRevisionHeader(res, result.rev);
+      json(res, { ok: true, rev: result.rev });
+    } catch (error) {
+      writeError(res, error, 'Failed to save system');
     }
   });
 
   addRoute('GET', '/api/subsystems', (_req, res, _params, query) => {
-    const harness = sanitizeName(harnessName(query) ?? 'fsae-car');
-    const dir = subsystemDir(harness);
+    const systemKey = sanitizeName(systemName(query) ?? 'fsae-car');
+    const dir = subsystemDir(systemKey);
     try {
       const documents = fs.existsSync(dir)
         ? fs.readdirSync(dir)
@@ -2117,13 +2096,13 @@ export function createApiMiddleware(projectRoot: string) {
       err(res, 'Subsystem requires a valid id');
       return;
     }
-    const harness = sanitizeName(harnessName(query) ?? 'fsae-car');
+    const systemKey = sanitizeName(systemName(query) ?? 'fsae-car');
     try {
-      const result = await commitHarnessSidecar(
+      const result = await commitSystemSidecar(
         req,
-        harness,
+        systemKey,
         'subsystem',
-        () => subsystemRecord(listSubsystemDocuments(harness)),
+        () => subsystemRecord(listSubsystemDocuments(systemKey)),
         (previous) => {
           const document = mergeSubsystem(id, previous[id], body);
           const next = { ...previous, [id]: document };
@@ -2133,7 +2112,7 @@ export function createApiMiddleware(projectRoot: string) {
             diff: diffKeyedMap(previous, next),
           };
         },
-        (next) => writeJSONAtomic(subsystemFile(harness, id), next[id]),
+        (next) => writeJSONAtomic(subsystemFile(systemKey, id), next[id]),
       );
       setRevisionHeader(res, result.rev);
       json(res, { ...result.value, rev: result.rev });
@@ -2143,14 +2122,14 @@ export function createApiMiddleware(projectRoot: string) {
   });
 
   addEditorRoute('DELETE', '/api/subsystems/:id', async (req, res, params, query) => {
-    const harness = sanitizeName(harnessName(query) ?? 'fsae-car');
-    const file = subsystemFile(harness, params.id);
+    const systemKey = sanitizeName(systemName(query) ?? 'fsae-car');
+    const file = subsystemFile(systemKey, params.id);
     try {
-      const result = await commitHarnessSidecar(
+      const result = await commitSystemSidecar(
         req,
-        harness,
+        systemKey,
         'subsystem',
-        () => subsystemRecord(listSubsystemDocuments(harness)),
+        () => subsystemRecord(listSubsystemDocuments(systemKey)),
         (previous) => {
           if (!previous[params.id]) {
             throw new ApiWriteError(404, {
@@ -2182,22 +2161,22 @@ export function createApiMiddleware(projectRoot: string) {
       err(res, "Field 'name' is required");
       return;
     }
-    const name = sanitizeName(harnessName(query) ?? 'fsae-car');
+    const name = sanitizeName(systemName(query) ?? 'fsae-car');
     try {
-      const result = await commitHarnessDocument(req, name, 'harness', (harness) => {
+      const result = await commitSystemDocument(req, name, 'system', (system) => {
         const signal: Signal = {
           id: body.id ?? genId('sig'),
           name: body.name,
           tags: body.tags ?? [],
           properties: body.properties ?? {},
         };
-        if (harness.signals.some((existing) => existing.id === signal.id)) {
+        if (system.signals.some((existing) => existing.id === signal.id)) {
           throw new ApiWriteError(409, {
             error: `Signal with id '${signal.id}' already exists`,
           });
         }
-        harness.signals.push(signal);
-        return { next: harness, value: signal };
+        system.signals.push(signal);
+        return { next: system, value: signal };
       });
       setRevisionHeader(res, result.rev);
       json(res, result.value, 201);
@@ -2219,7 +2198,7 @@ export function createApiMiddleware(projectRoot: string) {
       return;
     }
 
-    const name = sanitizeName(harnessName(query) ?? 'fsae-car');
+    const name = sanitizeName(systemName(query) ?? 'fsae-car');
     const requestedSubsystemId = typeof body.subsystem_id === 'string' && body.subsystem_id
       ? sanitizeName(body.subsystem_id)
       : null;
@@ -2238,8 +2217,8 @@ export function createApiMiddleware(projectRoot: string) {
     const token = routeRequestToken(requestKey);
     const pathId = `path_auto_${token}`;
     try {
-      await withHarnessLock(name, async () => {
-        const current = readHarness(name);
+      await withSystemLock(name, async () => {
+        const current = readSystem(name);
         const existing = current.paths.find((wirePath) => {
           const requestIds = [
             wirePath.properties.route_request_id,
@@ -2250,7 +2229,7 @@ export function createApiMiddleware(projectRoot: string) {
         if (existing) {
           json(res, {
             path: existing,
-            harness: current,
+            system: current,
             generated_connectors: [],
             idempotent: true,
             ...(requestedSubsystemId && fs.existsSync(subsystemFile(name, requestedSubsystemId))
@@ -2260,11 +2239,74 @@ export function createApiMiddleware(projectRoot: string) {
           return;
         }
 
-        const result = await commitHarnessDocument(req, name, 'harness', (harness) => {
-          const fromConnector = harness.connectors.find(
+        const result = await commitSystemDocument(req, name, 'system', (system) => {
+          const draftSpec = body.draft_connector;
+          let draftConnector: Connector | undefined;
+          if (draftSpec) {
+            const draftId = String(draftSpec.id ?? '');
+            const draftParentId = String(draftSpec.parent ?? '');
+            if (
+              !draftId
+              || !draftParentId
+              || (
+                draftId !== body.from.connector_id
+                && draftId !== body.to.connector_id
+              )
+            ) {
+              throw new ApiWriteError(400, {
+                error: 'Draft connector must identify one requested route endpoint and parent.',
+              });
+            }
+            const existingDraft = system.connectors.find((item) => item.id === draftId);
+            if (existingDraft) {
+              draftConnector = existingDraft;
+            } else {
+              const parent = system.hierarchy.find((item) => item.id === draftParentId);
+              if (!parent) {
+                throw new ApiWriteError(404, {
+                  error: `Draft connector parent not found: ${draftParentId}`,
+                });
+              }
+              const systemTags = requestedSubsystemId ? [`system:${requestedSubsystemId}`] : [];
+              const properties: Record<string, string> = {
+                [BULKHEAD_DISPLAY_PROPERTY]: BULKHEAD_DOT_DISPLAY,
+                generated_by_route: pathId,
+                generated_by_routes: pathId,
+              };
+              if (parent.kind === 'enclosure') {
+                Object.assign(properties, {
+                  placeholder_reason: AUTO_BULKHEAD_REASON,
+                  bulkhead_group_anchor: `dot:${draftId}`,
+                  boundary_enclosure: parent.id,
+                  boundary_sheet: parent.id,
+                  boundary_name: parent.name,
+                });
+              }
+              draftConnector = {
+                id: draftId,
+                name: typeof draftSpec.name === 'string' && draftSpec.name.trim()
+                  ? draftSpec.name.trim()
+                  : 'Visual dot',
+                parent: parent.id,
+                connector_type: GENERIC_MULTIPIN_TYPE_ID,
+                mounting: parent.kind === 'enclosure' ? 'bulkhead' : 'inline',
+                pin_count: 1,
+                tags: Array.from(new Set([
+                  'generated',
+                  'unresolved',
+                  'dot',
+                  ...(parent.kind === 'enclosure' ? ['bulkhead'] : ['inline']),
+                  ...systemTags,
+                ])),
+                properties,
+              };
+              system.connectors.push(draftConnector);
+            }
+          }
+          const fromConnector = system.connectors.find(
             (item) => item.id === body.from.connector_id,
           );
-          const toConnector = harness.connectors.find(
+          const toConnector = system.connectors.find(
             (item) => item.id === body.to.connector_id,
           );
           if (!fromConnector || !toConnector) {
@@ -2272,7 +2314,29 @@ export function createApiMiddleware(projectRoot: string) {
               error: 'One or both connector endpoints do not exist',
             });
           }
-          if (!harness.signals.some((signal) => signal.id === body.signal_id)) {
+          for (const connector of [fromConnector, toConnector]) {
+            if (
+              connector.id !== draftConnector?.id
+              && connector.properties[BULKHEAD_DISPLAY_PROPERTY] === BULKHEAD_DOT_DISPLAY
+              && !isTerminalVisualDot(system, connector.id)
+            ) {
+              throw new ApiWriteError(409, {
+                error: `Visual dot ${connector.name} is not a terminal endpoint.`,
+              });
+            }
+          }
+          for (const [connector, pinNumber] of [
+            [fromConnector, fromPin],
+            [toConnector, toPin],
+          ] as const) {
+            if (
+              connector.properties[BULKHEAD_DISPLAY_PROPERTY] === BULKHEAD_DOT_DISPLAY
+              && pinNumber > (connector.pin_count ?? 1)
+            ) {
+              connector.pin_count = pinNumber;
+            }
+          }
+          if (!system.signals.some((signal) => signal.id === body.signal_id)) {
             throw new ApiWriteError(404, { error: `Signal not found: ${body.signal_id}` });
           }
           if (fromConnector.id === toConnector.id && fromPin === toPin) {
@@ -2280,19 +2344,6 @@ export function createApiMiddleware(projectRoot: string) {
               error: 'Cannot connect a cavity to itself',
             });
           }
-
-          const enclosureById = new Map(
-            harness.enclosures.map((enclosure) => [enclosure.id, enclosure]),
-          );
-          const routePlan = planEnclosureRoute(
-            harness,
-            fromConnector,
-            toConnector,
-          );
-          const crossedChildScopes = routePlan.crossedChildScopes.filter((scope) =>
-            !(isBulkheadConnector(harness, fromConnector) && fromConnector.parent === scope)
-            && !(isBulkheadConnector(harness, toConnector) && toConnector.parent === scope)
-          );
 
           type PassThroughJoin = {
             pathId: string;
@@ -2303,7 +2354,7 @@ export function createApiMiddleware(projectRoot: string) {
             pinNumber: number,
             otherConnector: Connector,
           ): PassThroughJoin | null => {
-            const uses = harness.paths.flatMap((wirePath) =>
+            const uses = system.paths.flatMap((wirePath) =>
               wirePath.nodes.flatMap((node, nodeIndex) =>
                 node.kind === 'connector'
                 && node.connector_id === connector.id
@@ -2313,7 +2364,7 @@ export function createApiMiddleware(projectRoot: string) {
               )
             );
             if (uses.length === 0) return null;
-            if (!isPassThroughConnector(harness, connector) || uses.length !== 1) {
+            if (!isPassThroughConnector(system, connector) || uses.length !== 1) {
               throw new ApiWriteError(409, {
                 error: `Cannot route from or to occupied cavity ${connector.name}:${pinNumber}`,
               });
@@ -2331,9 +2382,9 @@ export function createApiMiddleware(projectRoot: string) {
                 error: `Pass-through cavity ${connector.name}:${pinNumber} has an invalid existing path`,
               });
             }
-            if (isBulkheadConnector(harness, connector)) {
-              const existingSide = getBulkheadConnectionSide(harness, connector, neighbor);
-              const requestedSide = getBulkheadConnectionSide(harness, connector, otherConnector);
+            if (isBulkheadConnector(system, connector)) {
+              const existingSide = getBulkheadConnectionSide(system, connector, neighbor);
+              const requestedSide = getBulkheadConnectionSide(system, connector, otherConnector);
               if (existingSide === requestedSide) {
                 throw new ApiWriteError(409, {
                   error: `Bulkhead cavity ${connector.name}:${pinNumber} already has an ${requestedSide} connection`,
@@ -2357,41 +2408,11 @@ export function createApiMiddleware(projectRoot: string) {
             });
           }
 
-          const generated: Connector[] = crossedChildScopes.map((childScope, index) => ({
-            id: `con_auto_${token}_${index + 1}`,
-            name: `Unresolved bulkhead — ${enclosureById.get(childScope)?.name ?? childScope}`,
-            parent: childScope,
-            connector_type: GENERIC_MULTIPIN_TYPE_ID,
-            mounting: 'bulkhead',
-            pin_count: 1,
-            tags: ['generated', 'unresolved', 'bulkhead'],
-            properties: {
-              generated_by_route: pathId,
-              boundary_enclosure: childScope,
-              // Legacy key kept for older harnesses / inspectors.
-              boundary_sheet: childScope,
-            },
-          }));
-          if (
-            generated.some((connector) =>
-              harness.connectors.some((item) => item.id === connector.id)
-            )
-          ) {
-            throw new ApiWriteError(409, {
-              error: 'Generated connector ID collision; retry with a distinct request_id',
-            });
-          }
           const routeNodes: PathNode[] = [
             { kind: 'connector', connector_id: fromConnector.id, pin_number: fromPin },
-            ...generated.map((connector) => ({
-              kind: 'connector' as const,
-              connector_id: connector.id,
-              pin_number: 1,
-            })),
             { kind: 'connector', connector_id: toConnector.id, pin_number: toPin },
           ];
-          const candidate = structuredClone(harness);
-          candidate.connectors.push(...generated);
+          let candidate = structuredClone(system);
 
           const requestIdsFor = (wirePath: PathEntity): string[] => [
             wirePath.properties.route_request_id,
@@ -2460,13 +2481,52 @@ export function createApiMiddleware(projectRoot: string) {
             recordRouteRequest(existingPath);
             wirePath = existingPath;
           }
-          for (const connector of generated) {
-            connector.properties.generated_by_route = wirePath.id;
+          if (draftConnector) {
+            draftConnector = candidate.connectors.find(
+              (item) => item.id === draftConnector?.id,
+            );
+            if (draftConnector) {
+              draftConnector.properties.generated_by_route = wirePath.id;
+              draftConnector.properties.generated_by_routes = wirePath.id;
+            }
           }
+          const unmergedDots = unmergeNonTerminalVisualDots(
+            candidate,
+            new Set([fromConnector.id, toConnector.id]),
+          );
+          candidate = unmergedDots.system;
+          wirePath = candidate.paths.find((item) => item.id === wirePath.id)!;
+          if (draftConnector) {
+            draftConnector = candidate.connectors.find(
+              (item) => item.id === draftConnector?.id,
+            );
+          }
+          const repaired = ensureEnclosureBulkheadPlaceholders(candidate, {
+            pathIds: new Set([wirePath.id]),
+          });
+          candidate = repaired.system;
+          wirePath = candidate.paths.find((item) => item.id === wirePath.id)!;
+          if (draftConnector) {
+            draftConnector = candidate.connectors.find(
+              (item) => item.id === draftConnector?.id,
+            );
+          }
+          const bulkheadConnectors = repaired.insertedConnectorIds.flatMap((connectorId) => {
+            const connector = candidate.connectors.find((item) => item.id === connectorId);
+            return connector ? [connector] : [];
+          });
+          const subsystemConnectors = Array.from(new Map([
+            ...bulkheadConnectors,
+            ...(draftConnector ? [draftConnector] : []),
+            ...unmergedDots.created.flatMap(({ connectorId }) => {
+              const connector = candidate.connectors.find((item) => item.id === connectorId);
+              return connector ? [connector] : [];
+            }),
+          ].map((connector) => [connector.id, connector])).values());
 
           let savedSubsystem: SubsystemDocument | undefined;
-          let sidecarWrite: HarnessWriteBuild<unknown>['sidecarWrite'];
-          if (requestedSubsystemId && generated.length > 0) {
+          let sidecarWrite: SystemWriteBuild<unknown>['sidecarWrite'];
+          if (requestedSubsystemId && subsystemConnectors.length > 0) {
             const previousSubsystems = subsystemRecord(listSubsystemDocuments(name));
             const previousSubsystem = previousSubsystems[requestedSubsystemId];
             if (!previousSubsystem) {
@@ -2476,7 +2536,7 @@ export function createApiMiddleware(projectRoot: string) {
             }
             savedSubsystem = structuredClone(previousSubsystem);
             const systemTag = `system:${requestedSubsystemId}`;
-            for (const connector of generated) {
+            for (const connector of subsystemConnectors) {
               ensureSubsystemAncestorFrames(
                 candidate,
                 savedSubsystem,
@@ -2487,11 +2547,28 @@ export function createApiMiddleware(projectRoot: string) {
               );
               if (!savedSubsystem.connectors[connector.id]) {
                 const connectorIndex = Object.keys(savedSubsystem.connectors).length;
+                const isDraft = connector.id === draftConnector?.id;
+                const splitSourceId = unmergedDots.created.find(
+                  ({ connectorId }) => connectorId === connector.id,
+                )?.sourceConnectorId;
+                const splitSourceLayout = splitSourceId
+                  ? savedSubsystem.connectors[splitSourceId]
+                  : undefined;
+                const draftX = Number(body.draft_connector?.x);
+                const draftY = Number(body.draft_connector?.y);
                 savedSubsystem.connectors[connector.id] = {
-                  x: 40 + (connectorIndex % 3) * 112,
-                  y: 80 + Math.floor(connectorIndex / 3) * 52,
-                  w: 96,
-                  h: 36,
+                  x: splitSourceLayout
+                    ? splitSourceLayout.x + 24
+                    : isDraft && Number.isFinite(draftX)
+                    ? draftX
+                    : 40 + (connectorIndex % 3) * 112,
+                  y: splitSourceLayout
+                    ? splitSourceLayout.y + 24
+                    : isDraft && Number.isFinite(draftY)
+                    ? draftY
+                    : 80 + Math.floor(connectorIndex / 3) * 52,
+                  w: isDraft ? 18 : 96,
+                  h: isDraft ? 18 : 36,
                 };
               }
               savedSubsystem.hidden_connectors = (savedSubsystem.hidden_connectors ?? [])
@@ -2515,20 +2592,26 @@ export function createApiMiddleware(projectRoot: string) {
             next: candidate,
             value: {
               pathId: wirePath.id,
-              generated: generated.map((connector) => connector.id),
+              generated: bulkheadConnectors.map((connector) => connector.id),
+              created: repaired.createdConnectorIds,
+              draftConnectorId: draftConnector?.id,
+              unmergedDots: unmergedDots.created,
               subsystem: savedSubsystem,
             },
             sidecarWrite,
           };
         });
-        const saved = readHarness(name);
+        const saved = readSystem(name);
         setRevisionHeader(res, result.rev);
         json(res, {
           path: saved.paths.find((item) => item.id === result.value.pathId),
-          harness: saved,
+          system: saved,
           generated_connectors: result.value.generated,
+          created_connectors: result.value.created,
+          draft_connector_id: result.value.draftConnectorId,
+          unmerged_dots: result.value.unmergedDots,
           ...(result.value.subsystem ? { subsystem: result.value.subsystem } : {}),
-          validation: validateHarnessData(saved, readLibrary()),
+          validation: validateSystemData(saved, readLibrary()),
         }, 201);
       });
     } catch (error) {
@@ -2547,22 +2630,22 @@ export function createApiMiddleware(projectRoot: string) {
     );
     const usage: Record<string, {
       total: number;
-      harnesses: Record<string, number>;
+      systems: Record<string, number>;
       pin_counts: Record<string, number>;
       keyings: Record<string, number>;
     }> = {};
-    for (const name of listHarnessNames()) {
+    for (const name of listSystemNames()) {
       try {
-        const harness = readHarness(name);
-        for (const connector of harness.connectors) {
+        const system = readSystem(name);
+        for (const connector of system.connectors) {
           const entry = usage[connector.connector_type] ?? {
             total: 0,
-            harnesses: {},
+            systems: {},
             pin_counts: {},
             keyings: {},
           };
           entry.total += 1;
-          entry.harnesses[name] = (entry.harnesses[name] ?? 0) + 1;
+          entry.systems[name] = (entry.systems[name] ?? 0) + 1;
           const pinCount = getEffectivePinCount(
             connector,
             typeById.get(connector.connector_type),
@@ -2575,7 +2658,7 @@ export function createApiMiddleware(projectRoot: string) {
           usage[connector.connector_type] = entry;
         }
       } catch {
-        // A malformed harness should not make the connector library unreadable.
+        // A malformed System should not make the connector library unreadable.
       }
     }
     json(res, usage);
@@ -2588,7 +2671,7 @@ export function createApiMiddleware(projectRoot: string) {
       return;
     }
     try {
-      const response = await withHarnessLock(LIBRARY_REVISION_KEY, async () => {
+      const response = await withSystemLock(LIBRARY_REVISION_KEY, async () => {
         const library = readLibrary();
         const removedType = library?.connector_types.find((type) => type.id === typeId);
         const genericType = library?.connector_types.find(
@@ -2604,18 +2687,18 @@ export function createApiMiddleware(projectRoot: string) {
         }
 
         const migrations: Record<string, number> = {};
-        for (const name of listHarnessNames()) {
-          await withHarnessLock(name, async () => {
-            const current = readHarness(name);
+        for (const name of listSystemNames()) {
+          await withSystemLock(name, async () => {
+            const current = readSystem(name);
             const preview = migrateConnectorTypeToGeneric(current, removedType, genericType);
             if (preview.migrated === 0) return;
-            const result = await commitHarnessDocument(req, name, 'harness', (harness) => {
+            const result = await commitSystemDocument(req, name, 'system', (system) => {
               const migrated = migrateConnectorTypeToGeneric(
-                harness,
+                system,
                 removedType,
                 genericType,
               );
-              return { next: migrated.harness, value: migrated.migrated };
+              return { next: migrated.system, value: migrated.migrated };
             });
             migrations[name] = result.value;
           });
@@ -2629,13 +2712,13 @@ export function createApiMiddleware(projectRoot: string) {
           }),
           null,
         );
-        const currentHarnessName = sanitizeName(harnessName(query) ?? '');
-        const currentHarness = currentHarnessName
-          ? readHarness(currentHarnessName)
+        const currentSystemName = sanitizeName(systemName(query) ?? '');
+        const currentSystem = currentSystemName
+          ? readSystem(currentSystemName)
           : undefined;
         return {
           library: libraryResult.library,
-          harness: currentHarness,
+          system: currentSystem,
           migrated: Object.values(migrations).reduce((sum, count) => sum + count, 0),
           migrations,
           replacement_type: GENERIC_MULTIPIN_TYPE_ID,
@@ -2650,44 +2733,68 @@ export function createApiMiddleware(projectRoot: string) {
   });
 
   addRoute('GET', '/api/layouts', (_req, res, _params, query) => {
-    json(res, readLayouts(harnessName(query) ?? 'fsae-car'));
+    json(res, readLayouts(systemName(query) ?? 'fsae-car'));
   });
 
-  addEditorRoute('POST', '/api/save-harness', async (req, res, _params, query) => {
+  addEditorRoute('POST', '/api/save-system', async (req, res, _params, query) => {
     const body = await parseBody(req);
-    const name = sanitizeName(harnessName(query) ?? 'fsae-car');
+    const name = sanitizeName(systemName(query) ?? 'fsae-car');
     try {
-      const result = await commitHarnessDocument(
+      const result = await commitSystemDocument(
         req,
         name,
-        'harness',
+        'system',
         () => {
           if (!body || !isRecord(body) || typeof body.schema_version !== 'string') {
             throw new ApiWriteError(400, {
-              error: 'Invalid harness data — must include schema_version',
+              error: 'Invalid system data — must include schema_version',
             });
           }
-          return { next: body as unknown as HarnessData, value: undefined };
+          return { next: body as unknown as SystemData, value: undefined };
         },
         parseBaseRevision(req),
       );
       setRevisionHeader(res, result.rev);
       json(res, { ok: true, rev: result.rev });
     } catch (error) {
-      writeError(res, error, 'Failed to save harness');
+      writeError(res, error, 'Failed to save system');
+    }
+  });
+  addEditorRoute('POST', '/api/save-harness', async (req, res, _params, query) => {
+    const body = await parseBody(req);
+    const name = sanitizeName(systemName(query) ?? 'fsae-car');
+    try {
+      const result = await commitSystemDocument(
+        req,
+        name,
+        'system',
+        () => {
+          if (!body || !isRecord(body) || typeof body.schema_version !== 'string') {
+            throw new ApiWriteError(400, {
+              error: 'Invalid system data — must include schema_version',
+            });
+          }
+          return { next: body as unknown as SystemData, value: undefined };
+        },
+        parseBaseRevision(req),
+      );
+      setRevisionHeader(res, result.rev);
+      json(res, { ok: true, rev: result.rev });
+    } catch (error) {
+      writeError(res, error, 'Failed to save system');
     }
   });
 
   addEditorRoute('POST', '/api/save-layouts', async (req, res, _params, query) => {
     const body = await parseBody(req);
-    const name = sanitizeName(harnessName(query) ?? 'fsae-car');
+    const name = sanitizeName(systemName(query) ?? 'fsae-car');
     try {
       if (!isRecord(body)) {
         throw new ApiWriteError(400, { error: 'Layout update requires { patch, removed }' });
       }
       const patch = body.patch ?? body;
       const removed = body.patch === undefined ? {} : body.removed;
-      const result = await commitHarnessSidecar(
+      const result = await commitSystemSidecar(
         req,
         name,
         'layouts',
@@ -2726,7 +2833,7 @@ export function createApiMiddleware(projectRoot: string) {
 
   addEditorRoute('POST', '/api/save-manufacturing', async (req, res, _params, query) => {
     const body = await parseBody(req);
-    const name = sanitizeName(harnessName(query) ?? 'fsae-car');
+    const name = sanitizeName(systemName(query) ?? 'fsae-car');
     try {
       if (!isRecord(body)) {
         throw new ApiWriteError(400, {
@@ -2735,7 +2842,7 @@ export function createApiMiddleware(projectRoot: string) {
       }
       const patch = body.patch ?? (isRecord(body.bundles) ? body.bundles : undefined);
       const removed = body.patch === undefined ? [] : body.removed;
-      const result = await commitHarnessSidecar(
+      const result = await commitSystemSidecar(
         req,
         name,
         'manufacturing',

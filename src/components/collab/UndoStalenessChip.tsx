@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useHarnessStore, useUndoStaleness } from '../../store';
+import { useSystemStore, useUndoStaleness } from '../../store';
 
 const UNDO_REQUEST_EVENT = 'vibewire:request-undo';
 
@@ -22,10 +22,10 @@ export function UndoStalenessChip() {
   useEffect(() => {
     const requestUndo = () => {
       if (staleness.state !== 'red') {
-        useHarnessStore.getState().undo();
+        useSystemStore.getState().undo();
         return;
       }
-      setAffectedEntities(useHarnessStore.getState().getUndoAffectedEntities());
+      setAffectedEntities(useSystemStore.getState().getUndoAffectedEntities());
       setConfirmOpen(true);
     };
     window.addEventListener(UNDO_REQUEST_EVENT, requestUndo);
@@ -56,13 +56,13 @@ export function UndoStalenessChip() {
           <div className="font-semibold text-zinc-100">Undo is per-person and time-ordered.</div>
           <p className="mt-1">
             VibeWire undoes your last change, not the most recent change overall. If someone
-            else edited afterward, undo can cross their work or fail because the harness moved on.
+            else edited afterward, undo can cross their work or fail because the System moved on.
           </p>
           <p className="mt-2 text-zinc-400">
             {staleness.state === 'none'
               ? 'Right now: there is nothing to undo.'
               : staleness.state === 'red'
-                ? `Right now: ${writer} edited this harness ${formatSince(staleness.since)}.`
+                ? `Right now: ${writer} edited this System ${formatSince(staleness.since)}.`
                 : 'Right now: nobody else has written since your last change.'}
           </p>
           <p className="mt-2 text-amber-300">If you are not sure, save a checkpoint first.</p>
@@ -100,7 +100,7 @@ export function UndoStalenessChip() {
                 type="button"
                 onClick={() => {
                   setConfirmOpen(false);
-                  useHarnessStore.getState().undo();
+                  useSystemStore.getState().undo();
                 }}
                 className="rounded border border-red-700 bg-red-950 px-3 py-1.5 text-xs text-red-200 hover:bg-red-900"
               >

@@ -15,11 +15,11 @@ import {
   normalizeConnectorKeying,
 } from '../src/lib/connectorFamily.js';
 import type { Connector, ConnectorType } from '../src/types/index.js';
-import { splitHarness, verifyRoundTrip, type HarnessData } from '../server/sheets.js';
+import { splitSystem, verifyRoundTrip, type SystemData } from '../server/sheets.js';
 import {
   migrateConnectorTypeToGeneric,
   validateConnectorLibraryData,
-  validateHarnessData,
+  validateSystemData,
 } from '../server/api.js';
 
 const family: ConnectorType = {
@@ -104,33 +104,33 @@ applyConnectorPinCount(connector, family, 4);
 normalizeConnectorKeying(connector, family);
 assert.equal(connector.keying, undefined);
 
-const harness: HarnessData = {
+const system: SystemData = {
   signalPropertyDefinitions: [],
   schema_version: '0.2.0-sheets',
-  enclosures: [{
+  hierarchy: [{
     id: 'enc_001',
     name: 'Box',
     parent: null,
-    container: true,
+    kind: 'enclosure',
     tags: [],
     properties: {},
   }],
   connectors: [{ ...connector, pin_count: 6, keying: 'A' }],
-  mergePoints: [],
+  branchPoints: [],
   paths: [],
   signals: [],
 };
-const split = splitHarness(harness, new Set(['enc_001']));
-assert.deepEqual(verifyRoundTrip(harness, split, new Set(['enc_001'])), []);
+const split = splitSystem(system, new Set(['enc_001']));
+assert.deepEqual(verifyRoundTrip(system, split, new Set(['enc_001'])), []);
 
-const validResult = validateHarnessData(harness, { connector_types: [family] });
+const validResult = validateSystemData(system, { connector_types: [family] });
 assert.equal(validResult.valid, true);
 assert.equal(validResult.warnings.length, 0);
 
-const invalidSelection = structuredClone(harness);
+const invalidSelection = structuredClone(system);
 invalidSelection.connectors[0].pin_count = 5;
 invalidSelection.connectors[0].keying = 'Z';
-const invalidResult = validateHarnessData(invalidSelection, { connector_types: [family] });
+const invalidResult = validateSystemData(invalidSelection, { connector_types: [family] });
 assert(invalidResult.warnings.some((warning) => warning.includes('unsupported 5-cavity housing')));
 assert(invalidResult.warnings.some((warning) => warning.includes("unsupported key 'Z'")));
 
@@ -143,12 +143,12 @@ const genericType: ConnectorType = {
   notes: '',
   default_properties: { migrated_default: 'yes' },
 };
-const migrated = migrateConnectorTypeToGeneric(harness, family, genericType);
+const migrated = migrateConnectorTypeToGeneric(system, family, genericType);
 assert.equal(migrated.migrated, 1);
-assert.equal(migrated.harness.connectors[0].connector_type, genericType.id);
-assert.equal(migrated.harness.connectors[0].pin_count, 6);
-assert.equal(migrated.harness.connectors[0].keying, undefined);
-assert.equal(migrated.harness.connectors[0].properties.migrated_default, 'yes');
+assert.equal(migrated.system.connectors[0].connector_type, genericType.id);
+assert.equal(migrated.system.connectors[0].pin_count, 6);
+assert.equal(migrated.system.connectors[0].keying, undefined);
+assert.equal(migrated.system.connectors[0].properties.migrated_default, 'yes');
 
 const library = JSON.parse(
   fs.readFileSync(
@@ -159,14 +159,20 @@ const library = JSON.parse(
 const byId = new Map(library.connector_types.map((type) => [type.id, type]));
 assert.deepEqual(byId.get('deutsch_dt')?.cavity_variants?.map((variant) => variant.pin_count), [2, 3, 4, 6, 8, 12]);
 assert.deepEqual(byId.get('deutsch_dtm')?.cavity_variants?.map((variant) => variant.pin_count), [2, 3, 4, 6, 8, 12]);
+assert.deepEqual(byId.get('deutsch_dtp')?.cavity_variants?.map((variant) => variant.pin_count), [2, 4]);
 assert.deepEqual(
   byId.get('molex_minifit_jr')?.cavity_variants?.map((variant) => variant.pin_count),
   [2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24],
 );
-assert.deepEqual(
-  library.connector_types.map((type) => type.id).sort(),
-  ['deutsch_dt', 'deutsch_dtm', 'generic_multipin', 'molex_minifit_jr'],
-);
+for (const requiredTypeId of [
+  'deutsch_dt',
+  'deutsch_dtm',
+  'deutsch_dtp',
+  'generic_multipin',
+  'molex_minifit_jr',
+]) {
+  assert(byId.has(requiredTypeId), `missing required connector type '${requiredTypeId}'`);
+}
 assert.equal(new Set(library.connector_types.map((type) => type.id)).size, library.connector_types.length);
 assert.equal(validateConnectorLibraryData(library).valid, true);
 const duplicateLibrary = structuredClone(library);

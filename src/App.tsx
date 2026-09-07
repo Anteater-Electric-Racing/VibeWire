@@ -1,22 +1,25 @@
 import { useEffect, useRef, useState } from 'react';
-import { useHarnessStore, initAutoSave } from './store';
+import { useSystemStore, initAutoSave } from './store';
 import { AppShell } from './components/layout/AppShell';
 import { subscribeToChanges } from './lib/sync/transport';
+import { normalizeCollaborationDocument } from './lib/systemNormalize';
 import type {
   BackgroundLayouts,
   ConnectorLibrary,
   ConnectorTypeSizes,
   FreePortLayouts,
-  HarnessData,
-  JunctionLayouts,
+  SystemData,
+  SharedAnchorLayouts,
   ManufacturingDocument,
-  MergePointLayouts,
+  BranchPointLayouts,
   NodeLayout,
   PortLayouts,
   RotationLayouts,
+  RouteStyleLayouts,
   SizeLayouts,
   SubsystemDocument,
   TextBoxLayouts,
+  ViewRouteStyleLayouts,
   WaypointLayouts,
 } from './types';
 import type {
@@ -35,13 +38,16 @@ interface LayoutFile extends Partial<CollaborationLayouts> {
   connectorTypeSizes?: ConnectorTypeSizes;
   textBoxes?: TextBoxLayouts;
   waypoints?: WaypointLayouts;
-  junctions?: JunctionLayouts;
-  mergePoints?: MergePointLayouts;
+  /** Compatibility read for pre-Shared-Anchor layout files. */
+  junctions?: SharedAnchorLayouts;
+  branchPoints?: BranchPointLayouts;
   rotations?: RotationLayouts;
+  routeStyles?: RouteStyleLayouts;
+  viewRouteStyles?: ViewRouteStyleLayouts;
 }
 
 export default function App() {
-  const activeHarnessName = useHarnessStore((s) => s.activeHarnessName);
+  const activeSystemName = useSystemStore((s) => s.activeSystemName);
 
   const [sessionReady, setSessionReady] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -51,7 +57,7 @@ export default function App() {
   // The app remains in its safe logged-out/read-only state until this finishes.
   useEffect(() => {
     let cancelled = false;
-    void useHarnessStore.getState().refreshSession().finally(() => {
+    void useSystemStore.getState().refreshSession().finally(() => {
       if (!cancelled) setSessionReady(true);
     });
     return () => {
@@ -73,7 +79,7 @@ export default function App() {
           if (!response.ok) throw new Error(`Failed to load connector library: ${response.status}`);
           return response.json() as Promise<ConnectorLibrary>;
         }))
-      .then((library) => useHarnessStore.getState().loadConnectorLibrary(library))
+      .then((library) => useSystemStore.getState().loadConnectorLibrary(library))
       .catch(() => {
         // Non-fatal: connector types simply remain unresolved.
       });
@@ -81,19 +87,19 @@ export default function App() {
 
   useEffect(() => {
     if (!sessionReady) return;
-    fetch('/api/harnesses')
+    fetch('/api/systems')
       .then((response) => response.json() as Promise<Array<{ id: string; name: string }>>)
-      .then((harnesses) => {
-        const store = useHarnessStore.getState();
-        store.setAvailableHarnesses(harnesses);
-        // The remembered harness can disappear (renamed or deleted on disk).
+      .then((systems) => {
+        const store = useSystemStore.getState();
+        store.setAvailableSystems(systems);
+        // The remembered system can disappear (renamed or deleted on disk).
         // Move to a real one instead of failing to boot.
-        const ids = harnesses.map((item) => item.id);
-        if (ids.length > 0 && !ids.includes(store.activeHarnessName)) {
-          store.setActiveHarnessName(ids.includes('fsae-car') ? 'fsae-car' : ids[0]);
+        const ids = systems.map((item) => item.id);
+        if (ids.length > 0 && !ids.includes(store.activeSystemName)) {
+          store.setActiveSystemName(ids.includes('fsae-car') ? 'fsae-car' : ids[0]);
         }
       })
-      .catch(() => useHarnessStore.getState().setAvailableHarnesses([{ id: 'fsae-car', name: 'fsae-car' }]));
+      .catch(() => useSystemStore.getState().setAvailableSystems([{ id: 'fsae-car', name: 'fsae-car' }]));
   }, [sessionReady]);
 
   useEffect(() => {
@@ -107,42 +113,44 @@ export default function App() {
       }
     });
 
-    const nameParam = `?harness=${encodeURIComponent(activeHarnessName)}`;
+    const nameParam = `?system=${encodeURIComponent(activeSystemName)}`;
 
     const applyLoadedState = (
-      harness: HarnessData,
+      system: SystemData,
       layouts: LayoutFile,
       subsystemsInput: SubsystemDocument[] | Record<string, SubsystemDocument>,
       manufacturing: ManufacturingDocument,
     ) => {
-      const store = useHarnessStore.getState();
+      const store = useSystemStore.getState();
       const subsystems = Array.isArray(subsystemsInput)
         ? subsystemsInput
         : Object.values(subsystemsInput);
-      store.resetForHarnessSwitch();
-      store.loadHarness(harness);
+      store.resetForSystemSwitch();
+      store.loadSystem(system);
       store.loadLayouts(layouts.nodes ?? {});
       store.loadPortLayouts(layouts.ports ?? {});
       store.loadSizeLayouts(layouts.sizes ?? {});
       store.loadFreePortLayouts(layouts.free ?? {});
-      store.loadBackgroundLayouts(layouts.backgrounds ?? {});
+      store.loadImageLayouts(layouts.images ?? {}, layouts.backgrounds ?? {});
       store.loadConnectorTypeSizes(layouts.connectorTypeSizes ?? {});
       store.loadTextBoxLayouts(layouts.textBoxes ?? {});
       store.loadWaypointLayouts(layouts.waypoints ?? {});
-      store.loadJunctionLayouts(layouts.junctions ?? {});
-      store.loadMergePointLayouts(layouts.mergePoints ?? {});
+      store.loadSharedAnchorLayouts(layouts.sharedAnchors ?? layouts.junctions ?? {});
+      store.loadBranchPointLayouts(layouts.branchPoints ?? {});
       store.loadRotationLayouts(layouts.rotations ?? {});
+      store.loadRouteStyleLayouts(layouts.routeStyles ?? {});
+      store.loadViewRouteStyleLayouts(layouts.viewRouteStyles ?? {});
       store.loadSubsystems(subsystems);
       store.loadManufacturing(manufacturing);
     };
 
     const loadLegacyState = async () => {
-      const [harness, layouts, subsystems, manufacturing] = await Promise.all([
-        fetch(`/api/harness${nameParam}`).then((response) => {
+      const [system, layouts, subsystems, manufacturing] = await Promise.all([
+        fetch(`/api/system${nameParam}`).then((response) => {
           if (!response.ok) {
-            throw new Error(`Failed to load harness '${activeHarnessName}': ${response.status}`);
+            throw new Error(`Failed to load system '${activeSystemName}': ${response.status}`);
           }
-          return response.json() as Promise<HarnessData>;
+          return response.json() as Promise<SystemData>;
         }),
         fetch(`/api/layouts${nameParam}&v=${Date.now()}`)
           .then((response) => (response.ok ? response.json() as Promise<LayoutFile> : {}))
@@ -159,8 +167,8 @@ export default function App() {
           .catch(() => ({ schema_version: '1.2.0' as const, bundles: {} })),
       ]);
       if (cancelled) return;
-      applyLoadedState(harness, layouts, subsystems, manufacturing);
-      useHarnessStore.getState().loadCollaborationMeta({
+      applyLoadedState(system, layouts, subsystems, manufacturing);
+      useSystemStore.getState().loadCollaborationMeta({
         serverRev: 0,
         libraryRev: 0,
         lastWriter: null,
@@ -182,40 +190,53 @@ export default function App() {
         throw new Error(`Failed to load collaboration state: ${response.status}`);
       }
 
-      const state = await response.json() as CollaborationStateResponse;
+      const raw = await response.json() as CollaborationStateResponse & { harness?: SystemData };
       if (cancelled) return;
+      const documents = normalizeCollaborationDocument(raw);
+      const loadedSystem = documents.system ?? raw.system;
+      if (!loadedSystem) {
+        throw new Error('Collaboration state did not include a system document.');
+      }
       applyLoadedState(
-        state.harness,
-        state.layouts as LayoutFile,
-        state.subsystems,
-        state.manufacturing,
+        loadedSystem,
+        (documents.layouts && !('patch' in documents.layouts)
+          ? documents.layouts
+          : raw.layouts) as LayoutFile,
+        documents.subsystems && !('patch' in documents.subsystems)
+          ? documents.subsystems
+          : raw.subsystems ?? {},
+        documents.manufacturing && !('patch' in documents.manufacturing)
+          ? documents.manufacturing
+          : raw.manufacturing ?? { schema_version: '1.2.0', bundles: {} },
       );
-      const store = useHarnessStore.getState();
-      if (state.connectorLibrary ?? state.library) {
-        store.loadConnectorLibrary((state.connectorLibrary ?? state.library)!);
+      const store = useSystemStore.getState();
+      if (documents.connectorLibrary ?? documents.library ?? raw.connectorLibrary ?? raw.library) {
+        store.loadConnectorLibrary(
+          (documents.connectorLibrary ?? documents.library ?? raw.connectorLibrary ?? raw.library)!,
+        );
       }
       store.loadCollaborationMeta({
-        serverRev: state.rev,
-        libraryRev: state.libraryRev,
-        lastWriter: state.lastWriter,
-        attribution: state.attribution,
+        serverRev: raw.rev,
+        libraryRev: raw.libraryRev,
+        lastWriter: raw.lastWriter,
+        attribution: raw.attribution,
         collabAvailable: true,
       });
       stopTransport = subscribeToChanges({
-        harness: activeHarnessName,
-        since: state.rev,
-        libraryRev: state.libraryRev,
+        system: activeSystemName,
+        since: raw.rev,
+        libraryRev: raw.libraryRev,
         onRev: (payload) => {
-          if (!cancelled) useHarnessStore.getState().applyRemoteSync(payload);
+          if (!cancelled) useSystemStore.getState().applyRemoteSync(payload);
         },
         onPresence: (peers) => {
-          if (!cancelled) useHarnessStore.getState().replacePeers(peers);
+          if (!cancelled) useSystemStore.getState().replacePeers(peers);
         },
         onStatus: (status) => {
-          if (!cancelled) useHarnessStore.getState().setSyncStatus(status);
+          if (!cancelled) useSystemStore.getState().setSyncStatus(status);
         },
         onUnavailable: () => {
-          if (!cancelled) useHarnessStore.getState().setCollabAvailable(false);
+          if (!cancelled) useSystemStore.getState().setCollabAvailable(false);
         },
       });
     };
@@ -231,7 +252,7 @@ export default function App() {
       })
       .catch((caught: unknown) => {
         if (!cancelled) {
-          setError(caught instanceof Error ? caught.message : 'Failed to load harness state.');
+          setError(caught instanceof Error ? caught.message : 'Failed to load system state.');
           setLoading(false);
         }
       });
@@ -241,7 +262,7 @@ export default function App() {
       stopTransport?.();
     };
   }, [
-    activeHarnessName,
+    activeSystemName,
     sessionReady,
   ]);
 
@@ -249,7 +270,7 @@ export default function App() {
     return (
       <div className="h-screen w-screen flex items-center justify-center bg-zinc-950">
         <div className="text-zinc-400 text-sm animate-pulse">
-          Loading harness data…
+          Loading system data…
         </div>
       </div>
     );

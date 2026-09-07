@@ -8,8 +8,10 @@ import { InspectorPanel } from '../inspector/InspectorPanel';
 import { ConnectorLibraryPage } from '../connectors/ConnectorLibraryPage';
 import { SignalLibraryPage } from '../signals/SignalLibraryPage';
 import { ManufacturingPage } from '../manufacturing/ManufacturingPage';
-import { useHarnessStore } from '../../store';
-import { isInlineConnector } from '../../lib/harness';
+import { useSystemStore } from '../../store';
+import { isInlineConnector } from '../../lib/systemTopology';
+import { ViewHistoryController } from './ViewHistoryController';
+import { PresenceController } from '../collab/PresenceController';
 
 const LEFT_WIDTH_MIN = 160;
 const LEFT_WIDTH_MAX = 520;
@@ -21,36 +23,45 @@ function requestUndoWithWarning() {
 }
 
 export function AppShell() {
-  const harness = useHarnessStore((s) => s.harness);
-  const selectedItem = useHarnessStore((s) => s.selectedItem);
-  const selectedBundle = useHarnessStore((s) => s.selectedBundle);
-  const selectedTextBoxId = useHarnessStore((s) => s.selectedTextBoxId);
-  const drillDownEnclosure = useHarnessStore((s) => s.drillDownEnclosure);
-  const selectItem = useHarnessStore((s) => s.selectItem);
-  const selectTextBox = useHarnessStore((s) => s.selectTextBox);
-  const setSelectedBundle = useHarnessStore((s) => s.setSelectedBundle);
-  const setDrillDown = useHarnessStore((s) => s.setDrillDown);
-  const redo = useHarnessStore((s) => s.redo);
-  const rotateConnector = useHarnessStore((s) => s.rotateConnector);
-  const rotateEnclosure = useHarnessStore((s) => s.rotateEnclosure);
-  const getDeleteImpact = useHarnessStore((s) => s.getDeleteImpact);
-  const deleteEntityCascade = useHarnessStore((s) => s.deleteEntityCascade);
-  const deletePathBundle = useHarnessStore((s) => s.deletePathBundle);
-  const editingSurface = useHarnessStore((s) => s.editingSurface);
-  const removeEntityFromActiveSubsystem = useHarnessStore((s) => s.removeEntityFromActiveSubsystem);
-  const appView = useHarnessStore((s) => s.appView);
-  const closeConnectorLibrary = useHarnessStore((s) => s.closeConnectorLibrary);
-  const setEditingSurface = useHarnessStore((s) => s.setEditingSurface);
-  const openManufacturing = useHarnessStore((s) => s.openManufacturing);
-  const openConnectorLibrary = useHarnessStore((s) => s.openConnectorLibrary);
-  const openSignalLibrary = useHarnessStore((s) => s.openSignalLibrary);
-  const isEditor = useHarnessStore((s) => s.session.isEditor);
-  const sessionUser = useHarnessStore((s) => s.session.user);
-  const editSessionActive = useHarnessStore((s) => s.session.editSessionActive);
-  const activateEditSession = useHarnessStore((s) => s.activateEditSession);
-  const inspectorDismissed = useHarnessStore((s) => s.inspectorDismissed);
+  const system = useSystemStore((s) => s.system);
+  const selectedItem = useSystemStore((s) => s.selectedItem);
+  const selectedHarnessBundle = useSystemStore((s) => s.selectedHarnessBundle);
+  const selectedTextBoxId = useSystemStore((s) => s.selectedTextBoxId);
+  const selectedImageId = useSystemStore((s) => s.selectedImageId);
+  const openEnclosureId = useSystemStore((s) => s.openEnclosureId);
+  const selectItem = useSystemStore((s) => s.selectItem);
+  const selectTextBox = useSystemStore((s) => s.selectTextBox);
+  const selectImage = useSystemStore((s) => s.selectImage);
+  const setSelectedHarnessBundle = useSystemStore((s) => s.setSelectedHarnessBundle);
+  const setOpenEnclosure = useSystemStore((s) => s.setOpenEnclosure);
+  const redo = useSystemStore((s) => s.redo);
+  const rotateConnector = useSystemStore((s) => s.rotateConnector);
+  const rotateEnclosure = useSystemStore((s) => s.rotateEnclosure);
+  const getDeleteImpact = useSystemStore((s) => s.getDeleteImpact);
+  const deleteEntityCascade = useSystemStore((s) => s.deleteEntityCascade);
+  const deletePathHarnessBundle = useSystemStore((s) => s.deletePathHarnessBundle);
+  const deleteSelectedRoutePoint = useSystemStore((s) => s.deleteSelectedRoutePoint);
+  const removeTextBox = useSystemStore((s) => s.removeTextBox);
+  const removeImage = useSystemStore((s) => s.removeImage);
+  const editingSurface = useSystemStore((s) => s.editingSurface);
+  const removeEntityFromActiveSubsystem = useSystemStore((s) => s.removeEntityFromActiveSubsystem);
+  const appView = useSystemStore((s) => s.appView);
+  const closeConnectorLibrary = useSystemStore((s) => s.closeConnectorLibrary);
+  const setEditingSurface = useSystemStore((s) => s.setEditingSurface);
+  const openManufacturing = useSystemStore((s) => s.openManufacturing);
+  const openConnectorLibrary = useSystemStore((s) => s.openConnectorLibrary);
+  const openSignalLibrary = useSystemStore((s) => s.openSignalLibrary);
+  const isEditor = useSystemStore((s) => s.session.isEditor);
+  const sessionUser = useSystemStore((s) => s.session.user);
+  const editSessionActive = useSystemStore((s) => s.session.editSessionActive);
+  const activateEditSession = useSystemStore((s) => s.activateEditSession);
+  const inspectorDismissed = useSystemStore((s) => s.inspectorDismissed);
+  const dismissInspector = useSystemStore((s) => s.dismissInspector);
   const showInspector = !inspectorDismissed && !!(
-    selectedItem || (selectedBundle && selectedBundle.pathIds.length > 0) || selectedTextBoxId
+    selectedItem
+    || (selectedHarnessBundle && selectedHarnessBundle.pathIds.length > 0)
+    || selectedTextBoxId
+    || selectedImageId
   );
 
   // Left sidebar state
@@ -86,15 +97,31 @@ export function AppShell() {
       const target = e.target as HTMLElement | null;
       const isTyping = target?.tagName === 'INPUT' || target?.tagName === 'TEXTAREA' || target?.isContentEditable;
 
-      if (isEditor && !isTyping && (e.key === 'Delete' || e.key === 'Backspace') && selectedBundle) {
-        e.preventDefault();
-        const count = selectedBundle.pathIds.length;
-        const label = count === 1
-          ? 'Delete this path bundle?'
-          : `Delete all ${count} paths in this bundle?`;
-        if (window.confirm(`${label}\n\nThis removes the complete underlying path${count === 1 ? '' : 's'}, including any other visible hops.`)) {
-          deletePathBundle(selectedBundle.id, selectedBundle.pathIds);
+      if (isEditor && !isTyping && (e.key === 'Delete' || e.key === 'Backspace') && selectedHarnessBundle) {
+        if (selectedHarnessBundle.routePoint) {
+          e.preventDefault();
+          deleteSelectedRoutePoint();
+          return;
         }
+        e.preventDefault();
+        const count = selectedHarnessBundle.pathIds.length;
+        const label = count === 1
+          ? 'Delete this Harness Bundle?'
+          : `Delete all ${count} Paths in this Harness Bundle?`;
+        if (window.confirm(`${label}\n\nThis removes the complete underlying path${count === 1 ? '' : 's'}, including any other visible hops.`)) {
+          deletePathHarnessBundle(selectedHarnessBundle.id, selectedHarnessBundle.pathIds);
+        }
+        return;
+      }
+
+      if (isEditor && !isTyping && (e.key === 'Delete' || e.key === 'Backspace') && selectedImageId) {
+        e.preventDefault();
+        removeImage(selectedImageId);
+        return;
+      }
+      if (isEditor && !isTyping && (e.key === 'Delete' || e.key === 'Backspace') && selectedTextBoxId) {
+        e.preventDefault();
+        removeTextBox(selectedTextBoxId);
         return;
       }
 
@@ -106,13 +133,13 @@ export function AppShell() {
             return;
           }
         }
-        if (selectedItem.type === 'mergePoint') {
+        if (selectedItem.type === 'branchPoint') {
           const impact = getDeleteImpact(selectedItem.type, selectedItem.id);
           const orphanNote = impact.pathIds.length > 0
             ? `\n\n${impact.pathIds.length} unpairable stub path(s) will be removed.`
             : '';
           if (window.confirm(
-            `Delete splice ${selectedItem.id}?\n\nPaths through it will reconnect as if the splice was never there.${orphanNote}`,
+            `Delete branch point ${selectedItem.id}?\n\nPaths through it will reconnect as if the branch point was never there.${orphanNote}`,
           )) {
             e.preventDefault();
             deleteEntityCascade(selectedItem.type, selectedItem.id);
@@ -121,8 +148,8 @@ export function AppShell() {
         }
         if (
           selectedItem.type === 'connector'
-          && harness
-          && isInlineConnector(harness, selectedItem.id)
+          && system
+          && isInlineConnector(system, selectedItem.id)
         ) {
           const impact = getDeleteImpact(selectedItem.type, selectedItem.id);
           const orphanNote = impact.pathIds.length > 0
@@ -137,7 +164,7 @@ export function AppShell() {
           return;
         }
         const impact = getDeleteImpact(selectedItem.type, selectedItem.id);
-        const summary = `${impact.enclosureIds.length} enclosures/devices, ${impact.connectorIds.length} connectors, ${impact.mergePointIds.length} merge points, and ${impact.pathIds.length} paths`;
+        const summary = `${impact.enclosureIds.length} enclosures/devices, ${impact.connectorIds.length} connectors, ${impact.branchPointIds.length} branch points, and ${impact.pathIds.length} paths`;
         if (window.confirm(`Permanently delete ${selectedItem.id}?\n\nCascade impact: ${summary}.`)) {
           e.preventDefault();
           deleteEntityCascade(selectedItem.type, selectedItem.id);
@@ -187,7 +214,7 @@ export function AppShell() {
       }
 
       // View shortcuts: 1 System, 2 Subsystem (again → picker),
-      // 3 Manufacturing (again → harness / Build-Progress-BOM menu),
+      // 3 Manufacturing (again → system / Build-Progress-BOM menu),
       // 4 Connectors, 5 Signals
       if (!isTyping && !mod && !e.altKey && !e.shiftKey) {
         if (e.key === '1') {
@@ -229,47 +256,63 @@ export function AppShell() {
       // Tilde / backtick: step inspector selection up one hierarchy level.
       // Closes at the current sheet boundary (drilled-in enclosure, or parent === null
       // on the root sheet) instead of climbing into a parent sheet.
-      // Also deselects an active wire bundle (inspector open or dismissed).
+      // Also deselects an active Harness Bundle (inspector open or dismissed).
       if (!isTyping && !mod && !e.altKey && (e.code === 'Backquote' || e.key === '`' || e.key === '~')) {
-        if (!showInspector && !selectedBundle) return;
+        if (!showInspector && !selectedHarnessBundle) return;
         e.preventDefault();
 
         // Wire bundles have no parent chain — tilde just exits them.
-        if (selectedBundle) {
-          setSelectedBundle(null);
+        if (selectedHarnessBundle) {
+          if (selectedHarnessBundle.routePoint) {
+            setSelectedHarnessBundle({ id: selectedHarnessBundle.id, pathIds: selectedHarnessBundle.pathIds });
+            return;
+          }
+          setSelectedHarnessBundle(null);
+          selectTextBox(null);
+          selectImage(null);
+          return;
+        }
+
+        if (selectedImageId) {
+          selectImage(null);
+          return;
+        }
+        if (selectedTextBoxId) {
           selectTextBox(null);
           return;
         }
 
         if (
-          harness
+          system
           && selectedItem
           && (selectedItem.type === 'enclosure'
             || selectedItem.type === 'connector'
-            || selectedItem.type === 'mergePoint')
+            || selectedItem.type === 'branchPoint')
         ) {
           // Already on the sheet entity for this view — close.
           if (
             selectedItem.type === 'enclosure'
-            && drillDownEnclosure !== null
-            && selectedItem.id === drillDownEnclosure
+            && openEnclosureId !== null
+            && selectedItem.id === openEnclosureId
           ) {
             selectItem(null);
             selectTextBox(null);
+            selectImage(null);
             return;
           }
 
           const parentId =
             selectedItem.type === 'enclosure'
-              ? harness.enclosures.find((item) => item.id === selectedItem.id)?.parent ?? null
+              ? system.hierarchy.find((item) => item.id === selectedItem.id)?.parent ?? null
               : selectedItem.type === 'connector'
-                ? harness.connectors.find((item) => item.id === selectedItem.id)?.parent ?? null
-                : harness.mergePoints.find((item) => item.id === selectedItem.id)?.parent ?? null;
+                ? system.connectors.find((item) => item.id === selectedItem.id)?.parent ?? null
+                : system.branchPoints.find((item) => item.id === selectedItem.id)?.parent ?? null;
 
           // Next step would be the current sheet or leave the root sheet — close.
-          if (parentId === null || parentId === drillDownEnclosure) {
+          if (parentId === null || parentId === openEnclosureId) {
             selectItem(null);
             selectTextBox(null);
+            selectImage(null);
             return;
           }
 
@@ -283,19 +326,32 @@ export function AppShell() {
       }
 
       if (e.key !== 'Escape') return;
+      if (isTyping) return;
+      if (editingSurface === 'subsystem') {
+        e.preventDefault();
+        selectItem(null);
+        selectTextBox(null);
+        selectImage(null);
+        setSelectedHarnessBundle(null);
+        dismissInspector();
+        return;
+      }
       if (showInspector || inspectorDismissed) {
         selectItem(null);
         selectTextBox(null);
-      } else if (drillDownEnclosure) {
-        setDrillDown(null);
+        selectImage(null);
+      } else if (openEnclosureId) {
+        setOpenEnclosure(null);
       }
     }
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [showInspector, inspectorDismissed, drillDownEnclosure, harness, selectItem, selectTextBox, setSelectedBundle, setDrillDown, redo, selectedItem, selectedBundle, rotateConnector, rotateEnclosure, editingSurface, appView, getDeleteImpact, deleteEntityCascade, deletePathBundle, removeEntityFromActiveSubsystem, isEditor, sessionUser, editSessionActive, activateEditSession, closeConnectorLibrary, setEditingSurface, openManufacturing, openConnectorLibrary, openSignalLibrary]);
+  }, [showInspector, inspectorDismissed, dismissInspector, openEnclosureId, system, selectItem, selectTextBox, selectImage, setSelectedHarnessBundle, setOpenEnclosure, redo, selectedItem, selectedHarnessBundle, selectedTextBoxId, selectedImageId, rotateConnector, rotateEnclosure, editingSurface, appView, getDeleteImpact, deleteEntityCascade, deletePathHarnessBundle, deleteSelectedRoutePoint, removeEntityFromActiveSubsystem, removeImage, removeTextBox, isEditor, sessionUser, editSessionActive, activateEditSession, closeConnectorLibrary, setEditingSurface, openManufacturing, openConnectorLibrary, openSignalLibrary]);
 
   return (
     <div className="h-screen w-screen flex flex-col bg-zinc-950 text-zinc-100 overflow-hidden">
+      <ViewHistoryController />
+      <PresenceController />
       <Topbar />
       {appView === 'connectorLibrary' ? (
         <div className="flex-1 min-h-0">

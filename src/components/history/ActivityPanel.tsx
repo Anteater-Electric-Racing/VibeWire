@@ -1,11 +1,11 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { useHarnessStore } from '../../store';
+import { useSystemStore } from '../../store';
 import { ModalShell } from '../collab/ModalShell';
 
 type ActivityResponse = Record<string, Record<string, number>>;
 
 interface ActivityPanelProps {
-  harness: string;
+  system: string;
   onClose: () => void;
 }
 
@@ -25,8 +25,8 @@ function formatDate(value: string): string {
   }).format(date);
 }
 
-export function ActivityPanel({ harness, onClose }: ActivityPanelProps) {
-  const sessionUser = useHarnessStore((state) => state.session.user);
+export function ActivityPanel({ system, onClose }: ActivityPanelProps) {
+  const sessionUser = useSystemStore((state) => state.session.user);
   const [days, setDays] = useState(30);
   const [activity, setActivity] = useState<ActivityResponse>({});
   const [loading, setLoading] = useState(true);
@@ -53,7 +53,7 @@ export function ActivityPanel({ harness, onClose }: ActivityPanelProps) {
       setLoading(true);
       setError(null);
       const response = await fetch(
-        `/api/activity?harness=${encodeURIComponent(harness)}&days=${days}`,
+        `/api/activity?system=${encodeURIComponent(system)}&days=${days}`,
         {
           credentials: 'same-origin',
           cache: 'no-store',
@@ -74,7 +74,7 @@ export function ActivityPanel({ harness, onClose }: ActivityPanelProps) {
     }
     void loadActivity();
     return () => controller.abort();
-  }, [days, harness, sessionUser]);
+  }, [days, system, sessionUser]);
 
   if (!sessionUser) return null;
 

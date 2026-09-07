@@ -1,0 +1,25 @@
+{
+  "id": "0b3afa60-879b-466e-af76-5065783b80c3",
+  "label": "Daily save — August 27, 2026",
+  "createdAt": "2026-08-27T15:28:54.407Z",
+  "createdBy": {
+    "id": "ac89b199-5f27-4cca-b073-03675304a26e",
+    "displayName": "Gabe"
+  },
+  "rev": 1,
+  "auto": true,
+  "counts": {
+    "enclosures": 73,
+    "connectors": 282,
+    "mergePoints": 0,
+    "paths": 172,
+    "signals": 9
+  },
+  "dailyKey": "2026-08-27",
+  "contributors": [
+    {
+      "id": "ac89b199-5f27-4cca-b073-03675304a26e",
+      "displayName": "Gabe"
+    }
+  ]
+}

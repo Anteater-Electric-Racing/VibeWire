@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useHarnessStore } from '../../store';
+import { useSystemStore } from '../../store';
 import { LoginPanel } from '../auth/LoginPanel';
 import { ActivityPanel } from '../history/ActivityPanel';
 import { CheckpointPanel } from '../history/CheckpointPanel';
@@ -7,7 +7,7 @@ import { ConflictBanner } from './ConflictBanner';
 import { SyncStatus } from './SyncStatus';
 
 interface CollaborationControlsProps {
-  harness: string;
+  system: string;
 }
 
 function LogoutButton({ onLogout }: { onLogout: () => void }) {
@@ -26,10 +26,10 @@ function LogoutButton({ onLogout }: { onLogout: () => void }) {
   );
 }
 
-export function CollaborationControls({ harness }: CollaborationControlsProps) {
-  const session = useHarnessStore((state) => state.session);
-  const activateEditSession = useHarnessStore((state) => state.activateEditSession);
-  const logout = useHarnessStore((state) => state.logout);
+export function CollaborationControls({ system }: CollaborationControlsProps) {
+  const session = useSystemStore((state) => state.session);
+  const activateEditSession = useSystemStore((state) => state.activateEditSession);
+  const logout = useSystemStore((state) => state.logout);
   const [loginOpen, setLoginOpen] = useState(false);
   const [checkpointOpen, setCheckpointOpen] = useState(false);
   const [activityOpen, setActivityOpen] = useState(false);
@@ -125,13 +125,13 @@ export function CollaborationControls({ harness }: CollaborationControlsProps) {
       {loginOpen && <LoginPanel onClose={() => setLoginOpen(false)} />}
       {checkpointOpen && (
         <CheckpointPanel
-          harness={harness}
+          system={system}
           isEditor={session.isEditor}
           onClose={() => setCheckpointOpen(false)}
         />
       )}
       {activityOpen && session.user && (
-        <ActivityPanel harness={harness} onClose={() => setActivityOpen(false)} />
+        <ActivityPanel system={system} onClose={() => setActivityOpen(false)} />
       )}
       <ConflictBanner />
     </>

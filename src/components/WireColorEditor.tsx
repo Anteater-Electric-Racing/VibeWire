@@ -56,7 +56,9 @@ export function WireColorEditor({
   const [text, setText] = useState(value);
   // First color of an in-progress Shift/Ctrl stripe pick.
   const [stripeBase, setStripeBase] = useState<string | null>(null);
+  // This local draft intentionally resets when the externally selected entity changes.
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setText(value);
     setStripeBase(null);
   }, [value]);

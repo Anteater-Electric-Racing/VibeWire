@@ -1,7 +1,7 @@
 /**
  * End-to-end verification for collaboration sidecar persistence.
  *
- * The script builds a throwaway project, copies a real repository harness into
+ * The script builds a throwaway project, copies a real repository system into
  * it, and never writes beneath the repository's `public/user-data` directory.
  */
 import assert from 'node:assert/strict';
@@ -29,22 +29,23 @@ import {
   snapshotToHistory,
 } from '../server/history.js';
 import {
-  diffHarness,
+  diffSystem,
   diffKeyedMap,
   type EntityDiff,
-} from '../server/harnessDiff.js';
+} from '../server/systemDiff.js';
 import {
   bumpRev,
   checkCas,
   configureCollaborationState,
   getRev,
-  withHarnessLock,
+  getRevisionState,
+  withSystemLock,
   type RevisionWriter,
 } from '../server/revisions.js';
 
 const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const temporaryRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'vibewire-collab-'));
-const harness = 'fsae-car';
+const systemKey = 'fsae-car';
 const user: RevisionWriter = { id: 'u_test', displayName: 'Test Editor' };
 const secondUser: RevisionWriter = { id: 'u_second', displayName: 'Second Editor' };
 
@@ -65,25 +66,25 @@ interface RestoreOutcome {
 
 /**
  * Mirrors the sequence `POST /api/checkpoints/:id/restore` performs, minus the
- * HTTP layer and harness validation. Keeps this suite exercising the same
+ * HTTP layer and systemKey validation. Keeps this suite exercising the same
  * persistence primitives the route uses instead of a parallel implementation.
  */
 async function restoreCheckpoint(
-  harnessName: string,
+  systemKey: string,
   id: string,
   writer: RevisionWriter,
 ): Promise<RestoreOutcome> {
-  return await withHarnessLock(harnessName, async () => {
-    const restored = getCheckpoint(harnessName, id);
+  return await withSystemLock(systemKey, async () => {
+    const restored = getCheckpoint(systemKey, id);
     const automaticCheckpoint = await createCheckpoint(
-      harnessName,
+      systemKey,
       `Auto-saved before restoring "${restored.label}"`,
       writer,
       true,
     );
-    await snapshotToHistory(harnessName, getRev(harnessName));
-    const rev = await bumpRev(harnessName, writer);
-    restoreManagedPayload(checkpointPayloadDir(harnessName, id), harnessName);
+    await snapshotToHistory(systemKey, getRev(systemKey));
+    const rev = await bumpRev(systemKey, writer);
+    restoreManagedPayload(checkpointPayloadDir(systemKey, id), systemKey);
     return { restored, automaticCheckpoint, rev };
   });
 }
@@ -91,35 +92,37 @@ async function restoreCheckpoint(
 function setupThrowawayProject(): void {
   const sourceUserData = path.join(repositoryRoot, 'public', 'user-data');
   const targetUserData = path.join(temporaryRoot, 'public', 'user-data');
-  fs.mkdirSync(path.join(targetUserData, 'harnesses'), { recursive: true });
+  fs.mkdirSync(path.join(targetUserData, 'systems'), { recursive: true });
 
-  const sourceHarness = path.join(sourceUserData, 'harnesses', harness);
+  const sourceSystem = path.join(sourceUserData, 'systems', systemKey);
   assert.ok(
-    fs.existsSync(path.join(sourceHarness, 'root.json')),
-    `Expected real sheeted harness at ${sourceHarness}`,
+    fs.existsSync(path.join(sourceSystem, 'root.json')),
+    `Expected real sheeted system at ${sourceSystem}`,
   );
-  copyIfPresent(sourceHarness, path.join(targetUserData, 'harnesses', harness));
+  copyIfPresent(sourceSystem, path.join(targetUserData, 'systems', systemKey));
   copyIfPresent(
-    path.join(sourceUserData, `layouts.${harness}.json`),
-    path.join(targetUserData, `layouts.${harness}.json`),
-  );
-  copyIfPresent(
-    path.join(sourceUserData, `manufacturing.${harness}.json`),
-    path.join(targetUserData, `manufacturing.${harness}.json`),
+    path.join(sourceUserData, `layouts.${systemKey}.json`),
+    path.join(targetUserData, `layouts.${systemKey}.json`),
   );
   copyIfPresent(
-    path.join(sourceUserData, 'subsystems', harness),
-    path.join(targetUserData, 'subsystems', harness),
+    path.join(sourceUserData, `manufacturing.${systemKey}.json`),
+    path.join(targetUserData, `manufacturing.${systemKey}.json`),
+  );
+  copyIfPresent(
+    path.join(sourceUserData, 'subsystems', systemKey),
+    path.join(targetUserData, 'subsystems', systemKey),
   );
 }
 
-function managedRelativePaths(harnessKey: string): string[] {
+function managedRelativePaths(systemKey: string): string[] {
   return [
-    path.join('harnesses', harnessKey),
-    path.join('harnesses', `${harnessKey}.json`),
-    `layouts.${harnessKey}.json`,
-    `manufacturing.${harnessKey}.json`,
-    path.join('subsystems', harnessKey),
+    path.join('systems', systemKey),
+    path.join('systems', `${systemKey}.json`),
+    path.join('harnesses', systemKey),
+    path.join('harnesses', `${systemKey}.json`),
+    `layouts.${systemKey}.json`,
+    `manufacturing.${systemKey}.json`,
+    path.join('subsystems', systemKey),
   ];
 }
 
@@ -137,9 +140,9 @@ function collectFiles(root: string, relativePath: string, files: Map<string, Buf
   }
 }
 
-function managedBytes(root: string, harnessKey: string): Map<string, Buffer> {
+function managedBytes(root: string, systemKey: string): Map<string, Buffer> {
   const files = new Map<string, Buffer>();
-  for (const relativePath of managedRelativePaths(harnessKey)) {
+  for (const relativePath of managedRelativePaths(systemKey)) {
     collectFiles(root, relativePath, files);
   }
   return files;
@@ -173,36 +176,59 @@ try {
   configureCollaborationState(temporaryRoot);
   const userDataRoot = path.join(temporaryRoot, 'public', 'user-data');
 
+  await test('undefined storage keys never write revision files', () => {
+    const undefinedFile = path.join(
+      temporaryRoot,
+      'vibewire-state',
+      'revisions',
+      'undefined.json',
+    );
+    if (fs.existsSync(undefinedFile)) fs.unlinkSync(undefinedFile);
+    assert.throws(
+      () => getRev(undefined as unknown as string),
+      /Invalid collaboration storage key/,
+    );
+    assert.throws(
+      () => getRevisionState(undefined as unknown as string),
+      /Invalid collaboration storage key/,
+    );
+    assert.equal(
+      fs.existsSync(undefinedFile),
+      false,
+      'RegExp.test(undefined) must not coerce to the storage key "undefined"',
+    );
+  });
+
   await test('revision persistence, recovery, and CAS', async () => {
-    assert.equal(getRev(harness), 0);
-    assert.equal(await bumpRev(harness, user), 1);
+    assert.equal(getRev(systemKey), 0);
+    assert.equal(await bumpRev(systemKey, user), 1);
 
     configureCollaborationState(temporaryRoot);
-    assert.equal(getRev(harness), 1, 'revision must survive simulated restart');
-    assert.equal(await bumpRev(harness, secondUser), 2);
-    assert.deepEqual(checkCas(harness, 2), { ok: true, currentRev: 2 });
-    const rejected = checkCas(harness, 1);
+    assert.equal(getRev(systemKey), 1, 'revision must survive simulated restart');
+    assert.equal(await bumpRev(systemKey, secondUser), 2);
+    assert.deepEqual(checkCas(systemKey, 2), { ok: true, currentRev: 2 });
+    const rejected = checkCas(systemKey, 1);
     assert.equal(rejected.ok, false);
     if (!rejected.ok) {
       assert.equal(rejected.currentRev, 2);
       assert.deepEqual(rejected.lastWriter, secondUser);
     }
 
-    await snapshotToHistory(harness, 2);
+    await snapshotToHistory(systemKey, 2);
     const revisionFile = path.join(
       temporaryRoot,
       'vibewire-state',
       'revisions',
-      `${harness}.json`,
+      `${systemKey}.json`,
     );
     fs.unlinkSync(revisionFile);
     configureCollaborationState(temporaryRoot);
-    assert.equal(getRev(harness), 3, 'missing state must recover from max history rev + 1');
+    assert.equal(getRev(systemKey), 3, 'missing state must recover from max history rev + 1');
 
     fs.writeFileSync(revisionFile, '{broken json', 'utf8');
     configureCollaborationState(temporaryRoot);
-    assert.equal(getRev(harness), 3, 'corrupt state must recover from max history rev + 1');
-    assert.equal(await bumpRev(harness, user), 4);
+    assert.equal(getRev(systemKey), 3, 'corrupt state must recover from max history rev + 1');
+    assert.equal(await bumpRev(systemKey, user), 4);
   });
 
   await test('mutex serialization and throw recovery', async () => {
@@ -211,7 +237,7 @@ try {
     const completed: number[] = [];
     await Promise.all(
       Array.from({ length: 12 }, (_, index) =>
-        withHarnessLock(harness, async () => {
+        withSystemLock(systemKey, async () => {
           active += 1;
           maximumActive = Math.max(maximumActive, active);
           await new Promise((resolve) => setTimeout(resolve, (index % 3) + 1));
@@ -220,49 +246,49 @@ try {
         }),
       ),
     );
-    assert.equal(maximumActive, 1, 'same-harness critical sections interleaved');
+    assert.equal(maximumActive, 1, 'same-systemKey critical sections interleaved');
     assert.equal(completed.length, 12);
 
     await assert.rejects(
-      withHarnessLock(harness, () => {
+      withSystemLock(systemKey, () => {
         throw new Error('intentional mutex test failure');
       }),
       /intentional mutex test failure/,
     );
     assert.equal(
-      await withHarnessLock(harness, () => 'lock recovered'),
+      await withSystemLock(systemKey, () => 'lock recovered'),
       'lock recovered',
       'a throwing callback poisoned the lock',
     );
   });
 
-  await test('harness and keyed-map diff correctness', () => {
+  await test('System and keyed-map diff correctness', () => {
     const previous = {
-      enclosures: [{ id: 'enc_same', properties: { b: 2, a: 1 } }],
+      hierarchy: [{ id: 'enc_same', properties: { b: 2, a: 1 } }],
       connectors: [
         { id: 'con_changed', name: 'Before' },
         { id: 'con_removed', name: 'Removed' },
       ],
-      mergePoints: [],
+      branchPoints: [],
       paths: [],
       signals: [],
     };
     const next = {
-      enclosures: [{ id: 'enc_same', properties: { a: 1, b: 2 } }],
+      hierarchy: [{ id: 'enc_same', properties: { a: 1, b: 2 } }],
       connectors: [
         { id: 'con_changed', name: 'After' },
         { id: 'con_added', name: 'Added' },
       ],
-      mergePoints: [],
+      branchPoints: [],
       paths: [],
       signals: [],
     };
-    assert.deepEqual(diffHarness(previous, next), {
+    assert.deepEqual(diffSystem(previous, next), {
       added: ['con_added'],
       modified: ['con_changed'],
       removed: ['con_removed'],
     });
-    assert.deepEqual(diffHarness(undefined, undefined), {
+    assert.deepEqual(diffSystem(undefined, undefined), {
       added: [],
       modified: [],
       removed: [],
@@ -283,38 +309,38 @@ try {
   let originalCheckpointId = '';
   let mutatedCheckpointId = '';
   await test('byte-exact checkpoint restore and reverse restore', async () => {
-    const original = managedBytes(userDataRoot, harness);
+    const original = managedBytes(userDataRoot, systemKey);
     const history = managedBytes(
-      path.join(temporaryRoot, 'vibewire-state', 'history', harness, '2'),
-      harness,
+      path.join(temporaryRoot, 'vibewire-state', 'history', systemKey, '2'),
+      systemKey,
     );
     assertByteMapsEqual(history, original, 'automatic history snapshot');
 
-    const checkpoint = await createCheckpoint(harness, 'Original state', user);
+    const checkpoint = await createCheckpoint(systemKey, 'Original state', user);
     originalCheckpointId = checkpoint.id;
-    assert.equal(getCheckpoint(harness, checkpoint.id).countDiff.paths, 0);
-    assert.equal(listCheckpoints(harness)[0]?.id, checkpoint.id);
+    assert.equal(getCheckpoint(systemKey, checkpoint.id).countDiff.paths, 0);
+    assert.equal(listCheckpoints(systemKey)[0]?.id, checkpoint.id);
 
-    const rootFile = path.join(userDataRoot, 'harnesses', harness, 'root.json');
+    const rootFile = path.join(userDataRoot, 'systems', systemKey, 'root.json');
     const rootDocument = JSON.parse(fs.readFileSync(rootFile, 'utf8')) as Record<string, unknown>;
     rootDocument.name = 'Mutation used by collaboration test';
     fs.writeFileSync(rootFile, `${JSON.stringify(rootDocument, null, 4)}\n`, 'utf8');
     const staleSheet = path.join(
       userDataRoot,
-      'harnesses',
-      harness,
+      'systems',
+      systemKey,
       'sheets',
       'stale_after_checkpoint.json',
     );
     fs.writeFileSync(staleSheet, '{"test":"stale sheet"}\n', 'utf8');
-    const mutated = managedBytes(userDataRoot, harness);
+    const mutated = managedBytes(userDataRoot, systemKey);
     assert.notDeepEqual(
       [...mutated.entries()],
       [...original.entries()],
       'test mutation did not change bytes',
     );
 
-    const firstRestore = await restoreCheckpoint(harness, checkpoint.id, secondUser);
+    const firstRestore = await restoreCheckpoint(systemKey, checkpoint.id, secondUser);
     mutatedCheckpointId = firstRestore.automaticCheckpoint.id;
     assert.equal(
       firstRestore.automaticCheckpoint.label,
@@ -322,20 +348,20 @@ try {
     );
     assert.equal(firstRestore.rev, 5);
     assertByteMapsEqual(
-      managedBytes(userDataRoot, harness),
+      managedBytes(userDataRoot, systemKey),
       original,
       'restored original checkpoint',
     );
     assert.equal(fs.existsSync(staleSheet), false, 'restore did not remove a stale sheet');
 
     const reverseRestore = await restoreCheckpoint(
-      harness,
+      systemKey,
       firstRestore.automaticCheckpoint.id,
       user,
     );
     assert.equal(reverseRestore.rev, 6);
     assertByteMapsEqual(
-      managedBytes(userDataRoot, harness),
+      managedBytes(userDataRoot, systemKey),
       mutated,
       'restored the pre-restore automatic checkpoint',
     );
@@ -344,12 +370,13 @@ try {
   await test('legacy flat harness snapshots and restore', async () => {
     const legacy = 'legacy-test';
     const legacyFile = path.join(userDataRoot, 'harnesses', `${legacy}.json`);
+    fs.mkdirSync(path.dirname(legacyFile), { recursive: true });
     const originalFlat = Buffer.from(
       `${JSON.stringify({
         schema_version: '0.1.0',
-        enclosures: [],
+        hierarchy: [],
         connectors: [],
-        mergePoints: [],
+        branchPoints: [],
         paths: [],
         signals: [],
       }, null, 2)}\n`,
@@ -384,27 +411,27 @@ try {
     const today = now.toISOString().slice(0, 10);
     const old = new Date(now.getTime() - 40 * 24 * 60 * 60 * 1000).toISOString();
     const common = {
-      kind: 'harness' as const,
-      rev: getRev(harness),
+      kind: 'system' as const,
+      rev: getRev(systemKey),
       added: 0,
       modified: 1,
       removed: 0,
       entityIds: ['con_changed'],
     };
-    appendEditLog(harness, { ...common, user: user.id, displayName: user.displayName });
-    appendEditLog(harness, { ...common, user: user.id, displayName: user.displayName });
-    appendEditLog(harness, {
+    appendEditLog(systemKey, { ...common, user: user.id, displayName: user.displayName });
+    appendEditLog(systemKey, { ...common, user: user.id, displayName: user.displayName });
+    appendEditLog(systemKey, {
       ...common,
       user: secondUser.id,
       displayName: secondUser.displayName,
     });
-    appendEditLog(harness, {
+    appendEditLog(systemKey, {
       ...common,
       ts: old,
       user: secondUser.id,
       displayName: secondUser.displayName,
     });
-    assert.deepEqual(aggregateActivity(harness, 7), {
+    assert.deepEqual(aggregateActivity(systemKey, 7), {
       [today]: {
         [secondUser.displayName]: 1,
         [user.displayName]: 2,
@@ -416,9 +443,9 @@ try {
 
   await test('daily checkpoint marks contributors since last daily save', async () => {
     // The edit-log test above already logged `user` and `secondUser` writes to
-    // `harness`, and no daily checkpoint exists yet, so the first save of the
+    // `systemKey`, and no daily checkpoint exists yet, so the first save of the
     // (real) day should capture both as contributors.
-    const first = await ensureDailyCheckpoint(harness, user);
+    const first = await ensureDailyCheckpoint(systemKey, user);
     assert.ok(first, 'first write of the day must create a daily checkpoint');
     const todayKey = new Date().toISOString().slice(0, 10);
     assert.equal(first?.dailyKey, todayKey);
@@ -431,17 +458,17 @@ try {
 
     // A second write later the same day must not create a second daily
     // checkpoint — only the first write of a day that has one does.
-    appendEditLog(harness, {
+    appendEditLog(systemKey, {
       user: secondUser.id,
       displayName: secondUser.displayName,
-      kind: 'harness',
-      rev: getRev(harness),
+      kind: 'system',
+      rev: getRev(systemKey),
       added: 0,
       modified: 1,
       removed: 0,
       entityIds: ['con_changed'],
     });
-    const sameDay = await ensureDailyCheckpoint(harness, secondUser);
+    const sameDay = await ensureDailyCheckpoint(systemKey, secondUser);
     assert.equal(sameDay, null, 'same-day write must not create a second daily checkpoint');
 
     // Simulate the calendar day having rolled over onto `first` without
@@ -452,7 +479,7 @@ try {
       temporaryRoot,
       'vibewire-state',
       'checkpoints',
-      harness,
+      systemKey,
       first!.id,
       'meta.json',
     );
@@ -461,17 +488,17 @@ try {
     backdated.dailyKey = yesterdayKey;
     fs.writeFileSync(metaFile, `${JSON.stringify(backdated, null, 2)}\n`, 'utf8');
 
-    appendEditLog(harness, {
+    appendEditLog(systemKey, {
       user: thirdUser.id,
       displayName: thirdUser.displayName,
-      kind: 'harness',
-      rev: getRev(harness),
+      kind: 'system',
+      rev: getRev(systemKey),
       added: 0,
       modified: 1,
       removed: 0,
       entityIds: ['con_changed'],
     });
-    const nextDay = await ensureDailyCheckpoint(harness, thirdUser);
+    const nextDay = await ensureDailyCheckpoint(systemKey, thirdUser);
     assert.ok(nextDay, 'a write after the backdated checkpoint must create a new daily checkpoint');
     assert.equal(nextDay?.dailyKey, todayKey);
     // Covers everyone who wrote after `first` was actually created: the
@@ -490,23 +517,23 @@ try {
       modified: ['con_changed'],
       removed: [],
     };
-    await applyDiffToAttribution(harness, firstDiff, user, getRev(harness));
+    await applyDiffToAttribution(systemKey, firstDiff, user, getRev(systemKey));
     await applyDiffToAttribution(
-      harness,
+      systemKey,
       { added: [], modified: ['con_changed'], removed: ['con_added'] },
       secondUser,
-      getRev(harness),
+      getRev(systemKey),
     );
-    const attribution = getAttribution(harness);
+    const attribution = getAttribution(systemKey);
     assert.equal(attribution.con_added, undefined);
     assert.deepEqual(attribution.con_changed?.by, secondUser);
-    assert.deepEqual(whoTouched(harness, ['con_changed', 'missing', 'con_changed']), [
+    assert.deepEqual(whoTouched(systemKey, ['con_changed', 'missing', 'con_changed']), [
       secondUser,
     ]);
   });
 
   await test('history pruning preserves checkpoints', async () => {
-    const historyRoot = path.join(temporaryRoot, 'vibewire-state', 'history', harness);
+    const historyRoot = path.join(temporaryRoot, 'vibewire-state', 'history', systemKey);
     const first = path.join(historyRoot, '100');
     const second = path.join(historyRoot, '101');
     fs.mkdirSync(first, { recursive: true });
@@ -515,14 +542,14 @@ try {
     fs.utimesSync(first, tenDaysAgo, tenDaysAgo);
     fs.utimesSync(second, new Date(tenDaysAgo.getTime() + 1000), new Date(tenDaysAgo.getTime() + 1000));
 
-    const beforeCheckpointIds = new Set(listCheckpoints(harness).map((item) => item.id));
+    const beforeCheckpointIds = new Set(listCheckpoints(systemKey).map((item) => item.id));
     assert.ok(beforeCheckpointIds.has(originalCheckpointId));
     assert.ok(beforeCheckpointIds.has(mutatedCheckpointId));
-    const result = await pruneHistory(harness);
+    const result = await pruneHistory(systemKey);
     assert.equal(result.removed.length, 1);
     assert.equal(result.kept.filter((rev) => rev === 100 || rev === 101).length, 1);
     assert.deepEqual(
-      new Set(listCheckpoints(harness).map((item) => item.id)),
+      new Set(listCheckpoints(systemKey).map((item) => item.id)),
       beforeCheckpointIds,
       'pruning changed named checkpoints',
     );

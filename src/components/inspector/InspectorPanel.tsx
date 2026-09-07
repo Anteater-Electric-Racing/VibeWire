@@ -1,27 +1,33 @@
 import { useState, useMemo, useRef, useEffect, useLayoutEffect, useCallback } from 'react';
 import { ImagePickerPanel } from '../graph/ImagePickerPanel';
-import { useHarnessStore } from '../../store';
+import { useSystemStore, type EnclosureKindConvertImpact } from '../../store';
 import type {
   Connector,
   ConnectorType,
   Enclosure,
+  HierarchyEntity,
   EntityType,
-  MergePoint,
+  SystemData,
+  BranchPoint,
   Path,
   PathNode,
   Signal,
+  SubsystemDocument,
   TextBoxFontFamily,
   TextBoxFontWeight,
   TextBoxLayout,
   TextBoxTextAlign,
+  CanvasImageLayout,
+  CanvasImageLayer,
 } from '../../types';
 import {
   getPreferredWireColorDeviation,
   type WireAppearance,
 } from '../../lib/colors';
+import { branchPointToSharedAnchorBlockReason } from '../../lib/sharedAnchorJoin';
 import {
   countPathsTouchingConnectors,
-  getBundleSegments,
+  getHarnessBundleWires,
   getConnectorPairSegments,
   getEntityRevealContext,
   formatConnectorOccupancySummary,
@@ -35,7 +41,6 @@ import {
   getNextConnectorPinCount,
   getPreviousConnectorPinCount,
   getEnclosureConnectors,
-  getLengthSplitDetail,
   getPathsTouchingConnector,
   isBulkheadConnector,
   isConnectorFamily,
@@ -46,10 +51,14 @@ import {
   getPathSignalId,
   getPathSignalName,
   getPathWireAppearance,
-  parseBundleId,
+  getBranchPointSignalGroups,
+  getBranchPointHarnessBundleFamilies,
+  parseHarnessBundleId,
+  parseHarnessBundleThruKey,
+  getThroughKeyLabel,
+  isBranchPointRefKey,
   type BulkheadWireSide,
-  type LengthSplitDetail,
-} from '../../lib/harness';
+} from '../../lib/systemTopology';
 import { WIRE_GAUGE_PRESETS } from '../../lib/gauge';
 import {
   deriveManufacturingBundles,
@@ -60,7 +69,27 @@ import {
   type ManufacturingWire,
 } from '../../lib/manufacturing';
 import { normalizeDisplayName } from '../../lib/rename';
+import { requestAddTextBox } from '../../lib/textBoxes';
 import { WireColorEditor, WireColorSwatch } from '../WireColorEditor';
+import { HarnessBundleRouteStyleControls } from '../graph/RouteStyleBar';
+import {
+  CONNECTOR_SHELL,
+  DEVICE_SHELL,
+  ENCLOSURE_SHELL,
+  ENTITY_SHELL_PRESETS,
+  parseHexColor,
+} from '../../lib/entityColors';
+import {
+  isAutoBulkheadPlaceholder,
+  isBulkheadDot,
+} from '../../lib/bulkheadRouting';
+import { newestAttribution } from '../../lib/collaborationPresence';
+import {
+  AttributionDisplay,
+  PresenceBadge,
+  PresenceEditingRegion,
+} from '../collab/PresenceBadge';
+import type { AttributionEntry, PresenceTarget } from '../../types/collab';
 
 function TagPill({
   tag,
@@ -93,9 +122,9 @@ function TagEditor({
   entityId: string;
   tags: string[];
 }) {
-  const addTag = useHarnessStore((s) => s.addTag);
-  const removeTag = useHarnessStore((s) => s.removeTag);
-  const getAllExistingTags = useHarnessStore((s) => s.getAllExistingTags);
+  const addTag = useSystemStore((s) => s.addTag);
+  const removeTag = useSystemStore((s) => s.removeTag);
+  const getAllExistingTags = useSystemStore((s) => s.getAllExistingTags);
   const [input, setInput] = useState('');
   const [showSuggestions, setShowSuggestions] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -177,7 +206,7 @@ function PropertyRow({ label, value }: { label: string; value: string }) {
 }
 
 function ReadOnlyInspectorControls({ children }: { children: React.ReactNode }) {
-  const isEditor = useHarnessStore((state) => state.session.isEditor);
+  const isEditor = useSystemStore((state) => state.session.isEditor);
 
   const blockReadOnlyControl = (event: React.SyntheticEvent) => {
     if (isEditor) return;
@@ -220,7 +249,7 @@ function EntityLink({
   className?: string;
   title?: string;
 }) {
-  const revealItem = useHarnessStore((s) => s.revealItem);
+  const revealItem = useSystemStore((s) => s.revealItem);
   return (
     <button
       type="button"
@@ -237,7 +266,7 @@ function EntityLink({
 function PathNodeLink({
   node,
   children,
-  className,
+  className = '',
 }: {
   node: PathNode;
   children: React.ReactNode;
@@ -245,9 +274,16 @@ function PathNodeLink({
 }) {
   const item = node.kind === 'connector'
     ? { type: 'connector' as const, id: node.connector_id }
-    : { type: 'mergePoint' as const, id: node.merge_point_id };
+    : { type: 'branchPoint' as const, id: node.branch_point_id };
+  const colorClass = node.kind === 'connector'
+    ? 'text-vw-connector hover:opacity-80'
+    : 'text-cyan-300 hover:opacity-80';
   return (
-    <EntityLink item={item} className={className} title="Reveal referenced entity">
+    <EntityLink
+      item={item}
+      className={`underline underline-offset-2 ${colorClass} ${className}`}
+      title="Reveal referenced entity"
+    >
       {children}
     </EntityLink>
   );
@@ -258,16 +294,18 @@ function NameEditor({
   type,
   id,
   label = 'Name',
+  textClassName = 'text-zinc-100',
 }: {
   name: string;
   type: EntityType;
   id: string;
   label?: string;
+  textClassName?: string;
 }) {
-  const renameEntity = useHarnessStore((s) => s.renameEntity);
-  const pushUndoSnapshot = useHarnessStore((s) => s.pushUndoSnapshot);
-  const commitUndoSnapshot = useHarnessStore((s) => s.commitUndoSnapshot);
-  const cancelUndoSnapshot = useHarnessStore((s) => s.cancelUndoSnapshot);
+  const renameEntity = useSystemStore((s) => s.renameEntity);
+  const pushUndoSnapshot = useSystemStore((s) => s.pushUndoSnapshot);
+  const commitUndoSnapshot = useSystemStore((s) => s.commitUndoSnapshot);
+  const cancelUndoSnapshot = useSystemStore((s) => s.cancelUndoSnapshot);
   const [draft, setDraft] = useState(name);
   const [error, setError] = useState<string | null>(null);
   const cancelBlur = useRef(false);
@@ -290,6 +328,7 @@ function NameEditor({
         <span className="text-[10px] text-zinc-500 w-20 shrink-0 text-right">{label}</span>
         <input
           value={draft}
+          data-presence-field="name"
           onChange={(event) => setDraft(event.target.value)}
           onFocus={() => pushUndoSnapshot(`rename:${type}:${id}`)}
           onBlur={(event) => {
@@ -313,10 +352,84 @@ function NameEditor({
             }
           }}
           aria-label={`Rename ${label.toLowerCase()}`}
-          className="min-w-0 flex-1 bg-zinc-800 border border-zinc-700 rounded px-2 py-1 text-[11px] text-zinc-100 focus:border-amber-500 focus:outline-none"
+          className={`min-w-0 flex-1 bg-zinc-800 border border-zinc-700 rounded px-2 py-1 text-[11px] ${textClassName} focus:border-amber-500 focus:outline-none`}
         />
       </label>
       {error && <div className="pl-[5.5rem] pt-0.5 text-[9px] text-red-400">{error}</div>}
+    </div>
+  );
+}
+
+function EntityColorPicker({
+  value,
+  fallback,
+  onChange,
+  hint,
+}: {
+  value: string;
+  fallback: string;
+  onChange: (next: string) => void;
+  hint?: string;
+}) {
+  const parsed = parseHexColor(value);
+  const display = parsed ?? fallback;
+  const [hex, setHex] = useState(display);
+  useEffect(() => { setHex(display); }, [display]);
+
+  return (
+    <div className="py-1">
+      <div className="flex items-center gap-2 mb-1.5">
+        <span className="text-[10px] text-zinc-500 w-20 shrink-0 text-right">Color</span>
+        <label className="relative flex min-w-0 flex-1 items-center gap-1.5 cursor-pointer">
+          <span
+            className="w-5 h-5 rounded border border-zinc-600 shrink-0 inline-block"
+            style={{ backgroundColor: display }}
+          />
+          <input
+            type="color"
+            value={display}
+            onChange={(event) => {
+              setHex(event.target.value);
+              onChange(event.target.value);
+            }}
+            className="absolute left-0 top-0 h-5 w-5 cursor-pointer opacity-0"
+          />
+          <input
+            type="text"
+            value={hex}
+            onChange={(event) => setHex(event.target.value)}
+            onBlur={() => {
+              if (/^#[0-9a-f]{6}$/i.test(hex) || /^#[0-9a-f]{3}$/i.test(hex)) onChange(hex);
+              else setHex(display);
+            }}
+            className="flex-1 text-[10px] font-mono px-1.5 py-0.5 bg-zinc-800 border border-zinc-700 rounded text-zinc-300 focus:border-amber-600 focus:outline-none"
+          />
+        </label>
+        <button
+          type="button"
+          disabled={!parsed}
+          onClick={() => onChange('')}
+          className="shrink-0 text-[10px] text-zinc-500 hover:text-zinc-300 disabled:opacity-30 disabled:hover:text-zinc-500"
+        >
+          Reset
+        </button>
+      </div>
+      <div className="flex flex-wrap gap-1 pl-[5.5rem]">
+        {ENTITY_SHELL_PRESETS.map((preset) => (
+          <button
+            key={preset}
+            type="button"
+            title={preset}
+            onClick={() => { setHex(preset); onChange(preset); }}
+            className="h-4 w-4 rounded border transition-all hover:scale-110"
+            style={{
+              backgroundColor: preset,
+              borderColor: parsed === preset.toLowerCase() ? '#f59e0b' : 'rgba(255,255,255,0.12)',
+            }}
+          />
+        ))}
+      </div>
+      {hint && <div className="pl-[5.5rem] pt-0.5 text-[9px] text-zinc-600">{hint}</div>}
     </div>
   );
 }
@@ -400,14 +513,14 @@ function WireGaugeEditor({
 }
 
 function ConnectorGaugeBulkEditor({ connector }: { connector: Connector }) {
-  const harness = useHarnessStore((s) => s.harness);
-  const updateConnectorPathsGauge = useHarnessStore((s) => s.updateConnectorPathsGauge);
+  const system = useSystemStore((s) => s.system);
+  const updateConnectorPathsGauge = useSystemStore((s) => s.updateConnectorPathsGauge);
   const [text, setText] = useState('');
   const [side, setSide] = useState<BulkheadWireSide>('both');
 
-  if (!harness) return null;
-  const bulkhead = isBulkheadConnector(harness, connector.id);
-  const targets = getPathsTouchingConnector(harness, connector.id, bulkhead ? side : 'both');
+  if (!system) return null;
+  const bulkhead = isBulkheadConnector(system, connector.id);
+  const targets = getPathsTouchingConnector(system, connector.id, bulkhead ? side : 'both');
   const sideLabel = !bulkhead
     ? 'all wires'
     : side === 'both'
@@ -514,17 +627,21 @@ function DerivedFromPortNote({ portId }: { portId?: string }) {
 }
 
 function ParentLink({ parentId }: { parentId: string }) {
-  const harness = useHarnessStore((s) => s.harness);
+  const system = useSystemStore((s) => s.system);
 
-  if (!harness) return null;
+  if (!system) return null;
 
-  const enc = harness.enclosures.find((e) => e.id === parentId);
+  const enc = system.hierarchy.find((e) => e.id === parentId);
   const name = enc?.name ?? parentId;
+
+  const isDevice = enc && enc.kind === 'device';
 
   return (
     <EntityLink
       item={{ type: 'enclosure', id: parentId }}
-      className="text-[11px] text-amber-400 hover:text-amber-300 underline underline-offset-2"
+      className={`text-[11px] underline underline-offset-2 hover:opacity-80 ${
+        isDevice ? 'text-vw-device' : 'text-vw-enclosure'
+      }`}
     >
       {name}
     </EntityLink>
@@ -532,10 +649,10 @@ function ParentLink({ parentId }: { parentId: string }) {
 }
 
 function SignalInfo({ signalId, appearance }: { signalId: string; appearance?: WireAppearance | null }) {
-  const harness = useHarnessStore((s) => s.harness);
-  if (!harness) return null;
+  const system = useSystemStore((s) => s.system);
+  if (!system) return null;
 
-  const signal = harness.signals.find(
+  const signal = system.signals.find(
     (s: Signal) => s.id === signalId,
   );
   if (!signal) return null;
@@ -594,16 +711,19 @@ function ConnectorOccupancyTable({
 }: {
   connector: Connector;
 }) {
-  const harness = useHarnessStore((s) => s.harness);
-  const connectorLibrary = useHarnessStore((s) => s.connectorLibrary);
+  const system = useSystemStore((s) => s.system);
+  const connectorLibrary = useSystemStore((s) => s.connectorLibrary);
+  const splitBulkheadDotPath = useSystemStore((s) => s.splitBulkheadDotPath);
   const [expandedPaths, setExpandedPaths] = useState<Set<string>>(new Set());
 
-  if (!harness) return null;
+  if (!system) return null;
 
   const ct = connectorLibrary?.connector_types.find(
     (t: ConnectorType) => t.id === connector.connector_type,
   );
-  const occupancy = getConnectorOccupancy(harness, connector.id);
+  const occupancy = getConnectorOccupancy(system, connector.id);
+  const canReleaseWire = isBulkheadDot(connector)
+    && new Set(occupancy.map((entry) => entry.pathId)).size > 1;
   const maxUsedPin = Math.max(0, ...occupancy.map((entry) => entry.pinNumber));
   const pinCount = Math.max(getEffectivePinCount(connector, ct), maxUsedPin);
   const rows = Array.from({ length: pinCount }, (_, index) => {
@@ -649,8 +769,8 @@ function ConnectorOccupancyTable({
                     {row.items.map((item, index) => {
                       const expandKey = `${row.pinNumber}:${item.pathId}`;
                       const isExpanded = expandedPaths.has(expandKey);
-                      const path = harness.paths.find((p) => p.id === item.pathId);
-                      const appearance = path ? getPathWireAppearance(path, harness) : null;
+                      const path = system.paths.find((p) => p.id === item.pathId);
+                      const appearance = path ? getPathWireAppearance(path, system) : null;
 
                       return (
                         <div
@@ -694,6 +814,19 @@ function ConnectorOccupancyTable({
                                 {item.signalName}
                               </EntityLink>
                             )}
+                            {canReleaseWire && (
+                              <button
+                                type="button"
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  splitBulkheadDotPath(connector.id, item.pathId);
+                                }}
+                                className="shrink-0 rounded border border-zinc-700 px-1 text-[8px] text-zinc-500 hover:border-amber-700 hover:text-amber-300"
+                                title="Pop this wire out into its own bulkhead dot"
+                              >
+                                Pop out
+                              </button>
+                            )}
                           </div>
 
                           {/* Expanded route */}
@@ -704,7 +837,7 @@ function ConnectorOccupancyTable({
                               </div>
                               <div className="space-y-px">
                                 {path.nodes.map((node, nodeIndex) => {
-                                  const label = getPathNodeLabel(harness, node);
+                                  const label = getPathNodeLabel(system, node);
                                   const isCurrent =
                                     node.kind === 'connector' &&
                                     node.connector_id === connector.id &&
@@ -726,11 +859,7 @@ function ConnectorOccupancyTable({
                                       </div>
                                       <PathNodeLink
                                         node={node}
-                                        className={`text-[10px] leading-tight ${
-                                          isCurrent
-                                            ? 'text-amber-400 font-medium'
-                                            : 'text-zinc-400 hover:text-amber-300 underline underline-offset-2'
-                                        }`}
+                                        className={`text-[10px] leading-tight ${isCurrent ? 'font-medium' : ''}`}
                                       >
                                         {label}
                                         {isCurrent && (
@@ -757,21 +886,21 @@ function ConnectorOccupancyTable({
   );
 }
 
-function BundleLengthEditor({
+function HarnessBundleLengthEditor({
   bundleId,
   pathIds,
   segments,
 }: {
   bundleId: string;
   pathIds: string[];
-  segments: ReturnType<typeof getBundleSegments>;
+  segments: ReturnType<typeof getHarnessBundleWires>;
 }) {
-  const updateBundleSegmentLengths = useHarnessStore((s) => s.updateBundleSegmentLengths);
-  const pushUndoSnapshot = useHarnessStore((s) => s.pushUndoSnapshot);
-  const commitUndoSnapshot = useHarnessStore((s) => s.commitUndoSnapshot);
-  const cancelUndoSnapshot = useHarnessStore((s) => s.cancelUndoSnapshot);
+  const updateHarnessBundleWireLengths = useSystemStore((s) => s.updateHarnessBundleWireLengths);
+  const pushUndoSnapshot = useSystemStore((s) => s.pushUndoSnapshot);
+  const commitUndoSnapshot = useSystemStore((s) => s.commitUndoSnapshot);
+  const cancelUndoSnapshot = useSystemStore((s) => s.cancelUndoSnapshot);
   const lengths = segments.map(
-    (segment) => getPathSegmentMeasurement(segment.path, segment.segmentIndex)?.length_mm,
+    (segment) => getPathSegmentMeasurement(segment.path, segment.wireIndex)?.length_mm,
   );
   const uniqueLengths = [...new Set(lengths.filter((length): length is number => length !== undefined))];
   const allSame = lengths.length > 0
@@ -789,15 +918,15 @@ function BundleLengthEditor({
     const trimmed = value.trim();
     if (!trimmed) {
       const existing = segments.filter((segment) => {
-        const lengthMm = getPathSegmentMeasurement(segment.path, segment.segmentIndex)?.length_mm;
+        const lengthMm = getPathSegmentMeasurement(segment.path, segment.wireIndex)?.length_mm;
         return lengthMm !== undefined;
       });
       if (existing.length > 0) {
         const confirmed = window.confirm([
-          `Clear stretch length on ${existing.length} wire${existing.length === 1 ? '' : 's'} in this bundle?`,
+          `Clear stretch length on ${existing.length} wire${existing.length === 1 ? '' : 's'} in this Harness Bundle?`,
           '',
           ...existing.map((segment) => {
-            const lengthMm = getPathSegmentMeasurement(segment.path, segment.segmentIndex)?.length_mm;
+            const lengthMm = getPathSegmentMeasurement(segment.path, segment.wireIndex)?.length_mm;
             return `• ${segment.path.name}: ${lengthMm} mm`;
           }),
         ].join('\n'));
@@ -807,7 +936,7 @@ function BundleLengthEditor({
         }
       }
       setDraft('');
-      updateBundleSegmentLengths(bundleId, pathIds, undefined);
+      updateHarnessBundleWireLengths(bundleId, pathIds, undefined);
       return;
     }
 
@@ -819,29 +948,29 @@ function BundleLengthEditor({
     setDraft(String(parsed));
 
     const withLength = segments.filter((segment) => {
-      const lengthMm = getPathSegmentMeasurement(segment.path, segment.segmentIndex)?.length_mm;
+      const lengthMm = getPathSegmentMeasurement(segment.path, segment.wireIndex)?.length_mm;
       return lengthMm !== undefined;
     });
     if (
       withLength.length === segments.length
       && withLength.every((segment) =>
-        getPathSegmentMeasurement(segment.path, segment.segmentIndex)?.length_mm === parsed)
+        getPathSegmentMeasurement(segment.path, segment.wireIndex)?.length_mm === parsed)
     ) {
       return;
     }
 
     if (withLength.length > 0) {
       const confirmed = window.confirm([
-        `${withLength.length} wire${withLength.length === 1 ? '' : 's'} in this bundle already have a length:`,
+        `${withLength.length} wire${withLength.length === 1 ? '' : 's'} in this Harness Bundle already have a length:`,
         '',
         ...withLength.map((segment) => {
-          const lengthMm = getPathSegmentMeasurement(segment.path, segment.segmentIndex)?.length_mm;
+          const lengthMm = getPathSegmentMeasurement(segment.path, segment.wireIndex)?.length_mm;
           return `• ${segment.path.name}: ${lengthMm} mm`;
         }),
         '',
-        `Apply ${parsed} mm to all ${segments.length} wires in this bundle?`,
+        `Apply ${parsed} mm to all ${segments.length} wires in this Harness Bundle?`,
         '',
-        'This only changes the stretch on this bundle hop (e.g. connector → splice), not other segments of the path.',
+        'This only changes the stretch on this Harness Bundle hop (e.g. connector → branch point), not other segments of the path.',
       ].join('\n'));
       if (!confirmed) {
         setDraft(initialValue);
@@ -849,7 +978,7 @@ function BundleLengthEditor({
       }
     }
 
-    updateBundleSegmentLengths(bundleId, pathIds, parsed);
+    updateHarnessBundleWireLengths(bundleId, pathIds, parsed);
   };
 
   if (segments.length === 0) return null;
@@ -892,13 +1021,13 @@ function BundleLengthEditor({
             }
           }}
           placeholder={mixed ? 'mixed' : '—'}
-          aria-label={`Length for all ${segments.length} wires in this bundle, in millimeters`}
+          aria-label={`Length for all ${segments.length} wires in this Harness Bundle, in millimeters`}
           className="ml-auto w-20 bg-zinc-800 border border-zinc-700 rounded px-1.5 py-0.5 text-right font-mono text-[10px] text-zinc-200 placeholder-zinc-600 focus:border-amber-500 focus:outline-none"
         />
         <span className="w-5 text-[9px] text-zinc-500">mm</span>
       </div>
       <div className="mt-1 text-[9px] text-zinc-600">
-        Applies to this bundle hop only
+        Applies to this Harness Bundle hop only
         {mixed ? ' · some wires already have lengths' : ''}
       </div>
     </div>
@@ -912,30 +1041,38 @@ function BundleInspector({
   bundleId: string;
   pathIds: string[];
 }) {
-  const harness = useHarnessStore((s) => s.harness);
-  const connectorLibrary = useHarnessStore((s) => s.connectorLibrary);
-  const manufacturing = useHarnessStore((s) => s.manufacturing);
-  const openManufacturing = useHarnessStore((s) => s.openManufacturing);
-  const deletePathBundle = useHarnessStore((s) => s.deletePathBundle);
+  const system = useSystemStore((s) => s.system);
+  const connectorLibrary = useSystemStore((s) => s.connectorLibrary);
+  const manufacturing = useSystemStore((s) => s.manufacturing);
+  const openManufacturing = useSystemStore((s) => s.openManufacturing);
+  const deletePathHarnessBundle = useSystemStore((s) => s.deletePathHarnessBundle);
+  const selectedRoutePoint = useSystemStore((s) =>
+    s.selectedHarnessBundle?.id === bundleId ? s.selectedHarnessBundle.routePoint : undefined
+  );
+  const deleteSelectedRoutePoint = useSystemStore((s) => s.deleteSelectedRoutePoint);
+  const sharedAnchors = useSystemStore((s) => s.sharedAnchors);
+  const waypointLayouts = useSystemStore((s) => s.waypointLayouts);
+  const convertSharedAnchorToBranchPoint = useSystemStore((s) => s.convertSharedAnchorToBranchPoint);
+  const isEditor = useSystemStore((s) => s.session.isEditor);
 
-  if (!harness) return null;
+  if (!system) return null;
 
   const paths = pathIds
-    .map((id) => harness.paths.find((path) => path.id === id))
+    .map((id) => system.paths.find((path) => path.id === id))
     .filter(Boolean) as Path[];
 
   if (paths.length === 0) return null;
 
-  const segments = bundleId ? getBundleSegments(harness, bundleId, pathIds) : [];
+  const segments = bundleId ? getHarnessBundleWires(system, bundleId, pathIds) : [];
   const segmentByPathId = new Map(segments.map((segment) => [segment.path.id, segment]));
-  const parsedBundle = bundleId ? parseBundleId(bundleId) : null;
+  const parsedBundle = bundleId ? parseHarnessBundleId(bundleId) : null;
 
   const selectedPathIds = new Set(pathIds);
   const selectedSegmentKeys = new Set(
-    segments.map((segment) => `${segment.path.id}:${segment.segmentIndex}`),
+    segments.map((segment) => `${segment.path.id}:${segment.wireIndex}`),
   );
   const manufacturingBundle = deriveManufacturingBundles(
-    harness,
+    system,
     connectorLibrary,
     manufacturing,
   )
@@ -964,56 +1101,102 @@ function BundleInspector({
   const signalAppearances = new Map<string, { name: string; appearance: WireAppearance }>();
   for (const path of paths) {
     const signalId = getPathSignalId(path);
-    const signalName = getPathSignalName(path, harness);
+    const signalName = getPathSignalName(path, system);
     if (signalId && signalName && !signalAppearances.has(signalId)) {
       signalAppearances.set(signalId, {
         name: signalName,
-        appearance: getPathWireAppearance(path, harness),
+        appearance: getPathWireAppearance(path, system),
       });
     }
   }
 
   const firstSegment = segments[0];
   const hopLabel = firstSegment
-    ? `${getPathNodeLabel(harness, firstSegment.from)} → ${getPathNodeLabel(harness, firstSegment.to)}`
+    ? `${getPathNodeLabel(system, firstSegment.from)} → ${getPathNodeLabel(system, firstSegment.to)}`
     : null;
+  const selectedWaypoint = selectedRoutePoint
+    ? (waypointLayouts[bundleId] ?? [])[selectedRoutePoint.index]
+    : undefined;
+  const selectedSharedAnchorId = selectedWaypoint && 'sharedAnchorId' in selectedWaypoint
+    ? selectedWaypoint.sharedAnchorId
+    : null;
+  const selectedSharedAnchor = selectedSharedAnchorId
+    ? sharedAnchors[selectedSharedAnchorId]
+    : undefined;
+  const canPromoteSharedAnchor = isEditor
+    && !!selectedSharedAnchor
+    && !selectedSharedAnchor.branchPointId;
 
   return (
     <>
       <div className="flex items-center gap-2 mb-2">
         <span className="text-sm font-bold text-zinc-100">
-          Path Bundle
+          Harness Bundle
         </span>
         <span className="text-[9px] px-1.5 py-0.5 rounded bg-zinc-700 text-zinc-400">
           {paths.length} paths
         </span>
+        {selectedRoutePoint && (
+          <span className="text-[9px] px-1.5 py-0.5 rounded bg-lime-900/50 text-lime-300 border border-lime-800/50">
+            Route point
+          </span>
+        )}
         <button
           type="button"
           className="ml-auto text-[10px] text-zinc-500 hover:text-red-400 transition-colors"
           onClick={() => {
+            if (selectedRoutePoint) {
+              deleteSelectedRoutePoint();
+              return;
+            }
             const label = paths.length === 1
               ? `Delete path “${paths[0].name}”?`
-              : `Delete all ${paths.length} paths in this bundle?`;
+              : `Delete all ${paths.length} paths in this Harness Bundle?`;
             if (window.confirm(`${label}\n\nThis removes the complete underlying path${paths.length === 1 ? '' : 's'}, including any other visible hops.`)) {
-              deletePathBundle(bundleId, paths.map((path) => path.id));
+              deletePathHarnessBundle(bundleId, paths.map((path) => path.id));
             }
           }}
         >
-          Delete
+          {selectedRoutePoint ? 'Delete point' : 'Delete'}
         </button>
       </div>
+
+      {selectedRoutePoint && (
+        <div className="mb-2 text-[10px] text-zinc-400">
+          This bend is selected. Delete removes it, not the path. Click the wire to select the whole Harness Bundle.
+        </div>
+      )}
+      {canPromoteSharedAnchor && selectedSharedAnchor && (
+        <button
+          type="button"
+          onClick={() => convertSharedAnchorToBranchPoint(selectedSharedAnchor.id)}
+          className="w-full mb-2 px-2.5 py-1.5 rounded border border-cyan-800/70 bg-cyan-950/30 text-[10px] text-cyan-200 hover:bg-cyan-950/60 hover:border-cyan-600 transition-colors"
+        >
+          Convert to branch point
+        </button>
+      )}
 
       {hopLabel && (
         <div className="mb-2 text-[10px] text-zinc-400">
           {hopLabel}
-          {parsedBundle && (parsedBundle.sourceRefKey.startsWith('merge:') || parsedBundle.targetRefKey.startsWith('merge:'))
-            ? ' · ends at splice'
+          {parsedBundle && (isBranchPointRefKey(parsedBundle.sourceRefKey) || isBranchPointRefKey(parsedBundle.targetRefKey))
+            ? ' · ends at branch point'
             : ''}
+          {bundleId && parseHarnessBundleThruKey(bundleId) && system && (
+            <span className="text-zinc-500">
+              {' · continues to '}
+              {getThroughKeyLabel(system, parseHarnessBundleThruKey(bundleId)!)}
+            </span>
+          )}
         </div>
       )}
 
+      <div className="mb-2">
+        <HarnessBundleRouteStyleControls edgeId={bundleId} extraEdgeIds={[bundleId]} />
+      </div>
+
       {bundleId && (
-        <BundleLengthEditor bundleId={bundleId} pathIds={pathIds} segments={segments} />
+        <HarnessBundleLengthEditor bundleId={bundleId} pathIds={pathIds} segments={segments} />
       )}
 
       {manufacturingBundle && (
@@ -1047,11 +1230,11 @@ function BundleInspector({
         {paths.map((path) => {
           const sig = getPathSignalName(path);
           const signalId = getPathSignalId(path);
-          const appearance = getPathWireAppearance(path, harness);
+          const appearance = getPathWireAppearance(path, system);
           const segment = segmentByPathId.get(path.id);
-          const hopIndex = segment?.segmentIndex;
+          const hopIndex = segment?.wireIndex;
           const lengthMm = segment
-            ? getPathSegmentMeasurement(path, segment.segmentIndex)?.length_mm
+            ? getPathSegmentMeasurement(path, segment.wireIndex)?.length_mm
             : undefined;
 
           return (
@@ -1087,7 +1270,7 @@ function BundleInspector({
                 </div>
                 <div className="space-y-px">
                   {path.nodes.map((node, nodeIndex) => {
-                    const label = getPathNodeLabel(harness, node);
+                    const label = getPathNodeLabel(system, node);
                     const isHopEndpoint =
                       hopIndex !== undefined &&
                       (nodeIndex === hopIndex || nodeIndex === hopIndex + 1);
@@ -1117,11 +1300,7 @@ function BundleInspector({
                           </div>
                           <PathNodeLink
                             node={node}
-                            className={`text-[10px] leading-tight ${
-                              isHopEndpoint
-                                ? 'text-amber-400 font-medium'
-                                : 'text-zinc-400 hover:text-amber-300 underline underline-offset-2'
-                            }`}
+                            className={`text-[10px] leading-tight ${isHopEndpoint ? 'font-medium' : ''}`}
                           >
                             {label}
                             {afterHop && (
@@ -1142,34 +1321,405 @@ function BundleInspector({
   );
 }
 
-function EnclosureInspector({ enc }: { enc: Enclosure }) {
-  const harness = useHarnessStore((s) => s.harness);
-  const connectorLibrary = useHarnessStore((s) => s.connectorLibrary);
-  const updateEnclosureProperty = useHarnessStore((s) => s.updateEnclosureProperty);
-  const addConnector = useHarnessStore((s) => s.addConnector);
+function countLabel(count: number, singular: string, plural = `${singular}s`): string {
+  return `${count} ${count === 1 ? singular : plural}`;
+}
+
+function confirmEnclosureKindConvert(name: string, impact: EnclosureKindConvertImpact): boolean {
+  const fromKind = impact.fromEnclosure ? 'enclosure' : 'device';
+  const toKind = impact.fromEnclosure ? 'device' : 'enclosure';
+  const deletions: string[] = [];
+  if (impact.nestedDeviceIds.length > 0) {
+    deletions.push(countLabel(impact.nestedDeviceIds.length, 'device'));
+  }
+  if (impact.nestedEnclosureIds.length > 0) {
+    deletions.push(countLabel(impact.nestedEnclosureIds.length, 'nested enclosure'));
+  }
+  if (impact.connectorIds.length > 0) {
+    deletions.push(countLabel(impact.connectorIds.length, 'connector'));
+  }
+  if (impact.branchPointIds.length > 0) {
+    deletions.push(countLabel(impact.branchPointIds.length, 'branch point'));
+  }
+  if (impact.pathIds.length > 0) {
+    deletions.push(countLabel(impact.pathIds.length, 'path', 'paths'));
+  }
+
+  const header = `Convert "${name}" from ${fromKind} to ${toKind}?`;
+  const body = impact.fromEnclosure && deletions.length > 0
+    ? `${header}\n\nThis will delete everything inside it:\n${deletions.map((line) => `• ${line}`).join('\n')}\n\nYou can restore this with Undo.`
+    : impact.fromEnclosure
+      ? `${header}\n\nIts bulkheads will become device connectors. You will no longer be able to put devices inside it.`
+      : `${header}\n\nIts connectors will become bulkheads. You will be able to put devices inside it.`;
+  if (!window.confirm(body)) return false;
+  if (impact.nestedDeviceIds.length >= 2) {
+    return window.confirm(
+      `Are you sure? This permanently deletes ${impact.nestedDeviceIds.length} devices inside "${name}".`,
+    );
+  }
+  return true;
+}
+
+function deviceMatchesQuery(
+  device: HierarchyEntity,
+  parentName: string | null,
+  query: string,
+): boolean {
+  const needle = query.trim().toLowerCase();
+  if (!needle) return true;
+  return device.name.toLowerCase().includes(needle)
+    || device.id.toLowerCase().includes(needle)
+    || (parentName?.toLowerCase().includes(needle) ?? false);
+}
+
+function listSubsystemDevices(
+  system: SystemData,
+  subsystem: SubsystemDocument,
+  query: string,
+) {
+  const enclosureById = new Map(system.hierarchy.map((item) => [item.id, item]));
+  const devices = system.hierarchy
+    .filter((item) => item.kind === 'device')
+    .map((device) => ({
+      device,
+      parentName: device.parent ? enclosureById.get(device.parent)?.name ?? null : null,
+      included: Object.hasOwn(subsystem.devices, device.id),
+    }))
+    .filter(({ device, parentName }) => deviceMatchesQuery(device, parentName, query))
+    .sort((left, right) => left.device.name.localeCompare(right.device.name));
+  return devices.filter((item) => !item.included);
+}
+
+function isRepresentedInSubsystem(
+  system: SystemData,
+  subsystem: SubsystemDocument,
+  type: 'enclosure' | 'connector',
+  id: string,
+): boolean {
+  if (type === 'connector') {
+    if (Object.hasOwn(subsystem.connectors, id)) return true;
+    if ((subsystem.hidden_connectors ?? []).includes(id)) return false;
+    const connector = system.connectors.find((item) => item.id === id);
+    if (!connector?.parent) return false;
+    const parent = system.hierarchy.find((item) => item.id === connector.parent);
+    if (!parent || parent.kind === 'enclosure' || !Object.hasOwn(subsystem.devices, parent.id)) return false;
+    return (subsystem.device_connector_mode?.[parent.id] ?? 'all') === 'all';
+  }
+  const entity = system.hierarchy.find((item) => item.id === id);
+  if (!entity) return false;
+  return entity.kind === 'enclosure'
+    ? Object.hasOwn(subsystem.enclosures, id)
+    : Object.hasOwn(subsystem.devices, id);
+}
+
+function SubsystemMembershipButton({
+  type,
+  id,
+}: {
+  type: 'enclosure' | 'connector';
+  id: string;
+}) {
+  const editingSurface = useSystemStore((s) => s.editingSurface);
+  const system = useSystemStore((s) => s.system);
+  const subsystem = useSystemStore((s) => (
+    s.activeSubsystemId ? s.subsystems[s.activeSubsystemId] : undefined
+  ));
+  const addEntity = useSystemStore((s) => s.addEntityToActiveSubsystem);
+  const removeEntity = useSystemStore((s) => s.removeEntityFromActiveSubsystem);
+  const [confirming, setConfirming] = useState(false);
+
+  // A newly selected entity starts outside the destructive confirmation state.
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setConfirming(false);
+  }, [id]);
+
+  if (editingSurface !== 'subsystem' || !system || !subsystem) return null;
+
+  const entity = type === 'enclosure'
+    ? system.hierarchy.find((item) => item.id === id)
+    : null;
+  const kindLabel = type === 'connector'
+    ? 'connector'
+    : entity?.kind === 'enclosure'
+      ? 'enclosure'
+      : 'device';
+  const included = isRepresentedInSubsystem(system, subsystem, type, id);
+  const needsRemoveConfirm = type === 'enclosure' && entity?.kind === 'enclosure';
+
+  if (confirming && included && needsRemoveConfirm) {
+    return (
+      <div className="mt-2 pt-2 border-t border-zinc-700/50">
+        <div className="rounded border border-amber-800/70 bg-amber-950/30 p-2">
+          <p className="text-[10px] font-medium text-amber-300">Remove enclosure from subsystem?</p>
+          <p className="mt-1 text-[10px] leading-relaxed text-zinc-400">
+            This removes the enclosure and nested devices from this subsystem view. They stay in the system. You can restore them with Undo.
+          </p>
+          <div className="mt-2 flex justify-end gap-1.5">
+            <button
+              type="button"
+              onClick={() => setConfirming(false)}
+              className="rounded px-2 py-1 text-[10px] text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                removeEntity(type, id);
+                setConfirming(false);
+              }}
+              className="rounded bg-amber-500 px-2 py-1 text-[10px] font-medium text-zinc-950 hover:bg-amber-400"
+            >
+              Remove enclosure
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mt-2 pt-2 border-t border-zinc-700/50">
+      <button
+        type="button"
+        onClick={() => {
+          if (included) {
+            if (needsRemoveConfirm) {
+              setConfirming(true);
+              return;
+            }
+            removeEntity(type, id);
+          } else {
+            addEntity(type, id);
+          }
+        }}
+        className={`w-full rounded border px-2 py-1.5 text-[10px] transition-colors ${
+          included
+            ? 'border-zinc-700 bg-zinc-800 text-zinc-400 hover:border-red-800/70 hover:bg-red-950/20 hover:text-red-300'
+            : 'border-amber-800/60 bg-amber-950/20 text-amber-300 hover:border-amber-600 hover:bg-amber-950/40 hover:text-amber-200'
+        }`}
+      >
+        {included ? `Remove ${kindLabel} from subsystem` : `Add ${kindLabel} to this subsystem`}
+      </button>
+    </div>
+  );
+}
+
+function AddChildDeviceForm({ parentId }: { parentId: string }) {
+  const addEnclosure = useSystemStore((s) => s.addEnclosure);
+  const addEntity = useSystemStore((s) => s.addEntityToActiveSubsystem);
+  const editingSurface = useSystemStore((s) => s.editingSurface);
+  const [open, setOpen] = useState(false);
+  const [name, setName] = useState('');
+  const inputRef = useRef<HTMLInputElement>(null);
+  const trimmed = name.trim();
+
+  useEffect(() => {
+    if (open) inputRef.current?.focus();
+  }, [open]);
+
+  const submit = () => {
+    if (!trimmed) return;
+    const createdId = addEnclosure({
+      name: trimmed,
+      parent: parentId,
+      kind: 'device',
+    });
+    if (createdId && editingSurface === 'subsystem') {
+      addEntity('enclosure', createdId);
+    }
+    setName('');
+    setOpen(false);
+  };
+
+  if (!open) {
+    return (
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        title="Add a device inside this enclosure"
+        className="w-full flex items-center justify-center py-1.5 rounded border border-dashed border-zinc-700 text-zinc-400 hover:text-vw-device hover:border-vw-device/60 hover:bg-vw-device/10 transition-colors text-[10px]"
+      >
+        + Device
+      </button>
+    );
+  }
+
+  return (
+    <form
+      className="flex gap-1"
+      onSubmit={(event) => {
+        event.preventDefault();
+        submit();
+      }}
+    >
+      <input
+        ref={inputRef}
+        value={name}
+        onChange={(event) => setName(event.target.value)}
+        onKeyDown={(event) => {
+          if (event.key === 'Escape') {
+            event.preventDefault();
+            setName('');
+            setOpen(false);
+          }
+        }}
+        onBlur={() => {
+          if (!trimmed) setOpen(false);
+        }}
+        placeholder="Device name…"
+        aria-label="New device name"
+        className="min-w-0 flex-1 text-[11px] px-2 py-1 bg-zinc-800 border border-zinc-700 rounded text-vw-device placeholder-zinc-600 focus:border-vw-device focus:outline-none"
+      />
+      <button
+        type="submit"
+        disabled={!trimmed}
+        className="shrink-0 rounded border border-vw-device/60 bg-vw-device/10 px-2 py-1 text-[10px] text-vw-device hover:bg-vw-device/20 disabled:cursor-not-allowed disabled:opacity-40"
+      >
+        Add
+      </button>
+    </form>
+  );
+}
+
+function SubsystemAddDeviceFooter() {
+  const system = useSystemStore((s) => s.system);
+  const subsystem = useSystemStore((s) => (
+    s.activeSubsystemId ? s.subsystems[s.activeSubsystemId] : undefined
+  ));
+  const addEntity = useSystemStore((s) => s.addEntityToActiveSubsystem);
+  const [query, setQuery] = useState('');
+  const [open, setOpen] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const available = useMemo(() => {
+    if (!system || !subsystem) return [];
+    return listSubsystemDevices(system, subsystem, query).slice(0, 12);
+  }, [system, query, subsystem]);
+
+  if (!system || !subsystem) return null;
+
+  return (
+    <div className="shrink-0 border-t border-zinc-800 px-2 pt-2">
+      <div className="relative">
+        {open && available.length > 0 && (
+          <div className="absolute bottom-full left-0 right-0 z-50 mb-1 max-h-48 overflow-y-auto rounded border border-zinc-700 bg-zinc-900 shadow-lg">
+            {available.map(({ device, parentName }) => (
+              <button
+                key={device.id}
+                type="button"
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={() => {
+                  addEntity('enclosure', device.id);
+                  setQuery('');
+                  setOpen(false);
+                }}
+                className="flex w-full items-start justify-between gap-2 px-2 py-1.5 text-left hover:bg-zinc-800"
+              >
+                <span className="min-w-0">
+                  <span className="block truncate text-[11px] text-vw-device">{device.name}</span>
+                  {parentName && (
+                    <span className="block truncate text-[9px] text-vw-enclosure/50">{parentName}</span>
+                  )}
+                </span>
+                <span className="shrink-0 text-[10px] text-amber-400">Add</span>
+              </button>
+            ))}
+          </div>
+        )}
+        <input
+          ref={inputRef}
+          type="search"
+          value={query}
+          onChange={(event) => {
+            setQuery(event.target.value);
+            setOpen(true);
+          }}
+          onFocus={() => setOpen(true)}
+          onBlur={() => setTimeout(() => setOpen(false), 120)}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter' && available[0]) {
+              event.preventDefault();
+              addEntity('enclosure', available[0].device.id);
+              setQuery('');
+              setOpen(false);
+            } else if (event.key === 'Escape') {
+              setOpen(false);
+              inputRef.current?.blur();
+            }
+          }}
+          placeholder="Add device…"
+          aria-label="Add a device to this subsystem"
+          className="w-full rounded border border-zinc-700 bg-zinc-800 px-2 py-1 text-[11px] text-zinc-200 placeholder:text-zinc-600 outline-none focus:border-amber-600"
+        />
+      </div>
+    </div>
+  );
+}
+
+function EnclosureInspector({ enc }: { enc: HierarchyEntity }) {
+  const system = useSystemStore((s) => s.system);
+  const connectorLibrary = useSystemStore((s) => s.connectorLibrary);
+  const updateEnclosureProperty = useSystemStore((s) => s.updateEnclosureProperty);
+  const addConnector = useSystemStore((s) => s.addConnector);
+  const addEntityToActiveSubsystem = useSystemStore((s) => s.addEntityToActiveSubsystem);
+  const editingSurface = useSystemStore((s) => s.editingSurface);
+  const subsystem = useSystemStore((s) => (
+    s.activeSubsystemId ? s.subsystems[s.activeSubsystemId] : undefined
+  ));
+  const getEnclosureKindConvertImpact = useSystemStore((s) => s.getEnclosureKindConvertImpact);
+  const convertEnclosureKind = useSystemStore((s) => s.convertEnclosureKind);
   const [imgPickerOpen, setImgPickerOpen] = useState(false);
   const closeImgPicker = useCallback(() => setImgPickerOpen(false), []);
 
-  if (!harness) return null;
-  const childEnclosures = harness.enclosures.filter((e) => e.parent === enc.id);
-  const allConnectors = getEnclosureConnectors(harness, enc.id);
-  const directConnectors = harness.connectors.filter((c) => c.parent === enc.id);
-  const directMergePoints = harness.mergePoints.filter((mergePoint) => mergePoint.parent === enc.id);
+  const handleConvertKind = useCallback(() => {
+    const impact = getEnclosureKindConvertImpact(enc.id);
+    if (!impact) return;
+    if (!confirmEnclosureKindConvert(enc.name, impact)) return;
+    convertEnclosureKind(enc.id);
+  }, [convertEnclosureKind, enc.id, enc.name, getEnclosureKindConvertImpact]);
+
+  if (!system) return null;
+  const childEnclosures = system.hierarchy.filter((e) => e.parent === enc.id);
+  const allConnectors = getEnclosureConnectors(system, enc.id);
+  const directConnectors = system.connectors.filter((c) => c.parent === enc.id);
+  const directBranchPoints = system.branchPoints.filter((branchPoint) => branchPoint.parent === enc.id);
   const encImage = enc.properties?.image as string | undefined;
-  const pathCount = countPathsTouchingConnectors(harness, allConnectors.map((connector) => connector.id));
-  const isDevice = !enc.container;
+  const extraProperties = Object.entries(enc.properties ?? {}).filter(([key]) => key !== 'image' && key !== 'color');
+  const pathCount = countPathsTouchingConnectors(system, allConnectors.map((connector) => connector.id));
+  const isDevice = enc.kind === 'device';
 
   return (
     <>
       <div className="flex items-center gap-2 mb-1">
-        <span className="text-sm font-bold text-zinc-100">
-          {enc.container ? 'Enclosure' : 'Device'}
+        <span className={`text-sm font-bold ${enc.kind === 'enclosure' ? 'text-vw-enclosure' : 'text-vw-device'}`}>
+          {enc.kind === 'enclosure' ? 'Enclosure' : 'Device'}
         </span>
-        <span className={`text-[9px] px-1.5 py-0.5 rounded ${enc.container ? 'bg-zinc-700 text-zinc-300' : 'bg-teal-900/60 text-teal-300'}`}>
-          {enc.container ? 'Container' : 'Device'}
+        <span className={`text-[9px] px-1.5 py-0.5 rounded ${enc.kind === 'enclosure' ? 'bg-white/10 text-vw-enclosure' : 'bg-vw-device/15 text-vw-device'}`}>
+          {enc.kind === 'enclosure' ? 'Container' : 'Device'}
         </span>
+        <button
+          type="button"
+          onClick={handleConvertKind}
+          title={isDevice ? 'Convert this device into an enclosure' : 'Convert this enclosure into a device'}
+          className="ml-auto shrink-0 text-[10px] px-1.5 py-0.5 rounded border border-zinc-700 text-zinc-400 hover:text-amber-300 hover:border-amber-700/60 hover:bg-amber-950/20 transition-colors"
+        >
+          {isDevice ? 'Make enclosure' : 'Make device'}
+        </button>
       </div>
-      <NameEditor key={`${enc.id}:${enc.name}`} name={enc.name} type="enclosure" id={enc.id} />
+      <NameEditor
+        key={`${enc.id}:${enc.name}`}
+        name={enc.name}
+        type="enclosure"
+        id={enc.id}
+        textClassName={enc.kind === 'enclosure' ? 'text-vw-enclosure' : 'text-vw-device'}
+      />
+      <EntityColorPicker
+        value={enc.properties?.color ?? ''}
+        fallback={(enc.kind === 'enclosure' ? ENCLOSURE_SHELL : DEVICE_SHELL).fill}
+        onChange={(next) => updateEnclosureProperty(enc.id, 'color', next)}
+      />
       <PropertyRow label="Stable ID" value={enc.id} />
       {enc.parent && <div className="mb-1"><ParentLink parentId={enc.parent} /></div>}
 
@@ -1183,27 +1733,29 @@ function EnclosureInspector({ enc }: { enc: Enclosure }) {
             No image
           </div>
         )}
-        <div className="mt-1 relative">
-          <button onClick={() => setImgPickerOpen((p) => !p)} className="w-full text-[10px] text-zinc-400 hover:text-zinc-200 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded py-0.5 transition-colors">
-            {encImage ? '⇄ Change image' : '+ Set image'}
+        <div className="mt-1 flex gap-1">
+          <div className="relative min-w-0 flex-1">
+            <button onClick={() => setImgPickerOpen((p) => !p)} className="w-full text-[10px] text-zinc-400 hover:text-zinc-200 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded py-0.5 transition-colors">
+              {encImage ? '⇄ Change image' : '+ Set image'}
+            </button>
+            {encImage && (
+              <button onClick={() => updateEnclosureProperty(enc.id, 'image', '')} className="absolute right-0 top-0 bottom-0 px-2 text-zinc-500 hover:text-red-400 text-[10px]" title="Remove">✕</button>
+            )}
+            {imgPickerOpen && (
+              <div className="absolute left-0 right-0 z-50" style={{ top: '100%' }}>
+                <ImagePickerPanel onPick={(f) => { updateEnclosureProperty(enc.id, 'image', f); setImgPickerOpen(false); }} onClose={closeImgPicker} />
+              </div>
+            )}
+          </div>
+          <button
+            type="button"
+            onClick={() => requestAddTextBox(enc.id)}
+            title="Add a text box on this device"
+            className="shrink-0 px-2 text-[10px] text-zinc-400 hover:text-amber-300 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded py-0.5 transition-colors"
+          >
+            + Text box
           </button>
-          {encImage && (
-            <button onClick={() => updateEnclosureProperty(enc.id, 'image', '')} className="absolute right-0 top-0 bottom-0 px-2 text-zinc-500 hover:text-red-400 text-[10px]" title="Remove">✕</button>
-          )}
-          {imgPickerOpen && (
-            <div className="absolute left-0 right-0 z-50" style={{ top: '100%' }}>
-              <ImagePickerPanel onPick={(f) => { updateEnclosureProperty(enc.id, 'image', f); setImgPickerOpen(false); }} onClose={closeImgPicker} />
-            </div>
-          )}
         </div>
-      </div>
-
-      {Object.entries(enc.properties ?? {}).filter(([k]) => k !== 'image').map(([k, v]) => (
-        <PropertyRow key={k} label={k} value={v} />
-      ))}
-
-      <div className="mt-2 pt-2 border-t border-zinc-700/50">
-        <TagEditor entityType="enclosure" entityId={enc.id} tags={enc.tags} />
       </div>
 
       <div className="mt-2 pt-2 border-t border-zinc-700/50">
@@ -1211,26 +1763,53 @@ function EnclosureInspector({ enc }: { enc: Enclosure }) {
         <div className="text-[11px] text-zinc-300 space-y-0.5">
           {childEnclosures.length > 0 && <div>{childEnclosures.length} sub-enclosure{childEnclosures.length !== 1 ? 's' : ''}</div>}
           <div>{allConnectors.length} connector{allConnectors.length !== 1 ? 's' : ''}</div>
-          <div>{directMergePoints.length} merge point{directMergePoints.length !== 1 ? 's' : ''}</div>
+          <div>{directBranchPoints.length} branch point{directBranchPoints.length !== 1 ? 's' : ''}</div>
           <div>{pathCount} path{pathCount !== 1 ? 's' : ''}</div>
         </div>
       </div>
 
+      <SubsystemMembershipButton type="enclosure" id={enc.id} />
+
       {childEnclosures.length > 0 && (
         <div className="mt-2 pt-2 border-t border-zinc-700/50">
-          <div className="text-[10px] text-zinc-500 font-medium mb-1">Sub-enclosures</div>
+          <div className="text-[10px] text-zinc-500 font-medium mb-1">
+            {enc.kind === 'enclosure' ? 'Contents' : 'Sub-enclosures'}
+          </div>
           <div className="space-y-0.5">
             {childEnclosures.map((child) => {
-              const childCons = harness.connectors.filter((c) => c.parent === child.id);
+              const childCons = system.connectors.filter((c) => c.parent === child.id);
+              const childInSubsystem = editingSurface === 'subsystem' && subsystem
+                ? isRepresentedInSubsystem(system, subsystem, 'enclosure', child.id)
+                : true;
+              const canAddChild = editingSurface === 'subsystem' && !!subsystem && !childInSubsystem;
               return (
-                <EntityLink
+                <div
                   key={child.id}
-                  item={{ type: 'enclosure', id: child.id }}
-                  className="w-full text-left flex items-center justify-between py-0.5 px-1.5 rounded hover:bg-zinc-800 transition-colors"
+                  className="flex items-center gap-1 rounded px-1.5 py-0.5 hover:bg-zinc-800"
                 >
-                  <span className="text-[11px] text-amber-400 hover:text-amber-300">{child.name}</span>
-                  <span className="text-zinc-500 text-[10px]">{childCons.length} connector{childCons.length !== 1 ? 's' : ''}</span>
-                </EntityLink>
+                  <EntityLink
+                    item={{ type: 'enclosure', id: child.id }}
+                    className="min-w-0 flex-1 text-left flex items-center justify-between"
+                  >
+                    <span className={`truncate text-[11px] hover:opacity-80 ${child.kind === 'enclosure' ? 'text-vw-enclosure' : 'text-vw-device'}`}>
+                      {child.name}
+                    </span>
+                    <span className="ml-2 shrink-0 text-zinc-500 text-[10px]">
+                      {childCons.length} connector{childCons.length !== 1 ? 's' : ''}
+                    </span>
+                  </EntityLink>
+                  {canAddChild && (
+                    <button
+                      type="button"
+                      title={`Add ${child.kind === 'enclosure' ? 'enclosure' : 'device'} to this subsystem`}
+                      aria-label={`Add ${child.name} to this subsystem`}
+                      onClick={() => addEntityToActiveSubsystem('enclosure', child.id)}
+                      className="flex h-5 w-5 shrink-0 items-center justify-center text-sm leading-none text-zinc-500 hover:text-amber-300"
+                    >
+                      ＋
+                    </button>
+                  )}
+                </div>
               );
             })}
           </div>
@@ -1252,7 +1831,7 @@ function EnclosureInspector({ enc }: { enc: Enclosure }) {
                 (type) => type.id === c.connector_type,
               );
               const occupancySummary = formatConnectorOccupancySummary(
-                getConnectorOccupancy(harness, c.id).length,
+                getConnectorOccupancy(system, c.id).length,
                 c,
                 connectorType,
               );
@@ -1262,9 +1841,9 @@ function EnclosureInspector({ enc }: { enc: Enclosure }) {
                   item={{ type: 'connector', id: c.id }}
                   className="w-full text-left flex items-center justify-between py-0.5 px-1.5 rounded hover:bg-zinc-800 transition-colors"
                 >
-                  <span className="min-w-0 truncate text-[11px] text-amber-400 hover:text-amber-300">
+                  <span className="min-w-0 truncate text-[11px] text-vw-connector hover:opacity-80">
                     {c.name}
-                    {isInlineConnector(harness, c) && (
+                    {isInlineConnector(system, c) && (
                       <span className="ml-1 rounded bg-violet-950/70 px-1 py-0.5 text-[8px] uppercase tracking-wide text-violet-300">
                         inline
                       </span>
@@ -1278,35 +1857,48 @@ function EnclosureInspector({ enc }: { enc: Enclosure }) {
         )}
       </div>
 
-      {directMergePoints.length > 0 && (
+      {directBranchPoints.length > 0 && (
         <div className="mt-2 pt-2 border-t border-zinc-700/50">
-          <div className="text-[10px] text-zinc-500 font-medium mb-1">Merge Points</div>
+          <div className="text-[10px] text-zinc-500 font-medium mb-1">Branch Points</div>
           <div className="space-y-0.5">
-            {directMergePoints.map((mergePoint) => (
+            {directBranchPoints.map((branchPoint) => (
               <EntityLink
-                key={mergePoint.id}
-                item={{ type: 'mergePoint', id: mergePoint.id }}
+                key={branchPoint.id}
+                item={{ type: 'branchPoint', id: branchPoint.id }}
                 className="w-full text-left flex items-center justify-between py-0.5 px-1.5 rounded hover:bg-zinc-800 transition-colors"
               >
-                <span className="text-[11px] text-cyan-300">{mergePoint.name}</span>
-                <span className="text-zinc-500 text-[10px]">{mergePoint.id}</span>
+                <span className="text-[11px] text-cyan-300">{branchPoint.name}</span>
+                <span className="text-zinc-500 text-[10px]">{branchPoint.id}</span>
               </EntityLink>
             ))}
           </div>
         </div>
       )}
 
-      <div className="mt-3 pt-2 border-t border-zinc-700/50">
+      <div className="mt-3 pt-2 border-t border-zinc-700/50 space-y-1.5">
+        {!isDevice && editingSurface !== 'subsystem' && <AddChildDeviceForm parentId={enc.id} />}
         <button
           type="button"
           onClick={() => addConnector(enc.id)}
           title={isDevice ? 'Add connector' : 'Add bulkhead'}
           aria-label={isDevice ? 'Add connector' : 'Add bulkhead'}
-          className="w-full flex items-center justify-center py-1.5 rounded border border-dashed border-zinc-700 text-zinc-400 hover:text-amber-400 hover:border-amber-700/60 hover:bg-amber-950/20 transition-colors text-sm leading-none"
+          className="w-full flex items-center justify-center py-1.5 rounded border border-dashed border-zinc-700 text-zinc-400 hover:text-vw-connector hover:border-vw-connector/60 hover:bg-vw-connector/10 transition-colors text-[10px]"
         >
-          +
+          {isDevice ? '+ Connector' : '+ Bulkhead'}
         </button>
       </div>
+
+      <div className="mt-3 pt-2 border-t border-zinc-700/50">
+        <TagEditor entityType="enclosure" entityId={enc.id} tags={enc.tags} />
+      </div>
+
+      {extraProperties.length > 0 && (
+        <div className="mt-3 pt-2 border-t border-zinc-700/50">
+          {extraProperties.map(([key, value]) => (
+            <PropertyRow key={key} label={key} value={value} />
+          ))}
+        </div>
+      )}
     </>
   );
 }
@@ -1357,21 +1949,21 @@ function connectorRelationForWire(
 }
 
 function ConnectorGenderEditor({ connector }: { connector: Connector }) {
-  const harness = useHarnessStore((s) => s.harness);
-  const connectorLibrary = useHarnessStore((s) => s.connectorLibrary);
-  const manufacturing = useHarnessStore((s) => s.manufacturing);
-  const updateGender = useHarnessStore((s) => s.updateManufacturingEndpointGender);
-  const isEditor = useHarnessStore((s) => s.session.isEditor);
+  const system = useSystemStore((s) => s.system);
+  const connectorLibrary = useSystemStore((s) => s.connectorLibrary);
+  const manufacturing = useSystemStore((s) => s.manufacturing);
+  const updateGender = useSystemStore((s) => s.updateManufacturingEndpointGender);
+  const isEditor = useSystemStore((s) => s.session.isEditor);
 
   const bundles = useMemo(
-    () => harness
-      ? deriveManufacturingBundles(harness, connectorLibrary, manufacturing)
+    () => system
+      ? deriveManufacturingBundles(system, connectorLibrary, manufacturing)
       : [],
-    [harness, connectorLibrary, manufacturing],
+    [system, connectorLibrary, manufacturing],
   );
   const sides = useMemo<ConnectorGenderSide[]>(() => {
-    if (!harness) return [];
-    const bulkhead = isBulkheadConnector(harness, connector.id);
+    if (!system) return [];
+    const bulkhead = isBulkheadConnector(system, connector.id);
     const sideOrder = { internal: 0, external: 1, mixed: 2 } as const;
 
     const bundleSides = bundles
@@ -1388,20 +1980,20 @@ function ConnectorGenderEditor({ connector }: { connector: Connector }) {
           const otherItem: ConnectorGenderPath['otherItem'] =
             relation.otherEndpoint.connectorId
               ? { type: 'connector', id: relation.otherEndpoint.connectorId }
-              : relation.otherEndpoint.mergePointId
-                ? { type: 'mergePoint', id: relation.otherEndpoint.mergePointId }
+              : relation.otherEndpoint.branchPointId
+                ? { type: 'branchPoint', id: relation.otherEndpoint.branchPointId }
                 : null;
           const otherLabel = relation.otherEndpoint.connectorName
             ?? relation.otherEndpoint.label
             ?? 'Unresolved endpoint';
           const sheetId = getEntityRevealContext(
-            harness,
+            system,
             otherItem ?? { type: 'path', id: wire.pathId },
             null,
           );
           const sheetName = sheetId
-            ? harness.enclosures.find((item) => item.id === sheetId)?.name ?? sheetId
-            : harness.name ?? 'Root';
+            ? system.hierarchy.find((item) => item.id === sheetId)?.name ?? sheetId
+            : system.name ?? 'Root';
           const key = `${wire.pathId}:${otherItem?.type ?? 'endpoint'}:${otherItem?.id ?? otherLabel}`;
           if (!pathByKey.has(key)) {
             pathByKey.set(key, {
@@ -1417,7 +2009,7 @@ function ConnectorGenderEditor({ connector }: { connector: Connector }) {
         }
 
         const relationship = manufacturingGenderBundleRelationship(
-          harness,
+          system,
           bundles,
           bundle.id,
           connector.id,
@@ -1490,11 +2082,11 @@ function ConnectorGenderEditor({ connector }: { connector: Connector }) {
       }
       return a.bundle.name.localeCompare(b.bundle.name, undefined, { numeric: true });
     });
-  }, [bundles, connector, harness, manufacturing]);
+  }, [bundles, connector, system, manufacturing]);
 
-  if (!harness) return null;
+  if (!system) return null;
 
-  const bulkhead = isBulkheadConnector(harness, connector.id);
+  const bulkhead = isBulkheadConnector(system, connector.id);
   const connectorKind = bulkhead
     ? 'Bulkhead connector'
     : sides.length > 1
@@ -1510,7 +2102,7 @@ function ConnectorGenderEditor({ connector }: { connector: Connector }) {
       return;
     }
     const relationship = manufacturingGenderBundleRelationship(
-      harness,
+      system,
       bundles,
       side.bundle.id,
       connector.id,
@@ -1573,7 +2165,7 @@ function ConnectorGenderEditor({ connector }: { connector: Connector }) {
                   >
                     {side.bundleNames.length === 1
                       ? side.bundleNames[0]
-                      : `${side.bundleNames.length} harness runs`}
+                      : `${side.bundleNames.length} system runs`}
                   </div>
                 </div>
                 <select
@@ -1623,7 +2215,9 @@ function ConnectorGenderEditor({ connector }: { connector: Connector }) {
                       {path.otherItem ? (
                         <EntityLink
                           item={path.otherItem}
-                          className="truncate text-zinc-300 hover:text-amber-300 underline underline-offset-2"
+                          className={`truncate underline underline-offset-2 hover:opacity-80 ${
+                            path.otherItem.type === 'connector' ? 'text-vw-connector' : 'text-cyan-300'
+                          }`}
                           title={`Reveal ${path.otherLabel}`}
                         >
                           {path.otherLabel}
@@ -1637,7 +2231,7 @@ function ConnectorGenderEditor({ connector }: { connector: Connector }) {
                       {path.sheetId ? (
                         <EntityLink
                           item={{ type: 'enclosure', id: path.sheetId }}
-                          className="truncate text-zinc-400 hover:text-amber-300 underline underline-offset-2"
+                          className="truncate text-vw-enclosure hover:opacity-80 underline underline-offset-2"
                           title={`Reveal ${path.sheetName}`}
                         >
                           {path.sheetName}
@@ -1675,289 +2269,18 @@ function ConnectorGenderEditor({ connector }: { connector: Connector }) {
   );
 }
 
-type HopLengthMode = 'specific' | 'keepTotal' | 'reset';
-
-type HopLengthSummary =
-  | { state: 'none' }
-  | { state: 'uniform'; value: number }
-  | { state: 'mixed' };
-
-function summarizeHopLengths(values: Array<number | undefined>): HopLengthSummary {
-  const defined = values.filter((value): value is number => value !== undefined);
-  if (defined.length === 0) return { state: 'none' };
-  const unique = [...new Set(defined)];
-  if (defined.length === values.length && unique.length === 1) {
-    return { state: 'uniform', value: unique[0] };
-  }
-  return { state: 'mixed' };
-}
-
-function describeHopLengthSummary(summary: HopLengthSummary): string {
-  if (summary.state === 'none') return 'not set';
-  if (summary.state === 'uniform') return `${summary.value} mm`;
-  return 'mixed';
-}
-
-/** Blank clears the hop; otherwise it must be a non-negative number. */
-function parseHopLengthField(raw: string): number | undefined | 'invalid' {
-  const trimmed = raw.trim();
-  if (!trimmed) return undefined;
-  const parsed = Number(trimmed);
-  return Number.isFinite(parsed) && parsed >= 0 ? parsed : 'invalid';
-}
-
-function roundHopLengthMm(value: number): number {
-  return Math.round(value * 1000) / 1000;
-}
-
-/**
- * Lets the user redistribute the hop lengths on either side of an inline
- * connector or splice: reset both sides, set exact values, or fix one side
- * while the other keeps each wire's original total. Rendered directly in the
- * connector/merge-point inspector (see `ConnectorLengthSplitEditor` and
- * `MergePointLengthSplitEditor` below), keyed by the node's id so switching
- * between nodes resets the form.
- */
-function HopLengthsEditor({ detail }: { detail: LengthSplitDetail }) {
-  const isEditor = useHarnessStore((s) => s.session.isEditor);
-  const updatePathSegmentLengths = useHarnessStore((s) => s.updatePathSegmentLengths);
-  const isTwoSided = detail.sides.length === 2;
-  const sideSummaries = detail.sides.map((side) => summarizeHopLengths(side.instances.map((i) => i.lengthMm)));
-
-  const [mode, setMode] = useState<HopLengthMode>('specific');
-  const [specificValues, setSpecificValues] = useState<string[]>(
-    sideSummaries.map((summary) => (summary.state === 'uniform' ? String(summary.value) : '')),
-  );
-  const [keepTotalSideIndex, setKeepTotalSideIndex] = useState(0);
-  const [keepTotalValue, setKeepTotalValue] = useState('');
-  const [error, setError] = useState<string | null>(null);
-
-  const buildUpdates = ():
-    | Array<{ pathId: string; segmentIndex: number; lengthMm: number | undefined }>
-    | null => {
-    if (mode === 'reset') {
-      return detail.sides.flatMap((side) =>
-        side.instances.map((instance) => ({
-          pathId: instance.pathId,
-          segmentIndex: instance.segmentIndex,
-          lengthMm: undefined,
-        })),
-      );
-    }
-
-    if (mode === 'specific') {
-      const parsed = specificValues.map(parseHopLengthField);
-      const invalidIndex = parsed.findIndex((value) => value === 'invalid');
-      if (invalidIndex !== -1) {
-        setError(`Enter a non-negative length for "${detail.sides[invalidIndex]?.chain[0]?.label}", or leave it blank to clear it.`);
-        return null;
-      }
-      return detail.sides.flatMap((side, sideIndex) =>
-        side.instances.map((instance) => ({
-          pathId: instance.pathId,
-          segmentIndex: instance.segmentIndex,
-          lengthMm: parsed[sideIndex] as number | undefined,
-        })),
-      );
-    }
-
-    // keepTotal
-    const parsedValue = parseHopLengthField(keepTotalValue);
-    if (parsedValue === undefined || parsedValue === 'invalid') {
-      setError('Enter the length for the side you are defining.');
-      return null;
-    }
-    const otherIndex = keepTotalSideIndex === 0 ? 1 : 0;
-    const fixedSide = detail.sides[keepTotalSideIndex];
-    const otherSide = detail.sides[otherIndex];
-    const otherByPath = new Map(otherSide.instances.map((instance) => [instance.pathId, instance]));
-    const updates: Array<{ pathId: string; segmentIndex: number; lengthMm: number | undefined }> = [];
-    for (const instance of fixedSide.instances) {
-      updates.push({ pathId: instance.pathId, segmentIndex: instance.segmentIndex, lengthMm: parsedValue });
-      const counterpart = otherByPath.get(instance.pathId);
-      if (counterpart) {
-        const total = (instance.lengthMm ?? 0) + (counterpart.lengthMm ?? 0);
-        updates.push({
-          pathId: counterpart.pathId,
-          segmentIndex: counterpart.segmentIndex,
-          lengthMm: roundHopLengthMm(Math.max(0, total - parsedValue)),
-        });
-      }
-    }
-    return updates;
-  };
-
-  const handleApply = () => {
-    setError(null);
-    const updates = buildUpdates();
-    if (!updates) return;
-    updatePathSegmentLengths(updates);
-  };
-
-  return (
-    <div className="mb-2 p-1.5 rounded border border-zinc-700/50 bg-zinc-800/40">
-      <div className="text-[9px] text-zinc-500 uppercase tracking-wide mb-1.5">Hop lengths</div>
-
-      <div className="space-y-1 mb-1.5">
-        {detail.sides.map((side, index) => (
-          <div key={side.key} className="rounded border border-zinc-700/40 bg-zinc-900/40 px-1.5 py-1">
-            <div
-              className="text-[10px] font-medium text-zinc-200 truncate"
-              title={side.chain.map((entry) => entry.label).join(' → ')}
-            >
-              {side.chain[0]?.label}
-            </div>
-            {side.chain.length > 1 && (
-              <div className="text-[9px] text-zinc-500 truncate">
-                via {side.chain.slice(1).map((entry) => entry.label).join(' → ')}
-              </div>
-            )}
-            <div className="text-[9px] text-zinc-600">
-              {side.chain[0]?.sheetName}
-              {' · '}
-              {describeHopLengthSummary(sideSummaries[index])}
-              {' · '}
-              {side.instances.length} wire{side.instances.length === 1 ? '' : 's'}
-            </div>
-          </div>
-        ))}
-      </div>
-
-      <div className="flex flex-wrap gap-1 mb-1.5">
-        {([
-          ['specific', 'Specific value'],
-          ...(isTwoSided ? [['keepTotal', 'Keep total'] as const] : []),
-          ['reset', 'Uninitialized'],
-        ] as const).map(([value, label]) => (
-          <button
-            key={value}
-            type="button"
-            onClick={() => setMode(value)}
-            className={`px-1.5 py-0.5 rounded border text-[9px] transition-colors ${
-              mode === value
-                ? 'border-amber-500 text-amber-300 bg-amber-950/40'
-                : 'border-zinc-700 text-zinc-400 hover:border-zinc-500'
-            }`}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
-
-      {mode === 'specific' && (
-        <div className="space-y-1 mb-1.5">
-          {detail.sides.map((side, index) => (
-            <label key={side.key} className="flex items-center gap-1.5">
-              <span
-                className="w-16 shrink-0 truncate text-[9px] text-zinc-500 text-right"
-                title={side.chain[0]?.label}
-              >
-                {side.chain[0]?.label}
-              </span>
-              <input
-                type="number"
-                min={0}
-                step="any"
-                inputMode="decimal"
-                disabled={!isEditor}
-                value={specificValues[index] ?? ''}
-                onChange={(event) => setSpecificValues((previous) => {
-                  const next = [...previous];
-                  next[index] = event.target.value;
-                  return next;
-                })}
-                placeholder="—"
-                aria-label={`Length toward ${side.chain[0]?.label}, in millimeters`}
-                className="w-16 bg-zinc-800 border border-zinc-700 rounded px-1.5 py-0.5 text-right font-mono text-[10px] text-zinc-200 placeholder-zinc-600 focus:border-amber-500 focus:outline-none disabled:opacity-50"
-              />
-              <span className="w-4 text-[9px] text-zinc-500">mm</span>
-            </label>
-          ))}
-        </div>
-      )}
-
-      {mode === 'keepTotal' && isTwoSided && (
-        <div className="space-y-1 mb-1.5">
-          <div className="flex flex-wrap items-center gap-1">
-            <span className="text-[9px] text-zinc-500">Set</span>
-            <select
-              value={keepTotalSideIndex}
-              disabled={!isEditor}
-              onChange={(event) => setKeepTotalSideIndex(Number(event.target.value))}
-              className="bg-zinc-800 border border-zinc-700 rounded px-1 py-0.5 text-[9px] text-zinc-200 focus:border-amber-500 focus:outline-none disabled:opacity-50"
-            >
-              {detail.sides.map((side, index) => (
-                <option key={side.key} value={index}>{side.chain[0]?.label}</option>
-              ))}
-            </select>
-            <input
-              type="number"
-              min={0}
-              step="any"
-              inputMode="decimal"
-              disabled={!isEditor}
-              value={keepTotalValue}
-              onChange={(event) => setKeepTotalValue(event.target.value)}
-              placeholder="0"
-              aria-label="Length for the defined side, in millimeters"
-              className="w-16 bg-zinc-800 border border-zinc-700 rounded px-1.5 py-0.5 text-right font-mono text-[10px] text-zinc-200 placeholder-zinc-600 focus:border-amber-500 focus:outline-none disabled:opacity-50"
-            />
-            <span className="text-[9px] text-zinc-500">mm</span>
-          </div>
-          <div className="text-[9px] text-zinc-600">
-            {detail.sides[keepTotalSideIndex === 0 ? 1 : 0]?.chain[0]?.label} keeps what's left of
-            each wire's own total.
-          </div>
-        </div>
-      )}
-
-      {mode === 'reset' && (
-        <div className="mb-1.5 text-[9px] text-zinc-600">
-          Every wire through this node will be left unmeasured on every side.
-        </div>
-      )}
-
-      {error && <div className="mb-1.5 text-[9px] text-red-400">{error}</div>}
-
-      <button
-        type="button"
-        onClick={handleApply}
-        disabled={!isEditor}
-        className="rounded bg-amber-600 px-2 py-0.5 text-[10px] font-medium text-white transition-colors hover:bg-amber-500 disabled:cursor-not-allowed disabled:opacity-40"
-      >
-        Apply
-      </button>
-    </div>
-  );
-}
-
-function ConnectorLengthSplitEditor({ connector }: { connector: Connector }) {
-  const harness = useHarnessStore((s) => s.harness);
-  if (!harness || !isInlineConnector(harness, connector)) return null;
-  const detail = getLengthSplitDetail(harness, { kind: 'connector', connectorId: connector.id });
-  if (!detail) return null;
-  return <HopLengthsEditor key={connector.id} detail={detail} />;
-}
-
-function MergePointLengthSplitEditor({ mergePoint }: { mergePoint: MergePoint }) {
-  const harness = useHarnessStore((s) => s.harness);
-  if (!harness) return null;
-  const detail = getLengthSplitDetail(harness, { kind: 'merge', mergePointId: mergePoint.id });
-  if (!detail) return null;
-  return <HopLengthsEditor key={mergePoint.id} detail={detail} />;
-}
-
 function ConnectorInspector({ con }: { con: Connector }) {
-  const harness = useHarnessStore((s) => s.harness);
-  const connectorLibrary = useHarnessStore((s) => s.connectorLibrary);
-  const updateConnectorTypeImage = useHarnessStore((s) => s.updateConnectorTypeImage);
-  const updateConnectorTypeSideImage = useHarnessStore((s) => s.updateConnectorTypeSideImage);
-  const setConnectorType = useHarnessStore((s) => s.setConnectorType);
-  const openConnectorLibrary = useHarnessStore((s) => s.openConnectorLibrary);
-  const setConnectorKeying = useHarnessStore((s) => s.setConnectorKeying);
-  const addConnectorCavity = useHarnessStore((s) => s.addConnectorCavity);
-  const removeConnectorCavity = useHarnessStore((s) => s.removeConnectorCavity);
-  const updateConnectorProperty = useHarnessStore((s) => s.updateConnectorProperty);
+  const system = useSystemStore((s) => s.system);
+  const connectorLibrary = useSystemStore((s) => s.connectorLibrary);
+  const updateConnectorTypeImage = useSystemStore((s) => s.updateConnectorTypeImage);
+  const updateConnectorTypeSideImage = useSystemStore((s) => s.updateConnectorTypeSideImage);
+  const setConnectorType = useSystemStore((s) => s.setConnectorType);
+  const openConnectorLibrary = useSystemStore((s) => s.openConnectorLibrary);
+  const setConnectorKeying = useSystemStore((s) => s.setConnectorKeying);
+  const addConnectorCavity = useSystemStore((s) => s.addConnectorCavity);
+  const removeConnectorCavity = useSystemStore((s) => s.removeConnectorCavity);
+  const updateConnectorProperty = useSystemStore((s) => s.updateConnectorProperty);
+  const setConnectorDotDisplay = useSystemStore((s) => s.setConnectorDotDisplay);
   const [pinPickerOpen, setPinPickerOpen] = useState(false);
   const [sidePickerOpen, setSidePickerOpen] = useState(false);
   const [instanceImgPickerOpen, setInstanceImgPickerOpen] = useState(false);
@@ -1982,11 +2305,11 @@ function ConnectorInspector({ con }: { con: Connector }) {
     prevCavityStateRef.current = { connectorId: con.id, pinCount: effectivePinCount };
   }, [con.id, effectivePinCount]);
 
-  if (!harness) return null;
+  if (!system) return null;
   const typeOptions = [...(connectorLibrary?.connector_types ?? [])].sort((a, b) =>
     a.name.localeCompare(b.name),
   );
-  const maxUsedPin = Math.max(0, ...getConnectorOccupancy(harness, con.id).map((entry) => entry.pinNumber));
+  const maxUsedPin = Math.max(0, ...getConnectorOccupancy(system, con.id).map((entry) => entry.pinNumber));
   const familyType = isConnectorFamily(ct);
   const supportedPinCounts = getConnectorSupportedPinCounts(ct);
   const previousPinCount = getPreviousConnectorPinCount(ct, effectivePinCount, maxUsedPin);
@@ -2001,11 +2324,15 @@ function ConnectorInspector({ con }: { con: Connector }) {
   const keyingOptions = getConnectorSupportedKeyings(con, ct);
   const pinGuideImage = getConnectorPinGuideImage(con, ct);
   const sideImage = getConnectorSideImage(con, ct);
+  const bulkhead = isBulkheadConnector(system, con.id);
+  const dot = isBulkheadDot(con);
+  const canChangeBulkheadDisplay = bulkhead
+    && (dot || isAutoBulkheadPlaceholder(con));
 
   return (
     <>
       <div className="flex items-center gap-2 mb-1">
-        <span className="text-sm font-bold text-zinc-100">Connector</span>
+        <span className="text-sm font-bold text-vw-connector">Connector</span>
         <span className="text-[9px] px-1.5 py-0.5 rounded bg-zinc-700 text-zinc-300">
           Instance
         </span>
@@ -2014,18 +2341,48 @@ function ConnectorInspector({ con }: { con: Connector }) {
             Derived
           </span>
         )}
-        {isInlineConnector(harness, con) && (
+        {isInlineConnector(system, con) && (
           <span className="rounded border border-violet-800/50 bg-violet-950/60 px-1.5 py-0.5 text-[9px] text-violet-300">
             Inline
           </span>
         )}
+        {dot && (
+          <span className="rounded border border-amber-800/50 bg-amber-950/50 px-1.5 py-0.5 text-[9px] text-amber-300">
+            Dot
+          </span>
+        )}
       </div>
-      <NameEditor key={`${con.id}:${con.name}`} name={con.name} type="connector" id={con.id} />
+      <NameEditor key={`${con.id}:${con.name}`} name={con.name} type="connector" id={con.id} textClassName="text-vw-connector" />
+      <EntityColorPicker
+        value={con.properties?.color ?? ''}
+        fallback={CONNECTOR_SHELL.fill}
+        onChange={(next) => updateConnectorProperty(con.id, 'color', next)}
+        hint="Default uses the signal tint when this connector has a single signal."
+      />
       <PropertyRow label="Stable ID" value={con.id} />
+      <SubsystemMembershipButton type="connector" id={con.id} />
 
       {con.parent && (
         <div className="mb-2">
           <ParentLink parentId={con.parent} />
+        </div>
+      )}
+
+      {canChangeBulkheadDisplay && (
+        <div className="mb-2 rounded border border-zinc-700/60 bg-zinc-900/40 p-2">
+          <div className="mb-1 text-[10px] font-medium text-zinc-300">
+            Unresolved bulkhead display
+          </div>
+          <div className="mb-1.5 text-[9px] leading-relaxed text-zinc-500">
+            This changes only the visual form. The stable ID, wall crossing, cavities, and routed wires stay intact.
+          </div>
+          <button
+            type="button"
+            onClick={() => setConnectorDotDisplay(con.id, !dot)}
+            className="w-full rounded border border-zinc-700 bg-zinc-800 px-2 py-1 text-[10px] text-zinc-300 hover:border-amber-700 hover:text-amber-300"
+          >
+            {dot ? 'Convert back to unresolved bulkhead' : 'Convert to visual dot'}
+          </button>
         </div>
       )}
 
@@ -2220,7 +2577,6 @@ function ConnectorInspector({ con }: { con: Connector }) {
       <ConnectorOccupancyTable connector={con} />
       <ConnectorGaugeBulkEditor connector={con} />
       <ConnectorGenderEditor connector={con} />
-      <ConnectorLengthSplitEditor connector={con} />
 
       <div ref={cavityControlsRef} className="mt-3 pt-2 border-t border-zinc-700/50 flex gap-1.5">
         <button
@@ -2256,48 +2612,202 @@ function ConnectorInspector({ con }: { con: Connector }) {
   );
 }
 
-function MergePointInspector({ mergePoint }: { mergePoint: MergePoint }) {
+function BranchPointBundlesEditor({ branchPoint }: { branchPoint: BranchPoint }) {
+  const system = useSystemStore((s) => s.system);
+  const separateBranchPointFamily = useSystemStore((s) => s.separateBranchPointFamily);
+  const families = useMemo(
+    () => system ? getBranchPointHarnessBundleFamilies(system, branchPoint.id) : [],
+    [system, branchPoint.id],
+  );
+  if (families.length < 2) return null;
+
+  return (
+    <div className="mt-3 pt-2 border-t border-zinc-700/50">
+      <div className="flex items-center gap-2 mb-1.5">
+        <div className="text-[10px] text-zinc-500 font-medium uppercase tracking-wider">
+          Bundles
+        </div>
+        <span className="text-[9px] px-1.5 py-px rounded bg-zinc-800 text-zinc-500">
+          {families.length} distinct connections
+        </span>
+      </div>
+      <div className="mb-1.5 text-[9px] leading-relaxed text-zinc-500">
+        Each row below is a distinct connection through this branch point. Split one onto its own new branch point — the inverse of whatever fuse joined them here.
+      </div>
+      <div className="space-y-1">
+        {families.map((family) => (
+          <div
+            key={family.key}
+            className="flex items-center gap-2 rounded border border-zinc-700/40 bg-zinc-900/40 px-1.5 py-1"
+          >
+            <span className="flex-1 min-w-0 text-[10px] text-zinc-300 truncate" title={family.label}>
+              {family.label}
+            </span>
+            <span className="text-[9px] text-zinc-500 shrink-0">
+              {family.pathIds.length} path{family.pathIds.length !== 1 ? 's' : ''}
+            </span>
+            <button
+              type="button"
+              onClick={() => separateBranchPointFamily(
+                branchPoint.id,
+                family.occurrences.map((occurrence) => ({ pathId: occurrence.pathId, nodeIndex: occurrence.nodeIndex })),
+              )}
+              className="shrink-0 rounded border border-zinc-700 px-1.5 py-0.5 text-[9px] text-zinc-400 hover:border-amber-700 hover:text-amber-300 transition-colors"
+              title="Move this connection onto a new, separate branch point"
+            >
+              Split out
+            </button>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function BranchPointInspector({ branchPoint }: { branchPoint: BranchPoint }) {
+  const system = useSystemStore((s) => s.system);
+  const isEditor = useSystemStore((s) => s.session.isEditor);
+  const convertBranchPointToSharedAnchor = useSystemStore((s) => s.convertBranchPointToSharedAnchor);
+  const demoteReason = system ? branchPointToSharedAnchorBlockReason(system, branchPoint.id) : 'No system is loaded.';
+  const signalGroups = useMemo(
+    () => system ? getBranchPointSignalGroups(system, branchPoint.id) : [],
+    [system, branchPoint.id],
+  );
+  const pathCount = signalGroups.reduce((sum, group) => sum + group.paths.length, 0);
+
   return (
     <>
       <div className="flex items-center gap-2 mb-2">
-        <span className="text-sm font-bold text-zinc-100">Merge Point</span>
-        <span className="text-[9px] px-1.5 py-0.5 rounded bg-cyan-900/50 text-cyan-300">
-          Junction
-        </span>
-        {mergePoint.derived && (
+        <span className="text-sm font-bold text-zinc-100">Branch Point</span>
+        {branchPoint.derived && (
           <span className="text-[9px] px-1.5 py-0.5 rounded bg-sky-900/50 text-sky-300 border border-sky-800/50">
             Derived
           </span>
         )}
       </div>
 
-      <NameEditor key={`${mergePoint.id}:${mergePoint.name}`} name={mergePoint.name} type="mergePoint" id={mergePoint.id} />
-      {mergePoint.derived && <DerivedFromPortNote portId={mergePoint.derived_from_port} />}
+      {isEditor && (
+        demoteReason ? (
+          <div className="mb-2 text-[10px] text-zinc-500">
+            Convert to shared anchor is unavailable. {demoteReason}
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => convertBranchPointToSharedAnchor(branchPoint.id)}
+            className="w-full mb-2 px-2.5 py-1.5 rounded border border-zinc-600 bg-zinc-800/70 text-[10px] text-zinc-200 hover:bg-zinc-800 hover:border-zinc-400 transition-colors"
+          >
+            Convert to shared anchor
+          </button>
+        )
+      )}
+      <NameEditor key={`${branchPoint.id}:${branchPoint.name}`} name={branchPoint.name} type="branchPoint" id={branchPoint.id} />
+      {branchPoint.derived && <DerivedFromPortNote portId={branchPoint.derived_from_port} />}
 
-      <PropertyRow label="Stable ID" value={mergePoint.id} />
-      {mergePoint.parent && (
+      <PropertyRow label="Stable ID" value={branchPoint.id} />
+      {branchPoint.parent && (
         <div className="flex items-start gap-2 py-0.5">
           <span className="text-[10px] text-zinc-500 w-20 shrink-0 text-right">Parent</span>
-          <ParentLink parentId={mergePoint.parent} />
+          <ParentLink parentId={branchPoint.parent} />
         </div>
       )}
-      {Object.entries(mergePoint.properties).map(([key, value]) => (
+      {Object.entries(branchPoint.properties).map(([key, value]) => (
         <PropertyRow key={key} label={key} value={value} />
       ))}
 
-      <div className="mt-2">
-        <MergePointLengthSplitEditor mergePoint={mergePoint} />
+      <BranchPointBundlesEditor branchPoint={branchPoint} />
+
+      <div className="mt-3 pt-2 border-t border-zinc-700/50">
+        <div className="flex items-center gap-2 mb-1.5">
+          <div className="text-[10px] text-zinc-500 font-medium uppercase tracking-wider">
+            Signals
+          </div>
+          <span className="text-[9px] px-1.5 py-px rounded bg-zinc-800 text-zinc-500">
+            {pathCount} path{pathCount !== 1 ? 's' : ''}
+          </span>
+        </div>
+        {signalGroups.length === 0 ? (
+          <div className="text-[10px] text-zinc-600 italic">No wires through this branch point</div>
+        ) : (
+          <div className="space-y-2">
+            {signalGroups.map((group) => (
+              <div
+                key={group.key}
+                className="rounded border border-zinc-700/40 bg-zinc-900/40 overflow-hidden"
+              >
+                <div className="flex items-center gap-1.5 px-1.5 py-1 bg-zinc-800/50">
+                  <WireColorSwatch appearance={group.appearance} className="w-2 h-2 rounded-full shrink-0" />
+                  {group.signalId ? (
+                    <EntityLink
+                      item={{ type: 'signal', id: group.signalId }}
+                      className="text-[11px] font-medium text-zinc-200 hover:text-amber-300"
+                      title="Reveal signal"
+                    >
+                      {group.signalName}
+                    </EntityLink>
+                  ) : (
+                    <span className="text-[11px] font-medium text-zinc-400">{group.signalName}</span>
+                  )}
+                  <span className="ml-auto text-[9px] text-zinc-500">
+                    {group.paths.length} path{group.paths.length !== 1 ? 's' : ''}
+                  </span>
+                </div>
+                <div className="divide-y divide-zinc-800/70">
+                  {group.paths.map((entry) => (
+                    <div key={entry.pathId} className="px-1.5 py-1.5">
+                      <EntityLink
+                        item={{ type: 'path', id: entry.pathId }}
+                        className="text-[10px] text-zinc-400 hover:text-amber-300 font-medium"
+                        title="Reveal path"
+                      >
+                        {entry.pathName}
+                      </EntityLink>
+                      <div className="mt-1 flex flex-wrap items-center gap-x-0.5 gap-y-0.5">
+                        {entry.stops.map((stop, stopIndex) => {
+                          const item = stop.kind === 'connector'
+                            ? { type: 'connector' as const, id: stop.id }
+                            : { type: 'branchPoint' as const, id: stop.id };
+                          const isLast = stopIndex === entry.stops.length - 1;
+                          return (
+                            <span key={`${stop.id}:${stopIndex}`} className="inline-flex items-center gap-0.5">
+                              <EntityLink
+                                item={item}
+                                className={`text-[10px] ${
+                                  stop.isBranchStop
+                                    ? 'text-cyan-300 font-medium'
+                                    : stop.kind === 'connector'
+                                      ? 'text-vw-connector hover:opacity-80'
+                                      : 'text-cyan-400/80 hover:opacity-80'
+                                }`}
+                                title="Reveal"
+                              >
+                                {stop.label}
+                              </EntityLink>
+                              {!isLast && (
+                                <span className="text-[9px] text-zinc-600 px-0.5">→</span>
+                              )}
+                            </span>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="mt-2 pt-2 border-t border-zinc-700/50">
-        <TagEditor entityType="mergePoint" entityId={mergePoint.id} tags={mergePoint.tags} />
+        <TagEditor entityType="branchPoint" entityId={branchPoint.id} tags={branchPoint.tags} />
       </div>
     </>
   );
 }
 
 function SignalInspector({ signal }: { signal: Signal }) {
-  const updateSignalProperty = useHarnessStore((s) => s.updateSignalProperty);
+  const updateSignalProperty = useSystemStore((s) => s.updateSignalProperty);
   const [newKey, setNewKey] = useState('');
   const [newValue, setNewValue] = useState('');
   const preferredColor = signal.properties.preferred_wire_color ?? '';
@@ -2365,14 +2875,14 @@ function StretchLengthEditor({
   lengthMm?: number;
   note?: string;
 }) {
-  const harness = useHarnessStore((s) => s.harness);
-  const updatePathSegmentLength = useHarnessStore((s) => s.updatePathSegmentLength);
-  const updateConnectorPairSegmentLengths = useHarnessStore(
+  const system = useSystemStore((s) => s.system);
+  const updatePathSegmentLength = useSystemStore((s) => s.updatePathSegmentLength);
+  const updateConnectorPairSegmentLengths = useSystemStore(
     (s) => s.updateConnectorPairSegmentLengths,
   );
-  const pushUndoSnapshot = useHarnessStore((s) => s.pushUndoSnapshot);
-  const commitUndoSnapshot = useHarnessStore((s) => s.commitUndoSnapshot);
-  const cancelUndoSnapshot = useHarnessStore((s) => s.cancelUndoSnapshot);
+  const pushUndoSnapshot = useSystemStore((s) => s.pushUndoSnapshot);
+  const commitUndoSnapshot = useSystemStore((s) => s.commitUndoSnapshot);
+  const cancelUndoSnapshot = useSystemStore((s) => s.cancelUndoSnapshot);
   const initialValue = lengthMm === undefined ? '' : String(lengthMm);
   const [draft, setDraft] = useState(initialValue);
   const cancelBlur = useRef(false);
@@ -2396,32 +2906,32 @@ function StretchLengthEditor({
     setDraft(String(parsed));
 
     if (parsed === lengthMm) return;
-    const currentPath = harness?.paths.find((path) => path.id === pathId);
+    const currentPath = system?.paths.find((path) => path.id === pathId);
     const from = currentPath?.nodes[segmentIndex];
     const to = currentPath?.nodes[segmentIndex + 1];
-    if (harness && currentPath && from?.kind === 'connector' && to?.kind === 'connector') {
-      const matches = getConnectorPairSegments(harness, from.connector_id, to.connector_id);
+    if (system && currentPath && from?.kind === 'connector' && to?.kind === 'connector') {
+      const matches = getConnectorPairSegments(system, from.connector_id, to.connector_id);
       const matchingPathIds = new Set(matches.map((match) => match.path.id));
       if (matchingPathIds.size > 1) {
-        const connectorA = harness.connectors.find(
+        const connectorA = system.connectors.find(
           (connector) => connector.id === from.connector_id,
         );
-        const connectorB = harness.connectors.find(
+        const connectorB = system.connectors.find(
           (connector) => connector.id === to.connector_id,
         );
         const connectorAName = connectorA?.name ?? from.connector_id;
         const connectorBName = connectorB?.name ?? to.connector_id;
         const wireLines = matches.map((match) => {
           const isCurrent =
-            match.path.id === pathId && match.segmentIndex === segmentIndex;
-          const route = `${getPathNodeLabel(harness, match.from)} → ${getPathNodeLabel(harness, match.to)}`;
+            match.path.id === pathId && match.wireIndex === segmentIndex;
+          const route = `${getPathNodeLabel(system, match.from)} → ${getPathNodeLabel(system, match.to)}`;
           return `• ${match.path.name} (${route})${isCurrent ? ' — edited wire' : ''}`;
         });
         const overridden = matches.filter((match) => {
-          if (match.path.id === pathId && match.segmentIndex === segmentIndex) return false;
+          if (match.path.id === pathId && match.wireIndex === segmentIndex) return false;
           const existingLength = getPathSegmentMeasurement(
             match.path,
-            match.segmentIndex,
+            match.wireIndex,
           )?.length_mm;
           return existingLength !== undefined && existingLength !== parsed;
         });
@@ -2431,7 +2941,7 @@ function StretchLengthEditor({
               ...overridden.map((match) => {
                 const existingLength = getPathSegmentMeasurement(
                   match.path,
-                  match.segmentIndex,
+                  match.wireIndex,
                 )?.length_mm;
                 return `• ${match.path.name}: ${existingLength} mm`;
               }),
@@ -2501,10 +3011,10 @@ function StretchLengthEditor({
 }
 
 function PathCommentEditor({ pathId, comment }: { pathId: string; comment: string }) {
-  const updatePathProperty = useHarnessStore((s) => s.updatePathProperty);
-  const pushUndoSnapshot = useHarnessStore((s) => s.pushUndoSnapshot);
-  const commitUndoSnapshot = useHarnessStore((s) => s.commitUndoSnapshot);
-  const cancelUndoSnapshot = useHarnessStore((s) => s.cancelUndoSnapshot);
+  const updatePathProperty = useSystemStore((s) => s.updatePathProperty);
+  const pushUndoSnapshot = useSystemStore((s) => s.pushUndoSnapshot);
+  const commitUndoSnapshot = useSystemStore((s) => s.commitUndoSnapshot);
+  const cancelUndoSnapshot = useSystemStore((s) => s.cancelUndoSnapshot);
   const [draft, setDraft] = useState(comment);
   const cancelBlur = useRef(false);
 
@@ -2545,22 +3055,22 @@ function PathCommentEditor({ pathId, comment }: { pathId: string; comment: strin
 const CREATE_NEW_SIGNAL_VALUE = '__create_new_signal__';
 
 function PathInspector({ path }: { path: Path }) {
-  const harness = useHarnessStore((s) => s.harness);
-  const connectorLibrary = useHarnessStore((s) => s.connectorLibrary);
-  const addSignal = useHarnessStore((s) => s.addSignal);
-  const updatePathSignal = useHarnessStore((s) => s.updatePathSignal);
-  const updatePathProperty = useHarnessStore((s) => s.updatePathProperty);
-  const openSignalLibrary = useHarnessStore((s) => s.openSignalLibrary);
-  if (!harness) return null;
+  const system = useSystemStore((s) => s.system);
+  const connectorLibrary = useSystemStore((s) => s.connectorLibrary);
+  const addSignal = useSystemStore((s) => s.addSignal);
+  const updatePathSignal = useSystemStore((s) => s.updatePathSignal);
+  const updatePathProperty = useSystemStore((s) => s.updatePathProperty);
+  const openSignalLibrary = useSystemStore((s) => s.openSignalLibrary);
+  if (!system) return null;
 
-  const signalName = getPathSignalName(path, harness);
+  const signalName = getPathSignalName(path, system);
   const signalId = getPathSignalId(path);
-  const appearance = getPathWireAppearance(path, harness);
+  const appearance = getPathWireAppearance(path, system);
   const wireColor = (path.properties?.wire_color ?? path.properties?.color ?? '').trim();
   const wireGauge = (path.properties?.wire_gauge ?? '').trim();
-  const inferredGauge = getPathInferredGauge(harness, path, connectorLibrary);
+  const inferredGauge = getPathInferredGauge(system, path, connectorLibrary);
   const signal = signalId
-    ? harness.signals.find((candidate) => candidate.id === signalId)
+    ? system.signals.find((candidate) => candidate.id === signalId)
     : undefined;
   const colorDeviation = getPreferredWireColorDeviation(path, signal);
   const changeSignal = (nextSignalId: string) => {
@@ -2621,7 +3131,7 @@ function PathInspector({ path }: { path: Path }) {
           {signalId && !signal && (
             <option value={signalId}>{signalName ?? signalId} · missing</option>
           )}
-          {[...harness.signals]
+          {[...system.signals]
             .sort((left, right) => left.name.localeCompare(right.name))
             .map((candidate) => (
               <option key={candidate.id} value={candidate.id}>
@@ -2679,16 +3189,15 @@ function PathInspector({ path }: { path: Path }) {
         <div className="text-[10px] text-zinc-500 font-medium mb-1">Route</div>
         <div>
           {path.nodes.map((node, index) => {
-            const nodeLabel = getPathNodeLabel(harness, node);
+            const nodeLabel = getPathNodeLabel(system, node);
             const nextNode = path.nodes[index + 1];
-            const nextLabel = nextNode ? getPathNodeLabel(harness, nextNode) : '';
+            const nextLabel = nextNode ? getPathNodeLabel(system, nextNode) : '';
             return (
               <div key={`${getPathNodeRefKey(node)}-${index}`}>
                 <div className="text-[11px] text-zinc-300 flex items-center gap-2">
                   <span className="text-zinc-500 font-mono text-[10px] w-6 shrink-0">{index + 1}</span>
                   <PathNodeLink
                     node={node}
-                    className="text-amber-400 hover:text-amber-300 underline underline-offset-2"
                   >
                     {nodeLabel}
                   </PathNodeLink>
@@ -2722,16 +3231,14 @@ function PathInspector({ path }: { path: Path }) {
               <div key={`${getPathNodeRefKey(measurement.from)}-${getPathNodeRefKey(measurement.to)}-${index}`} className="text-[10px] text-zinc-300 rounded bg-zinc-800/60 px-2 py-1">
                 <PathNodeLink
                   node={measurement.from}
-                  className="text-amber-400 hover:text-amber-300 underline underline-offset-2"
                 >
-                  {getPathNodeLabel(harness, measurement.from)}
+                  {getPathNodeLabel(system, measurement.from)}
                 </PathNodeLink>
                 {' → '}
                 <PathNodeLink
                   node={measurement.to}
-                  className="text-amber-400 hover:text-amber-300 underline underline-offset-2"
                 >
-                  {getPathNodeLabel(harness, measurement.to)}
+                  {getPathNodeLabel(system, measurement.to)}
                 </PathNodeLink>
                 {measurement.length_mm !== undefined ? ` · ${measurement.length_mm} mm` : ''}
                 {measurement.note ? ` · ${measurement.note}` : ''}
@@ -2871,13 +3378,11 @@ function TbSection({ label, children }: { label: string; children: React.ReactNo
 }
 
 function TextBoxInspector({ tb }: { tb: TextBoxLayout }) {
-  const updateTextBox = useHarnessStore((s) => s.updateTextBox);
-  const removeTextBox = useHarnessStore((s) => s.removeTextBox);
-  const selectTextBox = useHarnessStore((s) => s.selectTextBox);
-  const pushUndoSnapshot = useHarnessStore((s) => s.pushUndoSnapshot);
-  const commitUndoSnapshot = useHarnessStore((s) => s.commitUndoSnapshot);
-  const [localText, setLocalText] = useState(tb.text);
-  useEffect(() => { setLocalText(tb.text); }, [tb.text]);
+  const updateTextBox = useSystemStore((s) => s.updateTextBox);
+  const removeTextBox = useSystemStore((s) => s.removeTextBox);
+  const selectTextBox = useSystemStore((s) => s.selectTextBox);
+  const pushUndoSnapshot = useSystemStore((s) => s.pushUndoSnapshot);
+  const commitUndoSnapshot = useSystemStore((s) => s.commitUndoSnapshot);
 
   return (
     <>
@@ -2895,16 +3400,14 @@ function TextBoxInspector({ tb }: { tb: TextBoxLayout }) {
       {/* Content */}
       <TbSection label="Content">
         <textarea
-          value={localText}
-          onChange={(e) => setLocalText(e.target.value)}
+          value={tb.text}
+          onChange={(e) => updateTextBox(tb.id, { text: e.target.value, autoFit: true })}
+          onKeyDown={(e) => e.stopPropagation()}
           onFocus={() => pushUndoSnapshot(`textBox:${tb.id}:text`)}
-          onBlur={() => {
-            updateTextBox(tb.id, { text: localText });
-            commitUndoSnapshot();
-          }}
-          rows={4}
-          placeholder="Type here…"
-          className="w-full text-[11px] px-2 py-1.5 bg-zinc-800 border border-zinc-700 rounded text-zinc-200 placeholder-zinc-600 focus:border-amber-600 focus:outline-none resize-none"
+          onBlur={() => commitUndoSnapshot()}
+          rows={6}
+          placeholder="Type here… Enter for a new line"
+          className="w-full text-[11px] px-2 py-1.5 bg-zinc-800 border border-zinc-700 rounded text-zinc-200 placeholder-zinc-600 focus:border-amber-600 focus:outline-none resize-y whitespace-pre-wrap"
         />
       </TbSection>
 
@@ -2926,15 +3429,10 @@ function TextBoxInspector({ tb }: { tb: TextBoxLayout }) {
 
       {/* Typography */}
       <TbSection label="Typography">
-        <TbSliderRow
-          label="Font size"
-          value={tb.fontSize}
-          min={8}
-          max={72}
-          step={1}
-          unit="px"
-          onChange={(v) => updateTextBox(tb.id, { fontSize: v })}
-        />
+        <div className="flex items-center gap-2 py-0.5">
+          <span className="text-[10px] text-zinc-500 w-16 shrink-0 text-right">Size</span>
+          <span className="text-[11px] text-zinc-400">Auto-fits the box ({tb.fontSize}px)</span>
+        </div>
 
         <div className="flex items-center gap-2 py-0.5">
           <span className="text-[10px] text-zinc-500 w-16 shrink-0 text-right">Family</span>
@@ -2971,7 +3469,7 @@ function TextBoxInspector({ tb }: { tb: TextBoxLayout }) {
         <div className="flex items-center gap-2 py-0.5">
           <span className="text-[10px] text-zinc-500 w-16 shrink-0 text-right">Align</span>
           <div className="flex gap-1 flex-1">
-            {([['left', '⬅'], ['center', '↔'], ['right', '➡']] as [TextBoxTextAlign, string][]).map(([a, icon]) => (
+            {([['left', 'Left'], ['center', 'Center']] as [TextBoxTextAlign, string][]).map(([a, label]) => (
               <button
                 key={a}
                 onClick={() => updateTextBox(tb.id, { textAlign: a })}
@@ -2982,7 +3480,7 @@ function TextBoxInspector({ tb }: { tb: TextBoxLayout }) {
                     : 'border-zinc-700 text-zinc-400 hover:border-zinc-500 hover:text-zinc-200'
                 }`}
               >
-                {icon}
+                {label}
               </button>
             ))}
           </div>
@@ -3043,7 +3541,7 @@ function TextBoxInspector({ tb }: { tb: TextBoxLayout }) {
               <input
                 type="number"
                 value={Math.round(tb.w)}
-                onChange={(e) => updateTextBox(tb.id, { w: Number(e.target.value) })}
+                onChange={(e) => updateTextBox(tb.id, { w: Number(e.target.value), autoFit: true })}
                 className="w-14 text-[10px] font-mono px-1.5 py-0.5 bg-zinc-800 border border-zinc-700 rounded text-zinc-300 focus:border-amber-600 focus:outline-none"
               />
             </div>
@@ -3052,7 +3550,7 @@ function TextBoxInspector({ tb }: { tb: TextBoxLayout }) {
               <input
                 type="number"
                 value={Math.round(tb.h)}
-                onChange={(e) => updateTextBox(tb.id, { h: Number(e.target.value) })}
+                onChange={(e) => updateTextBox(tb.id, { h: Number(e.target.value), autoFit: true })}
                 className="w-14 text-[10px] font-mono px-1.5 py-0.5 bg-zinc-800 border border-zinc-700 rounded text-zinc-300 focus:border-amber-600 focus:outline-none"
               />
             </div>
@@ -3063,25 +3561,277 @@ function TextBoxInspector({ tb }: { tb: TextBoxLayout }) {
   );
 }
 
-export function InspectorPanel() {
-  const selectedItem = useHarnessStore((s) => s.selectedItem);
-  const selectedBundle = useHarnessStore((s) => s.selectedBundle);
-  const selectedTextBoxId = useHarnessStore((s) => s.selectedTextBoxId);
-  const textBoxLayouts = useHarnessStore((s) => s.textBoxLayouts);
-  const findEntity = useHarnessStore((s) => s.findEntity);
-  const harness = useHarnessStore((s) => s.harness);
+function ImageInspector({ img }: { img: CanvasImageLayout }) {
+  const updateImage = useSystemStore((s) => s.updateImage);
+  const removeImage = useSystemStore((s) => s.removeImage);
+  const selectImage = useSystemStore((s) => s.selectImage);
+  const [pickerOpen, setPickerOpen] = useState(false);
 
+  return (
+    <>
+      <div className="flex items-center justify-between mb-2">
+        <input
+          value={img.name}
+          onChange={(e) => updateImage(img.id, { name: e.target.value })}
+          onKeyDown={(e) => e.stopPropagation()}
+          className="min-w-0 flex-1 text-sm font-bold bg-transparent text-zinc-100 focus:outline-none focus:border-b focus:border-amber-600"
+        />
+        <button
+          className="text-[10px] text-zinc-500 hover:text-red-400 transition-colors"
+          onClick={() => { removeImage(img.id); selectImage(null); }}
+        >
+          Delete
+        </button>
+      </div>
+
+      <div className="relative mb-2 overflow-hidden rounded border border-zinc-700 bg-zinc-950">
+        <img
+          src={`/user-data/images/${img.image}`}
+          alt={img.name}
+          className="mx-auto max-h-32 object-contain"
+        />
+      </div>
+
+      <TbSection label="Placement">
+        <label className="flex items-center gap-2 py-1 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={img.locked}
+            onChange={(e) => updateImage(img.id, { locked: e.target.checked })}
+            className="accent-amber-500"
+          />
+          <span className="text-[11px] text-zinc-300">Locked</span>
+        </label>
+        <p className="text-[10px] text-zinc-500 pl-6 mb-1.5">
+          Dragging does not move a locked image. Double-click it on the canvas to select it.
+        </p>
+        <div className="flex items-center gap-2 py-0.5">
+          <span className="text-[10px] text-zinc-500 w-16 shrink-0 text-right">Layer</span>
+          <div className="flex gap-1 flex-1">
+            {([['background', 'Background'], ['foreground', 'Foreground']] as [CanvasImageLayer, string][]).map(([layer, label]) => (
+              <button
+                key={layer}
+                type="button"
+                onClick={() => updateImage(img.id, { layer })}
+                className={`flex-1 text-[10px] py-0.5 rounded border transition-colors ${
+                  (img.layer ?? 'background') === layer
+                    ? 'border-amber-500 text-amber-400 bg-amber-900/20'
+                    : 'border-zinc-700 text-zinc-400 hover:border-zinc-500 hover:text-zinc-200'
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+      </TbSection>
+
+      <TbSection label="Size">
+        <div className="flex items-start gap-2 py-0.5">
+          <span className="text-[10px] text-zinc-500 w-16 shrink-0 text-right">Size</span>
+          <div className="flex gap-1.5 flex-1">
+            <div className="flex items-center gap-1">
+              <span className="text-[9px] text-zinc-600">W</span>
+              <input
+                type="number"
+                value={Math.round(img.w)}
+                onChange={(e) => updateImage(img.id, { w: Number(e.target.value) })}
+                className="w-14 text-[10px] font-mono px-1.5 py-0.5 bg-zinc-800 border border-zinc-700 rounded text-zinc-300 focus:border-amber-600 focus:outline-none"
+              />
+            </div>
+            <div className="flex items-center gap-1">
+              <span className="text-[9px] text-zinc-600">H</span>
+              <input
+                type="number"
+                value={Math.round(img.h)}
+                onChange={(e) => updateImage(img.id, { h: Number(e.target.value) })}
+                className="w-14 text-[10px] font-mono px-1.5 py-0.5 bg-zinc-800 border border-zinc-700 rounded text-zinc-300 focus:border-amber-600 focus:outline-none"
+              />
+            </div>
+          </div>
+        </div>
+      </TbSection>
+
+      <TbSection label="File">
+        <div className="relative">
+          <button
+            type="button"
+            onClick={() => setPickerOpen((open) => !open)}
+            className="w-full rounded border border-zinc-700 bg-zinc-800 px-2 py-1.5 text-[10px] text-zinc-300 hover:border-amber-700/60 hover:text-amber-300"
+          >
+            Change image
+          </button>
+          {pickerOpen && (
+            <ImagePickerPanel
+              title="Replace image"
+              onPick={(filename) => {
+                updateImage(img.id, { image: filename });
+                setPickerOpen(false);
+              }}
+              onClose={() => setPickerOpen(false)}
+            />
+          )}
+        </div>
+        <div className="mt-1 text-[10px] text-zinc-500 truncate" title={img.image}>
+          {img.image}
+        </div>
+      </TbSection>
+    </>
+  );
+}
+
+function SubsystemLayoutResetFooter() {
+  const activeSubsystemId = useSystemStore((s) => s.activeSubsystemId);
+  const resetActiveSubsystemLayoutFromSystem = useSystemStore(
+    (s) => s.resetActiveSubsystemLayoutFromSystem,
+  );
+  const [confirming, setConfirming] = useState(false);
+
+  // Switching subsystems cancels a confirmation opened for the previous one.
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setConfirming(false);
+  }, [activeSubsystemId]);
+
+  if (!activeSubsystemId) return null;
+
+  if (!confirming) {
+    return (
+      <div className="shrink-0 border-t border-zinc-800 px-2 py-2">
+        <button
+          type="button"
+          onClick={() => setConfirming(true)}
+          className="w-full rounded border border-zinc-700 bg-zinc-800 px-2 py-1.5 text-[10px] text-zinc-400 hover:border-amber-700/60 hover:bg-amber-950/20 hover:text-amber-300 transition-colors"
+        >
+          Reset to system layout
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="shrink-0 border-t border-zinc-800 px-2 py-2">
+      <div className="rounded border border-amber-800/70 bg-amber-950/30 p-2">
+        <p className="text-[10px] font-medium text-amber-300">Reset to system layout?</p>
+        <p className="mt-1 text-[10px] leading-relaxed text-zinc-400">
+          This overwrites positions and sizes in this subsystem with the current System view layout. You can restore it with Undo.
+        </p>
+        <div className="mt-2 flex justify-end gap-1.5">
+          <button
+            type="button"
+            onClick={() => setConfirming(false)}
+            className="rounded px-2 py-1 text-[10px] text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              resetActiveSubsystemLayoutFromSystem();
+              setConfirming(false);
+            }}
+            className="rounded bg-amber-500 px-2 py-1 text-[10px] font-medium text-zinc-950 hover:bg-amber-400"
+          >
+            Reset layout
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function InspectorShell({
+  children,
+  scrollKey,
+  attribution,
+}: {
+  children: React.ReactNode;
+  scrollKey: unknown;
+  attribution?: AttributionEntry | null;
+}) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const editingSurface = useSystemStore((s) => s.editingSurface);
+  const activeSubsystemId = useSystemStore((s) => s.activeSubsystemId);
+  const selectedItem = useSystemStore((s) => s.selectedItem);
+  const selectedHarnessBundle = useSystemStore((s) => s.selectedHarnessBundle);
+  const selectedTextBoxId = useSystemStore((s) => s.selectedTextBoxId);
+  const selectedImageId = useSystemStore((s) => s.selectedImageId);
+  const isEditor = useSystemStore((s) => s.session.isEditor);
+  const showReset = editingSurface === 'subsystem' && !!activeSubsystemId && isEditor;
+  const showAddDevice = showReset && !!(selectedItem || selectedHarnessBundle || selectedTextBoxId || selectedImageId);
 
   useEffect(() => {
     containerRef.current?.scrollTo(0, 0);
-  }, [selectedItem, selectedBundle, selectedTextBoxId]);
+  }, [scrollKey]);
+
+  return (
+    <div className="flex h-full flex-col">
+      <div ref={containerRef} className="min-h-0 flex-1 overflow-y-auto">
+        {children}
+      </div>
+      <AttributionDisplay entry={attribution ?? null} />
+      {showAddDevice && <SubsystemAddDeviceFooter />}
+      {showReset && <SubsystemLayoutResetFooter />}
+    </div>
+  );
+}
+
+export function InspectorPanel() {
+  const selectedItem = useSystemStore((s) => s.selectedItem);
+  const selectedHarnessBundle = useSystemStore((s) => s.selectedHarnessBundle);
+  const selectedTextBoxId = useSystemStore((s) => s.selectedTextBoxId);
+  const selectedImageId = useSystemStore((s) => s.selectedImageId);
+  const textBoxLayouts = useSystemStore((s) => s.textBoxLayouts);
+  const imageLayouts = useSystemStore((s) => s.imageLayouts);
+  const findEntity = useSystemStore((s) => s.findEntity);
+  const system = useSystemStore((s) => s.system);
+  const attribution = useSystemStore((s) => s.attribution);
+  const scrollKey = selectedImageId ?? selectedTextBoxId ?? selectedHarnessBundle?.id ?? selectedItem?.id;
+  const selectedAttribution = newestAttribution(
+    attribution,
+    selectedHarnessBundle?.pathIds
+      ?? (selectedImageId
+        ? [selectedImageId]
+        : selectedTextBoxId
+          ? [selectedTextBoxId]
+          : selectedItem
+            ? [selectedItem.id]
+            : []),
+  );
+
+  if (selectedImageId) {
+    const img = imageLayouts[selectedImageId];
+    return (
+      <InspectorShell scrollKey={scrollKey} attribution={selectedAttribution}>
+        <div className="px-2 py-1 flex items-center gap-1.5">
+          <span className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">
+            Inspector
+          </span>
+          <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-900/40 text-amber-400 border border-amber-800/50">
+            Image
+          </span>
+          <PresenceBadge kind="image" id={selectedImageId} />
+        </div>
+        <div className="px-2 pb-3">
+          <PresenceEditingRegion target={{ kind: 'image', id: selectedImageId }}>
+            <ReadOnlyInspectorControls>
+              {img ? (
+                <ImageInspector img={img} />
+              ) : (
+                <div className="text-xs text-zinc-500 italic">Image not found</div>
+              )}
+            </ReadOnlyInspectorControls>
+          </PresenceEditingRegion>
+        </div>
+      </InspectorShell>
+    );
+  }
 
   // Text box inspector
   if (selectedTextBoxId) {
     const tb = textBoxLayouts[selectedTextBoxId];
     return (
-      <div ref={containerRef} className="overflow-y-auto h-full">
+      <InspectorShell scrollKey={scrollKey} attribution={selectedAttribution}>
         <div className="px-2 py-1 flex items-center gap-1.5">
           <span className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">
             Inspector
@@ -3089,63 +3839,75 @@ export function InspectorPanel() {
           <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-900/40 text-amber-400 border border-amber-800/50">
             Text Box
           </span>
+          <PresenceBadge kind="textBox" id={selectedTextBoxId} />
         </div>
         <div className="px-2 pb-3">
-          <ReadOnlyInspectorControls>
-            {tb ? (
-              <TextBoxInspector tb={tb} />
-            ) : (
-              <div className="text-xs text-zinc-500 italic">Text box not found</div>
-            )}
-          </ReadOnlyInspectorControls>
+          <PresenceEditingRegion target={{ kind: 'textBox', id: selectedTextBoxId }}>
+            <ReadOnlyInspectorControls>
+              {tb ? (
+                <TextBoxInspector tb={tb} />
+              ) : (
+                <div className="text-xs text-zinc-500 italic">Text box not found</div>
+              )}
+            </ReadOnlyInspectorControls>
+          </PresenceEditingRegion>
         </div>
-      </div>
+      </InspectorShell>
     );
   }
 
-  if (!harness) {
+  if (!system) {
     return (
-      <div className="p-3 text-xs text-zinc-500 italic">
-        Select an item to inspect
-      </div>
+      <InspectorShell scrollKey={scrollKey} attribution={selectedAttribution}>
+        <div className="p-3 text-xs text-zinc-500 italic">
+          Select an item to inspect
+        </div>
+      </InspectorShell>
     );
   }
 
-  // Bundle inspector
-  if (selectedBundle && selectedBundle.pathIds.length > 0) {
+  // Harness Bundle inspector
+  if (selectedHarnessBundle && selectedHarnessBundle.pathIds.length > 0) {
     return (
-      <div ref={containerRef} className="overflow-y-auto h-full">
+      <InspectorShell scrollKey={scrollKey}>
         <div className="px-2 py-1 flex items-center gap-1.5">
           <span className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">
             Inspector
           </span>
           <span className="text-[10px] px-1.5 py-0.5 rounded bg-zinc-700 text-zinc-400">
-            Bundle
+            Harness Bundle
           </span>
+          <PresenceBadge kind="harnessBundle" id={selectedHarnessBundle.id} />
         </div>
         <div className="px-2 pb-3">
-          <ReadOnlyInspectorControls>
-            <BundleInspector bundleId={selectedBundle.id} pathIds={selectedBundle.pathIds} />
-          </ReadOnlyInspectorControls>
+          <PresenceEditingRegion target={{ kind: 'harnessBundle', id: selectedHarnessBundle.id }}>
+            <ReadOnlyInspectorControls>
+              <BundleInspector bundleId={selectedHarnessBundle.id} pathIds={selectedHarnessBundle.pathIds} />
+            </ReadOnlyInspectorControls>
+          </PresenceEditingRegion>
         </div>
-      </div>
+      </InspectorShell>
     );
   }
 
   if (!selectedItem) {
     return (
-      <div className="p-3 text-xs text-zinc-500 italic">
-        Select an item to inspect
-      </div>
+      <InspectorShell scrollKey={scrollKey}>
+        <div className="p-3 text-xs text-zinc-500 italic">
+          Select an item to inspect
+        </div>
+      </InspectorShell>
     );
   }
 
   const entity = findEntity(selectedItem.type, selectedItem.id);
   if (!entity) {
     return (
-      <div className="p-3 text-xs text-red-400">
-        Entity not found: {selectedItem.id}
-      </div>
+      <InspectorShell scrollKey={scrollKey}>
+        <div className="p-3 text-xs text-red-400">
+          Entity not found: {selectedItem.id}
+        </div>
+      </InspectorShell>
     );
   }
 
@@ -3159,8 +3921,8 @@ export function InspectorPanel() {
         const con = entity as Connector;
         return <ConnectorInspector con={con} />;
       }
-      case 'mergePoint': {
-        return <MergePointInspector mergePoint={entity as MergePoint} />;
+      case 'branchPoint': {
+        return <BranchPointInspector branchPoint={entity as BranchPoint} />;
       }
       case 'path': {
         return <PathInspector path={entity as Path} />;
@@ -3176,13 +3938,13 @@ export function InspectorPanel() {
   const typeLabels: Record<string, string> = {
     enclosure: 'Enclosure',
     connector: 'Connector',
-    mergePoint: 'Merge Point',
+    branchPoint: 'Branch Point',
     path: 'Path',
     signal: 'Signal',
   };
 
   return (
-    <div ref={containerRef} className="overflow-y-auto h-full">
+    <InspectorShell scrollKey={scrollKey} attribution={selectedAttribution}>
       <div className="px-2 py-1 flex items-center gap-1.5">
         <span className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">
           Inspector
@@ -3190,10 +3952,15 @@ export function InspectorPanel() {
         <span className="text-[10px] px-1.5 py-0.5 rounded bg-zinc-700 text-zinc-400">
           {typeLabels[selectedItem.type] ?? selectedItem.type}
         </span>
+        <PresenceBadge kind={selectedItem.type} id={selectedItem.id} />
       </div>
       <div className="px-2 pb-3">
-        <ReadOnlyInspectorControls>{renderContent()}</ReadOnlyInspectorControls>
+        <PresenceEditingRegion
+          target={{ kind: selectedItem.type, id: selectedItem.id } as PresenceTarget}
+        >
+          <ReadOnlyInspectorControls>{renderContent()}</ReadOnlyInspectorControls>
+        </PresenceEditingRegion>
       </div>
-    </div>
+    </InspectorShell>
   );
 }

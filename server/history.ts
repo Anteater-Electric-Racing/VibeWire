@@ -2,28 +2,29 @@
  * Byte-exact automatic history, named checkpoints, and reversible restore.
  *
  * Payloads mirror paths relative to `public/user-data` and every file copy uses
- * `copyFileSync`—parsed harness data is used only for entity counts, never for
+ * `copyFileSync`—parsed System data is used only for entity counts, never for
  * persistence. Restore stages replacements before rename-based swaps.
  */
 import { randomUUID } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import {
-  assembleHarnessFromDisk,
-  type HarnessData,
+  assembleSystemFromDisk,
+  type SystemData,
 } from './sheets.js';
+import { normalizeSystemData } from '../src/lib/systemNormalize.js';
 import { listContributorsSince } from './editlog.js';
 import {
   getCollaborationPaths,
   getRev,
-  withHarnessLock,
+  withSystemLock,
   type RevisionWriter,
 } from './revisions.js';
 
 export interface EntityCounts {
-  enclosures: number;
+  hierarchy: number;
   connectors: number;
-  mergePoints: number;
+  branchPoints: number;
   paths: number;
   signals: number;
 }
@@ -42,7 +43,7 @@ export interface CheckpointMeta {
    */
   dailyKey?: string;
   /**
-   * Everyone who wrote to this harness since the previous daily checkpoint
+   * Everyone who wrote to this System since the previous daily checkpoint
    * (or, for the first one, since the edit log began). Present only on daily
    * checkpoints — this is the "who edited since last daily save" record.
    */
@@ -63,9 +64,9 @@ interface PayloadArtifact {
   kind: 'file' | 'directory';
 }
 
-function assertStorageKey(value: string, label: string): string {
-  if (!/^[a-zA-Z0-9_-]+$/.test(value)) {
-    throw new Error(`Invalid ${label} '${value}'.`);
+function assertStorageKey(value: unknown, label: string): string {
+  if (typeof value !== 'string' || !/^[a-zA-Z0-9_-]+$/.test(value)) {
+    throw new Error(`Invalid ${label} '${String(value)}'.`);
   }
   return value;
 }
@@ -77,29 +78,31 @@ function assertCheckpointId(id: string): string {
   return id;
 }
 
-function historyHarnessDir(harness: string): string {
+function historySystemDir(systemKey: string): string {
   return path.join(
     getCollaborationPaths().stateRoot,
     'history',
-    assertStorageKey(harness, 'history harness key'),
+    assertStorageKey(systemKey, 'history system key'),
   );
 }
 
-function checkpointsHarnessDir(harness: string): string {
+function checkpointsSystemDir(systemKey: string): string {
   return path.join(
     getCollaborationPaths().stateRoot,
     'checkpoints',
-    assertStorageKey(harness, 'checkpoint harness key'),
+    assertStorageKey(systemKey, 'checkpoint system key'),
   );
 }
 
-function checkpointDir(harness: string, id: string): string {
-  return path.join(checkpointsHarnessDir(harness), assertCheckpointId(id));
+function checkpointDir(systemKey: string, id: string): string {
+  return path.join(checkpointsSystemDir(systemKey), assertCheckpointId(id));
 }
 
-function payloadArtifacts(harness: string): PayloadArtifact[] {
-  const key = assertStorageKey(harness, 'harness key');
+function payloadArtifacts(systemKey: string): PayloadArtifact[] {
+  const key = assertStorageKey(systemKey, 'system key');
   return [
+    { relativePath: path.join('systems', key), kind: 'directory' },
+    { relativePath: path.join('systems', `${key}.json`), kind: 'file' },
     { relativePath: path.join('harnesses', key), kind: 'directory' },
     { relativePath: path.join('harnesses', `${key}.json`), kind: 'file' },
     { relativePath: `layouts.${key}.json`, kind: 'file' },
@@ -174,22 +177,30 @@ function pathsAreByteEqual(left: string, right: string): boolean {
   );
 }
 
-function copyCurrentPayload(harness: string, destinationRoot: string): void {
+function systemDocumentExists(root: string, systemKey: string): boolean {
+  return (
+    fs.existsSync(path.join(root, 'systems', systemKey, 'root.json'))
+    || fs.existsSync(path.join(root, 'systems', `${systemKey}.json`))
+    || fs.existsSync(path.join(root, 'harnesses', systemKey, 'root.json'))
+    || fs.existsSync(path.join(root, 'harnesses', `${systemKey}.json`))
+  );
+}
+
+function copyCurrentPayload(systemKey: string, destinationRoot: string): void {
   const { userDataRoot } = getCollaborationPaths();
-  const sheetedRoot = path.join(userDataRoot, 'harnesses', harness, 'root.json');
-  const flatFile = path.join(userDataRoot, 'harnesses', `${harness}.json`);
-  if (!fs.existsSync(sheetedRoot) && !fs.existsSync(flatFile)) {
+  if (!systemDocumentExists(userDataRoot, systemKey)) {
     throw new Error(
-      `Cannot snapshot '${harness}': neither a sheeted root nor a flat harness file exists.`,
+      `Cannot snapshot '${systemKey}': neither a sheeted root nor a flat system file exists.`,
     );
   }
 
-  for (const artifact of payloadArtifacts(harness)) {
+  for (const artifact of payloadArtifacts(systemKey)) {
     const source = path.join(userDataRoot, artifact.relativePath);
     if (!fs.existsSync(source)) continue;
     if (
-      artifact.relativePath === path.join('harnesses', harness)
-      && !fs.existsSync(sheetedRoot)
+      (artifact.relativePath === path.join('systems', systemKey)
+        || artifact.relativePath === path.join('harnesses', systemKey))
+      && !fs.existsSync(path.join(source, 'root.json'))
     ) {
       continue;
     }
@@ -197,51 +208,57 @@ function copyCurrentPayload(harness: string, destinationRoot: string): void {
   }
 }
 
-function readHarnessFromPayload(payloadRoot: string, harness: string): HarnessData {
-  const harnessDir = path.join(payloadRoot, 'harnesses', harness);
-  const flatFile = path.join(payloadRoot, 'harnesses', `${harness}.json`);
-  if (fs.existsSync(path.join(harnessDir, 'root.json'))) {
-    return assembleHarnessFromDisk(harnessDir);
+function readSystemFromPayload(payloadRoot: string, systemKey: string): SystemData {
+  const canonicalDir = path.join(payloadRoot, 'systems', systemKey);
+  const canonicalFlat = path.join(payloadRoot, 'systems', `${systemKey}.json`);
+  const legacyDir = path.join(payloadRoot, 'harnesses', systemKey);
+  const legacyFlat = path.join(payloadRoot, 'harnesses', `${systemKey}.json`);
+  if (fs.existsSync(path.join(canonicalDir, 'root.json'))) {
+    return assembleSystemFromDisk(canonicalDir);
   }
+  if (fs.existsSync(path.join(legacyDir, 'root.json'))) {
+    return assembleSystemFromDisk(legacyDir);
+  }
+  const flatFile = fs.existsSync(canonicalFlat) ? canonicalFlat : legacyFlat;
   if (!fs.existsSync(flatFile)) {
-    throw new Error(`Cannot count '${harness}': checkpoint has no harness document.`);
+    throw new Error(`Cannot count '${systemKey}': checkpoint has no system document.`);
   }
   try {
-    return JSON.parse(fs.readFileSync(flatFile, 'utf8')) as HarnessData;
+    return normalizeSystemData(JSON.parse(fs.readFileSync(flatFile, 'utf8')));
   } catch (error) {
     throw new Error(
-      `Cannot parse flat harness '${flatFile}': ${
+      `Cannot parse flat system '${flatFile}': ${
         error instanceof Error ? error.message : String(error)
       }`,
     );
   }
 }
 
-function entityCounts(harness: HarnessData, context: string): EntityCounts {
+function entityCounts(system: SystemData, context: string): EntityCounts {
   for (const collection of [
-    'enclosures',
+    'hierarchy',
     'connectors',
-    'mergePoints',
+    'branchPoints',
     'paths',
     'signals',
   ] as const) {
-    if (!Array.isArray(harness[collection])) {
+    if (!Array.isArray(system[collection])) {
       throw new Error(`Cannot count ${context}: '${collection}' is not an array.`);
     }
   }
   return {
-    enclosures: harness.enclosures.length,
-    connectors: harness.connectors.length,
-    mergePoints: harness.mergePoints.length,
-    paths: harness.paths.length,
-    signals: harness.signals.length,
+    hierarchy: system.hierarchy.length,
+    connectors: system.connectors.length,
+    branchPoints: system.branchPoints.length,
+    paths: system.paths.length,
+    signals: system.signals.length,
   };
 }
 
-function currentCounts(harness: string): EntityCounts {
+function currentCounts(systemKey: string): EntityCounts {
   return entityCounts(
-    readHarnessFromPayload(getCollaborationPaths().userDataRoot, harness),
-    `current harness '${harness}'`,
+    readSystemFromPayload(getCollaborationPaths().userDataRoot, systemKey),
+    `current System '${systemKey}'`,
   );
 }
 
@@ -260,7 +277,26 @@ function parseCheckpointMeta(filePath: string): CheckpointMeta {
     throw new Error(`Invalid checkpoint metadata '${filePath}': expected an object.`);
   }
   const meta = value as Partial<CheckpointMeta>;
-  const counts = meta.counts as Partial<EntityCounts> | undefined;
+  const rawCounts = meta.counts as Record<string, unknown> | undefined;
+  const hierarchyCount = Number(
+    rawCounts?.hierarchy ?? rawCounts?.enclosures,
+  );
+  const branchPointCount = Number(
+    rawCounts?.branchPoints ?? rawCounts?.mergePoints,
+  );
+  const counts: EntityCounts | undefined = rawCounts && Number.isSafeInteger(hierarchyCount)
+    && Number.isSafeInteger(Number(rawCounts.connectors))
+    && Number.isSafeInteger(branchPointCount)
+    && Number.isSafeInteger(Number(rawCounts.paths))
+    && Number.isSafeInteger(Number(rawCounts.signals))
+    ? {
+      hierarchy: hierarchyCount,
+      connectors: Number(rawCounts.connectors),
+      branchPoints: branchPointCount,
+      paths: Number(rawCounts.paths),
+      signals: Number(rawCounts.signals),
+    }
+    : undefined;
   if (
     typeof meta.id !== 'string'
     || !/^[a-zA-Z0-9_-]+$/.test(meta.id)
@@ -277,17 +313,12 @@ function parseCheckpointMeta(filePath: string): CheckpointMeta {
     || (meta.rev ?? -1) < 0
     || typeof meta.auto !== 'boolean'
     || !counts
-    || !Number.isSafeInteger(counts.enclosures)
-    || !Number.isSafeInteger(counts.connectors)
-    || !Number.isSafeInteger(counts.mergePoints)
-    || !Number.isSafeInteger(counts.paths)
-    || !Number.isSafeInteger(counts.signals)
     || (meta.dailyKey !== undefined && !/^\d{4}-\d{2}-\d{2}$/.test(meta.dailyKey))
     || (meta.contributors !== undefined && !isRevisionWriterArray(meta.contributors))
   ) {
     throw new Error(`Invalid checkpoint metadata '${filePath}'.`);
   }
-  return meta as CheckpointMeta;
+  return { ...meta, counts } as CheckpointMeta;
 }
 
 function isRevisionWriterArray(value: unknown): value is RevisionWriter[] {
@@ -304,16 +335,16 @@ function isRevisionWriterArray(value: unknown): value is RevisionWriter[] {
   );
 }
 
-function readCheckpointMeta(harness: string, id: string): CheckpointMeta {
-  const directory = checkpointDir(harness, id);
+function readCheckpointMeta(systemKey: string, id: string): CheckpointMeta {
+  const directory = checkpointDir(systemKey, id);
   const metaFile = path.join(directory, 'meta.json');
   if (!fs.existsSync(metaFile)) {
-    throw new Error(`Checkpoint '${id}' for '${harness}' does not exist or has no metadata.`);
+    throw new Error(`Checkpoint '${id}' for '${systemKey}' does not exist or has no metadata.`);
   }
   const meta = parseCheckpointMeta(metaFile);
   if (meta.id !== id) {
     throw new Error(
-      `Checkpoint '${id}' for '${harness}' has mismatched metadata id '${meta.id}'.`,
+      `Checkpoint '${id}' for '${systemKey}' has mismatched metadata id '${meta.id}'.`,
     );
   }
   return meta;
@@ -326,10 +357,10 @@ function validateUser(user: RevisionWriter, context: string): RevisionWriter {
   return { id: user.id, displayName: user.displayName };
 }
 
-function checkpointCounts(harness: string, id: string): EntityCounts {
-  const payloadRoot = path.join(checkpointDir(harness, id), 'files');
+function checkpointCounts(systemKey: string, id: string): EntityCounts {
+  const payloadRoot = path.join(checkpointDir(systemKey, id), 'files');
   return entityCounts(
-    readHarnessFromPayload(payloadRoot, harness),
+    readSystemFromPayload(payloadRoot, systemKey),
     `checkpoint '${id}'`,
   );
 }
@@ -340,20 +371,20 @@ interface DailyCheckpointContext {
 }
 
 function createCheckpointLocked(
-  harness: string,
+  systemKey: string,
   label: string,
   user: RevisionWriter,
   auto: boolean,
   daily?: DailyCheckpointContext,
 ): CheckpointMeta {
   const cleanLabel = label.trim();
-  if (!cleanLabel) throw new Error(`Cannot checkpoint '${harness}': label is required.`);
-  const cleanUser = validateUser(user, `Cannot checkpoint '${harness}'`);
+  if (!cleanLabel) throw new Error(`Cannot checkpoint '${systemKey}': label is required.`);
+  const cleanUser = validateUser(user, `Cannot checkpoint '${systemKey}'`);
   const id = randomUUID();
-  const destination = checkpointDir(harness, id);
+  const destination = checkpointDir(systemKey, id);
   const stage = `${destination}.${process.pid}.${Date.now()}.tmp`;
   if (fs.existsSync(destination)) {
-    throw new Error(`Cannot checkpoint '${harness}': generated id '${id}' already exists.`);
+    throw new Error(`Cannot checkpoint '${systemKey}': generated id '${id}' already exists.`);
   }
 
   const meta: CheckpointMeta = {
@@ -361,9 +392,9 @@ function createCheckpointLocked(
     label: cleanLabel,
     createdAt: new Date().toISOString(),
     createdBy: cleanUser,
-    rev: getRev(harness),
+    rev: getRev(systemKey),
     auto,
-    counts: currentCounts(harness),
+    counts: currentCounts(systemKey),
     ...(daily
       ? {
         dailyKey: daily.dailyKey,
@@ -374,7 +405,7 @@ function createCheckpointLocked(
 
   try {
     fs.mkdirSync(stage, { recursive: true });
-    copyCurrentPayload(harness, path.join(stage, 'files'));
+    copyCurrentPayload(systemKey, path.join(stage, 'files'));
     writeJsonAtomic(path.join(stage, 'meta.json'), meta);
     fs.mkdirSync(path.dirname(destination), { recursive: true });
     fs.renameSync(stage, destination);
@@ -382,22 +413,22 @@ function createCheckpointLocked(
   } catch (error) {
     removePath(stage);
     throw new Error(
-      `Cannot create checkpoint for '${harness}': ${
+      `Cannot create checkpoint for '${systemKey}': ${
         error instanceof Error ? error.message : String(error)
       }`,
     );
   }
 }
 
-function stageHistorySnapshot(harness: string, rev: number): string {
+function stageHistorySnapshot(systemKey: string, rev: number): string {
   if (!Number.isSafeInteger(rev) || rev < 0) {
-    throw new Error(`Cannot snapshot '${harness}': invalid revision '${rev}'.`);
+    throw new Error(`Cannot snapshot '${systemKey}': invalid revision '${rev}'.`);
   }
-  const destination = path.join(historyHarnessDir(harness), String(rev));
+  const destination = path.join(historySystemDir(systemKey), String(rev));
   const stage = `${destination}.${process.pid}.${Date.now()}.tmp`;
   try {
     fs.mkdirSync(stage, { recursive: true });
-    copyCurrentPayload(harness, stage);
+    copyCurrentPayload(systemKey, stage);
     if (fs.existsSync(destination)) {
       if (!pathsAreByteEqual(stage, destination)) {
         throw new Error(
@@ -413,7 +444,7 @@ function stageHistorySnapshot(harness: string, rev: number): string {
   } catch (error) {
     removePath(stage);
     throw new Error(
-      `Cannot snapshot '${harness}' revision ${rev}: ${
+      `Cannot snapshot '${systemKey}' revision ${rev}: ${
         error instanceof Error ? error.message : String(error)
       }`,
     );
@@ -421,7 +452,7 @@ function stageHistorySnapshot(harness: string, rev: number): string {
 }
 
 /**
- * Replaces this harness's `public/user-data` payload with the copy held in
+ * Replaces this System's `public/user-data` payload with the copy held in
  * `snapshotRoot`, which may be either an automatic history snapshot or a named
  * checkpoint's `files` directory.
  *
@@ -429,12 +460,12 @@ function stageHistorySnapshot(harness: string, rev: number): string {
  * way through unwinds the renames already performed so the on-disk payload is
  * never left half-replaced.
  */
-export function restoreManagedPayload(snapshotRoot: string, harness: string): void {
+export function restoreManagedPayload(snapshotRoot: string, systemKey: string): void {
   const { stateRoot, userDataRoot } = getCollaborationPaths();
   const transactionRoot = path.join(
     stateRoot,
     'rollback-staging',
-    `${harness}.${process.pid}.${Date.now()}.${Math.random().toString(36).slice(2)}.tmp`,
+    `${systemKey}.${process.pid}.${Date.now()}.${Math.random().toString(36).slice(2)}.tmp`,
   );
   const stagedRoot = path.join(transactionRoot, 'staged');
   const backupRoot = path.join(transactionRoot, 'backup');
@@ -446,14 +477,14 @@ export function restoreManagedPayload(snapshotRoot: string, harness: string): vo
   }> = [];
 
   try {
-    for (const artifact of payloadArtifacts(harness)) {
+    for (const artifact of payloadArtifacts(systemKey)) {
       const source = path.join(snapshotRoot, artifact.relativePath);
       if (fs.existsSync(source)) {
         copyPathExact(source, path.join(stagedRoot, artifact.relativePath));
       }
     }
 
-    for (const artifact of payloadArtifacts(harness)) {
+    for (const artifact of payloadArtifacts(systemKey)) {
       const target = path.join(userDataRoot, artifact.relativePath);
       const staged = path.join(stagedRoot, artifact.relativePath);
       const backup = path.join(backupRoot, artifact.relativePath);
@@ -495,20 +526,20 @@ export function restoreManagedPayload(snapshotRoot: string, harness: string): vo
 }
 
 /** Directory holding the byte-exact user-data payload for a named checkpoint. */
-export function checkpointPayloadDir(harness: string, id: string): string {
-  return path.join(checkpointDir(harness, id), 'files');
+export function checkpointPayloadDir(systemKey: string, id: string): string {
+  return path.join(checkpointDir(systemKey, id), 'files');
 }
 
-export async function snapshotToHistory(harness: string, rev: number): Promise<string> {
-  return await withHarnessLock(harness, () => stageHistorySnapshot(harness, rev));
+export async function snapshotToHistory(systemKey: string, rev: number): Promise<string> {
+  return await withSystemLock(systemKey, () => stageHistorySnapshot(systemKey, rev));
 }
 
-export function listCheckpoints(harness: string): CheckpointMeta[] {
-  const directory = checkpointsHarnessDir(harness);
+export function listCheckpoints(systemKey: string): CheckpointMeta[] {
+  const directory = checkpointsSystemDir(systemKey);
   if (!fs.existsSync(directory)) return [];
   const checkpoints = fs.readdirSync(directory, { withFileTypes: true })
     .filter((entry) => entry.isDirectory() && !entry.name.endsWith('.tmp'))
-    .map((entry) => readCheckpointMeta(harness, entry.name));
+    .map((entry) => readCheckpointMeta(systemKey, entry.name));
   return checkpoints.sort((left, right) => right.createdAt.localeCompare(left.createdAt));
 }
 
@@ -519,13 +550,13 @@ export function listCheckpoints(harness: string): CheckpointMeta[] {
  * label text.
  */
 export async function createCheckpoint(
-  harness: string,
+  systemKey: string,
   label: string,
   user: RevisionWriter,
   auto = false,
 ): Promise<CheckpointMeta> {
-  return await withHarnessLock(harness, () =>
-    createCheckpointLocked(harness, label, user, auto),
+  return await withSystemLock(systemKey, () =>
+    createCheckpointLocked(systemKey, label, user, auto),
   );
 }
 
@@ -543,12 +574,12 @@ function formatDailyLabel(dailyKey: string): string {
   return `Daily save — ${MONTH_NAMES[month - 1]} ${day}, ${year}`;
 }
 
-function latestDailyCheckpoint(harness: string): CheckpointMeta | null {
-  return listCheckpoints(harness).find((checkpoint) => checkpoint.dailyKey !== undefined) ?? null;
+function latestDailyCheckpoint(systemKey: string): CheckpointMeta | null {
+  return listCheckpoints(systemKey).find((checkpoint) => checkpoint.dailyKey !== undefined) ?? null;
 }
 
 /**
- * Creates the first checkpoint of the day for `harness`, the moment someone
+ * Creates the first checkpoint of the day for `systemKey`, the moment someone
  * edits it, tagged with everyone who wrote to it since the previous daily
  * checkpoint. A no-op (returns `null`) if today's daily checkpoint already
  * exists — so calling this after every write is safe and cheap; only the
@@ -559,18 +590,18 @@ function latestDailyCheckpoint(harness: string): CheckpointMeta | null {
  * an edit belongs to.
  */
 export async function ensureDailyCheckpoint(
-  harness: string,
+  systemKey: string,
   writer: RevisionWriter,
 ): Promise<CheckpointMeta | null> {
-  return await withHarnessLock(harness, () => {
-    const cleanWriter = validateUser(writer, `Cannot save daily checkpoint for '${harness}'`);
+  return await withSystemLock(systemKey, () => {
+    const cleanWriter = validateUser(writer, `Cannot save daily checkpoint for '${systemKey}'`);
     const todayKey = utcDateKey(new Date());
-    const previousDaily = latestDailyCheckpoint(harness);
+    const previousDaily = latestDailyCheckpoint(systemKey);
     if (previousDaily?.dailyKey === todayKey) return null;
 
-    const contributors = listContributorsSince(harness, previousDaily?.createdAt ?? null);
+    const contributors = listContributorsSince(systemKey, previousDaily?.createdAt ?? null);
     return createCheckpointLocked(
-      harness,
+      systemKey,
       formatDailyLabel(todayKey),
       cleanWriter,
       true,
@@ -579,25 +610,25 @@ export async function ensureDailyCheckpoint(
   });
 }
 
-export function getCheckpoint(harness: string, id: string): CheckpointDetails {
-  const meta = readCheckpointMeta(harness, id);
-  const current = currentCounts(harness);
-  const saved = checkpointCounts(harness, id);
+export function getCheckpoint(systemKey: string, id: string): CheckpointDetails {
+  const meta = readCheckpointMeta(systemKey, id);
+  const current = currentCounts(systemKey);
+  const saved = checkpointCounts(systemKey, id);
   return {
     ...meta,
     countDiff: {
-      enclosures: saved.enclosures - current.enclosures,
+      hierarchy: saved.hierarchy - current.hierarchy,
       connectors: saved.connectors - current.connectors,
-      mergePoints: saved.mergePoints - current.mergePoints,
+      branchPoints: saved.branchPoints - current.branchPoints,
       paths: saved.paths - current.paths,
       signals: saved.signals - current.signals,
     },
   };
 }
 
-export async function pruneHistory(harness: string): Promise<PruneResult> {
-  return await withHarnessLock(harness, () => {
-    const directory = historyHarnessDir(harness);
+export async function pruneHistory(systemKey: string): Promise<PruneResult> {
+  return await withSystemLock(systemKey, () => {
+    const directory = historySystemDir(systemKey);
     if (!fs.existsSync(directory)) return { kept: [], removed: [] };
 
     const snapshots = fs.readdirSync(directory, { withFileTypes: true })

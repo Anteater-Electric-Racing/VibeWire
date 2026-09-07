@@ -1,8 +1,8 @@
 /**
- * Persistent collaboration revisions and the process-local per-harness mutex.
+ * Persistent collaboration revisions and the process-local per-systemKey mutex.
  *
  * Call `configureCollaborationState` once from server startup. All compound
- * persistence transactions must run inside `withHarnessLock`; `bumpRev` also
+ * persistence transactions must run inside `withSystemLock`; `bumpRev` also
  * acquires that lock and is safely re-entrant from an already-locked callback.
  */
 import { AsyncLocalStorage } from 'node:async_hooks';
@@ -54,18 +54,18 @@ function pathsFor(projectRoot: string, stateRoot?: string): CollaborationPaths {
   };
 }
 
-function assertStorageKey(harness: string): string {
-  if (!/^[a-zA-Z0-9_-]+$/.test(harness)) {
-    throw new Error(`Invalid collaboration storage key '${harness}'.`);
+function assertStorageKey(value: unknown): string {
+  if (typeof value !== 'string' || !/^[a-zA-Z0-9_-]+$/.test(value)) {
+    throw new Error(`Invalid collaboration storage key '${String(value)}'.`);
   }
-  return harness;
+  return value;
 }
 
-function revisionFile(harness: string): string {
+function revisionFile(systemKey: string): string {
   return path.join(
     collaborationPaths.stateRoot,
     'revisions',
-    `${assertStorageKey(harness)}.json`,
+    `${assertStorageKey(systemKey)}.json`,
   );
 }
 
@@ -116,11 +116,11 @@ function parseRevisionState(raw: string, filePath: string): RevisionState {
   };
 }
 
-function maxHistoryRevision(harness: string): number {
+function maxHistoryRevision(systemKey: string): number {
   const historyDir = path.join(
     collaborationPaths.stateRoot,
     'history',
-    assertStorageKey(harness),
+    assertStorageKey(systemKey),
   );
   if (!fs.existsSync(historyDir)) return -1;
   try {
@@ -131,49 +131,49 @@ function maxHistoryRevision(harness: string): number {
     }, -1);
   } catch (error) {
     throw new Error(
-      `Cannot inspect revision history for '${harness}': ${
+      `Cannot inspect revision history for '${systemKey}': ${
         error instanceof Error ? error.message : String(error)
       }`,
     );
   }
 }
 
-function recoveredRevisionState(harness: string): RevisionState {
+function recoveredRevisionState(systemKey: string): RevisionState {
   const recovered: RevisionState = {
-    rev: maxHistoryRevision(harness) + 1,
+    rev: maxHistoryRevision(systemKey) + 1,
     lastWriter: null,
     lastWriteAt: new Date().toISOString(),
   };
-  writeJsonAtomic(revisionFile(harness), recovered);
+  writeJsonAtomic(revisionFile(systemKey), recovered);
   return recovered;
 }
 
-function readRevisionState(harness: string): RevisionState {
-  const filePath = revisionFile(harness);
-  if (!fs.existsSync(filePath)) return recoveredRevisionState(harness);
+function readRevisionState(systemKey: string): RevisionState {
+  const filePath = revisionFile(systemKey);
+  if (!fs.existsSync(filePath)) return recoveredRevisionState(systemKey);
 
   let current: RevisionState;
   try {
     current = parseRevisionState(fs.readFileSync(filePath, 'utf8'), filePath);
   } catch (error) {
-    if (error instanceof SyntaxError) return recoveredRevisionState(harness);
+    if (error instanceof SyntaxError) return recoveredRevisionState(systemKey);
     throw new Error(
-      `Cannot read revision for '${harness}': ${
+      `Cannot read revision for '${systemKey}': ${
         error instanceof Error ? error.message : String(error)
       }`,
     );
   }
 
-  const historyMax = maxHistoryRevision(harness);
+  const historyMax = maxHistoryRevision(systemKey);
   if (current.rev < historyMax) {
-    return recoveredRevisionState(harness);
+    return recoveredRevisionState(systemKey);
   }
   return current;
 }
 
 export function configureCollaborationState(projectRoot: string, stateRoot?: string): void {
   if (outstandingLockCount > 0) {
-    throw new Error('Cannot reconfigure collaboration paths while a harness lock is active.');
+    throw new Error('Cannot reconfigure collaboration paths while a System lock is active.');
   }
   collaborationPaths = pathsFor(projectRoot, stateRoot);
   lockTails.clear();
@@ -184,20 +184,20 @@ export function getCollaborationPaths(): Readonly<CollaborationPaths> {
   return { ...collaborationPaths };
 }
 
-export function getRevisionState(harness: string): RevisionState {
-  const state = readRevisionState(harness);
+export function getRevisionState(systemKey: string): RevisionState {
+  const state = readRevisionState(systemKey);
   return {
     ...state,
     lastWriter: state.lastWriter ? { ...state.lastWriter } : null,
   };
 }
 
-export function getRev(harness: string): number {
-  return readRevisionState(harness).rev;
+export function getRev(systemKey: string): number {
+  return readRevisionState(systemKey).rev;
 }
 
-export function checkCas(harness: string, baseRev: number): CasResult {
-  const current = readRevisionState(harness);
+export function checkCas(systemKey: string, baseRev: number): CasResult {
+  const current = readRevisionState(systemKey);
   if (!Number.isSafeInteger(baseRev) || baseRev < 0) {
     return {
       ok: false,
@@ -219,11 +219,11 @@ export function checkCas(harness: string, baseRev: number): CasResult {
   return { ok: true, currentRev: current.rev };
 }
 
-export async function withHarnessLock<T>(
-  harness: string,
+export async function withSystemLock<T>(
+  systemKey: string,
   fn: () => T | Promise<T>,
 ): Promise<T> {
-  const key = assertStorageKey(harness);
+  const key = assertStorageKey(systemKey);
   const alreadyHeld = heldLocks.getStore();
   const inheritedToken = alreadyHeld?.get(key);
   if (inheritedToken && activeLockTokens.has(inheritedToken)) return await fn();
@@ -257,21 +257,21 @@ export async function withHarnessLock<T>(
   }
 }
 
-export async function bumpRev(harness: string, writer: RevisionWriter): Promise<number> {
+export async function bumpRev(systemKey: string, writer: RevisionWriter): Promise<number> {
   if (!isWriter(writer) || !writer.id || !writer.displayName) {
-    throw new Error(`Cannot bump revision for '${harness}': invalid writer identity.`);
+    throw new Error(`Cannot bump revision for '${systemKey}': invalid writer identity.`);
   }
-  return await withHarnessLock(harness, () => {
-    const current = readRevisionState(harness);
+  return await withSystemLock(systemKey, () => {
+    const current = readRevisionState(systemKey);
     if (current.rev >= Number.MAX_SAFE_INTEGER) {
-      throw new Error(`Cannot bump revision for '${harness}': counter exhausted.`);
+      throw new Error(`Cannot bump revision for '${systemKey}': counter exhausted.`);
     }
     const next: RevisionState = {
       rev: current.rev + 1,
       lastWriter: { id: writer.id, displayName: writer.displayName },
       lastWriteAt: new Date().toISOString(),
     };
-    writeJsonAtomic(revisionFile(harness), next);
+    writeJsonAtomic(revisionFile(systemKey), next);
     return next.rev;
   });
 }

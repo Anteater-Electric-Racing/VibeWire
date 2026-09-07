@@ -7,13 +7,14 @@ import type {
   SyncPayload,
   SyncStatus,
 } from '../../types/collab';
+import { normalizePeerPresence } from '../systemNormalize';
 
 const POLL_INTERVAL_MS = 20_000;
 const RECONNECT_MIN_MS = 1_000;
 const RECONNECT_MAX_MS = 20_000;
 
 export interface ChangeSubscriptionOptions {
-  harness: string;
+  system: string;
   since?: number;
   libraryRev?: number;
   onRev: (payload: SyncPayload) => void | Promise<void>;
@@ -31,7 +32,7 @@ function hasChangedState(payload: SyncPayload): boolean {
 }
 
 export function subscribeToChanges({
-  harness,
+  system: systemKey,
   since = 0,
   libraryRev = 0,
   onRev,
@@ -102,8 +103,8 @@ export function subscribeToChanges({
 
   const requestSync = (): Promise<void> => {
     if (syncRequest) return syncRequest;
-    const name = encodeURIComponent(harness);
-    const request = fetch(`/api/sync?harness=${name}&since=${currentRev}`, {
+    const name = encodeURIComponent(systemKey);
+    const request = fetch(`/api/sync?system=${name}&since=${currentRev}`, {
       credentials: 'same-origin',
       cache: 'no-store',
     })
@@ -162,8 +163,8 @@ export function subscribeToChanges({
       return;
     }
     eventSource?.close();
-    const name = encodeURIComponent(harness);
-    eventSource = new EventSource(`/api/events?harness=${name}&since=${currentRev}`, {
+    const name = encodeURIComponent(systemKey);
+    eventSource = new EventSource(`/api/events?system=${name}&since=${currentRev}`, {
       withCredentials: true,
     });
     eventSource.onopen = () => {
@@ -195,7 +196,11 @@ export function subscribeToChanges({
       const event = rawEvent as MessageEvent<string>;
       try {
         const body = JSON.parse(event.data) as { peers?: PeerPresence[] };
-        onPresence(Array.isArray(body.peers) ? body.peers : []);
+        onPresence(Array.isArray(body.peers)
+          ? body.peers
+            .map((peer) => normalizePeerPresence(peer))
+            .filter((peer): peer is PeerPresence => peer !== null)
+          : []);
       } catch {
         // A malformed presence packet must not interrupt document sync.
       }

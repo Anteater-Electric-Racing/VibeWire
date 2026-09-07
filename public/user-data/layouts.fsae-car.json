@@ -29,8 +29,8 @@
       "y": -540.936864722612
     },
     "enc_001": {
-      "x": 48.14552321719236,
-      "y": -572.3155192547692
+      "x": -15.423702000276478,
+      "y": -571.3737875435249
     },
     "pcb_002": {
       "x": 605.4523020091565,
@@ -65,8 +65,8 @@
       "y": -80.69055914566138
     },
     "enc_021": {
-      "x": -33.1634130233474,
-      "y": 240.89058090614833
+      "x": -28.163413023347402,
+      "y": 263.89058090614833
     },
     "enc_020": {
       "x": 2169.2115172447516,
@@ -133,8 +133,8 @@
       "y": -719.2588085324929
     },
     "enc_034": {
-      "x": 330.0068327995358,
-      "y": -671.6741328175845
+      "x": 432.31725746065734,
+      "y": -905.8942244946172
     },
     "enc_035": {
       "x": -7.074145315676006,
@@ -149,8 +149,8 @@
       "y": 59.658148954722236
     },
     "enc_036": {
-      "x": -147.11079937044832,
-      "y": -137.78946687140103
+      "x": -363.038250775501,
+      "y": -49.690442565126574
     },
     "enc_039": {
       "x": 2496.2931319870504,
@@ -159,6 +159,10 @@
     "enc_019": {
       "x": 1664.4869225223001,
       "y": -160.29170714445027
+    },
+    "dev_as": {
+      "x": 476.65179896483806,
+      "y": 480.57505478818587
     }
   },
   "ports": {
@@ -198,13 +202,9 @@
       "x": 51.44025516375754,
       "y": 365.53940791343393
     },
-    "con_004": {
-      "x": 266.4419110057212,
-      "y": 129.16337212160744
-    },
     "con_005": {
-      "x": 373.5,
-      "y": 368
+      "x": 288.185847359037,
+      "y": 392.5
     },
     "con_006": {
       "x": 139.6243582920968,
@@ -279,12 +279,12 @@
       "y": 40.043457466569805
     },
     "con_001": {
-      "x": 0,
-      "y": 390.5
+      "x": -53.5,
+      "y": 187.125
     },
     "con_002": {
-      "x": -45,
-      "y": 120.59163750226742
+      "x": 186.18265250268846,
+      "y": 387
     },
     "con_082": {
       "x": 222.92786176015642,
@@ -375,8 +375,8 @@
       "y": 82.71441227404455
     },
     "con_063": {
-      "x": 8.436314125925094,
-      "y": 31.96341356666295
+      "x": 70.43160504758282,
+      "y": 58.012951966558944
     },
     "con_062": {
       "x": 12.849386962911012,
@@ -391,12 +391,12 @@
       "y": 268.1699803962732
     },
     "con_078": {
-      "x": 83.5775704958383,
-      "y": 25
+      "x": 72.63872006037248,
+      "y": 41.73000654835948
     },
     "con_079": {
-      "x": 79.4729081535757,
-      "y": 52.82745627782779
+      "x": 17,
+      "y": 36
     },
     "con_061": {
       "x": 12,
@@ -412,11 +412,11 @@
     },
     "con_132": {
       "x": 367,
-      "y": 311.89106768467775
+      "y": 187.09361146819612
     },
     "con_077": {
-      "x": 56.929158948722375,
-      "y": 13.439108500982798
+      "x": 58.85954431968696,
+      "y": 47.54258338802333
     },
     "con_auto_df056da206c4_1": {
       "x": 367,
@@ -433,6 +433,14 @@
     "con_auto_ba1a71ebd23a_1": {
       "x": -50,
       "y": 239.43081091657882
+    },
+    "con_dot_cfa49b64-2942-4c0c-88e4-0bc9b13c8559": {
+      "x": 202,
+      "y": 65.05520181949868
+    },
+    "con_dot_b714dbc1-1699-4dd3-9d0b-21baf10053e8": {
+      "x": -9,
+      "y": 399
     }
   },
   "sizes": {
@@ -718,10 +726,6 @@
       "x": 611.6442335928683,
       "y": 1019.0723429688093
     },
-    "con_004": {
-      "x": 255.4926732241226,
-      "y": 1035.4127089520143
-    },
     "con_008": {
       "x": 530,
       "y": 1129.375
@@ -781,6 +785,20 @@
       "image": "71c85de896c3c09c7e6f91fbbd8abade62741fbb250315090c97323d44003567.png"
     }
   },
+  "images": {
+    "img_graph": {
+      "id": "img_graph",
+      "contextKey": "graph",
+      "image": "background.png",
+      "name": "backgaround",
+      "x": -605.652333455942,
+      "y": -1480.4443940371068,
+      "w": 2956,
+      "h": 2249,
+      "locked": true,
+      "layer": "background"
+    }
+  },
   "connectorTypeSizes": {
     "deutsch_dt": {
       "w": 36,
@@ -791,69 +809,69 @@
   "waypoints": {
     "con_014_con_035": [
       {
-        "junctionId": "jct_1775804295066"
+        "sharedAnchorId": "jct_1775804295066"
       }
     ],
     "con_009_con_031": [
       {
-        "junctionId": "jct_1775804295066"
+        "sharedAnchorId": "jct_1775804295066"
       },
       {
-        "junctionId": "jct_1775804301306"
+        "sharedAnchorId": "jct_1775804301306"
       }
     ],
     "bundle_con_033_con_041": [
       {
-        "junctionId": "jct_1775945763979"
+        "sharedAnchorId": "jct_1775945763979"
       },
       {
-        "junctionId": "jct_1775945765972"
+        "sharedAnchorId": "jct_1775945765972"
       },
       {
-        "junctionId": "jct_1775945774645"
+        "sharedAnchorId": "jct_1775945774645"
       }
     ],
     "bundle_con_034_con_038": [
       {
-        "junctionId": "jct_1776028002846"
+        "sharedAnchorId": "jct_1776028002846"
       },
       {
-        "junctionId": "jct_1776031124747"
+        "sharedAnchorId": "jct_1776031124747"
       },
       {
-        "junctionId": "jct_1776031119869"
+        "sharedAnchorId": "jct_1776031119869"
       }
     ],
     "bundle_con_032_con_039": [
       {
-        "junctionId": "jct_1775942548174"
+        "sharedAnchorId": "jct_1775942548174"
       },
       {
-        "junctionId": "jct_1775942550056"
+        "sharedAnchorId": "jct_1775942550056"
       }
     ],
     "bundle_con_045_con_046": [
       {
-        "junctionId": "jct_1776028002846"
+        "sharedAnchorId": "jct_1776028002846"
       },
       {
-        "junctionId": "jct_1776031124747"
+        "sharedAnchorId": "jct_1776031124747"
       },
       {
-        "junctionId": "jct_1776031119869"
+        "sharedAnchorId": "jct_1776031119869"
       },
       {
         "x": 53.534713648329465,
         "y": -217.78364891433378
       },
       {
-        "junctionId": "jct_1775945763979"
+        "sharedAnchorId": "jct_1775945763979"
       },
       {
-        "junctionId": "jct_1775945774645"
+        "sharedAnchorId": "jct_1775945774645"
       },
       {
-        "junctionId": "jct_1775942548174"
+        "sharedAnchorId": "jct_1775942548174"
       }
     ],
     "bundle_con_033_con_043": [
@@ -869,47 +887,47 @@
     "bundle_con_015_con_023": [],
     "bundle_con_012_con_030": [
       {
-        "junctionId": "jct_1776108792012"
+        "sharedAnchorId": "jct_1776108792012"
       }
     ],
     "bundle_con_015_con_040": [
       {
-        "junctionId": "jct_1776108792012"
+        "sharedAnchorId": "jct_1776108792012"
       }
     ],
     "bundle:connector:con_015:13|connector:con_040:2": [],
     "bundle:connector:con_015:7|connector:con_040:1": [
       {
-        "junctionId": "jct_1776118621564"
+        "sharedAnchorId": "jct_1776118621564"
       }
     ],
     "bundle:connector:con_013:1|connector:con_033:1": [
       {
-        "junctionId": "jct_1776118621564"
+        "sharedAnchorId": "jct_1776118621564"
       }
     ],
     "bundle:connector:con_045|connector:con_046": [
       {
-        "junctionId": "jct_1776131101818"
+        "sharedAnchorId": "jct_1776131101818"
       },
       {
-        "junctionId": "jct_1776131099436"
+        "sharedAnchorId": "jct_1776131099436"
       }
     ],
     "bundle:connector:con_033|connector:con_042": [
       {
-        "junctionId": "jct_1776131099436"
+        "sharedAnchorId": "jct_1776131099436"
       },
       {
-        "junctionId": "jct_1776131101818"
+        "sharedAnchorId": "jct_1776131101818"
       }
     ],
     "bundle:connector:con_003|connector:con_070": [
       {
-        "junctionId": "jct_1776219503307"
+        "sharedAnchorId": "jct_1776219503307"
       },
       {
-        "junctionId": "jct_1776219490390"
+        "sharedAnchorId": "jct_1776219490390"
       }
     ],
     "bundle:connector:con_003|connector:con_069": [
@@ -918,43 +936,42 @@
         "y": -311.16077555618006
       }
     ],
-    "bundle:connector:con_004|connector:con_064": [
+    "bundle:branch:mp_004|branch:mp_006": [
       {
-        "junctionId": "jct_1776276284460"
+        "x": -40,
+        "y": -620
       },
       {
-        "junctionId": "jct_1776276278381"
-      }
-    ],
-    "bundle:connector:con_004|connector:con_066": [
-      {
-        "junctionId": "jct_1776276284460"
+        "x": -40,
+        "y": -700
       },
       {
-        "junctionId": "jct_1776276278381"
+        "x": -65.46487964892596,
+        "y": -700
       },
       {
-        "x": 512.3900308009308,
-        "y": -574.8800225283862
+        "x": -200,
+        "y": -700
       },
       {
-        "x": 1231.2946333902357,
-        "y": -751.4211527844942
+        "x": -290.4130805630969,
+        "y": -686.0303273327016
       },
       {
-        "x": 1757.9583986783532,
-        "y": -565.5775541486628
-      }
-    ],
-    "bundle:connector:con_004|connector:con_065": [],
-    "bundle:merge:mp_004|merge:mp_006": [
+        "x": -262.42249268411075,
+        "y": -600.1281783247786
+      },
       {
-        "x": -35.948229701772014,
-        "y": -657.0326034402333
+        "x": -247.16275911879512,
+        "y": -540
+      },
+      {
+        "x": -247.16275911879512,
+        "y": -359.2692698006876
       }
     ],
     "bundle:connector:con_065|connector:con_auto_df056da206c4_1": [],
-    "bundle:connector:con_002|merge:mp_006": [
+    "bundle:branch:mp_006|connector:con_002": [
       {
         "x": -138.47072227438213,
         "y": -400.726372008708
@@ -966,7 +983,7 @@
         "y": 293.90261913896296
       }
     ],
-    "bundle:connector:con_079|merge:mp_006": [
+    "bundle:branch:mp_006|connector:con_079": [
       {
         "x": -240.29890172829448,
         "y": -142.85970763144866
@@ -978,31 +995,50 @@
       {
         "x": -184.67864056953235,
         "y": -94.65069020831038
-      },
-      {
-        "x": -392.9903472272149,
-        "y": -303.1438826565987
       }
     ],
-    "bundle:connector:con_001|connector:con_009": [
+    "subsystem:demo:bundle:connector:con_auto_bulkhead_7f6a80f4a4702bce|connector:con_auto_bulkhead_84847c0fbf141061": [],
+    "bundle:branch:mp_007|branch:mp_008~thru:branch:mp_004+connector:con_002": [
       {
-        "x": -392.85569882901353,
-        "y": -302.53225889704726
-      },
+        "x": 9.24938636334907,
+        "y": 117.63396825469306
+      }
+    ],
+    "bundle:branch:mp_007|branch:mp_008~thru:branch:mp_009+connector:con_009": [
       {
-        "junctionId": "jct_1776219503307"
-      },
+        "x": 49.14836183288462,
+        "y": 4.978037517180924
+      }
+    ],
+    "subsystem:demo:bundle:connector:con_auto_bulkhead_76ac4ff49f764ed7|connector:con_dot_33c3e5a6-ebe0-48d2-a6d6-bb13da92d499": [],
+    "subsystem:demo:bundle:connector:con_129|connector:con_auto_bulkhead_76ac4ff49f764ed7": [
       {
-        "x": -125.71926383703962,
-        "y": -780.7882051908978
-      },
+        "x": 515.5187545351556,
+        "y": 364.0132484924027
+      }
+    ],
+    "subsystem:demo:bundle:connector:con_071|connector:con_auto_bulkhead_7f596cf4a461969f": [],
+    "subsystem:demo:bundle:connector:con_009|connector:con_dot_b47fcc15-217f-405f-b316-5f1d85d21410": [],
+    "bundle:branch:mp_009|connector:con_002": [
       {
-        "x": 1141.1751179437836,
-        "y": -997.235325414741
+        "x": -12.314340550566499,
+        "y": -154.01023911977455
+      }
+    ],
+    "bundle:branch:mp_009|connector:con_001": [
+      {
+        "x": -100.06645494454708,
+        "y": -282.7484685646623
+      }
+    ],
+    "bundle:connector:con_072|connector:con_dot_b714dbc1-1699-4dd3-9d0b-21baf10053e8": [
+      {
+        "x": 516.4483150153372,
+        "y": -153.08294930831215
       }
     ]
   },
-  "junctions": {
+  "sharedAnchors": {
     "jct_1775804295066": {
       "id": "jct_1775804295066",
       "x": 573,
@@ -1136,29 +1172,10 @@
     },
     "jct_1776219503307": {
       "id": "jct_1776219503307",
-      "x": -345.2411475446423,
-      "y": -844.8963659196667,
+      "x": -300,
+      "y": -920,
       "memberEdgeIds": [
-        "bundle:connector:con_003|connector:con_070",
-        "bundle:connector:con_001|connector:con_009"
-      ]
-    },
-    "jct_1776276278381": {
-      "id": "jct_1776276278381",
-      "x": -8.381331561421172,
-      "y": -506.67170451104766,
-      "memberEdgeIds": [
-        "bundle:connector:con_004|connector:con_066",
-        "bundle:connector:con_004|connector:con_064"
-      ]
-    },
-    "jct_1776276284460": {
-      "id": "jct_1776276284460",
-      "x": -34.55900740394426,
-      "y": -396.9747771709509,
-      "memberEdgeIds": [
-        "bundle:connector:con_004|connector:con_066",
-        "bundle:connector:con_004|connector:con_064"
+        "bundle:connector:con_003|connector:con_070"
       ]
     },
     "jct_1776277046343": {
@@ -1178,20 +1195,40 @@
         "bundle:connector:con_002|connector:con_078",
         "bundle:connector:con_002|connector:con_077"
       ],
-      "mergePointId": "mp_004"
+      "branchPointId": "mp_004"
     },
-    "jct_1785192644320": {
-      "id": "jct_1785192644320",
-      "x": -76.42194734193559,
-      "y": -403.89497483219844,
+    "jct_2bd61438-931e-44d2-b2af-de22b33d0e49": {
+      "id": "jct_2bd61438-931e-44d2-b2af-de22b33d0e49",
+      "x": -57.58199732382587,
+      "y": -63.08469132772036,
       "memberEdgeIds": [
-        "bundle:connector:con_079|merge:mp_005",
-        "bundle:merge:mp_004|merge:mp_005"
+        "bundle:branch:mp_007|connector:con_001",
+        "bundle:branch:mp_006|branch:mp_007"
       ],
-      "mergePointId": "mp_006"
+      "branchPointId": "mp_008"
+    },
+    "jct_4b6206e7-478c-4362-80ca-9eacb0c764a8": {
+      "id": "jct_4b6206e7-478c-4362-80ca-9eacb0c764a8",
+      "x": -212.58199732382587,
+      "y": -139.08469132772035,
+      "memberEdgeIds": [
+        "bundle:connector:con_002|connector:con_079",
+        "bundle:branch:mp_008|connector:con_001"
+      ],
+      "branchPointId": "mp_009"
+    },
+    "jct_5859e0c3-841d-4673-9576-cf500df3fed3": {
+      "id": "jct_5859e0c3-841d-4673-9576-cf500df3fed3",
+      "x": 273.30317548209234,
+      "y": 276.7495185475561,
+      "memberEdgeIds": [
+        "bundle:connector:con_063|connector:con_079",
+        "bundle:connector:con_072|connector:con_dot_cfa49b64-2942-4c0c-88e4-0bc9b13c8559"
+      ],
+      "branchPointId": "mp_010"
     }
   },
-  "mergePoints": {
+  "branchPoints": {
     "graph": {
       "mp_002": {
         "x": 755,
@@ -1209,9 +1246,17 @@
         "x": -94.21401011097842,
         "y": -506.76502077175167
       },
-      "mp_006": {
-        "x": -333.0904022519104,
-        "y": -417.2692698006876
+      "mp_008": {
+        "x": -252.58199732382587,
+        "y": -312.41802466105366
+      },
+      "mp_009": {
+        "x": -202.24866399049253,
+        "y": -104.75135799438699
+      },
+      "mp_010": {
+        "x": 97.30428372324542,
+        "y": 113.88487244235448
       }
     }
   },
@@ -1224,5 +1269,12 @@
     "enc_035": 180,
     "enc_028": 90,
     "con_auto_8beb28152493_2": 90
-  }
+  },
+  "routeStyles": {
+    "bundle:connector:con_001|connector:con_009": "grid",
+    "bundle:branch:mp_006|connector:con_079#pin:5|": "straight",
+    "bundle:branch:mp_006|connector:con_002": "straight",
+    "bundle:branch:mp_004|branch:mp_006": "straight"
+  },
+  "viewRouteStyles": {}
 }

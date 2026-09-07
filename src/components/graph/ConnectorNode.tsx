@@ -8,13 +8,26 @@ import {
   type Node,
   type NodeProps,
 } from '@xyflow/react';
-import { useHarnessStore } from '../../store';
+import { useSystemStore } from '../../store';
 import {
   getWireBackground,
   getWireBorderColor,
   type WireAppearance,
 } from '../../lib/colors';
-import { getEffectivePinCount, getPathSignalId, getPathWireAppearance } from '../../lib/harness';
+import {
+  CONNECTOR_SHELL,
+  connectorCustomShell,
+  enclosureShell,
+  parseHexColor,
+} from '../../lib/entityColors';
+import { getEffectivePinCount, getPathSignalId, getPathWireAppearance } from '../../lib/systemTopology';
+import {
+  getVisualDotRoutePin,
+  isBulkheadDot,
+  isTerminalVisualDot,
+} from '../../lib/bulkheadRouting';
+import type { WallSide } from '../../lib/parentResize';
+import { PresenceBadge } from '../collab/PresenceBadge';
 
 type ConnectorNodeData = {
   label: string;
@@ -31,7 +44,10 @@ type ConnectorNodeData = {
   connectorTypeId?: string;
   instanceImage?: string;
   wallMounted?: boolean;
+  wallSide?: WallSide;
+  autoPositioned?: boolean;
   passThrough?: boolean;
+  mergeTarget?: boolean;
 };
 
 const DARK_TAG_TEXT = '#09090b';
@@ -107,30 +123,32 @@ export const ConnectorNode = memo(function ConnectorNode({
   data,
   selected,
 }: NodeProps<ConnectorNodeType>) {
-  const expandedNodes = useHarnessStore((s) => s.expandedNodes);
-  const toggleExpanded = useHarnessStore((s) => s.toggleNodeExpanded);
-  const selectItem = useHarnessStore((s) => s.selectItem);
-  const connectorLibrary = useHarnessStore((s) => s.connectorLibrary);
-  const updateNodeSize = useHarnessStore((s) => s.updateNodeSize);
-  const updateExpandedNodeSize = useHarnessStore((s) => s.updateExpandedNodeSize);
-  const editingSurface = useHarnessStore((s) => s.editingSurface);
-  const activeSubsystemId = useHarnessStore((s) => s.activeSubsystemId);
-  const subsystems = useHarnessStore((s) => s.subsystems);
-  const updateSubsystemEntityLayout = useHarnessStore((s) => s.updateSubsystemEntityLayout);
-  const pushUndoSnapshot = useHarnessStore((s) => s.pushUndoSnapshot);
-  const commitUndoSnapshot = useHarnessStore((s) => s.commitUndoSnapshot);
-  const renumberConnectorCavities = useHarnessStore((s) => s.renumberConnectorCavities);
-  const harness = useHarnessStore((s) => s.harness);
-  const isEditor = useHarnessStore((s) => s.session.isEditor);
-  const rotation = useHarnessStore((s) => s.rotationLayouts[data.connectorId] ?? 0);
-  const isExpanded = expandedNodes.has(data.connectorId);
-  const showCavityHandles = isExpanded;
+  const expandedNodes = useSystemStore((s) => s.expandedNodes);
+  const toggleExpanded = useSystemStore((s) => s.toggleNodeExpanded);
+  const selectItem = useSystemStore((s) => s.selectItem);
+  const connectorLibrary = useSystemStore((s) => s.connectorLibrary);
+  const updateNodeSize = useSystemStore((s) => s.updateNodeSize);
+  const updateExpandedNodeSize = useSystemStore((s) => s.updateExpandedNodeSize);
+  const editingSurface = useSystemStore((s) => s.editingSurface);
+  const activeSubsystemId = useSystemStore((s) => s.activeSubsystemId);
+  const subsystems = useSystemStore((s) => s.subsystems);
+  const updateSubsystemEntityLayout = useSystemStore((s) => s.updateSubsystemEntityLayout);
+  const pushUndoSnapshot = useSystemStore((s) => s.pushUndoSnapshot);
+  const commitUndoSnapshot = useSystemStore((s) => s.commitUndoSnapshot);
+  const renumberConnectorCavities = useSystemStore((s) => s.renumberConnectorCavities);
+  const system = useSystemStore((s) => s.system);
+  const isEditor = useSystemStore((s) => s.session.isEditor);
+  const rotation = useSystemStore((s) => s.rotationLayouts[data.connectorId] ?? 0);
   const updateNodeInternals = useUpdateNodeInternals();
 
   const ct = data.connectorTypeId
     ? connectorLibrary?.connector_types.find((t) => t.id === data.connectorTypeId)
     : undefined;
-  const connector = harness?.connectors.find((item) => item.id === data.connectorId);
+  const connector = system?.connectors.find((item) => item.id === data.connectorId);
+  const dot = isBulkheadDot(connector);
+  const terminalDot = !!system && isTerminalVisualDot(system, data.connectorId);
+  const isExpanded = !dot && expandedNodes.has(data.connectorId);
+  const showCavityHandles = isExpanded;
   const handlePinCount = Math.max(
     connector ? getEffectivePinCount(connector, ct) : (ct?.pin_count ?? 0),
     ...data.occupiedPins.map((pin) => pin.pinNumber),
@@ -141,7 +159,43 @@ export const ConnectorNode = memo(function ConnectorNode({
     return { pinNumber, occupancy: data.occupiedPins.find((pin) => pin.pinNumber === pinNumber) };
   });
 
-  const borderColor = getWireBorderColor(data.wireAppearance);
+  const customColor = parseHexColor(connector?.properties?.color);
+  const shell = customColor
+    ? connectorCustomShell(customColor)
+    : data.wireAppearance
+      ? {
+          fill: getWireBackground(data.wireAppearance, 0.18),
+          border: getWireBorderColor(data.wireAppearance),
+        }
+      : CONNECTOR_SHELL;
+  const parentEnclosure = connector?.parent
+    ? system?.hierarchy.find((item) => item.id === connector.parent)
+    : undefined;
+  const wallShell = enclosureShell(parentEnclosure?.kind !== 'device', parentEnclosure?.properties.color);
+  const mergedDot = data.occupiedPins.length > 1;
+  const dotBackground = !mergedDot && data.wireAppearance
+    ? getWireBackground(data.wireAppearance)
+    : wallShell.border;
+  const dotBorder = !mergedDot && data.wireAppearance
+    ? getWireBorderColor(data.wireAppearance)
+    : wallShell.fill;
+  const dotRoutePin = system
+    ? getVisualDotRoutePin(system, data.connectorId) ?? 1
+    : 1;
+  const dotRoutePosition = data.wallSide === 'left'
+    ? Position.Left
+    : data.wallSide === 'top'
+      ? Position.Top
+      : data.wallSide === 'bottom'
+        ? Position.Bottom
+        : Position.Right;
+  const dotTargetPosition = data.wallSide === 'left'
+    ? Position.Right
+    : data.wallSide === 'top'
+      ? Position.Bottom
+      : data.wallSide === 'bottom'
+        ? Position.Top
+        : Position.Left;
 
   // Track live node width via ResizeObserver so text scales in real-time during drag
   const nodeRef = useRef<HTMLDivElement>(null);
@@ -245,22 +299,112 @@ export const ConnectorNode = memo(function ConnectorNode({
     };
   }, [data.connectorId, handlePinCount, isEditor, renumberConnectorCavities]);
 
+  const handleConnectorClick = useCallback((event: React.MouseEvent) => {
+    event.stopPropagation();
+    selectItem({ type: 'connector', id: data.connectorId });
+    if (event.shiftKey) toggleExpanded(data.connectorId);
+  }, [data.connectorId, selectItem, toggleExpanded]);
+
+  const handleConnectorDoubleClick = useCallback((event: React.MouseEvent) => {
+    event.stopPropagation();
+    if ((event.target as HTMLElement).closest('[data-cavity-pin], .react-flow__resize-control')) {
+      return;
+    }
+    toggleExpanded(data.connectorId);
+  }, [data.connectorId, toggleExpanded]);
+
+  if (dot) {
+    return (
+      <div
+        ref={nodeRef}
+        className={`group relative h-full w-full cursor-grab rounded-full border-2 active:cursor-grabbing ${
+          selected
+            ? 'ring-2 ring-amber-400 ring-offset-1 ring-offset-zinc-950'
+            : data.mergeTarget
+              ? 'ring-2 ring-sky-400 ring-offset-1 ring-offset-zinc-950'
+              : ''
+        }`}
+        style={{
+          background: dotBackground,
+          borderColor: dotBorder,
+        }}
+        title={
+          data.mergeTarget
+            ? `Release to merge into ${data.label}`
+            : `${data.label} · ${data.occupiedPins.length} wire${data.occupiedPins.length === 1 ? '' : 's'}`
+        }
+        onClick={(event) => {
+          event.stopPropagation();
+          selectItem({ type: 'connector', id: data.connectorId });
+        }}
+      >
+        <PresenceBadge
+          kind="connector"
+          id={data.connectorId}
+          className="pointer-events-auto absolute -right-2 -top-2 z-30"
+        />
+        {terminalDot && (
+          <>
+            <Handle
+              id={`pin:${dotRoutePin}`}
+              type="target"
+              position={dotTargetPosition}
+              isConnectable={isEditor}
+              isConnectableStart={false}
+              isConnectableEnd={isEditor}
+              className="nodrag nopan !h-2 !w-2 !border-2 !border-zinc-950 !bg-sky-400 !opacity-0 transition-opacity group-hover:!opacity-100"
+              title={`Connect to cavity ${dotRoutePin}`}
+              aria-label={`Connect to ${data.label} cavity ${dotRoutePin}`}
+              data-route-pin={dotRoutePin}
+            />
+            <Handle
+              id={`pin:${dotRoutePin}`}
+              type="source"
+              position={dotRoutePosition}
+              isConnectable={isEditor}
+              className="nodrag nopan !h-3 !w-3 !border-2 !border-zinc-950 !bg-amber-400 !opacity-0 transition-opacity group-hover:!opacity-100"
+              title={`Drag outward to route from cavity ${dotRoutePin}`}
+              aria-label={`Route from ${data.label} cavity ${dotRoutePin}`}
+              data-route-pin={dotRoutePin}
+            />
+          </>
+        )}
+        <span
+          className={`pointer-events-none absolute left-1/2 top-full z-20 mt-1 -translate-x-1/2 whitespace-nowrap rounded bg-zinc-950/90 px-1 py-0.5 text-[9px] text-zinc-300 transition-opacity ${
+            selected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+          }`}
+        >
+          {data.label}
+        </span>
+      </div>
+    );
+  }
+
   return (
     <>
       <div
       ref={nodeRef}
       className={`w-full h-full rounded border overflow-visible relative ${
-        selected ? 'ring-1 ring-amber-400' : ''
+        selected
+          ? 'ring-1 ring-amber-400'
+          : data.mergeTarget
+            ? 'ring-2 ring-sky-400'
+            : ''
       }`}
       style={{
-        background: data.wireAppearance
-          ? getWireBackground(data.wireAppearance, 0.15)
-          : '#1e1e2e',
-        borderColor,
+        background: shell.fill,
+        borderColor: shell.border,
         transform: rotation ? `rotate(${rotation}deg)` : undefined,
         transformOrigin: 'center center',
       }}
+      onClick={handleConnectorClick}
+      onDoubleClick={handleConnectorDoubleClick}
     >
+      <PresenceBadge
+        kind="connector"
+        id={data.connectorId}
+        className="pointer-events-auto absolute right-1 top-1 z-30"
+      />
       <NodeResizer
         minWidth={0}
         minHeight={0}
@@ -313,10 +457,7 @@ export const ConnectorNode = memo(function ConnectorNode({
       {!isExpanded && data.instanceImage ? (
         <div
           className="absolute inset-0 cursor-pointer overflow-hidden rounded"
-          onClick={(e) => {
-            e.stopPropagation();
-            selectItem({ type: 'connector', id: data.connectorId });
-          }}
+          onClick={handleConnectorClick}
           title={data.label}
         >
           <img
@@ -332,17 +473,15 @@ export const ConnectorNode = memo(function ConnectorNode({
               e.stopPropagation();
               toggleExpanded(data.connectorId);
             }}
+            onDoubleClick={(e) => e.stopPropagation()}
           >
             ▶
           </button>
         </div>
       ) : (
         <div
-          className="bg-zinc-800 px-2 py-1 cursor-pointer flex items-center gap-1.5"
-          onClick={(e) => {
-            e.stopPropagation();
-            selectItem({ type: 'connector', id: data.connectorId });
-          }}
+          className="px-2 py-1 cursor-pointer flex items-center gap-1.5 bg-black/25"
+          onClick={handleConnectorClick}
         >
           <button
             className="text-zinc-500 hover:text-zinc-300 w-3 shrink-0"
@@ -351,11 +490,12 @@ export const ConnectorNode = memo(function ConnectorNode({
               e.stopPropagation();
               toggleExpanded(data.connectorId);
             }}
+            onDoubleClick={(e) => e.stopPropagation()}
           >
             {isExpanded ? '▼' : '▶'}
           </button>
           <div className="min-w-0">
-            <div className="font-bold text-zinc-100 leading-tight truncate" style={{ fontSize: labelSize }}>
+            <div className="font-bold leading-tight truncate text-vw-connector" style={{ fontSize: labelSize }}>
               {data.label}
             </div>
             {data.parentName && (
@@ -372,11 +512,11 @@ export const ConnectorNode = memo(function ConnectorNode({
           {cavityRows.map((row) => {
             const pin = row.occupancy;
             const signalPath = pin
-              ? harness?.paths.find((candidate) => candidate.id === pin.pathId)
+              ? system?.paths.find((candidate) => candidate.id === pin.pathId)
               : undefined;
             const signalId = signalPath ? getPathSignalId(signalPath) : undefined;
-            const wireAppearance = signalPath && harness
-              ? getPathWireAppearance(signalPath, harness)
+            const wireAppearance = signalPath && system
+              ? getPathWireAppearance(signalPath, system)
               : null;
             const wireHandleBackground = wireAppearance
               ? getWireBackground(wireAppearance)
@@ -420,6 +560,7 @@ export const ConnectorNode = memo(function ConnectorNode({
                   e.stopPropagation();
                   if (pin) selectItem({ type: 'path', id: pin.pathId });
                 }}
+                onDoubleClick={(e) => e.stopPropagation()}
               >
                 {showCavityHandles && (
                   <span
@@ -429,12 +570,20 @@ export const ConnectorNode = memo(function ConnectorNode({
                   >
                     <Handle
                       id={`pin:${row.pinNumber}`}
+                      type="target"
+                      position={Position.Left}
+                      isConnectable={isEditor}
+                      className="!absolute !left-0 !top-1/2 !h-4 !w-4 !-translate-y-1/2 !border-0 !bg-transparent !opacity-0"
+                    />
+                    <Handle
+                      id={`pin:${row.pinNumber}`}
                       type="source"
                       position={Position.Left}
                       isConnectable={isEditor}
                       className={`!relative !left-auto !top-auto !flex !h-4 !min-h-4 !w-4 !min-w-4 !transform-none !items-center !justify-center !rounded-sm !border-zinc-900 ${
                         pin ? '' : '!bg-amber-400'
                       } ${isEditor ? '!cursor-crosshair' : '!cursor-not-allowed'}`}
+                      data-route-pin={row.pinNumber}
                       style={wireHandleBackground
                         ? { background: wireHandleBackground, borderColor: '#18181b' }
                         : undefined}

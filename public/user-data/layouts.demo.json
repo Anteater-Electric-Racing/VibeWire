@@ -1,4 +1,26 @@
 {
+  "nodes": {
+    "dev_dev1": {
+      "x": 50,
+      "y": 80
+    },
+    "enc_en1": {
+      "x": -171.93364578435893,
+      "y": -47.65455243285848
+    },
+    "dev_dev2": {
+      "x": 342.066354215641,
+      "y": -61.27909335150047
+    },
+    "enc_en2": {
+      "x": 24,
+      "y": 80
+    },
+    "dev_dev3": {
+      "x": 380,
+      "y": 80
+    }
+  },
   "ports": {
     "con_001": {
       "x": 12,
@@ -23,24 +45,10 @@
     "con_auto_ada48fc9df29_2": {
       "x": -59.5,
       "y": 32
-    }
-  },
-  "free": {
-    "con_auto_d658fae24f16_2": {
-      "x": 383,
-      "y": 142
     },
-    "con_auto_ada48fc9df29_2": {
-      "x": -208.72452910473726,
-      "y": 269.3090726207103
-    },
-    "con_auto_574cae58f04f_1": {
-      "x": 250.75426969982234,
-      "y": 389.54537526848924
-    },
-    "con_007": {
-      "x": 126.25125930347556,
-      "y": -80.76502551775597
+    "con_auto_bulkhead_fbe084332133c6ee": {
+      "x": 211,
+      "y": 77.43311548333224
     }
   },
   "sizes": {
@@ -73,32 +81,41 @@
       "h": 21
     }
   },
-  "nodes": {
-    "dev_dev1": {
-      "x": 50,
-      "y": 80
+  "free": {
+    "con_auto_d658fae24f16_2": {
+      "x": 383,
+      "y": 142
     },
-    "enc_en1": {
-      "x": -171.93364578435893,
-      "y": -47.65455243285848
+    "con_auto_ada48fc9df29_2": {
+      "x": -208.72452910473726,
+      "y": 269.3090726207103
     },
-    "dev_dev2": {
-      "x": 342.066354215641,
-      "y": -61.27909335150047
+    "con_auto_574cae58f04f_1": {
+      "x": 250.75426969982234,
+      "y": 389.54537526848924
     },
-    "enc_en2": {
-      "x": 24,
-      "y": 80
-    },
-    "dev_dev3": {
-      "x": 380,
-      "y": 80
+    "con_007": {
+      "x": 126.25125930347556,
+      "y": -80.76502551775597
     }
   },
+  "backgrounds": {
+    "graph": {
+      "x": -272.68759372966804,
+      "y": -269.7210251549185,
+      "w": 900,
+      "h": 600,
+      "locked": true,
+      "image": "SCR-20260703-pmkr.png"
+    }
+  },
+  "images": {},
+  "connectorTypeSizes": {},
+  "textBoxes": {},
   "waypoints": {
     "subsystem:demo:bundle:connector:con_006|connector:con_auto_574cae58f04f_1": [
       {
-        "junctionId": "jct_3bb1763b-0047-4f26-a010-8f35f6bb0f2b"
+        "sharedAnchorId": "jct_3bb1763b-0047-4f26-a010-8f35f6bb0f2b"
       },
       {
         "x": 176.00692749023438,
@@ -107,7 +124,7 @@
     ],
     "subsystem:demo:bundle:connector:con_auto_574cae58f04f_1|connector:con_auto_ada48fc9df29_2": [
       {
-        "junctionId": "jct_3bb1763b-0047-4f26-a010-8f35f6bb0f2b"
+        "sharedAnchorId": "jct_3bb1763b-0047-4f26-a010-8f35f6bb0f2b"
       }
     ],
     "bundle:connector:con_003|connector:con_007": [
@@ -123,7 +140,7 @@
       }
     ]
   },
-  "junctions": {
+  "sharedAnchors": {
     "jct_3bb1763b-0047-4f26-a010-8f35f6bb0f2b": {
       "id": "jct_3bb1763b-0047-4f26-a010-8f35f6bb0f2b",
       "x": 164.00692749023438,
@@ -141,10 +158,10 @@
         "bundle:connector:con_006|connector:con_auto_574cae58f04f_1",
         "bundle:connector:con_auto_574cae58f04f_1|connector:con_auto_ada48fc9df29_2"
       ],
-      "mergePointId": "mp_001"
+      "branchPointId": "mp_001"
     }
   },
-  "mergePoints": {
+  "branchPoints": {
     "enc_en1": {
       "mp_001": {
         "x": 287.78181869784567,
@@ -152,14 +169,7 @@
       }
     }
   },
-  "backgrounds": {
-    "graph": {
-      "x": -272.68759372966804,
-      "y": -269.7210251549185,
-      "w": 900,
-      "h": 600,
-      "locked": true,
-      "image": "SCR-20260703-pmkr.png"
-    }
-  }
+  "rotations": {},
+  "routeStyles": {},
+  "viewRouteStyles": {}
 }

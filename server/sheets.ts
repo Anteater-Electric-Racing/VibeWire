@@ -1,32 +1,32 @@
 /**
- * Hierarchical per-sheet harness storage.
+ * Hierarchical per-sheet System storage.
  *
- * A "sheeted" harness lives in a directory (instead of one flat JSON file):
+ * A sheeted System lives in a directory (instead of one flat JSON file):
  *
- *   public/user-data/harnesses/<name>/
+ *   public/user-data/systems/<name>/
  *     root.json              -- the root/car-level sheet (sheet_enclosure_id: null)
  *     signals.json           -- flat array of Signal, shared across every sheet
  *     sheets/<enc_id>.json   -- one sheet per enclosure that has been split out
  *
- * A sheet only describes its own interior: enclosures/connectors/mergePoints/paths
+ * A sheet only describes its own interior: enclosures/connectors/branchPoints/paths
  * that are directly owned by it, plus `ports[]` declaring where its own wiring
  * reaches into a *direct* child enclosure's sheet. An enclosure "has its own sheet"
  * purely by the presence of `sheets/<enc_id>.json` on disk -- any enclosure without
  * that file is simply inlined in its owning ancestor's sheet. This makes the split
  * fully recursive/opt-in with no fixed depth limit.
  *
- * A `BulkheadPort` (declared on the *parent* sheet) represents "a wire from this
+ * A `SheetBoundaryPort` (declared on the *parent* sheet) represents "a wire from this
  * sheet that terminates inside a specific child sheet." Paths on the parent sheet
  * that reach into a child terminate at a `port` node instead of an ordinary
- * `connector`/`merge` node. On load, `assembleFromSheetMap` synthesizes a
- * `derived: true` Connector or MergePoint inside the child's scope from each port,
+ * `connector`/`branch` node. On load, `assembleFromSheetMap` synthesizes a
+ * `derived: true` Connector or BranchPoint inside the child's scope from each port,
  * and rewrites the parent's `port` node into an ordinary node -- so by the time the
- * data reaches the rest of the app it is one ordinary flat `HarnessData`, exactly
- * as before. On save, `splitHarness` does the inverse.
+ * data reaches the rest of the app it is one ordinary flat `SystemData`, exactly
+ * as before. On save, `splitSystem` does the inverse.
  *
  * Known limitation: crossing more than one sheet boundary in a single path, or
  * crossing into a sheet that is not a *direct* child of the referencing sheet
- * (i.e. chained/multi-level derivation), is not implemented yet -- `splitHarness`
+ * (i.e. chained/multi-level derivation), is not implemented yet -- `splitSystem`
  * throws a clear error rather than silently mis-splitting. Today's data is only
  * ever two sheet-levels deep (root -> top-level container), so this never triggers.
  */
@@ -37,10 +37,21 @@ export interface Enclosure {
   id: string;
   name: string;
   parent: string | null;
-  container: boolean;
+  kind: 'enclosure';
   tags: string[];
   properties: Record<string, string>;
 }
+
+export interface Device {
+  id: string;
+  name: string;
+  parent: string | null;
+  kind: 'device';
+  tags: string[];
+  properties: Record<string, string>;
+}
+
+export type HierarchyEntity = Device | Enclosure;
 
 export interface Connector {
   id: string;
@@ -62,7 +73,7 @@ export interface Connector {
   derived_from_port?: string;
 }
 
-export interface MergePoint {
+export interface BranchPoint {
   id: string;
   name: string;
   parent: string | null;
@@ -93,12 +104,12 @@ export interface ConnectorPathNode {
   pin_number: number;
 }
 
-export interface MergePointPathNode {
-  kind: 'merge';
-  merge_point_id: string;
+export interface BranchPointPathNode {
+  kind: 'branch';
+  branch_point_id: string;
 }
 
-/** On-disk-only node kind: a reference to a `BulkheadPort` declared in this same sheet file. */
+/** On-disk-only node kind: a reference to a `SheetBoundaryPort` declared in this same sheet file. */
 export interface PortPathNode {
   kind: 'port';
   port_id: string;
@@ -106,9 +117,9 @@ export interface PortPathNode {
 }
 
 /** Runtime/assembled node shape -- identical to the historical flat schema. */
-export type PathNode = ConnectorPathNode | MergePointPathNode;
+export type PathNode = ConnectorPathNode | BranchPointPathNode;
 /** On-disk sheet node shape -- may additionally reference a local port. */
-export type SheetPathNode = ConnectorPathNode | MergePointPathNode | PortPathNode;
+export type SheetPathNode = ConnectorPathNode | BranchPointPathNode | PortPathNode;
 
 export interface PathMeasurement<TNode = PathNode> {
   from: TNode;
@@ -137,7 +148,7 @@ export interface SheetPath {
   measurements: PathMeasurement<SheetPathNode>[];
 }
 
-export interface BulkheadPort {
+export interface SheetBoundaryPort {
   id: string;
   name: string;
   /** Which sheet file materializes the derived entity (a sheet-owning enclosure id). */
@@ -149,7 +160,7 @@ export interface BulkheadPort {
    * preserving this is what keeps the enclosure tree intact across a round trip.
    */
   entity_parent: string;
-  entity_kind: 'connector' | 'merge';
+  entity_kind: 'connector' | 'branch';
   connector_id?: string;
   connector_type?: string;
   /** Placement override copied from a connector when present. */
@@ -158,62 +169,104 @@ export interface BulkheadPort {
   pin_count?: number;
   /** Mechanical key copied from the derived connector when present. */
   keying?: string;
-  merge_point_id?: string;
+  branch_point_id?: string;
   tags: string[];
   properties: Record<string, string>;
 }
 
-export interface HarnessSheet {
+export interface SystemSheet {
   schema_version: string;
   /** Present on root.json only; this is a display name, not the directory key. */
   name?: string;
   sheet_enclosure_id: string | null;
-  enclosures: Enclosure[];
+  hierarchy: HierarchyEntity[];
   connectors: Connector[];
-  mergePoints: MergePoint[];
+  branchPoints: BranchPoint[];
   paths: SheetPath[];
-  ports: BulkheadPort[];
+  ports: SheetBoundaryPort[];
   /** Root-sheet-only schema for structured signal properties. */
   signalPropertyDefinitions?: SignalPropertyDefinition[];
 }
 
-export interface HarnessData {
+export interface SystemData {
   schema_version: string;
   name?: string;
-  enclosures: Enclosure[];
+  hierarchy: HierarchyEntity[];
   connectors: Connector[];
-  mergePoints: MergePoint[];
+  branchPoints: BranchPoint[];
   paths: PathEntity[];
   signals: Signal[];
   signalPropertyDefinitions: SignalPropertyDefinition[];
 }
 
-const SHEET_SCHEMA_VERSION = '0.2.0-sheets';
+const SHEET_SCHEMA_VERSION = '0.3.0-sheets';
 
-function emptySheet(sheetEnclosureId: string | null): HarnessSheet {
+function emptySheet(sheetEnclosureId: string | null): SystemSheet {
   return {
     schema_version: SHEET_SCHEMA_VERSION,
     sheet_enclosure_id: sheetEnclosureId,
-    enclosures: [],
+    hierarchy: [],
     connectors: [],
-    mergePoints: [],
+    branchPoints: [],
     paths: [],
     ports: [],
   };
 }
 
-function normalizeSheet(raw: unknown, sheetEnclosureId: string | null): HarnessSheet {
+function asHierarchyEntity(raw: unknown): HierarchyEntity | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const record = raw as Record<string, unknown>;
+  if (typeof record.id !== 'string' || !record.id) return null;
+  const kind = record.kind === 'device' || record.kind === 'enclosure'
+    ? record.kind
+    : record.container === false ? 'device' : 'enclosure';
+  return {
+    id: record.id,
+    name: typeof record.name === 'string' ? record.name : record.id,
+    parent: typeof record.parent === 'string' ? record.parent : null,
+    kind,
+    tags: Array.isArray(record.tags) ? record.tags.filter((item): item is string => typeof item === 'string') : [],
+    properties: record.properties && typeof record.properties === 'object' && !Array.isArray(record.properties)
+      ? Object.fromEntries(
+        Object.entries(record.properties as Record<string, unknown>)
+          .filter((entry): entry is [string, string] => typeof entry[1] === 'string'),
+      )
+      : {},
+  };
+}
+
+function normalizeSheet(raw: unknown, sheetEnclosureId: string | null): SystemSheet {
   const sheet = emptySheet(sheetEnclosureId);
   if (!raw || typeof raw !== 'object') return sheet;
   const record = raw as Record<string, unknown>;
   if (sheetEnclosureId === null && typeof record.name === 'string' && record.name.trim()) {
     sheet.name = record.name.trim();
   }
-  sheet.enclosures = Array.isArray(record.enclosures) ? (record.enclosures as Enclosure[]) : [];
+  const hierarchySource = Array.isArray(record.hierarchy)
+    ? record.hierarchy
+    : Array.isArray(record.enclosures)
+      ? record.enclosures
+      : [];
+  sheet.hierarchy = hierarchySource.flatMap((item) => {
+    const entity = asHierarchyEntity(item);
+    return entity ? [entity] : [];
+  });
   sheet.connectors = Array.isArray(record.connectors) ? (record.connectors as Connector[]) : [];
-  sheet.mergePoints = Array.isArray(record.mergePoints) ? (record.mergePoints as MergePoint[]) : [];
+  const branchSource = Array.isArray(record.branchPoints)
+    ? record.branchPoints
+    : Array.isArray(record.mergePoints)
+      ? record.mergePoints
+      : [];
+  sheet.branchPoints = branchSource.map((item) => {
+    if (!item || typeof item !== 'object' || Array.isArray(item)) return item;
+    const branchPoint = item as Record<string, unknown>;
+    const match = typeof branchPoint.name === 'string'
+      ? /^Splice (\d+)$/.exec(branchPoint.name)
+      : null;
+    return match ? { ...branchPoint, name: `Branch ${match[1]}` } : branchPoint;
+  }) as BranchPoint[];
   sheet.paths = Array.isArray(record.paths) ? (record.paths as SheetPath[]) : [];
-  sheet.ports = Array.isArray(record.ports) ? (record.ports as BulkheadPort[]) : [];
+  sheet.ports = Array.isArray(record.ports) ? (record.ports as SheetBoundaryPort[]) : [];
   if (sheetEnclosureId === null) {
     sheet.signalPropertyDefinitions = Array.isArray(record.signalPropertyDefinitions)
       ? (record.signalPropertyDefinitions as SignalPropertyDefinition[])
@@ -223,35 +276,45 @@ function normalizeSheet(raw: unknown, sheetEnclosureId: string | null): HarnessS
 }
 
 // ---------------------------------------------------------------------------
-// Directory / harness-kind helpers
+// Directory / System-format helpers
 // ---------------------------------------------------------------------------
 
-export function harnessesDir(projectRoot: string): string {
+export function systemsDir(projectRoot: string): string {
+  return path.join(projectRoot, 'public', 'user-data', 'systems');
+}
+
+export function legacySystemsDir(projectRoot: string): string {
   return path.join(projectRoot, 'public', 'user-data', 'harnesses');
 }
 
-export function flatHarnessFile(projectRoot: string, name: string): string {
-  return path.join(harnessesDir(projectRoot), `${name}.json`);
+export function flatSystemFile(projectRoot: string, name: string): string {
+  const canonical = path.join(systemsDir(projectRoot), `${name}.json`);
+  if (fs.existsSync(canonical)) return canonical;
+  return path.join(legacySystemsDir(projectRoot), `${name}.json`);
 }
 
-export function sheetHarnessDir(projectRoot: string, name: string): string {
-  return path.join(harnessesDir(projectRoot), name);
+export function sheetSystemDir(projectRoot: string, name: string): string {
+  const canonical = path.join(systemsDir(projectRoot), name);
+  if (fs.existsSync(path.join(canonical, 'root.json'))) return canonical;
+  const legacy = path.join(legacySystemsDir(projectRoot), name);
+  if (fs.existsSync(path.join(legacy, 'root.json'))) return legacy;
+  return canonical;
 }
 
-function rootSheetFile(harnessDir: string): string {
-  return path.join(harnessDir, 'root.json');
+function rootSheetFile(systemDir: string): string {
+  return path.join(systemDir, 'root.json');
 }
 
-function signalsFile(harnessDir: string): string {
-  return path.join(harnessDir, 'signals.json');
+function signalsFile(systemDir: string): string {
+  return path.join(systemDir, 'signals.json');
 }
 
-function childSheetFile(harnessDir: string, enclosureId: string): string {
-  return path.join(harnessDir, 'sheets', `${enclosureId}.json`);
+function childSheetFile(systemDir: string, enclosureId: string): string {
+  return path.join(systemDir, 'sheets', `${enclosureId}.json`);
 }
 
-export function isSheetedHarness(projectRoot: string, name: string): boolean {
-  return fs.existsSync(rootSheetFile(sheetHarnessDir(projectRoot, name)));
+export function isSheetedSystem(projectRoot: string, name: string): boolean {
+  return fs.existsSync(rootSheetFile(sheetSystemDir(projectRoot, name)));
 }
 
 function readJSON<T>(filePath: string): T {
@@ -259,8 +322,8 @@ function readJSON<T>(filePath: string): T {
 }
 
 /** Enclosure ids that currently have their own sheet file on disk. */
-export function discoverSheetEnclosureIds(harnessDir: string): Set<string> {
-  const dir = path.join(harnessDir, 'sheets');
+export function discoverSheetEnclosureIds(systemDir: string): Set<string> {
+  const dir = path.join(systemDir, 'sheets');
   if (!fs.existsSync(dir)) return new Set();
   return new Set(
     fs.readdirSync(dir)
@@ -270,10 +333,10 @@ export function discoverSheetEnclosureIds(harnessDir: string): Set<string> {
 }
 
 // ---------------------------------------------------------------------------
-// Assembler: many sheet files -> one flat HarnessData
+// Assembler: many sheet files -> one flat SystemData
 // ---------------------------------------------------------------------------
 
-type SheetLoader = (sheetEnclosureId: string | null) => HarnessSheet;
+type SheetLoader = (sheetEnclosureId: string | null) => SystemSheet;
 
 interface PathFragment {
   name: string;
@@ -287,7 +350,7 @@ interface PathFragment {
 /**
  * Stitches every sheet fragment sharing a path id back into one logical `Path`.
  * A path only ever produces more than one fragment when *both* sides of a sheet
- * boundary have local content of their own (see `splitHarness`'s "common===scopeA"
+ * boundary have local content of their own (see `splitSystem`'s "common===scopeA"
  * / "common===scopeB" branches) -- each fragment shares exactly one boundary node
  * with its neighbor (represented identically in both, once as a real node and once
  * via a resolved port), so fragments are re-joined by matching that shared endpoint
@@ -340,10 +403,10 @@ function assembleFromLoader(
   loadSheet: SheetLoader,
   sheetEnclosureIds: Set<string>,
   signals: Signal[],
-): HarnessData {
-  const enclosures: Enclosure[] = [];
+): SystemData {
+  const hierarchy: HierarchyEntity[] = [];
   const connectors: Connector[] = [];
-  const mergePoints: MergePoint[] = [];
+  const branchPoints: BranchPoint[] = [];
   const pathFragmentsById = new Map<string, PathFragment[]>();
   const seenIds = new Map<string, string>();
   let systemName: string | undefined;
@@ -358,16 +421,22 @@ function assembleFromLoader(
   };
 
   function toRuntimeNode(node: SheetPathNode, connectorIdByPort: Map<string, string>, mergeIdByPort: Map<string, string>, pathId: string): PathNode {
+    if ((node as { kind?: string }).kind === 'merge') {
+      const id = (node as { branch_point_id?: string; merge_point_id?: string }).branch_point_id
+        ?? (node as { merge_point_id?: string }).merge_point_id;
+      if (!id) throw new Error(`Path '${pathId}' has a merge node without a branch point id`);
+      return { kind: 'branch', branch_point_id: id };
+    }
     if (node.kind !== 'port') return node;
     if (connectorIdByPort.has(node.port_id)) {
-      // Some harnesses (e.g. fsae-car.json) genuinely omit pin_number on many
+      // Some Systems (for example, fsae-car.json) genuinely omit pin_number on many
       // connector nodes -- preserve that as-is rather than defaulting it, so the
       // resulting node's refKey still matches its counterpart in another sheet
       // fragment when stitching multi-fragment paths back together.
       return { kind: 'connector', connector_id: connectorIdByPort.get(node.port_id)!, pin_number: node.pin_number as number };
     }
     if (mergeIdByPort.has(node.port_id)) {
-      return { kind: 'merge', merge_point_id: mergeIdByPort.get(node.port_id)! };
+      return { kind: 'branch', branch_point_id: mergeIdByPort.get(node.port_id)! };
     }
     throw new Error(`Path '${pathId}' references unknown port '${node.port_id}'`);
   }
@@ -379,17 +448,17 @@ function assembleFromLoader(
       signalPropertyDefinitions = sheet.signalPropertyDefinitions ?? [];
     }
 
-    for (const enc of sheet.enclosures) {
+    for (const enc of sheet.hierarchy) {
       registerId('enclosure', enc.id);
-      enclosures.push(enc);
+      hierarchy.push(enc);
     }
     for (const con of sheet.connectors) {
       registerId('connector', con.id);
       connectors.push(con);
     }
-    for (const mp of sheet.mergePoints) {
-      registerId('mergePoint', mp.id);
-      mergePoints.push(mp);
+    for (const branchPoint of sheet.branchPoints) {
+      registerId('branchPoint', branchPoint.id);
+      branchPoints.push(branchPoint);
     }
 
     const connectorIdByPort = new Map<string, string>();
@@ -413,11 +482,14 @@ function assembleFromLoader(
           derived_from_port: port.id,
         });
       } else {
-        if (!port.merge_point_id) throw new Error(`Port '${port.id}' has entity_kind 'merge' but no merge_point_id`);
-        registerId('mergePoint (derived)', port.merge_point_id);
-        mergeIdByPort.set(port.id, port.merge_point_id);
-        mergePoints.push({
-          id: port.merge_point_id,
+        if (!port.branch_point_id && typeof (port as { merge_point_id?: string }).merge_point_id === 'string') {
+          port.branch_point_id = (port as { merge_point_id?: string }).merge_point_id;
+        }
+        if (!port.branch_point_id) throw new Error(`Port '${port.id}' has entity_kind 'branch' but no branch_point_id`);
+        registerId('branchPoint (derived)', port.branch_point_id);
+        mergeIdByPort.set(port.id, port.branch_point_id);
+        branchPoints.push({
+          id: port.branch_point_id,
           name: port.name,
           parent: port.entity_parent ?? port.target_child_id,
           tags: port.tags ?? [],
@@ -440,7 +512,7 @@ function assembleFromLoader(
       pathFragmentsById.get(sheetPath.id)!.push({ name: sheetPath.name, signal_id: sheetPath.signal_id, tags: sheetPath.tags, properties: sheetPath.properties, nodes, measurements });
     }
 
-    for (const child of sheet.enclosures) {
+    for (const child of sheet.hierarchy) {
       if (sheetEnclosureIds.has(child.id)) processSheet(child.id);
     }
   }
@@ -452,36 +524,36 @@ function assembleFromLoader(
   return {
     schema_version: SHEET_SCHEMA_VERSION,
     ...(systemName ? { name: systemName } : {}),
-    enclosures,
+    hierarchy,
     connectors,
-    mergePoints,
+    branchPoints,
     paths,
     signals,
     signalPropertyDefinitions,
   };
 }
 
-export function assembleHarnessFromDisk(harnessDir: string): HarnessData {
-  const sheetEnclosureIds = discoverSheetEnclosureIds(harnessDir);
-  const signals = fs.existsSync(signalsFile(harnessDir)) ? readJSON<Signal[]>(signalsFile(harnessDir)) : [];
+export function assembleSystemFromDisk(systemDir: string): SystemData {
+  const sheetEnclosureIds = discoverSheetEnclosureIds(systemDir);
+  const signals = fs.existsSync(signalsFile(systemDir)) ? readJSON<Signal[]>(signalsFile(systemDir)) : [];
   const loadSheet: SheetLoader = (sheetEnclosureId) => {
-    const file = sheetEnclosureId === null ? rootSheetFile(harnessDir) : childSheetFile(harnessDir, sheetEnclosureId);
+    const file = sheetEnclosureId === null ? rootSheetFile(systemDir) : childSheetFile(systemDir, sheetEnclosureId);
     return normalizeSheet(readJSON<unknown>(file), sheetEnclosureId);
   };
   return assembleFromLoader(loadSheet, sheetEnclosureIds, signals);
 }
 
 function assembleFromSheetMap(
-  sheets: Map<string | null, HarnessSheet>,
+  sheets: Map<string | null, SystemSheet>,
   sheetEnclosureIds: Set<string>,
   signals: Signal[],
-): HarnessData {
+): SystemData {
   const loadSheet: SheetLoader = (sheetEnclosureId) => sheets.get(sheetEnclosureId) ?? emptySheet(sheetEnclosureId);
   return assembleFromLoader(loadSheet, sheetEnclosureIds, signals);
 }
 
 // ---------------------------------------------------------------------------
-// Splitter: one flat HarnessData -> many sheet files
+// Splitter: one flat SystemData -> many sheet files
 // ---------------------------------------------------------------------------
 
 interface RunNode {
@@ -495,7 +567,7 @@ interface Fragment {
 }
 
 function refKey(node: PathNode): string {
-  return node.kind === 'connector' ? `c:${node.connector_id}:${node.pin_number}` : `m:${node.merge_point_id}`;
+  return node.kind === 'connector' ? `c:${node.connector_id}:${node.pin_number}` : `m:${node.branch_point_id}`;
 }
 
 /** Strips the `derived`/`derived_from_port` bookkeeping fields before writing a plain entity to disk. */
@@ -507,14 +579,14 @@ function omitDerivedFields<T extends { derived?: boolean; derived_from_port?: st
 }
 
 export interface SplitResult {
-  sheets: Map<string | null, HarnessSheet>;
+  sheets: Map<string | null, SystemSheet>;
   signals: Signal[];
 }
 
-export function splitHarness(harness: HarnessData, sheetEnclosureIds: Set<string>): SplitResult {
-  const enclosureById = new Map(harness.enclosures.map((e) => [e.id, e]));
-  const connectorById = new Map(harness.connectors.map((c) => [c.id, c]));
-  const mergePointById = new Map(harness.mergePoints.map((m) => [m.id, m]));
+export function splitSystem(system: SystemData, sheetEnclosureIds: Set<string>): SplitResult {
+  const enclosureById = new Map(system.hierarchy.map((e) => [e.id, e]));
+  const connectorById = new Map(system.connectors.map((c) => [c.id, c]));
+  const branchPointById = new Map(system.branchPoints.map((m) => [m.id, m]));
 
   function ownerScopeOfParent(parentId: string | null): string | null {
     let cur = parentId;
@@ -560,29 +632,29 @@ export function splitHarness(harness: HarnessData, sheetEnclosureIds: Set<string
       if (!con) throw new Error(`Path references missing connector '${node.connector_id}'`);
       return ownerScopeOfParent(con.parent);
     }
-    const mp = mergePointById.get(node.merge_point_id);
-    if (!mp) throw new Error(`Path references missing merge point '${node.merge_point_id}'`);
-    return ownerScopeOfParent(mp.parent);
+    const branchPoint = branchPointById.get(node.branch_point_id);
+    if (!branchPoint) throw new Error(`Path references missing branch point '${node.branch_point_id}'`);
+    return ownerScopeOfParent(branchPoint.parent);
   }
 
   function toLocalNode(node: PathNode): SheetPathNode {
     return node.kind === 'connector'
       ? { kind: 'connector', connector_id: node.connector_id, pin_number: node.pin_number }
-      : { kind: 'merge', merge_point_id: node.merge_point_id };
+      : { kind: 'branch', branch_point_id: node.branch_point_id };
   }
 
-  const sheets = new Map<string | null, HarnessSheet>();
-  function getSheet(scope: string | null): HarnessSheet {
+  const sheets = new Map<string | null, SystemSheet>();
+  function getSheet(scope: string | null): SystemSheet {
     if (!sheets.has(scope)) sheets.set(scope, emptySheet(scope));
     return sheets.get(scope)!;
   }
   getSheet(null);
-  if (harness.name) getSheet(null).name = harness.name;
-  getSheet(null).signalPropertyDefinitions = harness.signalPropertyDefinitions ?? [];
+  if (system.name) getSheet(null).name = system.name;
+  getSheet(null).signalPropertyDefinitions = system.signalPropertyDefinitions ?? [];
   for (const id of sheetEnclosureIds) getSheet(id);
 
   const derivedConnectorIds = new Set<string>();
-  const derivedMergePointIds = new Set<string>();
+  const derivedBranchPointIds = new Set<string>();
 
   function registerPort(
     declaringScope: string | null,
@@ -590,7 +662,7 @@ export function splitHarness(harness: HarnessData, sheetEnclosureIds: Set<string
     node: PathNode,
   ): string {
     const sheet = getSheet(declaringScope);
-    const entityId = node.kind === 'connector' ? node.connector_id : node.merge_point_id;
+    const entityId = node.kind === 'connector' ? node.connector_id : node.branch_point_id;
     const portId = `port_${entityId}`;
     let port = sheet.ports.find((p) => p.id === portId);
     if (!port) {
@@ -613,19 +685,19 @@ export function splitHarness(harness: HarnessData, sheetEnclosureIds: Set<string
         };
         derivedConnectorIds.add(con.id);
       } else {
-        const mp = mergePointById.get(node.merge_point_id)!;
-        if (mp.parent === null) throw new Error(`Merge point '${mp.id}' has no parent but is used across a sheet boundary into '${targetChildScope}'`);
+        const branchPoint = branchPointById.get(node.branch_point_id)!;
+        if (branchPoint.parent === null) throw new Error(`Branch point '${branchPoint.id}' has no parent but is used across a sheet boundary into '${targetChildScope}'`);
         port = {
           id: portId,
-          name: mp.name,
+          name: branchPoint.name,
           target_child_id: targetChildScope,
-          entity_parent: mp.parent,
-          entity_kind: 'merge',
-          merge_point_id: mp.id,
-          tags: mp.tags,
-          properties: mp.properties,
+          entity_parent: branchPoint.parent,
+          entity_kind: 'branch',
+          branch_point_id: branchPoint.id,
+          tags: branchPoint.tags,
+          properties: branchPoint.properties,
         };
-        derivedMergePointIds.add(mp.id);
+        derivedBranchPointIds.add(branchPoint.id);
       }
       sheet.ports.push(port);
     } else if (port.target_child_id !== targetChildScope) {
@@ -637,19 +709,19 @@ export function splitHarness(harness: HarnessData, sheetEnclosureIds: Set<string
   }
 
   // --- enclosures ---
-  for (const enc of harness.enclosures) {
+  for (const enc of system.hierarchy) {
     const scope = ownerScopeOfParent(enc.parent);
-    getSheet(scope).enclosures.push({ ...enc });
+    getSheet(scope).hierarchy.push({ ...enc });
   }
 
-  // --- merge points (plain placement; may later be excluded if derived) ---
-  for (const mp of harness.mergePoints) {
-    const scope = ownerScopeOfParent(mp.parent);
-    getSheet(scope).mergePoints.push(omitDerivedFields(mp));
+  // --- branch points (plain placement; may later be excluded if derived) ---
+  for (const branchPoint of system.branchPoints) {
+    const scope = ownerScopeOfParent(branchPoint.parent);
+    getSheet(scope).branchPoints.push(omitDerivedFields(branchPoint));
   }
 
   // --- paths (the hard part) ---
-  for (const p of harness.paths) {
+  for (const p of system.paths) {
     const scopes = p.nodes.map(nodeScope);
     const runs: RunNode[][] = [];
     for (let i = 0; i < p.nodes.length; i++) {
@@ -678,8 +750,8 @@ export function splitHarness(harness: HarnessData, sheetEnclosureIds: Set<string
             `Path '${p.id}' has adjacent scopes '${host ?? 'root'}' and '${scope ?? 'root'}' without a placeholder at each intervening sheet boundary.`,
           );
         }
-        if (node.kind === 'merge') {
-          throw new Error(`Path '${p.id}' cannot cross a sheet boundary at merge point '${node.merge_point_id}'.`);
+        if (node.kind === 'branch') {
+          throw new Error(`Path '${p.id}' cannot cross a sheet boundary at branch point '${node.branch_point_id}'.`);
         }
         const portId = registerPort(host, scope, node);
         return { kind: 'port', port_id: portId, pin_number: node.pin_number };
@@ -750,7 +822,7 @@ export function splitHarness(harness: HarnessData, sheetEnclosureIds: Set<string
           bridge.localNodes.push(toLocalNode(node));
         } else {
           if (scope === null) throw chainErr();
-          if (node.kind === 'merge') throw new Error(`Path '${p.id}' crosses a sheet boundary at a merge point inside a multi-hop chain -- not supported yet.`);
+          if (node.kind === 'branch') throw new Error(`Path '${p.id}' crosses a sheet boundary at a branch point inside a multi-hop chain -- not supported yet.`);
           const portId = registerPort(host, scope, node);
           bridge.localNodes.push({ kind: 'port', port_id: portId, pin_number: node.pin_number });
         }
@@ -843,20 +915,20 @@ export function splitHarness(harness: HarnessData, sheetEnclosureIds: Set<string
   }
 
   // --- connectors (skip any that ended up derived from a port) ---
-  for (const con of harness.connectors) {
+  for (const con of system.connectors) {
     if (derivedConnectorIds.has(con.id)) continue;
     const scope = ownerScopeOfParent(con.parent);
     getSheet(scope).connectors.push(omitDerivedFields(con));
   }
 
-  // --- drop merge points that ended up derived from a port ---
-  if (derivedMergePointIds.size > 0) {
+  // --- drop branch points that ended up derived from a port ---
+  if (derivedBranchPointIds.size > 0) {
     for (const sheet of sheets.values()) {
-      sheet.mergePoints = sheet.mergePoints.filter((mp) => !derivedMergePointIds.has(mp.id));
+      sheet.branchPoints = sheet.branchPoints.filter((branchPoint) => !derivedBranchPointIds.has(branchPoint.id));
     }
   }
 
-  return { sheets, signals: harness.signals };
+  return { sheets, signals: system.signals };
 }
 
 // ---------------------------------------------------------------------------
@@ -871,9 +943,9 @@ function sortedIds<T extends { id: string }>(items: T[]): string[] {
  * Re-assembles `split` in-memory (no disk I/O) and compares it against `original`.
  * Returns a list of human-readable mismatches; empty means the split is safe to write.
  */
-export function verifyRoundTrip(original: HarnessData, split: SplitResult, sheetEnclosureIds: Set<string>): string[] {
+export function verifyRoundTrip(original: SystemData, split: SplitResult, sheetEnclosureIds: Set<string>): string[] {
   const problems: string[] = [];
-  let reassembled: HarnessData;
+  let reassembled: SystemData;
   try {
     reassembled = assembleFromSheetMap(split.sheets, sheetEnclosureIds, split.signals);
   } catch (error) {
@@ -892,9 +964,9 @@ export function verifyRoundTrip(original: HarnessData, split: SplitResult, sheet
       problems.push(`${label} id set mismatch — missing after split: [${missing.join(', ')}], unexpected after split: [${extra.join(', ')}]`);
     }
   };
-  compareIdSets('enclosures', original.enclosures, reassembled.enclosures);
+  compareIdSets('hierarchy', original.hierarchy, reassembled.hierarchy);
   compareIdSets('connectors', original.connectors, reassembled.connectors);
-  compareIdSets('mergePoints', original.mergePoints, reassembled.mergePoints);
+  compareIdSets('branchPoints', original.branchPoints, reassembled.branchPoints);
   compareIdSets('paths', original.paths, reassembled.paths);
   compareIdSets('signals', original.signals, reassembled.signals);
   compareIdSets(
@@ -948,19 +1020,19 @@ export function verifyRoundTrip(original: HarnessData, split: SplitResult, sheet
 }
 
 // ---------------------------------------------------------------------------
-// Disk I/O for sheeted harnesses
+// Disk I/O for sheeted systems
 // ---------------------------------------------------------------------------
 
-export function writeSheetsToDisk(harnessDir: string, split: SplitResult) {
+export function writeSheetsToDisk(systemDir: string, split: SplitResult) {
   const pending: Array<{ temp: string; target: string }> = [];
   for (const [scope, sheet] of split.sheets) {
-    const file = scope === null ? rootSheetFile(harnessDir) : childSheetFile(harnessDir, scope);
+    const file = scope === null ? rootSheetFile(systemDir) : childSheetFile(systemDir, scope);
     fs.mkdirSync(path.dirname(file), { recursive: true });
     const temp = `${file}.${process.pid}.${Date.now()}.tmp`;
     fs.writeFileSync(temp, JSON.stringify(sheet, null, 2) + '\n', 'utf-8');
     pending.push({ temp, target: file });
   }
-  const signalTarget = signalsFile(harnessDir);
+  const signalTarget = signalsFile(systemDir);
   const signalTemp = `${signalTarget}.${process.pid}.${Date.now()}.tmp`;
   fs.writeFileSync(signalTemp, JSON.stringify(split.signals, null, 2) + '\n', 'utf-8');
   pending.push({ temp: signalTemp, target: signalTarget });
@@ -973,8 +1045,8 @@ export function writeSheetsToDisk(harnessDir: string, split: SplitResult) {
   }
 }
 
-export function readSheetedHarness(harnessDir: string): HarnessData {
-  return assembleHarnessFromDisk(harnessDir);
+export function readSheetedSystem(systemDir: string): SystemData {
+  return assembleSystemFromDisk(systemDir);
 }
 
 export interface SheetedWritePlan {
@@ -983,39 +1055,39 @@ export interface SheetedWritePlan {
 }
 
 /**
- * Splits `harness` and verifies the split round-trips cleanly, returning the
+ * Splits `system` and verifies the split round-trips cleanly, returning the
  * work needed to persist it. Throws if the round trip fails.
  *
  * This performs no disk writes, so callers can validate a payload before taking
  * a history snapshot or bumping the revision -- a rejected save must leave the
- * harness exactly as it was rather than needing to be rolled back.
+ * system exactly as it was rather than needing to be rolled back.
  */
-export function planSheetedWrite(harnessDir: string, harness: HarnessData): SheetedWritePlan {
-  const sheetEnclosureIds = discoverSheetEnclosureIds(harnessDir);
-  const liveEnclosureIds = new Set(harness.enclosures.map((enclosure) => enclosure.id));
+export function planSheetedWrite(systemDir: string, system: SystemData): SheetedWritePlan {
+  const sheetEnclosureIds = discoverSheetEnclosureIds(systemDir);
+  const liveEnclosureIds = new Set(system.hierarchy.map((enclosure) => enclosure.id));
   const staleSheetIds = [...sheetEnclosureIds].filter((id) => !liveEnclosureIds.has(id));
   for (const staleId of staleSheetIds) sheetEnclosureIds.delete(staleId);
-  const split = splitHarness(harness, sheetEnclosureIds);
-  const problems = verifyRoundTrip(harness, split, sheetEnclosureIds);
+  const split = splitSystem(system, sheetEnclosureIds);
+  const problems = verifyRoundTrip(system, split, sheetEnclosureIds);
   if (problems.length > 0) {
     throw new Error(`Refusing to save: sheet split failed its round-trip check:\n${problems.join('\n')}`);
   }
   return { split, staleSheetIds };
 }
 
-/** Writes an already-verified plan from `planSheetedWrite` to `harnessDir`. */
-export function commitSheetedWrite(harnessDir: string, plan: SheetedWritePlan) {
-  writeSheetsToDisk(harnessDir, plan.split);
+/** Writes an already-verified plan from `planSheetedWrite` to `systemDir`. */
+export function commitSheetedWrite(systemDir: string, plan: SheetedWritePlan) {
+  writeSheetsToDisk(systemDir, plan.split);
   for (const staleId of plan.staleSheetIds) {
-    const file = childSheetFile(harnessDir, staleId);
+    const file = childSheetFile(systemDir, staleId);
     if (fs.existsSync(file)) fs.unlinkSync(file);
   }
 }
 
 /**
- * Splits `harness`, verifies the split round-trips cleanly, and writes it to
- * `harnessDir`. Throws (without touching disk) if the round trip fails.
+ * Splits `system`, verifies the split round-trips cleanly, and writes it to
+ * `systemDir`. Throws (without touching disk) if the round trip fails.
  */
-export function writeSheetedHarness(harnessDir: string, harness: HarnessData) {
-  commitSheetedWrite(harnessDir, planSheetedWrite(harnessDir, harness));
+export function writeSheetedSystem(systemDir: string, system: SystemData) {
+  commitSheetedWrite(systemDir, planSheetedWrite(systemDir, system));
 }

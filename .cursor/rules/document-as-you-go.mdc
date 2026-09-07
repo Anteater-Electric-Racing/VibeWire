@@ -1,0 +1,20 @@
+---
+description: Keep in-scope docs, Tips, and terminology current; ask before unrelated backfill.
+alwaysApply: true
+---
+
+# Document as you go
+
+Workflow: `AGENTS.md`. Index: `docs/README.md`. Files under `public/user-data/` are fixtures, not product docs.
+
+After in-scope behavior or architecture changes, update documentation in the same change. Do not wait to be asked.
+
+1. Record the change in the matching canonical page under `docs/` (see `docs/README.md`).
+2. If a person needs a new gesture, shortcut, or non-obvious behavior, add a user-facing Tip in `src/components/layout/SettingsModal.tsx` (`SettingsModal`; store `settingsOpen` / `setSettingsOpen`; modal and topbar title **Tips**). There is no `TipsModal`.
+3. For every new or materially changed product feature, add a dated `CHANGELOG.md` entry in the same change. Describe VibeWire behavior, not fixture-specific edits.
+4. Capture durable user instructions and canonical terminology in `AGENTS.md` and `docs/` (names live in `docs/domain-model.md`).
+5. If you touch a stale name, path, or behavior reference, fix it in that change. Do not leave it.
+
+Push back when requested terminology conflicts with the app or established harness concepts; explain the mismatch and propose a clearer model before implementing it.
+
+Ask in chat before expanding into unrelated backdocumentation or cleanup.

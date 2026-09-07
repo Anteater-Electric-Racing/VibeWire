@@ -1,7 +1,7 @@
 import type {
   ConnectorLibrary,
   ConnectorType,
-  HarnessData,
+  SystemData,
 } from '../../types';
 import type {
   CollaborationLayouts,
@@ -13,16 +13,16 @@ export interface RecordDiff<T> {
   removed: string[];
 }
 
-type HarnessCollection = Exclude<keyof HarnessData, 'schema_version' | 'name'>;
+type SystemCollection = Exclude<keyof SystemData, 'schema_version' | 'name'>;
 
-export interface HarnessDiff {
+export interface SystemDiff {
   metadata?: {
     schema_version: string;
     hasName: boolean;
     name?: string;
   };
   collections: {
-    [K in HarnessCollection]: RecordDiff<HarnessData[K][number]>;
+    [K in SystemCollection]: RecordDiff<SystemData[K][number]>;
   };
 }
 
@@ -113,16 +113,16 @@ function arrayById<T extends { id: string }>(items: T[]): Record<string, T> {
   return Object.fromEntries(items.map((item) => [item.id, item]));
 }
 
-const HARNESS_COLLECTIONS = [
-  'enclosures',
+const SYSTEM_COLLECTIONS = [
+  'hierarchy',
   'connectors',
-  'mergePoints',
+  'branchPoints',
   'paths',
   'signals',
   'signalPropertyDefinitions',
-] as const satisfies readonly HarnessCollection[];
+] as const satisfies readonly SystemCollection[];
 
-export function diffHarness(base: HarnessData, live: HarnessData): HarnessDiff {
+export function diffSystem(base: SystemData, live: SystemData): SystemDiff {
   const metadataChanged =
     base.schema_version !== live.schema_version
     || base.name !== live.name
@@ -139,9 +139,9 @@ export function diffHarness(base: HarnessData, live: HarnessData): HarnessDiff {
         }
       : {}),
     collections: {
-      enclosures: diffRecord(arrayById(base.enclosures), arrayById(live.enclosures)),
+      hierarchy: diffRecord(arrayById(base.hierarchy), arrayById(live.hierarchy)),
       connectors: diffRecord(arrayById(base.connectors), arrayById(live.connectors)),
-      mergePoints: diffRecord(arrayById(base.mergePoints), arrayById(live.mergePoints)),
+      branchPoints: diffRecord(arrayById(base.branchPoints), arrayById(live.branchPoints)),
       paths: diffRecord(arrayById(base.paths), arrayById(live.paths)),
       signals: diffRecord(arrayById(base.signals), arrayById(live.signals)),
       signalPropertyDefinitions: diffRecord(
@@ -152,15 +152,15 @@ export function diffHarness(base: HarnessData, live: HarnessData): HarnessDiff {
   };
 }
 
-export function isHarnessDiffEmpty(diff: HarnessDiff): boolean {
+export function isSystemDiffEmpty(diff: SystemDiff): boolean {
   return !diff.metadata
-    && HARNESS_COLLECTIONS.every((key) =>
+    && SYSTEM_COLLECTIONS.every((key) =>
       isRecordDiffEmpty(diff.collections[key] as RecordDiff<{ id: string }>)
     );
 }
 
-export function changedHarnessEntityIds(diff: HarnessDiff): string[] {
-  return HARNESS_COLLECTIONS.flatMap((key) => [
+export function changedSystemEntityIds(diff: SystemDiff): string[] {
+  return SYSTEM_COLLECTIONS.flatMap((key) => [
     ...Object.keys(diff.collections[key].patch),
     ...diff.collections[key].removed,
   ]);
@@ -181,12 +181,12 @@ function applyArrayDiff<T extends { id: string }>(
   return next;
 }
 
-export function applyHarnessDiff(base: HarnessData, diff: HarnessDiff): HarnessData {
-  const next: HarnessData = {
+export function applySystemDiff(base: SystemData, diff: SystemDiff): SystemData {
+  const next: SystemData = {
     ...base,
-    enclosures: applyArrayDiff(base.enclosures, diff.collections.enclosures),
+    hierarchy: applyArrayDiff(base.hierarchy, diff.collections.hierarchy),
     connectors: applyArrayDiff(base.connectors, diff.collections.connectors),
-    mergePoints: applyArrayDiff(base.mergePoints, diff.collections.mergePoints),
+    branchPoints: applyArrayDiff(base.branchPoints, diff.collections.branchPoints),
     paths: applyArrayDiff(base.paths, diff.collections.paths),
     signals: applyArrayDiff(base.signals, diff.collections.signals),
     signalPropertyDefinitions: applyArrayDiff(
@@ -202,15 +202,15 @@ export function applyHarnessDiff(base: HarnessData, diff: HarnessDiff): HarnessD
   return next;
 }
 
-export function rebaseHarness(
-  serverBase: HarnessData,
-  local: HarnessData,
-  remote: HarnessData,
-): RebaseResult<HarnessData> {
-  const diff = diffHarness(serverBase, local);
+export function rebaseSystem(
+  serverBase: SystemData,
+  local: SystemData,
+  remote: SystemData,
+): RebaseResult<SystemData> {
+  const diff = diffSystem(serverBase, local);
   const conflictIds: string[] = [];
 
-  for (const key of HARNESS_COLLECTIONS) {
+  for (const key of SYSTEM_COLLECTIONS) {
     const baseById = arrayById(serverBase[key] as Array<{ id: string }>);
     const remoteById = arrayById(remote[key] as Array<{ id: string }>);
     for (const [id, localEntity] of Object.entries(diff.collections[key].patch)) {
@@ -224,7 +224,7 @@ export function rebaseHarness(
 
   return conflictIds.length > 0
     ? { value: null, conflictIds }
-    : { value: applyHarnessDiff(remote, diff), conflictIds: [] };
+    : { value: applySystemDiff(remote, diff), conflictIds: [] };
 }
 
 export function diffLibrary(base: ConnectorLibrary, live: ConnectorLibrary): LibraryDiff {
@@ -291,12 +291,15 @@ export function emptyLayouts(): CollaborationLayouts {
     sizes: {},
     free: {},
     backgrounds: {},
+    images: {},
     connectorTypeSizes: {},
     textBoxes: {},
     waypoints: {},
-    junctions: {},
-    mergePoints: {},
+    sharedAnchors: {},
+    branchPoints: {},
     rotations: {},
+    routeStyles: {},
+    viewRouteStyles: {},
   };
 }
 
@@ -312,12 +315,15 @@ const FLAT_LAYOUT_KEYS = [
   'sizes',
   'free',
   'backgrounds',
+  'images',
   'connectorTypeSizes',
   'textBoxes',
   'waypoints',
-  'junctions',
+  'sharedAnchors',
   'rotations',
-] as const satisfies readonly Exclude<keyof CollaborationLayouts, 'mergePoints'>[];
+  'routeStyles',
+  'viewRouteStyles',
+] as const satisfies readonly Exclude<keyof CollaborationLayouts, 'branchPoints'>[];
 
 export function diffLayouts(
   base: CollaborationLayouts,
@@ -335,22 +341,22 @@ export function diffLayouts(
     }
     if (diff.removed.length > 0) removed[key] = diff.removed;
   }
-  const mergePointPatch: CollaborationLayouts['mergePoints'] = {};
-  const removedMergePoints: Record<string, string[]> = {};
+  const branchPointPatch: CollaborationLayouts['branchPoints'] = {};
+  const removedBranchPoints: Record<string, string[]> = {};
   const contextKeys = new Set([
-    ...Object.keys(base.mergePoints),
-    ...Object.keys(live.mergePoints),
+    ...Object.keys(base.branchPoints),
+    ...Object.keys(live.branchPoints),
   ]);
   for (const contextKey of contextKeys) {
     const diff = diffRecord(
-      base.mergePoints[contextKey] ?? {},
-      live.mergePoints[contextKey] ?? {},
+      base.branchPoints[contextKey] ?? {},
+      live.branchPoints[contextKey] ?? {},
     );
-    if (Object.keys(diff.patch).length > 0) mergePointPatch[contextKey] = diff.patch;
-    if (diff.removed.length > 0) removedMergePoints[contextKey] = diff.removed;
+    if (Object.keys(diff.patch).length > 0) branchPointPatch[contextKey] = diff.patch;
+    if (diff.removed.length > 0) removedBranchPoints[contextKey] = diff.removed;
   }
-  if (Object.keys(mergePointPatch).length > 0) patch.mergePoints = mergePointPatch;
-  if (Object.keys(removedMergePoints).length > 0) removed.mergePoints = removedMergePoints;
+  if (Object.keys(branchPointPatch).length > 0) patch.branchPoints = branchPointPatch;
+  if (Object.keys(removedBranchPoints).length > 0) removed.branchPoints = removedBranchPoints;
   return { patch, removed };
 }
 
@@ -361,7 +367,7 @@ export function isLayoutPatchEmpty(diff: LayoutPatch): boolean {
 export function applyLayoutPatch(
   base: CollaborationLayouts,
   diff: LayoutPatch,
-  mergePointMode: 'nested' | 'contexts' = 'nested',
+  branchPointMode: 'nested' | 'contexts' = 'nested',
 ): CollaborationLayouts {
   const next = { ...base };
   for (const key of FLAT_LAYOUT_KEYS) {
@@ -370,51 +376,51 @@ export function applyLayoutPatch(
     if (!patch && removed.length === 0) continue;
     Object.assign(next, {
       [key]: applyRecordDiff(
-        base[key],
+        (base[key] ?? {}) as CollaborationLayouts[typeof key],
         { patch: patch ?? {}, removed },
       ),
     });
   }
-  const mergePointPatch = diff.patch.mergePoints ?? {};
-  const removedMergePoints = diff.removed.mergePoints;
-  const hasMergePointChange = Object.keys(mergePointPatch).length > 0
-    || (Array.isArray(removedMergePoints)
-      ? removedMergePoints.length > 0
-      : Object.keys(removedMergePoints ?? {}).length > 0);
+  const branchPointPatch = diff.patch.branchPoints ?? {};
+  const removedBranchPoints = diff.removed.branchPoints;
+  const hasBranchPointChange = Object.keys(branchPointPatch).length > 0
+    || (Array.isArray(removedBranchPoints)
+      ? removedBranchPoints.length > 0
+      : Object.keys(removedBranchPoints ?? {}).length > 0);
   // Callers compare layout maps by reference to detect "nothing changed", so an
   // empty patch has to hand back the exact same object.
-  if (!hasMergePointChange) return next;
+  if (!hasBranchPointChange) return next;
 
-  const mergePoints = { ...base.mergePoints };
-  if (mergePointMode === 'contexts') {
-    for (const [contextKey, context] of Object.entries(mergePointPatch)) {
-      mergePoints[contextKey] = context;
+  const branchPoints = { ...base.branchPoints };
+  if (branchPointMode === 'contexts') {
+    for (const [contextKey, context] of Object.entries(branchPointPatch)) {
+      branchPoints[contextKey] = context;
     }
-    if (Array.isArray(removedMergePoints)) {
-      for (const contextKey of removedMergePoints) delete mergePoints[contextKey];
+    if (Array.isArray(removedBranchPoints)) {
+      for (const contextKey of removedBranchPoints) delete branchPoints[contextKey];
     }
-    next.mergePoints = mergePoints;
+    next.branchPoints = branchPoints;
     return next;
   }
-  const removedByContext = Array.isArray(removedMergePoints)
+  const removedByContext = Array.isArray(removedBranchPoints)
     ? {}
-    : (removedMergePoints ?? {});
+    : (removedBranchPoints ?? {});
   for (const contextKey of new Set([
-    ...Object.keys(mergePointPatch),
+    ...Object.keys(branchPointPatch),
     ...Object.keys(removedByContext),
   ])) {
-    mergePoints[contextKey] = applyRecordDiff(
-      base.mergePoints[contextKey] ?? {},
+    branchPoints[contextKey] = applyRecordDiff(
+      base.branchPoints[contextKey] ?? {},
       {
-        patch: mergePointPatch[contextKey] ?? {},
+        patch: branchPointPatch[contextKey] ?? {},
         removed: removedByContext[contextKey] ?? [],
       },
     );
   }
-  if (Array.isArray(removedMergePoints)) {
-    for (const contextKey of removedMergePoints) delete mergePoints[contextKey];
+  if (Array.isArray(removedBranchPoints)) {
+    for (const contextKey of removedBranchPoints) delete branchPoints[contextKey];
   }
-  next.mergePoints = mergePoints;
+  next.branchPoints = branchPoints;
   return next;
 }
 
@@ -426,31 +432,31 @@ export function mergeRemoteLayouts(
   const nextLive = { ...live };
   for (const key of FLAT_LAYOUT_KEYS) {
     const merged = mergeRemoteRecord(
-      serverBase[key] as Record<string, unknown>,
-      live[key] as Record<string, unknown>,
-      remote[key] as Record<string, unknown>,
+      (serverBase[key] ?? {}) as Record<string, unknown>,
+      (live[key] ?? {}) as Record<string, unknown>,
+      (remote[key] ?? {}) as Record<string, unknown>,
     );
     Object.assign(nextLive, { [key]: merged.live });
   }
-  const nextMergePoints: CollaborationLayouts['mergePoints'] = {};
+  const nextBranchPoints: CollaborationLayouts['branchPoints'] = {};
   const contextKeys = new Set([
-    ...Object.keys(serverBase.mergePoints),
-    ...Object.keys(live.mergePoints),
-    ...Object.keys(remote.mergePoints),
+    ...Object.keys(serverBase.branchPoints),
+    ...Object.keys(live.branchPoints),
+    ...Object.keys(remote.branchPoints),
   ]);
   for (const contextKey of contextKeys) {
     const merged = mergeRemoteRecord(
-      serverBase.mergePoints[contextKey] ?? {},
-      live.mergePoints[contextKey] ?? {},
-      remote.mergePoints[contextKey] ?? {},
+      serverBase.branchPoints[contextKey] ?? {},
+      live.branchPoints[contextKey] ?? {},
+      remote.branchPoints[contextKey] ?? {},
     );
     if (
       Object.keys(merged.live).length > 0
-      || Object.hasOwn(remote.mergePoints, contextKey)
+      || Object.hasOwn(remote.branchPoints, contextKey)
     ) {
-      nextMergePoints[contextKey] = merged.live;
+      nextBranchPoints[contextKey] = merged.live;
     }
   }
-  nextLive.mergePoints = nextMergePoints;
+  nextLive.branchPoints = nextBranchPoints;
   return { server: remote, live: nextLive };
 }

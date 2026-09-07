@@ -5,7 +5,7 @@ import http, { type IncomingMessage } from 'node:http';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { createApiMiddleware, type HarnessData } from '../server/api.js';
+import { createApiMiddleware, type SystemData } from '../server/api.js';
 
 interface ApiResult<T = unknown> {
   status: number;
@@ -16,7 +16,7 @@ interface ApiResult<T = unknown> {
 interface StateResponse {
   rev: number;
   libraryRev: number;
-  harness: HarnessData;
+  system: SystemData;
   layouts: Record<string, unknown>;
   manufacturing: Record<string, unknown>;
   subsystems: unknown[];
@@ -31,7 +31,7 @@ interface SseConnection {
 
 const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const temporaryRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'vibewire-collab-api-'));
-const harnessName = 'fsae-car';
+const systemKey = 'fsae-car';
 let failures = 0;
 
 function copyIfPresent(source: string, destination: string): void {
@@ -43,32 +43,31 @@ function copyIfPresent(source: string, destination: string): void {
 function setupTemporaryProject(): void {
   const sourceUserData = path.join(repositoryRoot, 'public', 'user-data');
   const targetUserData = path.join(temporaryRoot, 'public', 'user-data');
-  const sourceSheeted = path.join(sourceUserData, 'harnesses', harnessName);
-  const sourceFlat = path.join(sourceUserData, 'harnesses', `${harnessName}.json`);
-  assert(
-    fs.existsSync(path.join(sourceSheeted, 'root.json')) || fs.existsSync(sourceFlat),
-    `Expected a real '${harnessName}' harness to copy`,
-  );
-  if (fs.existsSync(path.join(sourceSheeted, 'root.json'))) {
-    copyIfPresent(sourceSheeted, path.join(targetUserData, 'harnesses', harnessName));
+  const sourceCanonicalSheeted = path.join(sourceUserData, 'systems', systemKey);
+  const sourceCanonicalFlat = path.join(sourceUserData, 'systems', `${systemKey}.json`);
+  const hasCanonical = fs.existsSync(path.join(sourceCanonicalSheeted, 'root.json'))
+    || fs.existsSync(sourceCanonicalFlat);
+  assert(hasCanonical, `Expected a real '${systemKey}' System to copy`);
+  if (fs.existsSync(path.join(sourceCanonicalSheeted, 'root.json'))) {
+    copyIfPresent(sourceCanonicalSheeted, path.join(targetUserData, 'systems', systemKey));
   } else {
-    copyIfPresent(sourceFlat, path.join(targetUserData, 'harnesses', `${harnessName}.json`));
+    copyIfPresent(sourceCanonicalFlat, path.join(targetUserData, 'systems', `${systemKey}.json`));
   }
   copyIfPresent(
     path.join(sourceUserData, 'connectors', 'connector-library.json'),
     path.join(targetUserData, 'connectors', 'connector-library.json'),
   );
   copyIfPresent(
-    path.join(sourceUserData, `layouts.${harnessName}.json`),
-    path.join(targetUserData, `layouts.${harnessName}.json`),
+    path.join(sourceUserData, `layouts.${systemKey}.json`),
+    path.join(targetUserData, `layouts.${systemKey}.json`),
   );
   copyIfPresent(
-    path.join(sourceUserData, `manufacturing.${harnessName}.json`),
-    path.join(targetUserData, `manufacturing.${harnessName}.json`),
+    path.join(sourceUserData, `manufacturing.${systemKey}.json`),
+    path.join(targetUserData, `manufacturing.${systemKey}.json`),
   );
   copyIfPresent(
-    path.join(sourceUserData, 'subsystems', harnessName),
-    path.join(targetUserData, 'subsystems', harnessName),
+    path.join(sourceUserData, 'subsystems', systemKey),
+    path.join(targetUserData, 'subsystems', systemKey),
   );
   assert.equal(
     fs.existsSync(path.join(temporaryRoot, 'vibewire-state')),
@@ -91,11 +90,11 @@ function collectFiles(root: string, relative: string, result: Map<string, Buffer
   }
 }
 
-function harnessBytes(): Map<string, Buffer> {
+function systemBytes(): Map<string, Buffer> {
   const userData = path.join(temporaryRoot, 'public', 'user-data');
   const result = new Map<string, Buffer>();
-  collectFiles(userData, path.join('harnesses', harnessName), result);
-  collectFiles(userData, path.join('harnesses', `${harnessName}.json`), result);
+  collectFiles(userData, path.join('systems', systemKey), result);
+  collectFiles(userData, path.join('systems', `${systemKey}.json`), result);
   return result;
 }
 
@@ -186,7 +185,7 @@ async function openSse(cookie: string): Promise<SseConnection> {
       request.destroy();
     }, 5_000);
     const request = http.get(
-      `${baseUrl}/api/events?harness=${encodeURIComponent(harnessName)}`,
+      `${baseUrl}/api/events?system=${encodeURIComponent(systemKey)}`,
       { headers: { Cookie: cookie } },
       (response: IncomingMessage) => {
         if (response.statusCode !== 200) {
@@ -252,22 +251,22 @@ try {
     editorCookie = cookieFrom(editor);
     viewerCookie = cookieFrom(viewer);
 
-    const openRead = await api(`/api/state?harness=${harnessName}`);
+    const openRead = await api(`/api/state?system=${systemKey}`);
     assert.equal(openRead.status, 200);
-    const forbidden = await api(`/api/save-layouts?harness=${harnessName}`, {
+    const forbidden = await api(`/api/save-layouts?system=${systemKey}`, {
       method: 'POST',
       cookie: viewerCookie,
       body: { patch: { nodes: { viewer_attempt: { x: 1, y: 1 } } }, removed: {} },
     });
     assert.equal(forbidden.status, 403);
-    assert.equal((await api(`/api/save-layouts?harness=${harnessName}`, {
+    assert.equal((await api(`/api/save-layouts?system=${systemKey}`, {
       method: 'POST',
       body: { patch: {}, removed: {} },
     })).status, 403);
   });
 
   await check('credentialed CORS preflight echoes the origin', async () => {
-    const response = await api(`/api/save-harness?harness=${harnessName}`, {
+    const response = await api(`/api/save-system?system=${systemKey}`, {
       method: 'OPTIONS',
       headers: {
         Origin: 'https://team.example',
@@ -281,37 +280,37 @@ try {
   });
 
   await check('CAS accepts current revision and rejects stale bytes unchanged', async () => {
-    const initial = (await api<StateResponse>(`/api/state?harness=${harnessName}`)).body;
-    assert(initial.harness.connectors.length > 0, 'copied harness needs a connector');
-    const connectorId = initial.harness.connectors[0].id;
-    const acceptedHarness = structuredClone(initial.harness);
-    acceptedHarness.connectors[0].name = 'CAS accepted edit';
+    const initial = (await api<StateResponse>(`/api/state?system=${systemKey}`)).body;
+    assert(initial.system.connectors.length > 0, 'copied system needs a connector');
+    const connectorId = initial.system.connectors[0].id;
+    const acceptedSystem = structuredClone(initial.system);
+    acceptedSystem.connectors[0].name = 'CAS accepted edit';
     const accepted = await api<{ ok: boolean; rev: number }>(
-      `/api/save-harness?harness=${harnessName}`,
+      `/api/save-system?system=${systemKey}`,
       {
         method: 'POST',
         cookie: editorCookie,
         headers: { 'X-Base-Rev': String(initial.rev) },
-        body: acceptedHarness,
+        body: acceptedSystem,
       },
     );
     assert.equal(accepted.status, 200);
     assert.equal(accepted.body.rev, initial.rev + 1);
 
-    const beforeRejected = harnessBytes();
-    const staleHarness = structuredClone(initial.harness);
-    staleHarness.connectors[0].name = 'Stale edit must not land';
+    const beforeRejected = systemBytes();
+    const staleSystem = structuredClone(initial.system);
+    staleSystem.connectors[0].name = 'Stale edit must not land';
     const rejected = await api<{
       error: string;
       currentRev: number;
       baseRev: number;
       lastWriter: { displayName: string };
       changedEntityIds: string[];
-    }>(`/api/save-harness?harness=${harnessName}`, {
+    }>(`/api/save-system?system=${systemKey}`, {
       method: 'POST',
       cookie: editorCookie,
       headers: { 'X-Base-Rev': String(initial.rev) },
-      body: staleHarness,
+      body: staleSystem,
     });
     assert.equal(rejected.status, 409);
     assert.equal(rejected.body.error, 'conflict');
@@ -319,23 +318,23 @@ try {
     assert.equal(rejected.body.baseRev, initial.rev);
     assert.equal(rejected.body.lastWriter.displayName, 'Editor');
     assert(rejected.body.changedEntityIds.includes(connectorId));
-    assertBytesEqual(harnessBytes(), beforeRejected, 'stale CAS rejection changed harness files');
+    assertBytesEqual(systemBytes(), beforeRejected, 'stale CAS rejection changed System files');
   });
 
   await check('simultaneous saves serialize without corruption', async () => {
-    const state = (await api<StateResponse>(`/api/state?harness=${harnessName}`)).body;
-    const first = structuredClone(state.harness);
-    const second = structuredClone(state.harness);
+    const state = (await api<StateResponse>(`/api/state?system=${systemKey}`)).body;
+    const first = structuredClone(state.system);
+    const second = structuredClone(state.system);
     first.connectors[0].name = 'Concurrent winner A';
     second.connectors[0].name = 'Concurrent winner B';
     const responses = await Promise.all([
-      api(`/api/save-harness?harness=${harnessName}`, {
+      api(`/api/save-system?system=${systemKey}`, {
         method: 'POST',
         cookie: editorCookie,
         headers: { 'X-Base-Rev': String(state.rev) },
         body: first,
       }),
-      api(`/api/save-harness?harness=${harnessName}`, {
+      api(`/api/save-system?system=${systemKey}`, {
         method: 'POST',
         cookie: editorCookie,
         headers: { 'X-Base-Rev': String(state.rev) },
@@ -343,16 +342,16 @@ try {
       }),
     ]);
     assert.deepEqual(responses.map((response) => response.status).sort(), [200, 409]);
-    const saved = (await api<StateResponse>(`/api/state?harness=${harnessName}`)).body;
+    const saved = (await api<StateResponse>(`/api/state?system=${systemKey}`)).body;
     assert(
-      saved.harness.connectors[0].name === 'Concurrent winner A'
-      || saved.harness.connectors[0].name === 'Concurrent winner B',
+      saved.system.connectors[0].name === 'Concurrent winner A'
+      || saved.system.connectors[0].name === 'Concurrent winner B',
     );
-    JSON.stringify(saved.harness);
+    JSON.stringify(saved.system);
   });
 
   await check('library CAS has an independent revision', async () => {
-    const state = (await api<StateResponse>(`/api/state?harness=${harnessName}`)).body;
+    const state = (await api<StateResponse>(`/api/state?system=${systemKey}`)).body;
     const library = (await api<{ connector_types: Array<Record<string, unknown>> }>('/api/library')).body;
     assert(library.connector_types.length > 0);
     const next = structuredClone(library);
@@ -388,43 +387,43 @@ try {
     assert(fs.readFileSync(file).equals(beforeRejected));
   });
 
-  await check('layout merges preserve independent clients and nested merge points', async () => {
-    const first = api(`/api/save-layouts?harness=${harnessName}`, {
+  await check('layout merges preserve independent clients and nested branch points', async () => {
+    const first = api(`/api/save-layouts?system=${systemKey}`, {
       method: 'POST',
       cookie: editorCookie,
       body: {
         patch: {
           nodes: { layout_client_a: { x: 10, y: 20 } },
-          mergePoints: { shared_context: { mp_client_a: { x: 1, y: 2 } } },
+          branchPoints: { shared_context: { mp_client_a: { x: 1, y: 2 } } },
         },
         removed: {},
       },
     });
-    const second = api(`/api/save-layouts?harness=${harnessName}`, {
+    const second = api(`/api/save-layouts?system=${systemKey}`, {
       method: 'POST',
       cookie: editorCookie,
       body: {
         patch: {
           nodes: { layout_client_b: { x: 30, y: 40 } },
-          mergePoints: { shared_context: { mp_client_b: { x: 3, y: 4 } } },
+          branchPoints: { shared_context: { mp_client_b: { x: 3, y: 4 } } },
         },
         removed: {},
       },
     });
     assert.deepEqual((await Promise.all([first, second])).map((item) => item.status), [200, 200]);
-    const state = (await api<StateResponse>(`/api/state?harness=${harnessName}`)).body;
+    const state = (await api<StateResponse>(`/api/state?system=${systemKey}`)).body;
     const nodes = state.layouts.nodes as Record<string, unknown>;
-    const mergePoints = state.layouts.mergePoints as Record<string, Record<string, unknown>>;
+    const branchPoints = state.layouts.branchPoints as Record<string, Record<string, unknown>>;
     assert(nodes.layout_client_a);
     assert(nodes.layout_client_b);
-    assert(mergePoints.shared_context.mp_client_a);
-    assert(mergePoints.shared_context.mp_client_b);
+    assert(branchPoints.shared_context.mp_client_a);
+    assert(branchPoints.shared_context.mp_client_b);
   });
 
-  await check('validation degradation is refused without touching the harness', async () => {
-    const state = (await api<StateResponse>(`/api/state?harness=${harnessName}`)).body;
-    const before = harnessBytes();
-    const invalid = structuredClone(state.harness);
+  await check('validation degradation is refused without touching the system', async () => {
+    const state = (await api<StateResponse>(`/api/state?system=${systemKey}`)).body;
+    const before = systemBytes();
+    const invalid = structuredClone(state.system);
     invalid.paths.push({
       id: 'path_validation_degradation_test',
       name: 'Invalid missing connector path',
@@ -437,7 +436,7 @@ try {
       measurements: [],
     });
     const response = await api<{ error: string; errors: string[] }>(
-      `/api/save-harness?harness=${harnessName}`,
+      `/api/save-system?system=${systemKey}`,
       {
         method: 'POST',
         cookie: editorCookie,
@@ -448,19 +447,19 @@ try {
     assert.equal(response.status, 500);
     assert.equal(response.body.error, 'validation-degradation');
     assert(response.body.errors.some((error) => error.includes('missing connector')));
-    assertBytesEqual(harnessBytes(), before, 'a refused save must not touch the payload');
-    const after = (await api<StateResponse>(`/api/state?harness=${harnessName}`)).body;
+    assertBytesEqual(systemBytes(), before, 'a refused save must not touch the payload');
+    const after = (await api<StateResponse>(`/api/state?system=${systemKey}`)).body;
     // The payload is rejected before anything is written, so there is nothing to
     // roll back and no reason to advance the revision. Bumping it here would
     // leave the client's base revision stale and turn every later save into a
     // conflict.
     assert.equal(after.rev, state.rev, 'a refused save must leave the revision untouched');
-    assert(!after.harness.paths.some((wirePath) => wirePath.id === 'path_validation_degradation_test'));
+    assert(!after.system.paths.some((wirePath) => wirePath.id === 'path_validation_degradation_test'));
 
     // A later save from the same base revision must still be accepted.
-    const recovery = structuredClone(state.harness);
+    const recovery = structuredClone(state.system);
     recovery.connectors[0].name = `${recovery.connectors[0].name} ok`;
-    const retry = await api<{ rev: number }>(`/api/save-harness?harness=${harnessName}`, {
+    const retry = await api<{ rev: number }>(`/api/save-system?system=${systemKey}`, {
       method: 'POST',
       cookie: editorCookie,
       headers: { 'X-Base-Rev': String(state.rev) },
@@ -473,30 +472,42 @@ try {
   // endpoints exist on the path) but cannot be placed on any sheet, so the
   // splitter drops it and the round-trip check refuses the save. Splicing a
   // measured hop used to produce exactly this shape.
-  await check('an unsaveable sheet split is refused without touching the harness', async () => {
-    const state = (await api<StateResponse>(`/api/state?harness=${harnessName}`)).body;
-    const parentById = new Map(state.harness.enclosures.map((enc) => [enc.id, enc.parent]));
+  await check('an unsaveable sheet split is refused without touching the system', async () => {
+    const state = (await api<StateResponse>(`/api/state?system=${systemKey}`)).body;
+    const parentById = new Map(state.system.hierarchy.map((enc) => [enc.id, enc.parent]));
     const topLevelOf = (start: string | null): string | null => {
       let current = start;
       while (current !== null && parentById.get(current)) current = parentById.get(current) ?? null;
       return current;
     };
-    const scopeOfNode = (node: { kind: string; connector_id?: string }): string | null => {
-      if (node.kind !== 'connector') return null;
-      const connector = state.harness.connectors.find((item) => item.id === node.connector_id);
-      return connector ? topLevelOf(connector.parent) : null;
+    const scopeOfNode = (node: {
+      kind: string;
+      connector_id?: string;
+      branch_point_id?: string;
+    }): string | null => {
+      if (node.kind === 'connector') {
+        const connector = state.system.connectors.find((item) => item.id === node.connector_id);
+        return connector ? topLevelOf(connector.parent) : null;
+      }
+      if (node.kind === 'branch') {
+        const branchPoint = state.system.branchPoints.find((item) => item.id === node.branch_point_id);
+        return branchPoint ? topLevelOf(branchPoint.parent) : null;
+      }
+      return null;
     };
-    // Needs a path whose ends sit on different sheets, so the span cannot land
-    // in a single fragment.
-    const spanning = state.harness.paths.find((item) => {
+    // Needs a path whose connector ends sit on different sheets, so the span
+    // cannot land in a single fragment.
+    const spanning = state.system.paths.find((item) => {
       if (item.nodes.length < 3) return false;
-      const scopes = item.nodes.map(scopeOfNode);
-      return new Set(scopes).size >= 3 && scopes.every((scope) => scope !== null);
+      const connectorScopes = item.nodes
+        .filter((node) => node.kind === 'connector')
+        .map(scopeOfNode);
+      return new Set(connectorScopes).size >= 3 && connectorScopes.every((scope) => scope !== null);
     });
-    assert(spanning, 'expected a path crossing three sheets in the fixture harness');
+    assert(spanning, 'expected a path crossing three sheets in the fixture System');
 
-    const before = harnessBytes();
-    const unsaveable = structuredClone(state.harness);
+    const before = systemBytes();
+    const unsaveable = structuredClone(state.system);
     const target = unsaveable.paths.find((item) => item.id === spanning.id)!;
     target.measurements = [
       ...target.measurements,
@@ -506,7 +517,7 @@ try {
         length_mm: 123,
       },
     ];
-    const response = await api<{ error: string }>(`/api/save-harness?harness=${harnessName}`, {
+    const response = await api<{ error: string }>(`/api/save-system?system=${systemKey}`, {
       method: 'POST',
       cookie: editorCookie,
       headers: { 'X-Base-Rev': String(state.rev) },
@@ -517,69 +528,69 @@ try {
       response.body.error.includes('measurement count mismatch'),
       `expected a round-trip refusal, got '${response.body.error}'`,
     );
-    assertBytesEqual(harnessBytes(), before, 'a refused split must not touch the payload');
-    const after = (await api<StateResponse>(`/api/state?harness=${harnessName}`)).body;
+    assertBytesEqual(systemBytes(), before, 'a refused split must not touch the payload');
+    const after = (await api<StateResponse>(`/api/state?system=${systemKey}`)).body;
     assert.equal(after.rev, state.rev, 'a refused split must leave the revision untouched');
     assert.equal(
-      after.harness.paths.find((item) => item.id === spanning.id)?.measurements.length,
+      after.system.paths.find((item) => item.id === spanning.id)?.measurements.length,
       spanning.measurements.length,
       'a refused split must leave the path measurements untouched',
     );
   });
 
   await check('checkpoint restore is reversible by restoring the restore', async () => {
-    const before = (await api<StateResponse>(`/api/state?harness=${harnessName}`)).body;
-    const checkpoint = await api<{ id: string }>(`/api/checkpoints?harness=${harnessName}`, {
+    const before = (await api<StateResponse>(`/api/state?system=${systemKey}`)).body;
+    const checkpoint = await api<{ id: string }>(`/api/checkpoints?system=${systemKey}`, {
       method: 'POST',
       cookie: editorCookie,
       body: { label: 'Before checkpoint mutation' },
     });
     assert.equal(checkpoint.status, 201);
-    const originalName = before.harness.connectors[0].name;
+    const originalName = before.system.connectors[0].name;
 
-    const mutatedHarness = structuredClone(before.harness);
-    mutatedHarness.connectors[0].name = 'Checkpoint mutation';
-    const mutation = await api<{ rev: number }>(`/api/save-harness?harness=${harnessName}`, {
+    const mutatedSystem = structuredClone(before.system);
+    mutatedSystem.connectors[0].name = 'Checkpoint mutation';
+    const mutation = await api<{ rev: number }>(`/api/save-system?system=${systemKey}`, {
       method: 'POST',
       cookie: editorCookie,
       headers: { 'X-Base-Rev': String(before.rev) },
-      body: mutatedHarness,
+      body: mutatedSystem,
     });
     assert.equal(mutation.status, 200);
 
     const restore = await api<{
       rev: number;
       automaticCheckpoint: { id: string; label: string };
-    }>(`/api/checkpoints/${checkpoint.body.id}/restore?harness=${harnessName}`, {
+    }>(`/api/checkpoints/${checkpoint.body.id}/restore?system=${systemKey}`, {
       method: 'POST',
       cookie: editorCookie,
     });
     assert.equal(restore.status, 200);
     assert.match(restore.body.automaticCheckpoint.label, /Auto-saved before restoring/);
     assert.equal(
-      (await api<StateResponse>(`/api/state?harness=${harnessName}`)).body
-        .harness.connectors[0].name,
+      (await api<StateResponse>(`/api/state?system=${systemKey}`)).body
+        .system.connectors[0].name,
       originalName,
     );
 
     const reverse = await api(
-      `/api/checkpoints/${restore.body.automaticCheckpoint.id}/restore?harness=${harnessName}`,
+      `/api/checkpoints/${restore.body.automaticCheckpoint.id}/restore?system=${systemKey}`,
       { method: 'POST', cookie: editorCookie },
     );
     assert.equal(reverse.status, 200);
     assert.equal(
-      (await api<StateResponse>(`/api/state?harness=${harnessName}`)).body
-        .harness.connectors[0].name,
+      (await api<StateResponse>(`/api/state?system=${systemKey}`)).body
+        .system.connectors[0].name,
       'Checkpoint mutation',
     );
   });
 
   await check('SSE receives revisions and sync returns delta and full shapes', async () => {
-    const before = (await api<StateResponse>(`/api/state?harness=${harnessName}`)).body;
-    assert.equal((await api(`/api/events?harness=${harnessName}`)).status, 401);
+    const before = (await api<StateResponse>(`/api/state?system=${systemKey}`)).body;
+    assert.equal((await api(`/api/events?system=${systemKey}`)).status, 401);
     const sse = await openSse(viewerCookie);
     try {
-      const write = await api<{ rev: number }>(`/api/save-layouts?harness=${harnessName}`, {
+      const write = await api<{ rev: number }>(`/api/save-layouts?system=${systemKey}`, {
         method: 'POST',
         cookie: editorCookie,
         body: {
@@ -596,18 +607,18 @@ try {
         rev: number;
         full: boolean;
         changed: Record<string, unknown>;
-      }>(`/api/sync?harness=${harnessName}&since=${before.rev}`);
+      }>(`/api/sync?system=${systemKey}&since=${before.rev}`);
       assert.equal(delta.status, 200);
       assert.equal(delta.body.full, false);
       assert(delta.body.changed.layouts);
       assert.equal(delta.body.rev, write.body.rev);
 
       const full = await api<StateResponse & { full: boolean }>(
-        `/api/sync?harness=${harnessName}&since=999999999`,
+        `/api/sync?system=${systemKey}&since=999999999`,
       );
       assert.equal(full.status, 200);
       assert.equal(full.body.full, true);
-      assert(full.body.harness);
+      assert(full.body.system);
       assert.equal(typeof full.body.libraryRev, 'number');
     } finally {
       sse.close();
@@ -616,7 +627,7 @@ try {
 
   await check('activity endpoint reports successful saves', async () => {
     const activity = await api<Record<string, Record<string, number>>>(
-      `/api/activity?harness=${harnessName}&days=7`,
+      `/api/activity?system=${systemKey}&days=7`,
     );
     assert.equal(activity.status, 200);
     assert(Object.values(activity.body).some((day) => (day.Editor ?? 0) > 0));

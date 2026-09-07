@@ -1,13 +1,13 @@
 {
   "schema_version": "1.2.0",
   "bundles": {
-    "bundle:connectors:con_006|con_auto_574cae58f04f_1": {
+    "bundle:con_auto_574cae58f04f_1|connectors:con_006": {
       "steps": {},
       "endpoint_genders": {
         "con_auto_574cae58f04f_1": "male"
       }
     },
-    "bundle:connectors:con_auto_574cae58f04f_1|con_auto_ada48fc9df29_2": {
+    "bundle:con_auto_ada48fc9df29_2|connectors:con_auto_574cae58f04f_1": {
       "steps": {},
       "endpoint_genders": {
         "con_auto_574cae58f04f_1": "male"

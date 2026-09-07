@@ -6,12 +6,12 @@ import {
 import {
   getConnectorOccupancy,
   getPathWireAppearance,
-} from '../../lib/harness';
+} from '../../lib/systemTopology';
 import { getWireBackground } from '../../lib/colors';
 import type { ManufacturingHarness } from '../../lib/manufacturing';
 import type {
   ConnectorLibrary,
-  HarnessData,
+  SystemData,
   ManufacturingConnectorGuideState,
   ManufacturingDocument,
   SelectedItem,
@@ -29,7 +29,7 @@ export function ManufacturingConnectorGuide({
   connectorId,
   ownerBundleId,
   manufacturingHarness,
-  harness,
+  system,
   library,
   manufacturing,
   isEditor,
@@ -43,7 +43,7 @@ export function ManufacturingConnectorGuide({
   connectorId: string;
   ownerBundleId: string;
   manufacturingHarness: ManufacturingHarness;
-  harness: HarnessData;
+  system: SystemData;
   library: ConnectorLibrary | null;
   manufacturing: ManufacturingDocument;
   isEditor: boolean;
@@ -62,7 +62,7 @@ export function ManufacturingConnectorGuide({
     state: ManufacturingConnectorGuideState | undefined,
   ) => void;
 }) {
-  const connector = harness.connectors.find((candidate) => candidate.id === connectorId);
+  const connector = system.connectors.find((candidate) => candidate.id === connectorId);
   if (!connector) return null;
   const type = library?.connector_types.find(
     (candidate) => candidate.id === connector.connector_type,
@@ -77,7 +77,7 @@ export function ManufacturingConnectorGuide({
     manufacturing.bundles[ownerBundleId]?.connector_guide_states?.[connectorId];
   const guideImage = connector.properties.pin_guide_image
     || getConnectorPinGuideImage(connector, type, gender);
-  const occupancy = getConnectorOccupancy(harness, connectorId);
+  const occupancy = getConnectorOccupancy(system, connectorId);
   const maxUsedPin = Math.max(0, ...occupancy.map((entry) => entry.pinNumber));
   const pinCount = Math.max(getEffectivePinCount(connector, type), maxUsedPin);
   const rows = Array.from({ length: pinCount }, (_, index) => {
@@ -106,7 +106,7 @@ export function ManufacturingConnectorGuide({
           className="min-w-0 flex-1 text-left"
           title="Open connector in inspector without moving the canvas"
         >
-          <div className="truncate text-[11px] font-semibold text-zinc-100 hover:text-amber-300">
+          <div className="truncate text-[11px] font-semibold text-vw-connector hover:opacity-80">
             {connector.name}
           </div>
           <div className={`text-[9px] ${gender ? 'text-zinc-500' : 'text-amber-500'}`}>
@@ -242,8 +242,8 @@ export function ManufacturingConnectorGuide({
                           <td className="px-2 py-1.5 align-top">
                             <div className="space-y-1">
                               {row.items.map((item) => {
-                                const path = harness.paths.find((candidate) => candidate.id === item.pathId);
-                                const appearance = path ? getPathWireAppearance(path, harness) : null;
+                                const path = system.paths.find((candidate) => candidate.id === item.pathId);
+                                const appearance = path ? getPathWireAppearance(path, system) : null;
                                 return (
                                   <div key={item.pathId} className="flex items-center gap-1.5">
                                     <span

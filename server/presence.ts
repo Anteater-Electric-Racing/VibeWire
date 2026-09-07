@@ -5,13 +5,14 @@ import { broadcast as broadcastSse } from './sse.js';
 export type PresenceTargetKind =
   | 'enclosure'
   | 'connector'
-  | 'mergePoint'
+  | 'branchPoint'
   | 'path'
   | 'signal'
-  | 'bundle'
+  | 'harnessBundle'
   | 'connectorType'
   | 'subsystem'
-  | 'textBox';
+  | 'textBox'
+  | 'image';
 
 export interface PresenceTarget {
   kind: PresenceTargetKind;
@@ -24,10 +25,10 @@ export interface PeerPresence {
   userId: string;
   displayName: string;
   color: string;
-  harness: string;
+  system: string;
   appView: 'canvas' | 'connectorLibrary' | 'signalLibrary' | 'manufacturing';
   editingSurface: 'hierarchy' | 'subsystem';
-  drillDownEnclosure: string | null;
+  openEnclosureId: string | null;
   activeSubsystemId: string | null;
   focus: PresenceTarget | null;
   editing: PresenceTarget | null;
@@ -38,7 +39,7 @@ export type PresenceUpdate = Omit<PeerPresence, 'sessionId' | 'lastSeen'>;
 
 export interface PresenceRegistryOptions {
   now?: () => number;
-  broadcast?: (harness: string, event: string, data: unknown) => unknown;
+  broadcast?: (system: string, event: string, data: unknown) => unknown;
   expiryMs?: number;
   debounceMs?: number;
   sweepIntervalMs?: number;
@@ -46,7 +47,7 @@ export interface PresenceRegistryOptions {
 
 export interface PresenceRegistry {
   updatePresence(sessionId: string, payload: PresenceUpdate): PeerPresence;
-  listPeers(harness: string): PeerPresence[];
+  listPeers(system: string): PeerPresence[];
   sweep(): void;
   dispose(): void;
 }
@@ -58,13 +59,20 @@ const MAX_BODY_BYTES = 64 * 1_024;
 const TARGET_KINDS = new Set<PresenceTargetKind>([
   'enclosure',
   'connector',
-  'mergePoint',
+  'branchPoint',
   'path',
   'signal',
-  'bundle',
+  'harnessBundle',
   'connectorType',
   'subsystem',
   'textBox',
+  'image',
+]);
+
+const LEGACY_TARGET_KIND = new Map<string, PresenceTargetKind>([
+  ['bundle', 'harnessBundle'],
+  ['harness', 'harnessBundle'],
+  ['mergePoint', 'branchPoint'],
 ]);
 
 function clonePeer(peer: PeerPresence): PeerPresence {
@@ -87,9 +95,9 @@ export function createPresenceRegistry(
   const pendingBroadcasts = new Map<string, NodeJS.Timeout>();
   let disposed = false;
 
-  function peersForHarness(harness: string): PeerPresence[] {
+  function peersForSystem(system: string): PeerPresence[] {
     return [...peers.values()]
-      .filter((peer) => peer.harness === harness)
+      .filter((peer) => peer.system === system)
       .sort((left, right) =>
         left.displayName.localeCompare(right.displayName)
         || left.sessionId.localeCompare(right.sessionId)
@@ -97,32 +105,32 @@ export function createPresenceRegistry(
       .map(clonePeer);
   }
 
-  function scheduleBroadcast(harness: string): void {
-    if (disposed || pendingBroadcasts.has(harness)) return;
+  function scheduleBroadcast(system: string): void {
+    if (disposed || pendingBroadcasts.has(system)) return;
     const timer = setTimeout(() => {
-      pendingBroadcasts.delete(harness);
+      pendingBroadcasts.delete(system);
       if (disposed) return;
       try {
-        broadcast(harness, 'presence', { peers: peersForHarness(harness) });
+        broadcast(system, 'presence', { peers: peersForSystem(system) });
       } catch {
         // Presence and broken live connections must never affect request handling.
       }
     }, debounceMs);
     timer.unref();
-    pendingBroadcasts.set(harness, timer);
+    pendingBroadcasts.set(system, timer);
   }
 
   function sweep(): void {
     if (disposed) return;
     const cutoff = now() - expiryMs;
-    const changedHarnesses = new Set<string>();
+    const changedSystems = new Set<string>();
     for (const [sessionId, peer] of peers) {
       if (peer.lastSeen < cutoff) {
         peers.delete(sessionId);
-        changedHarnesses.add(peer.harness);
+        changedSystems.add(peer.system);
       }
     }
-    for (const harness of changedHarnesses) scheduleBroadcast(harness);
+    for (const system of changedSystems) scheduleBroadcast(system);
   }
 
   function updatePresence(sessionId: string, payload: PresenceUpdate): PeerPresence {
@@ -136,16 +144,16 @@ export function createPresenceRegistry(
       lastSeen: now(),
     };
     peers.set(sessionId, peer);
-    if (previous && previous.harness !== peer.harness) {
-      scheduleBroadcast(previous.harness);
+    if (previous && previous.system !== peer.system) {
+      scheduleBroadcast(previous.system);
     }
-    scheduleBroadcast(peer.harness);
+    scheduleBroadcast(peer.system);
     return clonePeer(peer);
   }
 
-  function listPeers(harness: string): PeerPresence[] {
+  function listPeers(system: string): PeerPresence[] {
     sweep();
-    return peersForHarness(harness);
+    return peersForSystem(system);
   }
 
   function dispose(): void {
@@ -172,8 +180,8 @@ export function updatePresence(
   return defaultRegistry.updatePresence(sessionId, payload);
 }
 
-export function listPeers(harness: string): PeerPresence[] {
-  return defaultRegistry.listPeers(harness);
+export function listPeers(system: string): PeerPresence[] {
+  return defaultRegistry.listPeers(system);
 }
 
 function isObject(value: unknown): value is Record<string, unknown> {
@@ -188,18 +196,29 @@ function nullableString(value: unknown): value is string | null {
   return value === null || isString(value);
 }
 
-function target(value: unknown): PresenceTarget | null | undefined {
+/**
+ * The only presence compatibility boundary. Old clients may still send
+ * bundle/harness/mergePoint target kinds; everything stored and broadcast
+ * beyond this function is canonical.
+ */
+export function normalizePresenceTargetBoundary(
+  value: unknown,
+): PresenceTarget | null | undefined {
   if (value === null) return null;
+  if (!isObject(value)) return undefined;
+  const rawKind = value.kind;
+  const kind = typeof rawKind === 'string'
+    ? LEGACY_TARGET_KIND.get(rawKind) ?? rawKind
+    : rawKind;
   if (
-    !isObject(value)
-    || !TARGET_KINDS.has(value.kind as PresenceTargetKind)
+    !TARGET_KINDS.has(kind as PresenceTargetKind)
     || !isString(value.id)
     || (value.field !== undefined && !isString(value.field))
   ) {
     return undefined;
   }
   return {
-    kind: value.kind as PresenceTargetKind,
+    kind: kind as PresenceTargetKind,
     id: value.id,
     ...(typeof value.field === 'string' ? { field: value.field } : {}),
   };
@@ -274,7 +293,7 @@ export function createPresenceHandler(
 
     if (
       !isObject(body)
-      || !isString(body.harness)
+      || !isString(body.system ?? body.harness)
       || (
         body.appView !== 'canvas'
         && body.appView !== 'connectorLibrary'
@@ -282,15 +301,15 @@ export function createPresenceHandler(
         && body.appView !== 'manufacturing'
       )
       || (body.editingSurface !== 'hierarchy' && body.editingSurface !== 'subsystem')
-      || !nullableString(body.drillDownEnclosure)
+      || !nullableString(body.openEnclosureId)
       || !nullableString(body.activeSubsystemId)
     ) {
       jsonError(res, 'Invalid presence data', 400);
       return;
     }
 
-    const focus = target(body.focus);
-    const editing = target(body.editing);
+    const focus = normalizePresenceTargetBoundary(body.focus);
+    const editing = normalizePresenceTargetBoundary(body.editing);
     if (focus === undefined || editing === undefined) {
       jsonError(res, 'Invalid presence data', 400);
       return;
@@ -300,10 +319,11 @@ export function createPresenceHandler(
       userId: identity.user.id,
       displayName: identity.user.displayName,
       color: identity.user.color,
-      harness: body.harness,
+      // Top-level `harness` is accepted only here for pre-System clients.
+      system: (body.system ?? body.harness) as string,
       appView: body.appView,
       editingSurface: body.editingSurface,
-      drillDownEnclosure: body.drillDownEnclosure,
+      openEnclosureId: body.openEnclosureId,
       activeSubsystemId: body.activeSubsystemId,
       focus,
       editing,

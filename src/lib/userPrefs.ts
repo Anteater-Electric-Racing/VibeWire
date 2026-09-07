@@ -10,6 +10,8 @@ export type SavedViewport = {
 };
 
 type UserPrefs = {
+  lastManufacturingBundleBySystem?: Record<string, string>;
+  /** Compatibility read for browser preferences saved before System terminology. */
   lastManufacturingBundleByHarness?: Record<string, string>;
   sheetViewports?: Record<string, SavedViewport>;
 };
@@ -50,24 +52,26 @@ function isSavedViewport(value: unknown): value is SavedViewport {
 
 export function getLastManufacturingBundleId(
   userId: string | null | undefined,
-  harnessName: string,
+  systemKey: string,
 ): string | null {
-  const value = readUserPrefs(userId).lastManufacturingBundleByHarness?.[harnessName];
+  const prefs = readUserPrefs(userId);
+  const value = prefs.lastManufacturingBundleBySystem?.[systemKey]
+    ?? prefs.lastManufacturingBundleByHarness?.[systemKey];
   return typeof value === 'string' && value.length > 0 ? value : null;
 }
 
 export function setLastManufacturingBundleId(
   userId: string | null | undefined,
-  harnessName: string,
+  systemKey: string,
   bundleId: string,
 ): void {
-  if (!harnessName || !bundleId) return;
+  if (!systemKey || !bundleId) return;
   const prefs = readUserPrefs(userId);
   writeUserPrefs(userId, {
     ...prefs,
-    lastManufacturingBundleByHarness: {
-      ...prefs.lastManufacturingBundleByHarness,
-      [harnessName]: bundleId,
+    lastManufacturingBundleBySystem: {
+      ...prefs.lastManufacturingBundleBySystem,
+      [systemKey]: bundleId,
     },
   });
 }

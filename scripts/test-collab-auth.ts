@@ -92,7 +92,11 @@ const server = http.createServer((req, res) => {
     return;
   }
   if (url.pathname === '/api/events' && method === 'GET') {
-    addClient(req, res, url.searchParams.get('harness') ?? 'default');
+    addClient(
+      req,
+      res,
+      url.searchParams.get('system') ?? url.searchParams.get('harness') ?? 'default',
+    );
     return;
   }
 
@@ -135,13 +139,13 @@ function tamper(cookie: string): string {
 }
 
 const presencePayload: Omit<PresenceUpdate, 'userId' | 'displayName' | 'color'> = {
-  harness: 'test-harness',
+  system: 'test-harness',
   appView: 'canvas',
   editingSurface: 'hierarchy',
-  drillDownEnclosure: null,
+  openEnclosureId: null,
   activeSubsystemId: null,
-  focus: { kind: 'connector', id: 'con_1' },
-  editing: null,
+  focus: { kind: 'image', id: 'img_1' },
+  editing: { kind: 'harnessBundle', id: 'bundle:connector:a|connector:b' },
 };
 
 await new Promise<void>((resolve, reject) => {
@@ -394,6 +398,27 @@ try {
     assert.equal(peers.length, 1);
     assert.equal(peers[0].displayName, 'Vi');
     assert.equal(peers[0].userId.length > 0, true);
+    assert.equal(peers[0].focus?.kind, 'image');
+    assert.equal(peers[0].editing?.kind, 'harnessBundle');
+  });
+
+  await check('legacy presence input normalizes at the request boundary', async () => {
+    const rest: Partial<typeof presencePayload> = { ...presencePayload };
+    delete rest.system;
+    const result = await api('/api/presence', {
+      method: 'POST',
+      cookie: viewerCookie,
+      body: {
+        ...rest,
+        harness: 'test-harness',
+        focus: { kind: 'bundle', id: 'bundle:connector:a|connector:b' },
+        editing: { kind: 'mergePoint', id: 'bp_1', field: 'name' },
+      },
+    });
+    assert.equal(result.status, 204);
+    const [peer] = httpPresence.listPeers('test-harness');
+    assert.equal(peer.focus?.kind, 'harnessBundle');
+    assert.equal(peer.editing?.kind, 'branchPoint');
   });
 
   await check('presence expires after thirty seconds', () => {
@@ -415,11 +440,11 @@ try {
     registry.dispose();
   });
 
-  await check('presence broadcasts are coalesced per harness', async () => {
-    const broadcasts: Array<{ harness: string; event: string; data: unknown }> = [];
+  await check('presence broadcasts are coalesced per system', async () => {
+    const broadcasts: Array<{ system: string; event: string; data: unknown }> = [];
     const registry = createPresenceRegistry({
-      broadcast: (harness, event, data) => {
-        broadcasts.push({ harness, event, data });
+      broadcast: (system, event, data) => {
+        broadcasts.push({ system, event, data });
       },
       debounceMs: 25,
       sweepIntervalMs: 60_000,
@@ -435,19 +460,19 @@ try {
     }
     await new Promise((resolve) => setTimeout(resolve, 60));
     assert.equal(broadcasts.length, 1);
-    assert.equal(broadcasts[0].harness, 'test-harness');
+    assert.equal(broadcasts[0].system, 'test-harness');
     assert.equal(broadcasts[0].event, 'presence');
     registry.dispose();
   });
 
   await check('SSE clients are removed after disconnect', async () => {
-    const harness = `sse-${Date.now()}`;
+    const systemKey = `sse-${Date.now()}`;
     const connected = await new Promise<{
       request: http.ClientRequest;
       response: IncomingMessage;
     }>((resolve, reject) => {
       const request = http.get(
-        `${baseUrl}/api/events?harness=${encodeURIComponent(harness)}`,
+        `${baseUrl}/api/events?system=${encodeURIComponent(systemKey)}`,
         (response) => {
           response.once('data', () => resolve({ request, response }));
           response.once('error', reject);
@@ -455,15 +480,15 @@ try {
       );
       request.once('error', reject);
     });
-    assert.equal(clientCount(harness), 1);
-    const firstId = broadcast(harness, 'rev', { rev: 1 });
-    const secondId = broadcast(harness, 'rev', { rev: 2 });
+    assert.equal(clientCount(systemKey), 1);
+    const firstId = broadcast(systemKey, 'rev', { rev: 1 });
+    const secondId = broadcast(systemKey, 'rev', { rev: 2 });
     assert(firstId && secondId);
     assert(BigInt(secondId) > BigInt(firstId));
     connected.response.destroy();
     connected.request.destroy();
     await new Promise((resolve) => setTimeout(resolve, 30));
-    assert.equal(clientCount(harness), 0);
+    assert.equal(clientCount(systemKey), 0);
   });
 } finally {
   httpPresence.dispose();

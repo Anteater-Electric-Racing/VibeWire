@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useHarnessStore } from '../../store';
+import { useSystemStore } from '../../store';
 import {
   deriveManufacturingBundles,
   deriveManufacturingHarnesses,
 } from '../../lib/manufacturing';
 import { CollaborationControls } from '../collab/CollaborationControls';
 import { UndoStalenessChip } from '../collab/UndoStalenessChip';
+import { PresenceStack } from '../collab/PresenceBadge';
 import {
   ENTER_SUBSYSTEM_EVENT,
   OPEN_MANUFACTURING_PICKER_EVENT,
@@ -22,7 +23,7 @@ const MANUFACTURING_TABS = [
   { id: 'bom' as const, label: 'BOM' },
 ];
 
-function formatHarnessName(name: string) {
+function formatSystemName(name: string) {
   return name
     .replace(/[-_]/g, ' ')
     .replace(/\b\w/g, (c) => c.toUpperCase());
@@ -36,14 +37,14 @@ function slugify(name: string) {
     .replace(/^-|-$/g, '');
 }
 
-function harnessDisplayName(
+function systemDisplayName(
   item: { id: string; name: string },
   activeId: string,
   activeName: string | undefined,
 ) {
   if (item.id === activeId && activeName) return activeName;
   if (item.name && item.name !== item.id) return item.name;
-  return formatHarnessName(item.id);
+  return formatSystemName(item.id);
 }
 
 function PickerRow({
@@ -125,51 +126,51 @@ function PickerAddRow({
 }
 
 export function Topbar() {
-  const setSettingsOpen = useHarnessStore((s) => s.setSettingsOpen);
-  const harness = useHarnessStore((s) => s.harness);
-  const redo = useHarnessStore((s) => s.redo);
-  const undoStack = useHarnessStore((s) => s.undoStack);
-  const redoStack = useHarnessStore((s) => s.redoStack);
-  const activeHarnessName = useHarnessStore((s) => s.activeHarnessName);
-  const availableHarnesses = useHarnessStore((s) => s.availableHarnesses);
-  const setActiveHarnessName = useHarnessStore((s) => s.setActiveHarnessName);
-  const setAvailableHarnesses = useHarnessStore((s) => s.setAvailableHarnesses);
-  const renameSystem = useHarnessStore((s) => s.renameSystem);
-  const appView = useHarnessStore((s) => s.appView);
-  const openConnectorLibrary = useHarnessStore((s) => s.openConnectorLibrary);
-  const openSignalLibrary = useHarnessStore((s) => s.openSignalLibrary);
-  const openManufacturing = useHarnessStore((s) => s.openManufacturing);
-  const manufacturingTab = useHarnessStore((s) => s.manufacturingTab);
-  const setManufacturingTab = useHarnessStore((s) => s.setManufacturingTab);
-  const manufacturingTargetBundleId = useHarnessStore((s) => s.manufacturingTargetBundleId);
-  const setManufacturingTargetBundle = useHarnessStore((s) => s.setManufacturingTargetBundle);
-  const manufacturing = useHarnessStore((s) => s.manufacturing);
-  const connectorLibrary = useHarnessStore((s) => s.connectorLibrary);
-  const closeConnectorLibrary = useHarnessStore((s) => s.closeConnectorLibrary);
-  const editingSurface = useHarnessStore((s) => s.editingSurface);
-  const setEditingSurface = useHarnessStore((s) => s.setEditingSurface);
-  const subsystems = useHarnessStore((s) => s.subsystems);
-  const activeSubsystemId = useHarnessStore((s) => s.activeSubsystemId);
-  const setActiveSubsystem = useHarnessStore((s) => s.setActiveSubsystem);
-  const upsertSubsystem = useHarnessStore((s) => s.upsertSubsystem);
-  const renameSubsystem = useHarnessStore((s) => s.renameSubsystem);
-  const setMutationError = useHarnessStore((s) => s.setMutationError);
-  const isEditor = useHarnessStore((s) => s.session.isEditor);
+  const setSettingsOpen = useSystemStore((s) => s.setSettingsOpen);
+  const system = useSystemStore((s) => s.system);
+  const redo = useSystemStore((s) => s.redo);
+  const undoStack = useSystemStore((s) => s.undoStack);
+  const redoStack = useSystemStore((s) => s.redoStack);
+  const activeSystemName = useSystemStore((s) => s.activeSystemName);
+  const availableSystems = useSystemStore((s) => s.availableSystems);
+  const setActiveSystemName = useSystemStore((s) => s.setActiveSystemName);
+  const setAvailableSystems = useSystemStore((s) => s.setAvailableSystems);
+  const renameSystem = useSystemStore((s) => s.renameSystem);
+  const appView = useSystemStore((s) => s.appView);
+  const openConnectorLibrary = useSystemStore((s) => s.openConnectorLibrary);
+  const openSignalLibrary = useSystemStore((s) => s.openSignalLibrary);
+  const openManufacturing = useSystemStore((s) => s.openManufacturing);
+  const manufacturingTab = useSystemStore((s) => s.manufacturingTab);
+  const setManufacturingTab = useSystemStore((s) => s.setManufacturingTab);
+  const manufacturingTargetBundleId = useSystemStore((s) => s.manufacturingTargetBundleId);
+  const setManufacturingTargetBundle = useSystemStore((s) => s.setManufacturingTargetBundle);
+  const manufacturing = useSystemStore((s) => s.manufacturing);
+  const connectorLibrary = useSystemStore((s) => s.connectorLibrary);
+  const closeConnectorLibrary = useSystemStore((s) => s.closeConnectorLibrary);
+  const editingSurface = useSystemStore((s) => s.editingSurface);
+  const setEditingSurface = useSystemStore((s) => s.setEditingSurface);
+  const subsystems = useSystemStore((s) => s.subsystems);
+  const activeSubsystemId = useSystemStore((s) => s.activeSubsystemId);
+  const setActiveSubsystem = useSystemStore((s) => s.setActiveSubsystem);
+  const upsertSubsystem = useSystemStore((s) => s.upsertSubsystem);
+  const renameSubsystem = useSystemStore((s) => s.renameSubsystem);
+  const setMutationError = useSystemStore((s) => s.setMutationError);
+  const isEditor = useSystemStore((s) => s.session.isEditor);
 
-  async function handleNewHarness() {
+  async function handleNewSystem() {
     if (!isEditor) return;
     const input = prompt('New system name (e.g. car #2, or megazott 2026):');
     if (!input) return;
     const slug = slugify(input);
     if (!slug) {
-      setMutationError('Harness name must contain at least one letter or number.');
+      setMutationError('System name must contain at least one letter or number.');
       return;
     }
     setSystemMenuOpen(false);
     setMutationError(null);
-    if (availableHarnesses.some((item) => item.id === slug)) {
-      if (!(await setActiveHarnessName(slug))) {
-        setMutationError('Save the current harness before switching projects.');
+    if (availableSystems.some((item) => item.id === slug)) {
+      if (!(await setActiveSystemName(slug))) {
+        setMutationError('Save the current system before switching projects.');
       }
       return;
     }
@@ -179,14 +180,14 @@ export function Topbar() {
       name: input.trim(),
       enclosures: [],
       connectors: [],
-      mergePoints: [],
+      branchPoints: [],
       paths: [],
       signals: [],
       signalPropertyDefinitions: [],
     };
 
     try {
-      const response = await fetch(`/api/harness?harness=${encodeURIComponent(slug)}`, {
+      const response = await fetch(`/api/system?system=${encodeURIComponent(slug)}`, {
         method: 'PUT',
         credentials: 'same-origin',
         headers: { 'Content-Type': 'application/json' },
@@ -195,51 +196,51 @@ export function Topbar() {
       if (!response.ok) {
         const result = await response.json()
           .catch(() => null) as { error?: string } | null;
-        throw new Error(result?.error ?? `Harness creation failed (${response.status}).`);
+        throw new Error(result?.error ?? `System creation failed (${response.status}).`);
       }
 
-      const next = [...availableHarnesses, { id: slug, name: input.trim() }]
+      const next = [...availableSystems, { id: slug, name: input.trim() }]
         .sort((left, right) => left.id.localeCompare(right.id));
-      setAvailableHarnesses(next);
-      if (!(await setActiveHarnessName(slug))) {
+      setAvailableSystems(next);
+      if (!(await setActiveSystemName(slug))) {
         throw new Error(
-          `Created "${input.trim()}", but could not switch because the current harness has unsaved changes.`,
+          `Created "${input.trim()}", but could not switch because the current system has unsaved changes.`,
         );
       }
     } catch (error) {
-      setMutationError(error instanceof Error ? error.message : 'Harness creation failed.');
+      setMutationError(error instanceof Error ? error.message : 'System creation failed.');
     }
   }
 
-  async function handleRenameSystem(harnessId: string) {
+  async function handleRenameSystem(systemKey: string) {
     if (!isEditor) return;
-    const item = availableHarnesses.find((entry) => entry.id === harnessId);
-    const currentName = harnessId === activeHarnessName
-      ? (harness?.name ?? formatHarnessName(harnessId))
-      : harnessDisplayName(
-        item ?? { id: harnessId, name: harnessId },
-        activeHarnessName,
-        harness?.name,
+    const item = availableSystems.find((entry) => entry.id === systemKey);
+    const currentName = systemKey === activeSystemName
+      ? (system?.name ?? formatSystemName(systemKey))
+      : systemDisplayName(
+        item ?? { id: systemKey, name: systemKey },
+        activeSystemName,
+        system?.name,
       );
     const input = prompt(
-      `Rename system display name.\n\nIts stable storage key will remain "${harnessId}".`,
+      `Rename system display name.\n\nIts stable storage key will remain "${systemKey}".`,
       currentName,
     );
     if (input === null || !input.trim()) return;
 
-    if (harnessId === activeHarnessName) {
+    if (systemKey === activeSystemName) {
       renameSystem(input);
       return;
     }
 
     try {
-      const response = await fetch(`/api/harness?harness=${encodeURIComponent(harnessId)}`, {
+      const response = await fetch(`/api/system?system=${encodeURIComponent(systemKey)}`, {
         credentials: 'same-origin',
       });
-      if (!response.ok) throw new Error(`Failed to load system "${harnessId}".`);
+      if (!response.ok) throw new Error(`Failed to load system "${systemKey}".`);
       const document = await response.json() as { name?: string; schema_version?: string };
       document.name = input.trim();
-      const save = await fetch(`/api/harness?harness=${encodeURIComponent(harnessId)}`, {
+      const save = await fetch(`/api/system?system=${encodeURIComponent(systemKey)}`, {
         method: 'PUT',
         credentials: 'same-origin',
         headers: { 'Content-Type': 'application/json' },
@@ -247,11 +248,11 @@ export function Topbar() {
       });
       if (!save.ok) {
         const result = await save.json().catch(() => null) as { error?: string } | null;
-        throw new Error(result?.error ?? `Failed to rename system "${harnessId}".`);
+        throw new Error(result?.error ?? `Failed to rename system "${systemKey}".`);
       }
-      setAvailableHarnesses(
-        availableHarnesses.map((entry) => (
-          entry.id === harnessId ? { ...entry, name: input.trim() } : entry
+      setAvailableSystems(
+        availableSystems.map((entry) => (
+          entry.id === systemKey ? { ...entry, name: input.trim() } : entry
         )),
       );
     } catch (error) {
@@ -275,7 +276,7 @@ export function Topbar() {
       devices: {},
       connectors: {},
     };
-    const response = await fetch(`/api/subsystems/${encodeURIComponent(id)}?harness=${encodeURIComponent(activeHarnessName)}`, {
+    const response = await fetch(`/api/subsystems/${encodeURIComponent(id)}?system=${encodeURIComponent(activeSystemName)}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(document),
@@ -317,21 +318,21 @@ export function Topbar() {
   handleNewSubsystemRef.current = handleNewSubsystem;
 
   const systemList = useMemo(() => {
-    if (availableHarnesses.length > 0) {
-      return [...availableHarnesses].sort((a, b) => a.id.localeCompare(b.id));
+    if (availableSystems.length > 0) {
+      return [...availableSystems].sort((a, b) => a.id.localeCompare(b.id));
     }
-    if (!activeHarnessName) return [];
-    return [{ id: activeHarnessName, name: harness?.name ?? activeHarnessName }];
-  }, [availableHarnesses, activeHarnessName, harness?.name]);
+    if (!activeSystemName) return [];
+    return [{ id: activeSystemName, name: system?.name ?? activeSystemName }];
+  }, [availableSystems, activeSystemName, system?.name]);
   const [systemMenuOpen, setSystemMenuOpen] = useState(false);
   const systemPickerRef = useRef<HTMLDivElement>(null);
   const systemListRef = useRef(systemList);
   systemListRef.current = systemList;
-  const activeSystemLabel = harness?.name
-    ?? harnessDisplayName(
-      { id: activeHarnessName, name: activeHarnessName },
-      activeHarnessName,
-      harness?.name,
+  const activeSystemLabel = system?.name
+    ?? systemDisplayName(
+      { id: activeSystemName, name: activeSystemName },
+      activeSystemName,
+      system?.name,
     );
 
   function promptCreateSubsystemIfEmpty() {
@@ -374,8 +375,8 @@ export function Topbar() {
     const item = systemListRef.current[index];
     if (!item) return false;
     setSystemMenuOpen(false);
-    if (item.id !== activeHarnessName) {
-      void setActiveHarnessName(item.id);
+    if (item.id !== activeSystemName) {
+      void setActiveSystemName(item.id);
     }
     return true;
   }
@@ -437,10 +438,14 @@ export function Topbar() {
       if (event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) return;
       const index = Number(event.key) - 1;
       if (index < 0 || index > 8) return;
-      if (selectSubsystemAtIndex(index)) {
-        event.preventDefault();
-        event.stopPropagation();
-      }
+      const subsystem = subsystemListRef.current[index];
+      if (!subsystem) return;
+      closeConnectorLibrary();
+      setEditingSurface('subsystem');
+      setActiveSubsystem(subsystem.id);
+      setSubsystemMenuOpen(false);
+      event.preventDefault();
+      event.stopPropagation();
     }
 
     window.addEventListener('mousedown', onPointerDown);
@@ -477,10 +482,14 @@ export function Topbar() {
       if (event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) return;
       const index = Number(event.key) - 1;
       if (index < 0 || index > 8) return;
-      if (selectSystemAtIndex(index)) {
-        event.preventDefault();
-        event.stopPropagation();
+      const item = systemListRef.current[index];
+      if (!item) return;
+      setSystemMenuOpen(false);
+      if (item.id !== activeSystemName) {
+        void setActiveSystemName(item.id);
       }
+      event.preventDefault();
+      event.stopPropagation();
     }
 
     window.addEventListener('mousedown', onPointerDown);
@@ -489,18 +498,18 @@ export function Topbar() {
       window.removeEventListener('mousedown', onPointerDown);
       window.removeEventListener('keydown', onKeyDown, true);
     };
-  }, [systemMenuOpen, setActiveHarnessName, activeHarnessName]);
+  }, [systemMenuOpen, setActiveSystemName, activeSystemName]);
 
   const [manufacturingMenuOpen, setManufacturingMenuOpen] = useState(false);
   const manufacturingPickerRef = useRef<HTMLDivElement>(null);
   const activeManufacturingTab = MANUFACTURING_TABS.find((tab) => tab.id === manufacturingTab)
     ?? MANUFACTURING_TABS[0];
   const manufacturingHarnessList = useMemo(() => {
-    if (!harness) return [];
+    if (!system) return [];
     return deriveManufacturingHarnesses(
-      deriveManufacturingBundles(harness, connectorLibrary, manufacturing),
+      deriveManufacturingBundles(system, connectorLibrary, manufacturing),
     );
-  }, [harness, connectorLibrary, manufacturing]);
+  }, [system, connectorLibrary, manufacturing]);
   const manufacturingHarnessListRef = useRef(manufacturingHarnessList);
   manufacturingHarnessListRef.current = manufacturingHarnessList;
   const selectedManufacturingHarness = manufacturingHarnessList.find(
@@ -563,10 +572,14 @@ export function Topbar() {
       if (event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) return;
       const index = Number(event.key) - 1;
       if (index < 0 || index > 8) return;
-      if (selectManufacturingHarnessAtIndex(index)) {
-        event.preventDefault();
-        event.stopPropagation();
-      }
+      const item = manufacturingHarnessListRef.current[index];
+      if (!item) return;
+      openManufacturing();
+      setManufacturingTargetBundle(item.trunkBundleId);
+      setManufacturingTab('cutlists');
+      setManufacturingMenuOpen(false);
+      event.preventDefault();
+      event.stopPropagation();
     }
 
     window.addEventListener('mousedown', onPointerDown);
@@ -718,7 +731,7 @@ export function Topbar() {
                 aria-haspopup="listbox"
                 aria-expanded={manufacturingMenuOpen}
                 aria-pressed={appView === 'manufacturing'}
-                title="Manufacturing (3), again to pick harness / tab"
+                title="Manufacturing (3), again to pick system / tab"
                 className={`flex items-center gap-1 px-2 py-0.5 text-xs transition-colors max-w-[160px] rounded-r-[3px] ${
                   manufacturingMenuOpen || appView === 'manufacturing'
                     ? 'bg-zinc-700 text-zinc-100'
@@ -827,7 +840,7 @@ export function Topbar() {
         </div>
       </nav>
 
-      {/* System / harness switcher */}
+      {/* System / system switcher */}
       <div ref={systemPickerRef} className="relative flex items-center gap-1">
         <svg className="w-3.5 h-3.5 text-zinc-500 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
@@ -865,13 +878,13 @@ export function Topbar() {
               <div className="px-2.5 py-2 text-[11px] text-zinc-500">No systems yet</div>
             ) : (
               systemList.map((item, index) => {
-                const label = harnessDisplayName(item, activeHarnessName, harness?.name);
+                const label = systemDisplayName(item, activeSystemName, system?.name);
                 return (
                   <PickerRow
                     key={item.id}
                     index={index}
                     label={label}
-                    selected={item.id === activeHarnessName}
+                    selected={item.id === activeSystemName}
                     canRename={isEditor}
                     renameTitle={isEditor
                       ? `Rename "${label}" (storage key stays "${item.id}")`
@@ -888,7 +901,7 @@ export function Topbar() {
               disabled={!isEditor}
               title={isEditor ? 'New system' : 'Log in to create a system'}
               onClick={() => {
-                void handleNewHarness();
+                void handleNewSystem();
               }}
             />
           </div>
@@ -896,6 +909,8 @@ export function Topbar() {
       </div>
 
       <div className="flex-1" />
+
+      <PresenceStack />
 
       {/* Undo / Redo */}
       <div className="flex items-center gap-0.5">
@@ -924,17 +939,15 @@ export function Topbar() {
         </button>
       </div>
 
-      <CollaborationControls harness={activeHarnessName} />
+      <CollaborationControls system={activeSystemName} />
 
       <button
         onClick={() => setSettingsOpen(true)}
-        className="p-1 text-zinc-400 hover:text-zinc-100 transition-colors"
-        title="Settings"
+        className="px-1.5 py-1 text-[11px] font-medium text-zinc-400 hover:text-zinc-100 transition-colors"
+        title="Tips & settings"
+        aria-label="Tips & settings"
       >
-        <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-          <circle cx="12" cy="12" r="3" />
-          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
-        </svg>
+        Tips
       </button>
     </header>
   );

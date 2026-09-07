@@ -1077,6 +1077,10 @@
     "con_152": {
       "x": -251.0556711103035,
       "y": 1088.4800787332733
+    },
+    "con_051": {
+      "x": -160.69577274085708,
+      "y": 1398.3326160338322
     }
   },
   "backgrounds": {
@@ -1097,6 +1101,7 @@
       "image": "SCR-20260703-pmkr.png"
     }
   },
+  "images": {},
   "connectorTypeSizes": {
     "deutsch_dt": {
       "w": 36,
@@ -1107,69 +1112,69 @@
   "waypoints": {
     "con_014_con_035": [
       {
-        "junctionId": "jct_1775804295066"
+        "sharedAnchorId": "jct_1775804295066"
       }
     ],
     "con_009_con_031": [
       {
-        "junctionId": "jct_1775804295066"
+        "sharedAnchorId": "jct_1775804295066"
       },
       {
-        "junctionId": "jct_1775804301306"
+        "sharedAnchorId": "jct_1775804301306"
       }
     ],
     "bundle_con_033_con_041": [
       {
-        "junctionId": "jct_1775945763979"
+        "sharedAnchorId": "jct_1775945763979"
       },
       {
-        "junctionId": "jct_1775945765972"
+        "sharedAnchorId": "jct_1775945765972"
       },
       {
-        "junctionId": "jct_1775945774645"
+        "sharedAnchorId": "jct_1775945774645"
       }
     ],
     "bundle_con_034_con_038": [
       {
-        "junctionId": "jct_1776028002846"
+        "sharedAnchorId": "jct_1776028002846"
       },
       {
-        "junctionId": "jct_1776031124747"
+        "sharedAnchorId": "jct_1776031124747"
       },
       {
-        "junctionId": "jct_1776031119869"
+        "sharedAnchorId": "jct_1776031119869"
       }
     ],
     "bundle_con_032_con_039": [
       {
-        "junctionId": "jct_1775942548174"
+        "sharedAnchorId": "jct_1775942548174"
       },
       {
-        "junctionId": "jct_1775942550056"
+        "sharedAnchorId": "jct_1775942550056"
       }
     ],
     "bundle_con_045_con_046": [
       {
-        "junctionId": "jct_1776028002846"
+        "sharedAnchorId": "jct_1776028002846"
       },
       {
-        "junctionId": "jct_1776031124747"
+        "sharedAnchorId": "jct_1776031124747"
       },
       {
-        "junctionId": "jct_1776031119869"
+        "sharedAnchorId": "jct_1776031119869"
       },
       {
         "x": 53.534713648329465,
         "y": -217.78364891433378
       },
       {
-        "junctionId": "jct_1775945763979"
+        "sharedAnchorId": "jct_1775945763979"
       },
       {
-        "junctionId": "jct_1775945774645"
+        "sharedAnchorId": "jct_1775945774645"
       },
       {
-        "junctionId": "jct_1775942548174"
+        "sharedAnchorId": "jct_1775942548174"
       }
     ],
     "bundle_con_033_con_043": [
@@ -1185,39 +1190,39 @@
     "bundle_con_015_con_023": [],
     "bundle_con_012_con_030": [
       {
-        "junctionId": "jct_1776108792012"
+        "sharedAnchorId": "jct_1776108792012"
       }
     ],
     "bundle_con_015_con_040": [
       {
-        "junctionId": "jct_1776108792012"
+        "sharedAnchorId": "jct_1776108792012"
       }
     ],
     "bundle:connector:con_015:13|connector:con_040:2": [],
     "bundle:connector:con_015:7|connector:con_040:1": [
       {
-        "junctionId": "jct_1776118621564"
+        "sharedAnchorId": "jct_1776118621564"
       }
     ],
     "bundle:connector:con_013:1|connector:con_033:1": [
       {
-        "junctionId": "jct_1776118621564"
+        "sharedAnchorId": "jct_1776118621564"
       }
     ],
     "bundle:connector:con_045|connector:con_046": [
       {
-        "junctionId": "jct_1776131101818"
+        "sharedAnchorId": "jct_1776131101818"
       },
       {
-        "junctionId": "jct_1776131099436"
+        "sharedAnchorId": "jct_1776131099436"
       }
     ],
     "bundle:connector:con_033|connector:con_042": [
       {
-        "junctionId": "jct_1776131099436"
+        "sharedAnchorId": "jct_1776131099436"
       },
       {
-        "junctionId": "jct_1776131101818"
+        "sharedAnchorId": "jct_1776131101818"
       }
     ],
     "bundle:connector:con_001|connector:con_009": [
@@ -1226,18 +1231,18 @@
         "y": -291.89226324093613
       },
       {
-        "junctionId": "jct_1776219490390"
+        "sharedAnchorId": "jct_1776219490390"
       },
       {
-        "junctionId": "jct_1776219503307"
+        "sharedAnchorId": "jct_1776219503307"
       }
     ],
     "bundle:connector:con_003|connector:con_070": [
       {
-        "junctionId": "jct_1776219503307"
+        "sharedAnchorId": "jct_1776219503307"
       },
       {
-        "junctionId": "jct_1776219490390"
+        "sharedAnchorId": "jct_1776219490390"
       }
     ],
     "bundle:connector:con_003|connector:con_069": [
@@ -1248,18 +1253,18 @@
     ],
     "bundle:connector:con_004|connector:con_064": [
       {
-        "junctionId": "jct_1776276284460"
+        "sharedAnchorId": "jct_1776276284460"
       },
       {
-        "junctionId": "jct_1776276278381"
+        "sharedAnchorId": "jct_1776276278381"
       }
     ],
     "bundle:connector:con_004|connector:con_066": [
       {
-        "junctionId": "jct_1776276284460"
+        "sharedAnchorId": "jct_1776276284460"
       },
       {
-        "junctionId": "jct_1776276278381"
+        "sharedAnchorId": "jct_1776276278381"
       },
       {
         "x": 512.3900308009308,
@@ -1277,16 +1282,16 @@
     "bundle:connector:con_004|connector:con_065": [],
     "bundle:connector:con_002|connector:con_077": [
       {
-        "junctionId": "jct_1776277046343"
+        "sharedAnchorId": "jct_1776277046343"
       }
     ],
     "bundle:connector:con_002|connector:con_078": [
       {
-        "junctionId": "jct_1776277046343"
+        "sharedAnchorId": "jct_1776277046343"
       }
     ]
   },
-  "junctions": {
+  "sharedAnchors": {
     "jct_1775804295066": {
       "id": "jct_1775804295066",
       "x": 573,
@@ -1456,7 +1461,7 @@
       ]
     }
   },
-  "mergePoints": {
+  "branchPoints": {
     "graph": {
       "mp_002": {
         "x": 755,
@@ -1539,5 +1544,7 @@
     "enc_093": 0,
     "con_037": 90,
     "con_031": 90
-  }
+  },
+  "routeStyles": {},
+  "viewRouteStyles": {}
 }

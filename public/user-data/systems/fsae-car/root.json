@@ -1,0 +1,2506 @@
+{
+  "schema_version": "0.3.0-sheets",
+  "sheet_enclosure_id": null,
+  "hierarchy": [
+    {
+      "id": "enc_001",
+      "name": "FOC",
+      "parent": null,
+      "tags": [
+        "zone:front",
+        "system:wheelspeed",
+        "system:demo"
+      ],
+      "properties": {
+        "description": "Front of Car enclosure",
+        "image": "image (14).png"
+      },
+      "kind": "enclosure"
+    },
+    {
+      "id": "enc_002",
+      "name": "ROC",
+      "parent": null,
+      "tags": [
+        "zone:rear",
+        "system:demo"
+      ],
+      "properties": {
+        "description": "Rear of Car enclosure (formerly BBC)"
+      },
+      "kind": "enclosure"
+    },
+    {
+      "id": "enc_003",
+      "name": "HVB",
+      "parent": null,
+      "tags": [
+        "zone:rear",
+        "system:hv"
+      ],
+      "properties": {
+        "description": "High Voltage Battery enclosure"
+      },
+      "kind": "enclosure"
+    },
+    {
+      "id": "enc_019",
+      "name": "Inverter",
+      "parent": null,
+      "tags": [
+        "system:hv"
+      ],
+      "properties": {
+        "description": "Motor inverter inside HVB"
+      },
+      "kind": "device"
+    },
+    {
+      "id": "enc_020",
+      "name": "LV Battery",
+      "parent": null,
+      "tags": [
+        "system:lv"
+      ],
+      "properties": {
+        "description": "Low voltage 24V battery"
+      },
+      "kind": "device"
+    },
+    {
+      "id": "enc_021",
+      "name": "Wheel Speed Sensor FL",
+      "parent": null,
+      "tags": [
+        "system:sensors",
+        "system:wheelspeed"
+      ],
+      "properties": {
+        "description": "Front Left wheel speed / shock sensor"
+      },
+      "kind": "device"
+    },
+    {
+      "id": "enc_022",
+      "name": "Wheel Speed Sensor FR",
+      "parent": null,
+      "tags": [
+        "system:sensors",
+        "system:wheelspeed"
+      ],
+      "properties": {
+        "description": "Front Right wheel speed / shock sensor"
+      },
+      "kind": "device"
+    },
+    {
+      "id": "enc_023",
+      "name": "Wheel Speed Sensor RL",
+      "parent": null,
+      "tags": [
+        "system:sensors",
+        "system:wheelspeed"
+      ],
+      "properties": {
+        "description": "Rear Left wheel speed / shock sensor"
+      },
+      "kind": "device"
+    },
+    {
+      "id": "enc_024",
+      "name": "Wheel Speed Sensor RR",
+      "parent": null,
+      "tags": [
+        "system:sensors",
+        "system:wheelspeed"
+      ],
+      "properties": {
+        "description": "Rear Right wheel speed / shock sensor"
+      },
+      "kind": "device"
+    },
+    {
+      "id": "enc_025",
+      "name": "Motor",
+      "parent": null,
+      "tags": [
+        "system:drivetrain"
+      ],
+      "properties": {},
+      "kind": "device"
+    },
+    {
+      "id": "enc_026",
+      "name": "TSSI",
+      "parent": null,
+      "tags": [],
+      "properties": {
+        "description": "Tractive System Status Indicator — connected to Safety Board inside FOC"
+      },
+      "kind": "device"
+    },
+    {
+      "id": "enc_027",
+      "name": "Brake Light",
+      "parent": null,
+      "tags": [],
+      "properties": {},
+      "kind": "device"
+    },
+    {
+      "id": "enc_029",
+      "name": "Inertia Switch",
+      "parent": null,
+      "tags": [
+        "system:safety",
+        "system:sdc"
+      ],
+      "properties": {},
+      "kind": "device"
+    },
+    {
+      "id": "enc_028",
+      "name": "BOTS",
+      "parent": null,
+      "tags": [
+        "system:safety",
+        "system:sdc",
+        "system:demo"
+      ],
+      "properties": {
+        "description": "Brake Over Travel Switch"
+      },
+      "kind": "device"
+    },
+    {
+      "id": "enc_031",
+      "name": "Estop Left",
+      "parent": null,
+      "tags": [
+        "system:safety",
+        "system:sdc"
+      ],
+      "properties": {},
+      "kind": "device"
+    },
+    {
+      "id": "enc_032",
+      "name": "Estop Right",
+      "parent": null,
+      "tags": [
+        "system:safety",
+        "system:sdc"
+      ],
+      "properties": {},
+      "kind": "device"
+    },
+    {
+      "id": "enc_034",
+      "name": "BPS1",
+      "parent": null,
+      "tags": [
+        "system:sensors"
+      ],
+      "properties": {
+        "description": "Brake Pressure Sensor 1 (P51)"
+      },
+      "kind": "device"
+    },
+    {
+      "id": "enc_035",
+      "name": "BPS2",
+      "parent": null,
+      "tags": [
+        "system:sensors"
+      ],
+      "properties": {
+        "description": "Brake Pressure Sensor 2 (P51)"
+      },
+      "kind": "device"
+    },
+    {
+      "id": "enc_036",
+      "name": "APPS",
+      "parent": null,
+      "tags": [
+        "system:sensors"
+      ],
+      "properties": {
+        "description": "Accelerator Pedal Position Sensor (includes throttle sensors)",
+        "color": "#f97316"
+      },
+      "kind": "device"
+    },
+    {
+      "id": "enc_039",
+      "name": "Charging Box",
+      "parent": null,
+      "tags": [
+        "system:charging"
+      ],
+      "properties": {
+        "description": "Physical enclosure containing all charging hardware"
+      },
+      "kind": "enclosure"
+    },
+    {
+      "id": "dev_as",
+      "name": "as",
+      "parent": null,
+      "tags": [],
+      "properties": {},
+      "kind": "device"
+    }
+  ],
+  "connectors": [
+    {
+      "id": "con_060",
+      "name": "INV LV",
+      "parent": "enc_019",
+      "connector_type": "generic_multipin",
+      "tags": [
+        "system:hv"
+      ],
+      "properties": {
+        "description": "Inverter LV interface connector (AMPSEAL 23p)"
+      },
+      "pin_count": 23
+    },
+    {
+      "id": "con_061",
+      "name": "LV Batt+",
+      "parent": "enc_020",
+      "connector_type": "generic_multipin",
+      "tags": [
+        "system:lv",
+        "system:power"
+      ],
+      "properties": {
+        "description": "LV Battery positive ring terminal"
+      },
+      "pin_count": 1
+    },
+    {
+      "id": "con_062",
+      "name": "LV Batt-",
+      "parent": "enc_020",
+      "connector_type": "generic_multipin",
+      "tags": [
+        "system:lv",
+        "system:power"
+      ],
+      "properties": {
+        "description": "LV Battery negative ring terminal"
+      },
+      "pin_count": 1
+    },
+    {
+      "id": "con_063",
+      "name": "WS FL",
+      "parent": "enc_021",
+      "connector_type": "test",
+      "tags": [
+        "system:sensors",
+        "system:wheelspeed"
+      ],
+      "properties": {
+        "description": "Wheel speed sensor FL connector"
+      },
+      "pin_count": 3
+    },
+    {
+      "id": "con_064",
+      "name": "WS FR",
+      "parent": "enc_022",
+      "connector_type": "generic_multipin",
+      "tags": [
+        "system:sensors",
+        "system:wheelspeed"
+      ],
+      "properties": {},
+      "pin_count": 2
+    },
+    {
+      "id": "con_065",
+      "name": "WS RL",
+      "parent": "enc_023",
+      "connector_type": "generic_multipin",
+      "tags": [
+        "system:sensors",
+        "system:wheelspeed"
+      ],
+      "properties": {},
+      "pin_count": 2
+    },
+    {
+      "id": "con_066",
+      "name": "WS RR",
+      "parent": "enc_024",
+      "connector_type": "generic_multipin",
+      "tags": [
+        "system:sensors",
+        "system:wheelspeed"
+      ],
+      "properties": {},
+      "pin_count": 2
+    },
+    {
+      "id": "con_067",
+      "name": "MOT-SENS",
+      "parent": "enc_025",
+      "connector_type": "generic_multipin",
+      "tags": [
+        "system:drivetrain"
+      ],
+      "properties": {
+        "description": "Motor sensor connector (Souriau UTS6JC12E14PW). Lettered pins A-L."
+      },
+      "pin_count": 14
+    },
+    {
+      "id": "con_068",
+      "name": "RLS Encoder",
+      "parent": "enc_025",
+      "connector_type": "generic_multipin",
+      "tags": [
+        "system:drivetrain"
+      ],
+      "properties": {
+        "description": "RLS RM44SI encoder connector on motor. Lettered pins A-L."
+      },
+      "pin_count": 12
+    },
+    {
+      "id": "con_069",
+      "name": "TSSI Conn",
+      "parent": "enc_026",
+      "connector_type": "deutsch_dt",
+      "tags": [],
+      "properties": {
+        "description": "4p Deutsch on TSSI/light tree device"
+      },
+      "pin_count": 4
+    },
+    {
+      "id": "con_070",
+      "name": "BRK LT Conn",
+      "parent": "enc_027",
+      "connector_type": "deutsch_dt",
+      "tags": [],
+      "properties": {
+        "description": "3p Deutsch on brake light device"
+      },
+      "pin_count": 3
+    },
+    {
+      "id": "con_071",
+      "name": "BOTS-C1",
+      "parent": "enc_028",
+      "connector_type": "deutsch_dt",
+      "tags": [
+        "system:sdc",
+        "system:demo"
+      ],
+      "properties": {
+        "description": "BOTS SDC connector. Pin 1 = SDC in (BOTS out to next), Pin 2 = SDC in (BOTS in from prev)"
+      },
+      "pin_count": 2
+    },
+    {
+      "id": "con_072",
+      "name": "INTS-C1",
+      "parent": "enc_029",
+      "connector_type": "generic_multipin",
+      "tags": [
+        "system:sdc"
+      ],
+      "properties": {
+        "description": "Inertia Switch 3-pin connector"
+      },
+      "pin_count": 3
+    },
+    {
+      "id": "con_074",
+      "name": "ES-LT",
+      "parent": "enc_031",
+      "connector_type": "deutsch_dt",
+      "tags": [
+        "system:sdc"
+      ],
+      "properties": {
+        "description": "Estop Left SDC connector. Pin 1 = in, Pin 2 = out"
+      },
+      "pin_count": 2
+    },
+    {
+      "id": "con_075",
+      "name": "ES-RT",
+      "parent": "enc_032",
+      "connector_type": "deutsch_dt",
+      "tags": [
+        "system:sdc"
+      ],
+      "properties": {
+        "description": "Estop Right SDC connector. Pin 1 = in, Pin 2 = out"
+      },
+      "pin_count": 2
+    },
+    {
+      "id": "con_077",
+      "name": "BPS1 Conn",
+      "parent": "enc_034",
+      "connector_type": "generic_multipin",
+      "tags": [
+        "system:sensors"
+      ],
+      "properties": {
+        "description": "P51 BPS1 sensor connector. Pin 1 = 5V, Pin 2 = GND, Pin 3 = Signal"
+      },
+      "pin_count": 3
+    },
+    {
+      "id": "con_078",
+      "name": "BPS2 Conn",
+      "parent": "enc_035",
+      "connector_type": "generic_multipin",
+      "tags": [
+        "system:sensors"
+      ],
+      "properties": {
+        "description": "P51 BPS2 sensor connector. Pin 1 = 5V, Pin 2 = GND, Pin 3 = Signal"
+      },
+      "pin_count": 3
+    },
+    {
+      "id": "con_079",
+      "name": "APPS Conn",
+      "parent": "enc_036",
+      "connector_type": "deutsch_dtm",
+      "tags": [
+        "system:sensors"
+      ],
+      "properties": {
+        "description": "APPS 6p Metri-Pack connector (12162260)"
+      },
+      "pin_count": 8
+    },
+    {
+      "id": "con_081",
+      "name": "TSL-C1",
+      "parent": "enc_026",
+      "connector_type": "deutsch_dt",
+      "tags": [],
+      "properties": {
+        "description": "Tractive System Light connector 1 — from HVB/FOC"
+      },
+      "pin_count": 4
+    },
+    {
+      "id": "con_dot_cfa49b64-2942-4c0c-88e4-0bc9b13c8559",
+      "name": "Visual dot",
+      "parent": "enc_021",
+      "connector_type": "generic_multipin",
+      "tags": [
+        "generated",
+        "unresolved",
+        "dot",
+        "inline",
+        "system:wheelspeed"
+      ],
+      "properties": {
+        "bulkhead_display": "dot",
+        "generated_by_route": "path_auto_fa899bf661db",
+        "generated_by_routes": "path_auto_fa899bf661db"
+      },
+      "mounting": "inline",
+      "pin_count": 1
+    }
+  ],
+  "branchPoints": [
+    {
+      "id": "mp_004",
+      "name": "Branch 4",
+      "parent": null,
+      "tags": [],
+      "properties": {}
+    },
+    {
+      "id": "mp_008",
+      "name": "Branch 4",
+      "parent": null,
+      "tags": [],
+      "properties": {}
+    },
+    {
+      "id": "mp_009",
+      "name": "Branch 4",
+      "parent": null,
+      "tags": [],
+      "properties": {}
+    },
+    {
+      "id": "mp_010",
+      "name": "Branch 5",
+      "parent": null,
+      "tags": [],
+      "properties": {}
+    }
+  ],
+  "paths": [
+    {
+      "id": "path_011",
+      "name": "LV Batt Power",
+      "tags": [
+        "signal:PWR_24V"
+      ],
+      "properties": {
+        "source_file": "EXT_ROC_H1"
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_061",
+          "pin_number": 1
+        },
+        {
+          "kind": "port",
+          "port_id": "port_con_011",
+          "pin_number": 1
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_012",
+      "name": "LV Batt GND",
+      "tags": [
+        "signal:GND"
+      ],
+      "properties": {
+        "source_file": "EXT_ROC_H1"
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_062",
+          "pin_number": 1
+        },
+        {
+          "kind": "port",
+          "port_id": "port_con_011",
+          "pin_number": 2
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_013",
+      "name": "CAN1 SB-HVB-H",
+      "tags": [
+        "signal:CAN_ACC_H"
+      ],
+      "properties": {
+        "source_file": "EXT_ROC_H1"
+      },
+      "nodes": [
+        {
+          "kind": "port",
+          "port_id": "port_con_001",
+          "pin_number": 11
+        },
+        {
+          "kind": "branch",
+          "branch_point_id": "mp_009"
+        }
+      ],
+      "measurements": [
+        {
+          "from": {
+            "kind": "port",
+            "port_id": "port_con_001",
+            "pin_number": 11
+          },
+          "to": {
+            "kind": "branch",
+            "branch_point_id": "mp_009"
+          },
+          "length_mm": 2.75
+        }
+      ]
+    },
+    {
+      "id": "path_013",
+      "name": "CAN1 SB-HVB-H",
+      "tags": [
+        "signal:CAN_ACC_H"
+      ],
+      "properties": {
+        "source_file": "EXT_ROC_H1"
+      },
+      "nodes": [
+        {
+          "kind": "branch",
+          "branch_point_id": "mp_009"
+        },
+        {
+          "kind": "branch",
+          "branch_point_id": "mp_008"
+        }
+      ],
+      "measurements": [
+        {
+          "from": {
+            "kind": "branch",
+            "branch_point_id": "mp_009"
+          },
+          "to": {
+            "kind": "branch",
+            "branch_point_id": "mp_008"
+          },
+          "length_mm": 2.75
+        }
+      ]
+    },
+    {
+      "id": "path_013",
+      "name": "CAN1 SB-HVB-H",
+      "tags": [
+        "signal:CAN_ACC_H"
+      ],
+      "properties": {
+        "source_file": "EXT_ROC_H1"
+      },
+      "nodes": [
+        {
+          "kind": "branch",
+          "branch_point_id": "mp_008"
+        },
+        {
+          "kind": "port",
+          "port_id": "port_con_009",
+          "pin_number": 10
+        }
+      ],
+      "measurements": [
+        {
+          "from": {
+            "kind": "branch",
+            "branch_point_id": "mp_008"
+          },
+          "to": {
+            "kind": "port",
+            "port_id": "port_con_009",
+            "pin_number": 10
+          },
+          "length_mm": 123
+        }
+      ]
+    },
+    {
+      "id": "path_013",
+      "name": "CAN1 SB-HVB-H",
+      "tags": [
+        "signal:CAN_ACC_H"
+      ],
+      "properties": {
+        "source_file": "EXT_ROC_H1"
+      },
+      "nodes": [
+        {
+          "kind": "port",
+          "port_id": "port_con_009",
+          "pin_number": 10
+        },
+        {
+          "kind": "port",
+          "port_id": "port_con_012",
+          "pin_number": 11
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_014",
+      "name": "CAN1 SB-HVB-L",
+      "tags": [
+        "signal:CAN_ACC_L"
+      ],
+      "properties": {
+        "source_file": "EXT_ROC_H1"
+      },
+      "nodes": [
+        {
+          "kind": "port",
+          "port_id": "port_con_001",
+          "pin_number": 12
+        },
+        {
+          "kind": "branch",
+          "branch_point_id": "mp_009"
+        }
+      ],
+      "measurements": [
+        {
+          "from": {
+            "kind": "port",
+            "port_id": "port_con_001",
+            "pin_number": 12
+          },
+          "to": {
+            "kind": "branch",
+            "branch_point_id": "mp_009"
+          },
+          "length_mm": 2.75
+        }
+      ]
+    },
+    {
+      "id": "path_014",
+      "name": "CAN1 SB-HVB-L",
+      "tags": [
+        "signal:CAN_ACC_L"
+      ],
+      "properties": {
+        "source_file": "EXT_ROC_H1"
+      },
+      "nodes": [
+        {
+          "kind": "branch",
+          "branch_point_id": "mp_009"
+        },
+        {
+          "kind": "branch",
+          "branch_point_id": "mp_008"
+        }
+      ],
+      "measurements": [
+        {
+          "from": {
+            "kind": "branch",
+            "branch_point_id": "mp_009"
+          },
+          "to": {
+            "kind": "branch",
+            "branch_point_id": "mp_008"
+          },
+          "length_mm": 2.75
+        }
+      ]
+    },
+    {
+      "id": "path_014",
+      "name": "CAN1 SB-HVB-L",
+      "tags": [
+        "signal:CAN_ACC_L"
+      ],
+      "properties": {
+        "source_file": "EXT_ROC_H1"
+      },
+      "nodes": [
+        {
+          "kind": "branch",
+          "branch_point_id": "mp_008"
+        },
+        {
+          "kind": "port",
+          "port_id": "port_con_009",
+          "pin_number": 11
+        }
+      ],
+      "measurements": [
+        {
+          "from": {
+            "kind": "branch",
+            "branch_point_id": "mp_008"
+          },
+          "to": {
+            "kind": "port",
+            "port_id": "port_con_009",
+            "pin_number": 11
+          },
+          "length_mm": 123
+        }
+      ]
+    },
+    {
+      "id": "path_014",
+      "name": "CAN1 SB-HVB-L",
+      "tags": [
+        "signal:CAN_ACC_L"
+      ],
+      "properties": {
+        "source_file": "EXT_ROC_H1"
+      },
+      "nodes": [
+        {
+          "kind": "port",
+          "port_id": "port_con_009",
+          "pin_number": 11
+        },
+        {
+          "kind": "port",
+          "port_id": "port_con_012",
+          "pin_number": 12
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_015",
+      "name": "ACCU SDC Out",
+      "tags": [
+        "signal:SDC"
+      ],
+      "properties": {
+        "source_file": "EXT_ROC_H1"
+      },
+      "nodes": [
+        {
+          "kind": "port",
+          "port_id": "port_con_001",
+          "pin_number": 7
+        },
+        {
+          "kind": "branch",
+          "branch_point_id": "mp_009"
+        }
+      ],
+      "measurements": [
+        {
+          "from": {
+            "kind": "port",
+            "port_id": "port_con_001",
+            "pin_number": 7
+          },
+          "to": {
+            "kind": "branch",
+            "branch_point_id": "mp_009"
+          },
+          "length_mm": 2.75
+        }
+      ]
+    },
+    {
+      "id": "path_015",
+      "name": "ACCU SDC Out",
+      "tags": [
+        "signal:SDC"
+      ],
+      "properties": {
+        "source_file": "EXT_ROC_H1"
+      },
+      "nodes": [
+        {
+          "kind": "branch",
+          "branch_point_id": "mp_009"
+        },
+        {
+          "kind": "branch",
+          "branch_point_id": "mp_008"
+        }
+      ],
+      "measurements": [
+        {
+          "from": {
+            "kind": "branch",
+            "branch_point_id": "mp_009"
+          },
+          "to": {
+            "kind": "branch",
+            "branch_point_id": "mp_008"
+          },
+          "length_mm": 2.75
+        }
+      ]
+    },
+    {
+      "id": "path_015",
+      "name": "ACCU SDC Out",
+      "tags": [
+        "signal:SDC"
+      ],
+      "properties": {
+        "source_file": "EXT_ROC_H1"
+      },
+      "nodes": [
+        {
+          "kind": "branch",
+          "branch_point_id": "mp_008"
+        },
+        {
+          "kind": "port",
+          "port_id": "port_con_009",
+          "pin_number": 9
+        }
+      ],
+      "measurements": [
+        {
+          "from": {
+            "kind": "branch",
+            "branch_point_id": "mp_008"
+          },
+          "to": {
+            "kind": "port",
+            "port_id": "port_con_009",
+            "pin_number": 9
+          },
+          "length_mm": 123
+        }
+      ]
+    },
+    {
+      "id": "path_015",
+      "name": "ACCU SDC Out",
+      "tags": [
+        "signal:SDC"
+      ],
+      "properties": {
+        "source_file": "EXT_ROC_H1"
+      },
+      "nodes": [
+        {
+          "kind": "port",
+          "port_id": "port_con_009",
+          "pin_number": 9
+        },
+        {
+          "kind": "port",
+          "port_id": "port_con_012",
+          "pin_number": 9
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_016",
+      "name": "IMD Fault",
+      "tags": [
+        "signal:IMD_FAULT"
+      ],
+      "properties": {
+        "source_file": "EXT_ROC_H1"
+      },
+      "nodes": [
+        {
+          "kind": "port",
+          "port_id": "port_con_001",
+          "pin_number": 8
+        },
+        {
+          "kind": "branch",
+          "branch_point_id": "mp_009"
+        }
+      ],
+      "measurements": [
+        {
+          "from": {
+            "kind": "port",
+            "port_id": "port_con_001",
+            "pin_number": 8
+          },
+          "to": {
+            "kind": "branch",
+            "branch_point_id": "mp_009"
+          },
+          "length_mm": 2.75
+        }
+      ]
+    },
+    {
+      "id": "path_016",
+      "name": "IMD Fault",
+      "tags": [
+        "signal:IMD_FAULT"
+      ],
+      "properties": {
+        "source_file": "EXT_ROC_H1"
+      },
+      "nodes": [
+        {
+          "kind": "branch",
+          "branch_point_id": "mp_009"
+        },
+        {
+          "kind": "branch",
+          "branch_point_id": "mp_008"
+        }
+      ],
+      "measurements": [
+        {
+          "from": {
+            "kind": "branch",
+            "branch_point_id": "mp_009"
+          },
+          "to": {
+            "kind": "branch",
+            "branch_point_id": "mp_008"
+          },
+          "length_mm": 2.75
+        }
+      ]
+    },
+    {
+      "id": "path_016",
+      "name": "IMD Fault",
+      "tags": [
+        "signal:IMD_FAULT"
+      ],
+      "properties": {
+        "source_file": "EXT_ROC_H1"
+      },
+      "nodes": [
+        {
+          "kind": "branch",
+          "branch_point_id": "mp_008"
+        },
+        {
+          "kind": "port",
+          "port_id": "port_con_009",
+          "pin_number": 7
+        }
+      ],
+      "measurements": [
+        {
+          "from": {
+            "kind": "branch",
+            "branch_point_id": "mp_008"
+          },
+          "to": {
+            "kind": "port",
+            "port_id": "port_con_009",
+            "pin_number": 7
+          },
+          "length_mm": 123
+        }
+      ]
+    },
+    {
+      "id": "path_016",
+      "name": "IMD Fault",
+      "tags": [
+        "signal:IMD_FAULT"
+      ],
+      "properties": {
+        "source_file": "EXT_ROC_H1"
+      },
+      "nodes": [
+        {
+          "kind": "port",
+          "port_id": "port_con_009",
+          "pin_number": 7
+        },
+        {
+          "kind": "port",
+          "port_id": "port_con_012",
+          "pin_number": 7
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_017",
+      "name": "BMS Fault",
+      "tags": [
+        "signal:BMS_FAULT"
+      ],
+      "properties": {
+        "source_file": "EXT_ROC_H1"
+      },
+      "nodes": [
+        {
+          "kind": "port",
+          "port_id": "port_con_001",
+          "pin_number": 9
+        },
+        {
+          "kind": "branch",
+          "branch_point_id": "mp_009"
+        }
+      ],
+      "measurements": [
+        {
+          "from": {
+            "kind": "port",
+            "port_id": "port_con_001",
+            "pin_number": 9
+          },
+          "to": {
+            "kind": "branch",
+            "branch_point_id": "mp_009"
+          },
+          "length_mm": 2.75
+        }
+      ]
+    },
+    {
+      "id": "path_017",
+      "name": "BMS Fault",
+      "tags": [
+        "signal:BMS_FAULT"
+      ],
+      "properties": {
+        "source_file": "EXT_ROC_H1"
+      },
+      "nodes": [
+        {
+          "kind": "branch",
+          "branch_point_id": "mp_009"
+        },
+        {
+          "kind": "branch",
+          "branch_point_id": "mp_008"
+        }
+      ],
+      "measurements": [
+        {
+          "from": {
+            "kind": "branch",
+            "branch_point_id": "mp_009"
+          },
+          "to": {
+            "kind": "branch",
+            "branch_point_id": "mp_008"
+          },
+          "length_mm": 2.75
+        }
+      ]
+    },
+    {
+      "id": "path_017",
+      "name": "BMS Fault",
+      "tags": [
+        "signal:BMS_FAULT"
+      ],
+      "properties": {
+        "source_file": "EXT_ROC_H1"
+      },
+      "nodes": [
+        {
+          "kind": "branch",
+          "branch_point_id": "mp_008"
+        },
+        {
+          "kind": "port",
+          "port_id": "port_con_009",
+          "pin_number": 8
+        }
+      ],
+      "measurements": [
+        {
+          "from": {
+            "kind": "branch",
+            "branch_point_id": "mp_008"
+          },
+          "to": {
+            "kind": "port",
+            "port_id": "port_con_009",
+            "pin_number": 8
+          },
+          "length_mm": 123
+        }
+      ]
+    },
+    {
+      "id": "path_017",
+      "name": "BMS Fault",
+      "tags": [
+        "signal:BMS_FAULT"
+      ],
+      "properties": {
+        "source_file": "EXT_ROC_H1"
+      },
+      "nodes": [
+        {
+          "kind": "port",
+          "port_id": "port_con_009",
+          "pin_number": 8
+        },
+        {
+          "kind": "port",
+          "port_id": "port_con_012",
+          "pin_number": 8
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_018",
+      "name": "HVB 12V Power",
+      "tags": [
+        "signal:PWR_12V"
+      ],
+      "properties": {
+        "source_file": "EXT_ROC_H1"
+      },
+      "nodes": [
+        {
+          "kind": "port",
+          "port_id": "port_con_001",
+          "pin_number": 1
+        },
+        {
+          "kind": "branch",
+          "branch_point_id": "mp_009"
+        }
+      ],
+      "measurements": [
+        {
+          "from": {
+            "kind": "port",
+            "port_id": "port_con_001",
+            "pin_number": 1
+          },
+          "to": {
+            "kind": "branch",
+            "branch_point_id": "mp_009"
+          },
+          "length_mm": 2.75
+        }
+      ]
+    },
+    {
+      "id": "path_018",
+      "name": "HVB 12V Power",
+      "tags": [
+        "signal:PWR_12V"
+      ],
+      "properties": {
+        "source_file": "EXT_ROC_H1"
+      },
+      "nodes": [
+        {
+          "kind": "branch",
+          "branch_point_id": "mp_009"
+        },
+        {
+          "kind": "branch",
+          "branch_point_id": "mp_008"
+        }
+      ],
+      "measurements": [
+        {
+          "from": {
+            "kind": "branch",
+            "branch_point_id": "mp_009"
+          },
+          "to": {
+            "kind": "branch",
+            "branch_point_id": "mp_008"
+          },
+          "length_mm": 2.75
+        }
+      ]
+    },
+    {
+      "id": "path_018",
+      "name": "HVB 12V Power",
+      "tags": [
+        "signal:PWR_12V"
+      ],
+      "properties": {
+        "source_file": "EXT_ROC_H1"
+      },
+      "nodes": [
+        {
+          "kind": "branch",
+          "branch_point_id": "mp_008"
+        },
+        {
+          "kind": "port",
+          "port_id": "port_con_009",
+          "pin_number": 1
+        }
+      ],
+      "measurements": [
+        {
+          "from": {
+            "kind": "branch",
+            "branch_point_id": "mp_008"
+          },
+          "to": {
+            "kind": "port",
+            "port_id": "port_con_009",
+            "pin_number": 1
+          },
+          "length_mm": 123
+        }
+      ]
+    },
+    {
+      "id": "path_018",
+      "name": "HVB 12V Power",
+      "tags": [
+        "signal:PWR_12V"
+      ],
+      "properties": {
+        "source_file": "EXT_ROC_H1"
+      },
+      "nodes": [
+        {
+          "kind": "port",
+          "port_id": "port_con_009",
+          "pin_number": 1
+        },
+        {
+          "kind": "port",
+          "port_id": "port_con_012",
+          "pin_number": 1
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_019",
+      "name": "HVB GND",
+      "tags": [
+        "signal:GND"
+      ],
+      "properties": {
+        "source_file": "EXT_ROC_H1"
+      },
+      "nodes": [
+        {
+          "kind": "port",
+          "port_id": "port_con_001",
+          "pin_number": 2
+        },
+        {
+          "kind": "branch",
+          "branch_point_id": "mp_009"
+        }
+      ],
+      "measurements": [
+        {
+          "from": {
+            "kind": "port",
+            "port_id": "port_con_001",
+            "pin_number": 2
+          },
+          "to": {
+            "kind": "branch",
+            "branch_point_id": "mp_009"
+          },
+          "length_mm": 2.75
+        }
+      ]
+    },
+    {
+      "id": "path_019",
+      "name": "HVB GND",
+      "tags": [
+        "signal:GND"
+      ],
+      "properties": {
+        "source_file": "EXT_ROC_H1"
+      },
+      "nodes": [
+        {
+          "kind": "branch",
+          "branch_point_id": "mp_009"
+        },
+        {
+          "kind": "branch",
+          "branch_point_id": "mp_008"
+        }
+      ],
+      "measurements": [
+        {
+          "from": {
+            "kind": "branch",
+            "branch_point_id": "mp_009"
+          },
+          "to": {
+            "kind": "branch",
+            "branch_point_id": "mp_008"
+          },
+          "length_mm": 2.75
+        }
+      ]
+    },
+    {
+      "id": "path_019",
+      "name": "HVB GND",
+      "tags": [
+        "signal:GND"
+      ],
+      "properties": {
+        "source_file": "EXT_ROC_H1"
+      },
+      "nodes": [
+        {
+          "kind": "branch",
+          "branch_point_id": "mp_008"
+        },
+        {
+          "kind": "port",
+          "port_id": "port_con_009",
+          "pin_number": 2
+        }
+      ],
+      "measurements": [
+        {
+          "from": {
+            "kind": "branch",
+            "branch_point_id": "mp_008"
+          },
+          "to": {
+            "kind": "port",
+            "port_id": "port_con_009",
+            "pin_number": 2
+          },
+          "length_mm": 123
+        }
+      ]
+    },
+    {
+      "id": "path_019",
+      "name": "HVB GND",
+      "tags": [
+        "signal:GND"
+      ],
+      "properties": {
+        "source_file": "EXT_ROC_H1"
+      },
+      "nodes": [
+        {
+          "kind": "port",
+          "port_id": "port_con_009",
+          "pin_number": 2
+        },
+        {
+          "kind": "port",
+          "port_id": "port_con_012",
+          "pin_number": 2
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_020",
+      "name": "IMD Reset-",
+      "tags": [
+        "signal:IMD_RESET_NEG"
+      ],
+      "properties": {
+        "source_file": "EXT_ROC_H1"
+      },
+      "nodes": [
+        {
+          "kind": "port",
+          "port_id": "port_con_001",
+          "pin_number": 3
+        },
+        {
+          "kind": "branch",
+          "branch_point_id": "mp_009"
+        }
+      ],
+      "measurements": [
+        {
+          "from": {
+            "kind": "port",
+            "port_id": "port_con_001",
+            "pin_number": 3
+          },
+          "to": {
+            "kind": "branch",
+            "branch_point_id": "mp_009"
+          },
+          "length_mm": 2.75
+        }
+      ]
+    },
+    {
+      "id": "path_020",
+      "name": "IMD Reset-",
+      "tags": [
+        "signal:IMD_RESET_NEG"
+      ],
+      "properties": {
+        "source_file": "EXT_ROC_H1"
+      },
+      "nodes": [
+        {
+          "kind": "branch",
+          "branch_point_id": "mp_009"
+        },
+        {
+          "kind": "branch",
+          "branch_point_id": "mp_008"
+        }
+      ],
+      "measurements": [
+        {
+          "from": {
+            "kind": "branch",
+            "branch_point_id": "mp_009"
+          },
+          "to": {
+            "kind": "branch",
+            "branch_point_id": "mp_008"
+          },
+          "length_mm": 2.75
+        }
+      ]
+    },
+    {
+      "id": "path_020",
+      "name": "IMD Reset-",
+      "tags": [
+        "signal:IMD_RESET_NEG"
+      ],
+      "properties": {
+        "source_file": "EXT_ROC_H1"
+      },
+      "nodes": [
+        {
+          "kind": "branch",
+          "branch_point_id": "mp_008"
+        },
+        {
+          "kind": "port",
+          "port_id": "port_con_009",
+          "pin_number": 3
+        }
+      ],
+      "measurements": [
+        {
+          "from": {
+            "kind": "branch",
+            "branch_point_id": "mp_008"
+          },
+          "to": {
+            "kind": "port",
+            "port_id": "port_con_009",
+            "pin_number": 3
+          },
+          "length_mm": 123
+        }
+      ]
+    },
+    {
+      "id": "path_020",
+      "name": "IMD Reset-",
+      "tags": [
+        "signal:IMD_RESET_NEG"
+      ],
+      "properties": {
+        "source_file": "EXT_ROC_H1"
+      },
+      "nodes": [
+        {
+          "kind": "port",
+          "port_id": "port_con_009",
+          "pin_number": 3
+        },
+        {
+          "kind": "port",
+          "port_id": "port_con_012",
+          "pin_number": 3
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_021",
+      "name": "BMS Reset-",
+      "tags": [
+        "signal:BMS_RESET"
+      ],
+      "properties": {
+        "source_file": "EXT_ROC_H1"
+      },
+      "nodes": [
+        {
+          "kind": "port",
+          "port_id": "port_con_001",
+          "pin_number": 4
+        },
+        {
+          "kind": "branch",
+          "branch_point_id": "mp_009"
+        }
+      ],
+      "measurements": [
+        {
+          "from": {
+            "kind": "port",
+            "port_id": "port_con_001",
+            "pin_number": 4
+          },
+          "to": {
+            "kind": "branch",
+            "branch_point_id": "mp_009"
+          },
+          "length_mm": 2.75
+        }
+      ]
+    },
+    {
+      "id": "path_021",
+      "name": "BMS Reset-",
+      "tags": [
+        "signal:BMS_RESET"
+      ],
+      "properties": {
+        "source_file": "EXT_ROC_H1"
+      },
+      "nodes": [
+        {
+          "kind": "branch",
+          "branch_point_id": "mp_009"
+        },
+        {
+          "kind": "branch",
+          "branch_point_id": "mp_008"
+        }
+      ],
+      "measurements": [
+        {
+          "from": {
+            "kind": "branch",
+            "branch_point_id": "mp_009"
+          },
+          "to": {
+            "kind": "branch",
+            "branch_point_id": "mp_008"
+          },
+          "length_mm": 2.75
+        }
+      ]
+    },
+    {
+      "id": "path_021",
+      "name": "BMS Reset-",
+      "tags": [
+        "signal:BMS_RESET"
+      ],
+      "properties": {
+        "source_file": "EXT_ROC_H1"
+      },
+      "nodes": [
+        {
+          "kind": "branch",
+          "branch_point_id": "mp_008"
+        },
+        {
+          "kind": "port",
+          "port_id": "port_con_009",
+          "pin_number": 4
+        }
+      ],
+      "measurements": [
+        {
+          "from": {
+            "kind": "branch",
+            "branch_point_id": "mp_008"
+          },
+          "to": {
+            "kind": "port",
+            "port_id": "port_con_009",
+            "pin_number": 4
+          },
+          "length_mm": 123
+        }
+      ]
+    },
+    {
+      "id": "path_021",
+      "name": "BMS Reset-",
+      "tags": [
+        "signal:BMS_RESET"
+      ],
+      "properties": {
+        "source_file": "EXT_ROC_H1"
+      },
+      "nodes": [
+        {
+          "kind": "port",
+          "port_id": "port_con_009",
+          "pin_number": 4
+        },
+        {
+          "kind": "port",
+          "port_id": "port_con_012",
+          "pin_number": 4
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_106",
+      "name": "BPS1 5V",
+      "tags": [
+        "signal:PWR_5V"
+      ],
+      "properties": {
+        "source_file": "MAIN_H1"
+      },
+      "nodes": [
+        {
+          "kind": "port",
+          "port_id": "port_con_002",
+          "pin_number": 3
+        },
+        {
+          "kind": "branch",
+          "branch_point_id": "mp_008"
+        },
+        {
+          "kind": "branch",
+          "branch_point_id": "mp_004"
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_077",
+          "pin_number": 1
+        }
+      ],
+      "measurements": [
+        {
+          "from": {
+            "kind": "branch",
+            "branch_point_id": "mp_004"
+          },
+          "to": {
+            "kind": "connector",
+            "connector_id": "con_077",
+            "pin_number": 1
+          },
+          "length_mm": 45
+        }
+      ]
+    },
+    {
+      "id": "path_107",
+      "name": "BPS1 GND",
+      "tags": [
+        "signal:GND"
+      ],
+      "properties": {
+        "source_file": "MAIN_H1"
+      },
+      "nodes": [
+        {
+          "kind": "port",
+          "port_id": "port_con_002",
+          "pin_number": 1
+        },
+        {
+          "kind": "branch",
+          "branch_point_id": "mp_008"
+        },
+        {
+          "kind": "branch",
+          "branch_point_id": "mp_004"
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_077",
+          "pin_number": 2
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_108",
+      "name": "BPS1 Signal",
+      "tags": [
+        "signal:BPS1"
+      ],
+      "properties": {
+        "source_file": "MAIN_H1"
+      },
+      "nodes": [
+        {
+          "kind": "port",
+          "port_id": "port_con_002",
+          "pin_number": 2
+        },
+        {
+          "kind": "branch",
+          "branch_point_id": "mp_008"
+        },
+        {
+          "kind": "branch",
+          "branch_point_id": "mp_004"
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_077",
+          "pin_number": 3
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_115",
+      "name": "BPS2 5V",
+      "tags": [
+        "signal:PWR_5V"
+      ],
+      "properties": {
+        "source_file": "MAIN_H1"
+      },
+      "nodes": [
+        {
+          "kind": "port",
+          "port_id": "port_con_002",
+          "pin_number": 10
+        },
+        {
+          "kind": "branch",
+          "branch_point_id": "mp_008"
+        },
+        {
+          "kind": "branch",
+          "branch_point_id": "mp_004"
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_078",
+          "pin_number": 1
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_116",
+      "name": "BPS2 GND",
+      "tags": [
+        "signal:GND"
+      ],
+      "properties": {
+        "source_file": "MAIN_H1"
+      },
+      "nodes": [
+        {
+          "kind": "port",
+          "port_id": "port_con_002",
+          "pin_number": 12
+        },
+        {
+          "kind": "branch",
+          "branch_point_id": "mp_008"
+        },
+        {
+          "kind": "branch",
+          "branch_point_id": "mp_004"
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_078",
+          "pin_number": 2
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_117",
+      "name": "BPS2 Signal",
+      "tags": [
+        "signal:BPS2"
+      ],
+      "properties": {
+        "source_file": "MAIN_H1"
+      },
+      "nodes": [
+        {
+          "kind": "port",
+          "port_id": "port_con_002",
+          "pin_number": 11
+        },
+        {
+          "kind": "branch",
+          "branch_point_id": "mp_008"
+        },
+        {
+          "kind": "branch",
+          "branch_point_id": "mp_004"
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_078",
+          "pin_number": 3
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_136",
+      "name": "APPS1 VCC Link",
+      "tags": [
+        "signal:PWR_3V3"
+      ],
+      "properties": {},
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_079",
+          "pin_number": 1
+        },
+        {
+          "kind": "branch",
+          "branch_point_id": "mp_009"
+        },
+        {
+          "kind": "port",
+          "port_id": "port_con_002",
+          "pin_number": 4
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_137",
+      "name": "APPS1 GND Link",
+      "tags": [
+        "signal:GND"
+      ],
+      "properties": {
+        "wire_color": "black"
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_079",
+          "pin_number": 3
+        },
+        {
+          "kind": "branch",
+          "branch_point_id": "mp_009"
+        },
+        {
+          "kind": "port",
+          "port_id": "port_con_002",
+          "pin_number": 6
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_138",
+      "name": "APPS1 SIG Link",
+      "tags": [
+        "signal:APPS1"
+      ],
+      "properties": {},
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_079",
+          "pin_number": 2
+        },
+        {
+          "kind": "branch",
+          "branch_point_id": "mp_009"
+        },
+        {
+          "kind": "port",
+          "port_id": "port_con_002",
+          "pin_number": 8
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_139",
+      "name": "APPS2 VCC Link",
+      "tags": [
+        "signal:PWR_3V3"
+      ],
+      "properties": {},
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_079",
+          "pin_number": 4
+        },
+        {
+          "kind": "branch",
+          "branch_point_id": "mp_009"
+        },
+        {
+          "kind": "port",
+          "port_id": "port_con_002",
+          "pin_number": 9
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_140",
+      "name": "APPS2 GND Link",
+      "tags": [
+        "signal:GND"
+      ],
+      "properties": {},
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_079",
+          "pin_number": 6
+        },
+        {
+          "kind": "branch",
+          "branch_point_id": "mp_009"
+        },
+        {
+          "kind": "port",
+          "port_id": "port_con_002",
+          "pin_number": 7
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_141",
+      "name": "APPS2 SIG Link",
+      "tags": [
+        "signal:APPS2"
+      ],
+      "properties": {},
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_079",
+          "pin_number": 5
+        },
+        {
+          "kind": "branch",
+          "branch_point_id": "mp_009"
+        },
+        {
+          "kind": "port",
+          "port_id": "port_con_002",
+          "pin_number": 5
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_auto_8beb28152493",
+      "name": "Latch-J1:1 → LV MS:1",
+      "signal_id": "sig_IMD_RESET_NEG",
+      "tags": [
+        "signal:IMD_RESET_NEG"
+      ],
+      "properties": {
+        "route_request_id": "a0cddf3e-b36f-45ff-ade0-442095f81dea",
+        "wire_color": "pink"
+      },
+      "nodes": [
+        {
+          "kind": "port",
+          "port_id": "port_con_auto_bulkhead_7f6a80f4a4702bce",
+          "pin_number": 1
+        },
+        {
+          "kind": "port",
+          "port_id": "port_con_auto_bulkhead_84847c0fbf141061",
+          "pin_number": 1
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_auto_c07012f0fb3e",
+      "name": "wheelspeeds:1 → ROC-C1:5",
+      "signal_id": "sig_1785888181268_xnq6jx",
+      "tags": [
+        "signal:1785888181268_xnq6jx"
+      ],
+      "properties": {
+        "wire_color": "grey",
+        "route_request_id": "6f9fac8c-50ff-4f77-bc59-c308f01af8a2"
+      },
+      "nodes": [
+        {
+          "kind": "port",
+          "port_id": "port_con_dot_b47fcc15-217f-405f-b316-5f1d85d21410",
+          "pin_number": 1
+        },
+        {
+          "kind": "port",
+          "port_id": "port_con_009",
+          "pin_number": 5
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_auto_5d7f74a472eb",
+      "name": "APPS Conn:7 → WS FL:1",
+      "signal_id": "sig_1788023477742_mgwx34",
+      "tags": [
+        "signal:1788023477742_mgwx34"
+      ],
+      "properties": {
+        "route_request_id": "d48b05c0-a286-4fd7-b650-063e91eab404"
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_079",
+          "pin_number": 7
+        },
+        {
+          "kind": "branch",
+          "branch_point_id": "mp_010"
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_063",
+          "pin_number": 1
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_auto_caf401b3c044",
+      "name": "Unresolved bulkhead — wheelspeeds:2 → Visual dot:1",
+      "signal_id": "sig_PWR_24V",
+      "tags": [
+        "signal:PWR_24V"
+      ],
+      "properties": {
+        "route_request_id": "75d57ba3-2dee-406c-8399-2afe0803d83a",
+        "route_request_ids": "75d57ba3-2dee-406c-8399-2afe0803d83a,a177115e-9f07-419f-b819-44a4028f9d46"
+      },
+      "nodes": [
+        {
+          "kind": "port",
+          "port_id": "port_con_dot_33c3e5a6-ebe0-48d2-a6d6-bb13da92d499",
+          "pin_number": 1
+        },
+        {
+          "kind": "port",
+          "port_id": "port_con_011",
+          "pin_number": 3
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_auto_721ba057a0c2",
+      "name": "Visual dot:1 → INTS-C1:2",
+      "signal_id": "sig_PWR_24V",
+      "tags": [
+        "signal:PWR_24V"
+      ],
+      "properties": {
+        "route_request_id": "da727b83-91ed-47f3-a65e-55578f809361"
+      },
+      "nodes": [
+        {
+          "kind": "port",
+          "port_id": "port_con_dot_b714dbc1-1699-4dd3-9d0b-21baf10053e8",
+          "pin_number": 1
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_072",
+          "pin_number": 2
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_auto_5ad9b1276f1d",
+      "name": "Visual dot:1 → INTS-C1:3",
+      "signal_id": "sig_PWR_24V",
+      "tags": [
+        "signal:PWR_24V"
+      ],
+      "properties": {
+        "route_request_id": "f242e8ee-7dd2-4e74-8bc5-8c29b10f4435"
+      },
+      "nodes": [
+        {
+          "kind": "port",
+          "port_id": "port_con_dot_b714dbc1-1699-4dd3-9d0b-21baf10053e8",
+          "pin_number": 2
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_072",
+          "pin_number": 3
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "id": "path_auto_fa899bf661db",
+      "name": "INTS-C1:1 → Visual dot:1",
+      "signal_id": "sig_PWR_24V",
+      "tags": [
+        "signal:PWR_24V"
+      ],
+      "properties": {
+        "route_request_id": "2cbf7fca-d7d0-4344-9e3e-7e777f464f04"
+      },
+      "nodes": [
+        {
+          "kind": "connector",
+          "connector_id": "con_072",
+          "pin_number": 1
+        },
+        {
+          "kind": "branch",
+          "branch_point_id": "mp_010"
+        },
+        {
+          "kind": "connector",
+          "connector_id": "con_dot_cfa49b64-2942-4c0c-88e4-0bc9b13c8559",
+          "pin_number": 1
+        }
+      ],
+      "measurements": []
+    }
+  ],
+  "ports": [
+    {
+      "id": "port_con_011",
+      "name": "LV Batt C1",
+      "target_child_id": "enc_002",
+      "entity_parent": "enc_002",
+      "entity_kind": "connector",
+      "connector_id": "con_011",
+      "connector_type": "deutsch_dt",
+      "mounting": "bulkhead",
+      "pin_count": 3,
+      "tags": [
+        "zone:bulkhead",
+        "system:lv",
+        "system:demo"
+      ],
+      "properties": {
+        "description": "ROC bulkhead 2p — LV battery connector"
+      }
+    },
+    {
+      "id": "port_con_001",
+      "name": "FOC-C1",
+      "target_child_id": "enc_001",
+      "entity_parent": "enc_001",
+      "entity_kind": "connector",
+      "connector_id": "con_001",
+      "connector_type": "deutsch_dt",
+      "mounting": "bulkhead",
+      "pin_count": 12,
+      "tags": [
+        "zone:bulkhead"
+      ],
+      "properties": {
+        "description": "FOC bulkhead 12p — ROC link. Internal: DT04-12PA-L012, External: DT06-12SA"
+      }
+    },
+    {
+      "id": "port_con_009",
+      "name": "ROC-C1",
+      "target_child_id": "enc_002",
+      "entity_parent": "enc_002",
+      "entity_kind": "connector",
+      "connector_id": "con_009",
+      "connector_type": "deutsch_dt",
+      "mounting": "bulkhead",
+      "pin_count": 12,
+      "tags": [
+        "zone:bulkhead",
+        "system:demo"
+      ],
+      "properties": {
+        "description": "ROC bulkhead 12p — FOC link. Internal: DT04-12PA-L012, External: DT06-12SA"
+      }
+    },
+    {
+      "id": "port_con_012",
+      "name": "HVB-C1",
+      "target_child_id": "enc_003",
+      "entity_parent": "enc_003",
+      "entity_kind": "connector",
+      "connector_id": "con_012",
+      "connector_type": "deutsch_dt",
+      "mounting": "bulkhead",
+      "pin_count": 12,
+      "tags": [
+        "zone:bulkhead",
+        "system:hv"
+      ],
+      "properties": {
+        "description": "HVB bulkhead 12p — main signal interface (formerly ACCU-C1)",
+        "image": "SCR-20260727-muwm.png"
+      }
+    },
+    {
+      "id": "port_con_002",
+      "name": "FOC-C2",
+      "target_child_id": "enc_001",
+      "entity_parent": "enc_001",
+      "entity_kind": "connector",
+      "connector_id": "con_002",
+      "connector_type": "deutsch_dt",
+      "mounting": "bulkhead",
+      "pin_count": 12,
+      "tags": [
+        "zone:bulkhead"
+      ],
+      "properties": {
+        "description": "FOC bulkhead 12p — footwell sensors (BPS + APPS). Internal: DT04-12PA-L012, External: DT06-12SA"
+      }
+    },
+    {
+      "id": "port_con_auto_bulkhead_7f6a80f4a4702bce",
+      "name": "Unresolved bulkhead — Latch-J1",
+      "target_child_id": "enc_001",
+      "entity_parent": "enc_001",
+      "entity_kind": "connector",
+      "connector_id": "con_auto_bulkhead_7f6a80f4a4702bce",
+      "connector_type": "generic_multipin",
+      "mounting": "bulkhead",
+      "pin_count": 1,
+      "tags": [
+        "generated",
+        "unresolved",
+        "bulkhead",
+        "system:demo"
+      ],
+      "properties": {
+        "placeholder_reason": "missing_enclosure_bulkhead",
+        "bulkhead_group_anchor": "connector:con_045",
+        "generated_for_connector": "con_045",
+        "generated_by_route": "path_auto_8beb28152493",
+        "generated_by_routes": "path_auto_8beb28152493",
+        "boundary_enclosure": "enc_001",
+        "boundary_sheet": "enc_001",
+        "boundary_name": "FOC",
+        "bulkhead_display": "dot"
+      }
+    },
+    {
+      "id": "port_con_auto_bulkhead_84847c0fbf141061",
+      "name": "Unresolved bulkhead — LV MS",
+      "target_child_id": "enc_002",
+      "entity_parent": "enc_002",
+      "entity_kind": "connector",
+      "connector_id": "con_auto_bulkhead_84847c0fbf141061",
+      "connector_type": "generic_multipin",
+      "mounting": "bulkhead",
+      "pin_count": 1,
+      "tags": [
+        "generated",
+        "unresolved",
+        "bulkhead",
+        "system:demo"
+      ],
+      "properties": {
+        "placeholder_reason": "missing_enclosure_bulkhead",
+        "bulkhead_group_anchor": "connector:con_058",
+        "generated_for_connector": "con_058",
+        "generated_by_route": "path_auto_8beb28152493",
+        "generated_by_routes": "path_auto_8beb28152493",
+        "boundary_enclosure": "enc_002",
+        "boundary_sheet": "enc_002",
+        "boundary_name": "ROC"
+      }
+    },
+    {
+      "id": "port_con_dot_b47fcc15-217f-405f-b316-5f1d85d21410",
+      "name": "wheelspeeds:1 → ROC-C1:5 dot",
+      "target_child_id": "enc_001",
+      "entity_parent": "enc_001",
+      "entity_kind": "connector",
+      "connector_id": "con_dot_b47fcc15-217f-405f-b316-5f1d85d21410",
+      "connector_type": "generic_multipin",
+      "mounting": "bulkhead",
+      "pin_count": 1,
+      "tags": [
+        "generated",
+        "unresolved",
+        "system:wheelspeed",
+        "system:demo",
+        "bulkhead"
+      ],
+      "properties": {
+        "placeholder_reason": "missing_enclosure_bulkhead",
+        "bulkhead_group_anchor": "dot:con_dot_b47fcc15-217f-405f-b316-5f1d85d21410",
+        "generated_by_route": "path_auto_c07012f0fb3e",
+        "generated_by_routes": "path_auto_c07012f0fb3e",
+        "boundary_enclosure": "enc_001",
+        "boundary_sheet": "enc_001",
+        "boundary_name": "FOC",
+        "bulkhead_display": "dot"
+      }
+    },
+    {
+      "id": "port_con_dot_33c3e5a6-ebe0-48d2-a6d6-bb13da92d499",
+      "name": "Visual dot",
+      "target_child_id": "enc_001",
+      "entity_parent": "enc_001",
+      "entity_kind": "connector",
+      "connector_id": "con_dot_33c3e5a6-ebe0-48d2-a6d6-bb13da92d499",
+      "connector_type": "generic_multipin",
+      "mounting": "bulkhead",
+      "pin_count": 1,
+      "tags": [
+        "generated",
+        "unresolved",
+        "dot",
+        "bulkhead",
+        "system:demo",
+        "system:wheelspeed"
+      ],
+      "properties": {
+        "bulkhead_display": "dot",
+        "generated_by_route": "path_auto_caf401b3c044",
+        "generated_by_routes": "path_auto_caf401b3c044",
+        "placeholder_reason": "missing_enclosure_bulkhead",
+        "bulkhead_group_anchor": "dot:con_dot_33c3e5a6-ebe0-48d2-a6d6-bb13da92d499",
+        "boundary_enclosure": "enc_001",
+        "boundary_sheet": "enc_001",
+        "boundary_name": "FOC"
+      }
+    },
+    {
+      "id": "port_con_dot_b714dbc1-1699-4dd3-9d0b-21baf10053e8",
+      "name": "Visual dot",
+      "target_child_id": "enc_001",
+      "entity_parent": "enc_001",
+      "entity_kind": "connector",
+      "connector_id": "con_dot_b714dbc1-1699-4dd3-9d0b-21baf10053e8",
+      "connector_type": "generic_multipin",
+      "mounting": "bulkhead",
+      "pin_count": 3,
+      "tags": [
+        "generated",
+        "unresolved",
+        "dot",
+        "bulkhead"
+      ],
+      "properties": {
+        "bulkhead_display": "dot",
+        "generated_by_route": "path_auto_721ba057a0c2",
+        "generated_by_routes": "path_auto_721ba057a0c2",
+        "placeholder_reason": "missing_enclosure_bulkhead",
+        "bulkhead_group_anchor": "dot:con_dot_b714dbc1-1699-4dd3-9d0b-21baf10053e8",
+        "boundary_enclosure": "enc_001",
+        "boundary_sheet": "enc_001",
+        "boundary_name": "FOC"
+      }
+    }
+  ],
+  "name": "Fsae Car (working)",
+  "signalPropertyDefinitions": [
+    {
+      "id": "signal_property_asaf",
+      "key": "asaf",
+      "name": "asaf",
+      "type": "select",
+      "options": [
+        "a",
+        "b",
+        "c"
+      ]
+    }
+  ]
+}

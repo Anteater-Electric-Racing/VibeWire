@@ -6,10 +6,10 @@
  */
 import fs from 'node:fs';
 import path from 'node:path';
-import type { EntityDiff } from './harnessDiff.js';
+import type { EntityDiff } from './systemDiff.js';
 import {
   getCollaborationPaths,
-  withHarnessLock,
+  withSystemLock,
   type RevisionWriter,
 } from './revisions.js';
 
@@ -21,18 +21,18 @@ export interface AttributionEntry {
 
 export type AttributionMap = Record<string, AttributionEntry>;
 
-function assertHarness(harness: string): string {
-  if (!/^[a-zA-Z0-9_-]+$/.test(harness)) {
-    throw new Error(`Invalid attribution harness key '${harness}'.`);
+function assertSystemKey(value: unknown): string {
+  if (typeof value !== 'string' || !/^[a-zA-Z0-9_-]+$/.test(value)) {
+    throw new Error(`Invalid attribution system key '${String(value)}'.`);
   }
-  return harness;
+  return value;
 }
 
-function attributionFile(harness: string): string {
+function attributionFile(systemKey: string): string {
   return path.join(
     getCollaborationPaths().stateRoot,
     'attribution',
-    `${assertHarness(harness)}.json`,
+    `${assertSystemKey(systemKey)}.json`,
   );
 }
 
@@ -62,8 +62,8 @@ function isAttributionEntry(value: unknown): value is AttributionEntry {
   );
 }
 
-function readAttribution(harness: string): AttributionMap {
-  const filePath = attributionFile(harness);
+function readAttribution(systemKey: string): AttributionMap {
+  const filePath = attributionFile(systemKey);
   if (!fs.existsSync(filePath)) return {};
 
   let parsed: unknown;
@@ -71,18 +71,18 @@ function readAttribution(harness: string): AttributionMap {
     parsed = JSON.parse(fs.readFileSync(filePath, 'utf8'));
   } catch (error) {
     throw new Error(
-      `Cannot parse attribution for '${harness}': ${
+      `Cannot parse attribution for '${systemKey}': ${
         error instanceof Error ? error.message : String(error)
       }`,
     );
   }
   if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
-    throw new Error(`Cannot read attribution for '${harness}': expected an object map.`);
+    throw new Error(`Cannot read attribution for '${systemKey}': expected an object map.`);
   }
   for (const [entityId, value] of Object.entries(parsed)) {
     if (!entityId || !isAttributionEntry(value)) {
       throw new Error(
-        `Cannot read attribution for '${harness}': invalid entry for '${entityId}'.`,
+        `Cannot read attribution for '${systemKey}': invalid entry for '${entityId}'.`,
       );
     }
   }
@@ -98,31 +98,31 @@ function cloneAttribution(value: AttributionMap): AttributionMap {
   );
 }
 
-export function getAttribution(harness: string): AttributionMap {
-  return cloneAttribution(readAttribution(harness));
+export function getAttribution(systemKey: string): AttributionMap {
+  return cloneAttribution(readAttribution(systemKey));
 }
 
 export async function applyDiffToAttribution(
-  harness: string,
+  systemKey: string,
   diff: Readonly<EntityDiff>,
   user: RevisionWriter,
   rev: number,
 ): Promise<AttributionMap> {
   if (!user.id || !user.displayName) {
-    throw new Error(`Cannot update attribution for '${harness}': invalid user identity.`);
+    throw new Error(`Cannot update attribution for '${systemKey}': invalid user identity.`);
   }
   if (!Number.isSafeInteger(rev) || rev < 0) {
-    throw new Error(`Cannot update attribution for '${harness}': invalid revision '${rev}'.`);
+    throw new Error(`Cannot update attribution for '${systemKey}': invalid revision '${rev}'.`);
   }
 
-  return await withHarnessLock(harness, () => {
-    const attribution = readAttribution(harness);
+  return await withSystemLock(systemKey, () => {
+    const attribution = readAttribution(systemKey);
     for (const entityId of diff.removed) delete attribution[entityId];
 
     const at = new Date().toISOString();
     for (const entityId of new Set([...diff.added, ...diff.modified])) {
       if (!entityId) {
-        throw new Error(`Cannot update attribution for '${harness}': diff contains an empty id.`);
+        throw new Error(`Cannot update attribution for '${systemKey}': diff contains an empty id.`);
       }
       attribution[entityId] = {
         by: { id: user.id, displayName: user.displayName },
@@ -131,13 +131,13 @@ export async function applyDiffToAttribution(
       };
     }
 
-    writeJsonAtomic(attributionFile(harness), attribution);
+    writeJsonAtomic(attributionFile(systemKey), attribution);
     return cloneAttribution(attribution);
   });
 }
 
-export function whoTouched(harness: string, entityIds: readonly string[]): RevisionWriter[] {
-  const attribution = readAttribution(harness);
+export function whoTouched(systemKey: string, entityIds: readonly string[]): RevisionWriter[] {
+  const attribution = readAttribution(systemKey);
   const users = new Map<string, RevisionWriter>();
   for (const entityId of entityIds) {
     const user = attribution[entityId]?.by;

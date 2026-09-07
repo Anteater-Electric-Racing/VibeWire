@@ -1,195 +1,101 @@
 # VibeWire
 
-VibeWire is a wiring harness design tool for FSAE race car teams. It gives you an interactive
-connectivity graph, a hierarchy browser, per-subsystem canvases, a component inspector, a connector
-and signal catalog, and a manufacturing workspace that derives cut lists and a BOM from the harness
-itself.
+VibeWire is a local-first electrical System and wiring design tool. It combines hierarchy and
+schematic editing, focused Subsystem diagrams, shared connector and signal libraries, collaboration,
+and manufacturing output in one React application.
 
-Everything is edited in the app. Harness data lives as JSON files under `public/user-data/`, and the
-app reads and writes them through a small local HTTP API that the dev server mounts for you.
+Files under `public/user-data/` are included fixtures and test data. No included System is the
+product or the default documentation example.
 
----
+## Run locally
 
-## Contents
-
-- [Requirements](#requirements)
-- [Getting Started](#getting-started)
-- [Signing In](#signing-in)
-- [What You Can Do](#what-you-can-do)
-- [Sharing Changes](#sharing-changes)
-- [Project Structure](#project-structure)
-- [Harness Storage Formats](#harness-storage-formats)
-- [Development](#development)
-
-## Requirements
-
-- [Node.js](https://nodejs.org/) 18 or newer. Check with `node --version`.
-- Python 3 (only if you want to run the standalone harness validator).
-
-## Getting Started
+Requirements: Node.js `^20.19.0` or `>=22.12.0` (required by Vite 8), npm, and optional Python 3 for
+the standalone validator.
 
 ```bash
-git clone https://github.com/Anteater-Electric-Racing/VibeWire
-cd VibeWire
 npm install
 npm run dev
 ```
 
-Open **http://localhost:5173**. If that port is taken, Vite picks the next free one and prints the
-real URL.
+Open the Vite URL, normally <http://localhost:5173>. `npm run dev` starts two processes:
 
-The dev server mounts the persistence API in-process, so edits save to disk automatically about a
-second after you stop interacting. There is no Save button.
+- `dev:web` runs Vite and proxies `/api` and `/user-data` to port 3001.
+- `dev:api` runs the file-backed API with `tsx watch`.
 
-## Signing In
+Both are required for working autosave. The browser has no Save button: System and library changes
+schedule after about 300 ms; ordinary layout, Subsystem, and manufacturing changes schedule after
+about one second. A static frontend without `npm run api` can render, but cannot persist edits.
+The current route-style-only scheduling caveat is recorded in [`docs/canvas.md`](docs/canvas.md).
 
-VibeWire has named accounts so that edits can be attributed and so several people can work on the
-same harness at once.
+Anyone may browse. Editing requires an editor account and an explicitly activated edit session.
+Accounts are self-service from **Log in**; presence, attribution, conflicts, activity, and
+checkpoints are built in.
 
-- Anyone can browse without signing in, but editing requires an **editor** account.
-- There's no admin gate — anyone can create their own account from the **Log in** panel in the top
-  bar. Pick a private login name, a public display name, and a role (**editor** to make changes,
-  **viewer** to just look around). The activity log tracks who did what, so there's no separate
-  user-management step.
-- Accounts, sessions, revision history, and checkpoints live in `vibewire-state/` at the repo root.
-  That directory is gitignored — it is local runtime state, not source. Deleting it resets
-  collaboration state, including all accounts.
+## Five surfaces
 
-`Collaboration.md` documents the multi-user model in detail: revisions, conflict handling, presence,
-checkpoints, and the activity log.
+1. **System** — hierarchy tree, enclosure sheets, interactive graph, inspector, Harness Bundles,
+   route points, Branch Points, Shared Anchors, text, and floating images.
+2. **Subsystem** — a focused projection that stores membership and geometry while deriving all
+   electrical topology from the System.
+3. **Manufacturing** — derived physical harnesses, cut lengths, build progress, connector guides,
+   work attribution, BOM, and CSV export.
+4. **Connectors** — the shared fixed-type and connector-family catalog, cavity variants, part
+   numbers, gauge ranges, and media.
+5. **Signals** — reusable signal definitions, preferred wire colors, tags, and structured or
+   free-form properties.
 
-## What You Can Do
+Use the inspector for selected-object edits. Stable IDs and storage keys are identity; display names
+may change or repeat.
 
-The top bar switches between five surfaces:
+## Canonical storage
 
-**Hierarchy canvas** — the main graph. Enclosures render as boxes containing their connectors;
-visible path segments between the same two endpoints collapse into a single bundle edge. Double-click
-a container enclosure in the tree to drill into it, and use the breadcrumbs to come back out. Wires
-support bend points and shared junctions. You can drop background images and text-box annotations
-onto any view. **Inline connector** creates a free-hanging connector at root or in the current
-enclosure; drag an unused one onto a bundle, or select a bundle and choose **+ Inline connector**, to
-populate one cavity per wire without changing the underlying path identities.
+The complete loaded design is a **System**. New live System data belongs under
+`public/user-data/systems/`, either as a flat `<key>.json` or a sheet directory:
 
-**Subsystem canvas** — a flat projection of one electrical subsystem (cooling, wheelspeed, and so
-on). Add enclosures, devices, and connectors from the hierarchy tree, arrange them freely, and drag
-between two unoccupied cavity handles to create a path. Crossing a sheet boundary automatically
-creates a one-cavity unresolved bulkhead placeholder that you can resolve into real hardware later.
-Subsystem files hold references and geometry only; topology always comes from the harness itself.
+```text
+public/user-data/
+  systems/<key>.json
+  systems/<key>/root.json
+  systems/<key>/signals.json
+  systems/<key>/sheets/<enclosure-id>.json
+  layouts.<key>.json
+  manufacturing.<key>.json
+  subsystems/<key>/<subsystem-id>.json
+  connectors/connector-library.json
+  images/
+```
 
-**Connector library** — the shared catalog of connector types. Connector *families* (Deutsch DT,
-Deutsch DTM, dual-row Molex Mini-Fit Jr.) keep hardware selection honest: adding capacity to a
-four-cavity DT selects the six-cavity housing rather than inventing a five-cavity one. Keying only
-appears for sizes that actually have keyed variants, and pin-guide images follow the selected size.
+Sheet files assemble into one in-memory `SystemData` and are split and round-trip verified before a
+save is installed. Edit sheeted Systems through VibeWire unless you understand
+[`server/sheets.ts`](server/sheets.ts). Compatibility readers for older paths and names are
+documented in [`docs/migrations.md`](docs/migrations.md).
 
-**Signal library** — the signal catalog. Signals carry design guidance such as preferred wire color,
-voltage expectations, shielding, and twisting. Validation warns when a path's actual wire color
-disagrees with its signal's preferred color.
+## Project map
 
-**Manufacturing** — derived build output. A manufacturing harness is one run between consecutive
-connectors; splices inside a run stay visible as markable work points with per-hop measurements. Cut
-lengths are editable and write back to the harness. The BOM groups wire, housings, and crimps, and
-the whole thing exports to CSV. Per-connector-end workflow flags (ordered, cut, crimped, populated,
-QC, installed) are stored per harness.
+- `src/` — React UI, Zustand store, graph models, domain helpers, and client sync.
+- `server/` — API, authentication, revisions, sheet I/O, history, attribution, and presence.
+- `scripts/` — regression suites, validation, and migration tools.
+- `docs/` — canonical product and contributor documentation.
+- `public/user-data/` — versioned fixture/test Systems and sidecars.
+- `vibewire-state/` — collaboration records. Most are tracked; only secrets, automatic byte-history,
+  and rollback staging are ignored.
 
-Selecting anything opens the inspector on the right, which is where you edit display names, tags, and
-properties. Connector occupancy, bundle membership, and signal context are all derived from paths at
-render time rather than stored separately.
-
-IDs are permanent; names are just labels. Renaming an enclosure, connector, path, signal, or
-connector type never rewrites the references that point at it, and duplicate display names are
-allowed.
-
-## Sharing Changes
-
-Harness data is version-controlled with the rest of the repo:
+## Development commands
 
 ```bash
-git add public/user-data/
-git commit -m "Update harness data"
-git push
+npm run dev          # API and Vite together
+npm run dev:web      # Vite only
+npm run dev:api      # watched API only
+npm run api          # API without watch
+npm run build        # typecheck all TS projects, then build
+npm run typecheck    # TypeScript project build
+npm run lint         # ESLint
+npm test             # complete regression suite
+npm run test:docs    # documentation integrity
+npm run validate     # Python structural validator
+npm run preview      # preview the static frontend
 ```
 
-Layout files (`layouts.<harness-name>.json`) live alongside the harness data and are picked up by
-that same command. `vibewire-state/` is intentionally excluded.
-
-## Project Structure
-
-```
-VibeWire/
-├── public/user-data/                 ← all project data, editable in the app
-│   ├── harnesses/
-│   │   └── fsae-car/                 ← a harness (sheeted directory or flat <name>.json)
-│   ├── connectors/
-│   │   └── connector-library.json    ← shared connector type catalog
-│   ├── images/                       ← connector, enclosure, and background images
-│   ├── subsystems/<harness>/         ← subsystem canvases (references + geometry only)
-│   ├── layouts.<harness>.json        ← graph geometry and annotations, one per harness
-│   └── manufacturing.<harness>.json  ← build progress and notes
-├── src/                              ← React app
-├── server/                           ← file-backed persistence API
-├── scripts/                          ← test suites and maintenance tooling
-├── Architecture.md                   ← how the codebase is put together
-└── Collaboration.md                  ← the multi-user model
-```
-
-### Multiple Harnesses
-
-Each entry under `public/user-data/harnesses/` is a separate harness — one per car, per year, or per
-variant. Switch between them with the harness selector in the top bar; each keeps its own layout,
-subsystems, and manufacturing progress. Create one with the **+** button next to the selector.
-
-## Harness Storage Formats
-
-A harness is stored one of two ways. The app treats them identically once loaded, so you rarely need
-to care which one you have.
-
-**Flat file** (`<name>.json`) — one JSON document. This is what the **+** button creates.
-
-**Sheeted directory** (`<name>/`) — one file per enclosure "sheet": `root.json` for car-level
-devices, `sheets/<enc_id>.json` per split-out enclosure, and `signals.json` shared across all of
-them. A box's external bulkhead connector does not have to be hand-authored on both sides of the
-boundary; it is *derived* from whichever wires the parent sheet routes into that box. All of the
-assemble/split logic lives in `server/sheets.ts`, which verifies an in-memory round trip before it
-replaces any file on disk.
-
-Do not hand-edit files inside a sheeted harness directory. Some connectors exist only as a computed
-consequence of another sheet's wiring, so an edit that looks local can be inconsistent. Edit in the
-app and let the splitter place things.
-
-## Development
-
-```bash
-npm run dev         # Vite dev server + the persistence API, run as two processes together
-npm run dev:web     # Vite dev server only (proxies /api to dev:api)
-npm run dev:api     # persistence API only, restarts itself (via tsx watch) on server/ edits
-npm run build       # typecheck (app, server, scripts) and build the frontend
-npm run typecheck   # typecheck only
-npm run lint        # ESLint
-npm test            # full test suite
-npm run api         # standalone API server (no watch), for serving a production build
-npm run validate    # structural harness validation (needs Python 3)
-```
-
-`npm run dev` runs the frontend and the API as separate processes (via `concurrently`), proxying
-`/api/*` from Vite to the API process. This keeps the two independent: editing a file under `server/`
-restarts only the API process, not Vite, so it never disconnects the browser's HMR socket or forces a
-full page reload. `npm run dev:web` and `npm run dev:api` can also be run in separate terminals if you
-want them in their own logs.
-
-`npm run build` produces a static frontend. Persistence needs the API, so outside dev you must run
-`npm run api` (or an equivalent backend implementing the same endpoints) alongside it.
-
-Individual suites are available as `npm run test:renaming`, `test:routing`, `test:connectors`,
-`test:manufacturing`, `test:undo`, `test:collab-api`, `test:collab-auth`, and `test:collab-state`.
-The collaboration suites build throwaway project roots in the system temp directory and never write
-under `public/user-data/`.
-
-Read `Architecture.md` before making structural changes — it is the map of how the pieces fit
-together and which file owns what.
-
-## Tech Stack
-
-- Vite + React + TypeScript
-- [React Flow / xyflow](https://reactflow.dev/) — connectivity graph
-- [Zustand](https://github.com/pmndrs/zustand) — state management
-- [Tailwind CSS](https://tailwindcss.com/) — styling
+See [`docs/README.md`](docs/README.md) for the task-oriented documentation index,
+[`CONTRIBUTING.md`](CONTRIBUTING.md) for change workflow, and [`CHANGELOG.md`](CHANGELOG.md) for
+product history.

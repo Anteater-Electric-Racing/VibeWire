@@ -11,8 +11,8 @@ import {
   getPathsTouchingConnector,
   isBulkheadConnector,
   isInteriorToEnclosure,
-} from '../src/lib/harness.js';
-import type { HarnessData } from '../src/types/index.js';
+} from '../src/lib/systemTopology.js';
+import type { SystemData } from '../src/types/index.js';
 
 assert.deepEqual(parseAwgRange('20 AWG'), { minAwg: 20, maxAwg: 20 });
 assert.deepEqual(parseAwgRange('22-18 AWG'), { minAwg: 22, maxAwg: 18 });
@@ -47,12 +47,12 @@ assert.deepEqual(
   { gauge: '20 AWG', inferred: true },
 );
 
-const harness: HarnessData = {
+const system: SystemData = {
   schema_version: '0.2.0-sheets',
   signalPropertyDefinitions: [],
-  enclosures: [
-    { id: 'enc_box', name: 'Box', parent: null, container: true, tags: [], properties: {} },
-    { id: 'enc_pcb', name: 'PCB', parent: 'enc_box', container: false, tags: [], properties: {} },
+  hierarchy: [
+    { id: 'enc_box', name: 'Box', parent: null, kind: 'enclosure', tags: [], properties: {} },
+    { id: 'enc_pcb', name: 'PCB', parent: 'enc_box', kind: 'device', tags: [], properties: {} },
   ],
   connectors: [
     {
@@ -92,7 +92,7 @@ const harness: HarnessData = {
       properties: {},
     },
   ],
-  mergePoints: [],
+  branchPoints: [],
   paths: [
     {
       id: 'path_ext',
@@ -143,11 +143,11 @@ const harness: HarnessData = {
   signals: [],
 };
 
-assert.equal(isBulkheadConnector(harness, 'bh_1'), true);
-assert.equal(isBulkheadConnector(harness, 'pcb_1'), false);
+assert.equal(isBulkheadConnector(system, 'bh_1'), true);
+assert.equal(isBulkheadConnector(system, 'pcb_1'), false);
 assert.equal(
   isInteriorToEnclosure(
-    harness,
+    system,
     { kind: 'connector', connector_id: 'pcb_1', pin_number: 1 },
     'enc_box',
   ),
@@ -155,31 +155,31 @@ assert.equal(
 );
 assert.equal(
   isInteriorToEnclosure(
-    harness,
+    system,
     { kind: 'connector', connector_id: 'ext_1', pin_number: 1 },
     'enc_box',
   ),
   false,
 );
 
-assert.equal(getPathBulkheadSidesAtConnector(harness, 'bh_1', harness.paths[0]), 'external');
-assert.equal(getPathBulkheadSidesAtConnector(harness, 'bh_1', harness.paths[1]), 'internal');
-assert.equal(getPathBulkheadSidesAtConnector(harness, 'bh_1', harness.paths[2]), 'both');
+assert.equal(getPathBulkheadSidesAtConnector(system, 'bh_1', system.paths[0]), 'external');
+assert.equal(getPathBulkheadSidesAtConnector(system, 'bh_1', system.paths[1]), 'internal');
+assert.equal(getPathBulkheadSidesAtConnector(system, 'bh_1', system.paths[2]), 'both');
 
 assert.deepEqual(
-  getPathsTouchingConnector(harness, 'bh_1', 'external').map((path) => path.id).sort(),
+  getPathsTouchingConnector(system, 'bh_1', 'external').map((path) => path.id).sort(),
   ['path_ext', 'path_through'],
 );
 assert.deepEqual(
-  getPathsTouchingConnector(harness, 'bh_1', 'internal').map((path) => path.id).sort(),
+  getPathsTouchingConnector(system, 'bh_1', 'internal').map((path) => path.id).sort(),
   ['path_int', 'path_through'],
 );
 assert.deepEqual(
-  getPathsTouchingConnector(harness, 'bh_1', 'both').map((path) => path.id).sort(),
+  getPathsTouchingConnector(system, 'bh_1', 'both').map((path) => path.id).sort(),
   ['path_ext', 'path_int', 'path_through'],
 );
 assert.deepEqual(
-  getPathsTouchingConnector(harness, 'pcb_1', 'both').map((path) => path.id).sort(),
+  getPathsTouchingConnector(system, 'pcb_1', 'both').map((path) => path.id).sort(),
   ['path_device', 'path_int', 'path_through'],
 );
 

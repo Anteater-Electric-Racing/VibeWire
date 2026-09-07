@@ -1,5 +1,11 @@
 @import "tailwindcss";
 
+@theme {
+  --color-vw-device: #47ECD5;
+  --color-vw-connector: #F5B200;
+  --color-vw-enclosure: #ffffff;
+}
+
 body {
   margin: 0;
   padding: 0;
@@ -34,6 +40,39 @@ body {
 
 .react-flow__controls button svg {
   fill: currentColor !important;
+}
+
+/* Instant hover labels — native `title` tooltips take ~1s */
+.react-flow__controls button {
+  position: relative;
+}
+
+.react-flow__controls button[aria-label]::after {
+  content: attr(aria-label);
+  position: absolute;
+  left: calc(100% + 8px);
+  top: 50%;
+  transform: translateY(-50%);
+  background: #e4e4e7;
+  color: #18181b;
+  font-size: 12px;
+  line-height: 1.2;
+  padding: 4px 8px;
+  border-radius: 4px;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  z-index: 50;
+  box-shadow: 0 1px 4px rgb(0 0 0 / 0.25);
+  transition: opacity 40ms linear;
+}
+
+.react-flow__controls-fitview::after {
+  transition-delay: 0ms;
+}
+
+.react-flow__controls button[aria-label]:hover::after {
+  opacity: 1;
 }
 
 /* Scrollbar styling */

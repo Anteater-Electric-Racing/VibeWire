@@ -1,6 +1,6 @@
 import { useId, useMemo, useState, type FormEvent } from 'react';
-import { useHarnessStore } from '../../store';
-import type { Enclosure, HarnessData, SelectedItem } from '../../types';
+import { useSystemStore } from '../../store';
+import type { HierarchyEntity, SystemData, SelectedItem } from '../../types';
 import { ModalShell } from '../collab/ModalShell';
 
 type HierarchyEntityKind = 'device' | 'enclosure';
@@ -11,16 +11,16 @@ interface CreateHierarchyEntityModalProps {
 }
 
 function preferredParent(
-  harness: HarnessData,
+  system: SystemData,
   selectedItem: SelectedItem | null,
-  drillDownEnclosure: string | null,
+  openEnclosureId: string | null,
 ): string | null {
-  const byId = new Map(harness.enclosures.map((item) => [item.id, item]));
-  const containerOrParent = (enclosure: Enclosure | undefined): string | null => {
+  const byId = new Map(system.hierarchy.map((item) => [item.id, item]));
+  const containerOrParent = (enclosure: HierarchyEntity | undefined): string | null => {
     if (!enclosure) return null;
-    if (enclosure.container) return enclosure.id;
+    if (enclosure.kind === 'enclosure') return enclosure.id;
     const parent = enclosure.parent ? byId.get(enclosure.parent) : undefined;
-    return parent?.container ? parent.id : null;
+    return parent?.kind === 'enclosure' ? parent.id : null;
   };
 
   if (selectedItem?.type === 'enclosure') {
@@ -28,19 +28,19 @@ function preferredParent(
   }
 
   if (selectedItem?.type === 'connector') {
-    const connector = harness.connectors.find((item) => item.id === selectedItem.id);
+    const connector = system.connectors.find((item) => item.id === selectedItem.id);
     return containerOrParent(connector?.parent ? byId.get(connector.parent) : undefined);
   }
 
-  if (selectedItem?.type === 'mergePoint') {
-    const mergePoint = harness.mergePoints.find((item) => item.id === selectedItem.id);
-    return containerOrParent(mergePoint?.parent ? byId.get(mergePoint.parent) : undefined);
+  if (selectedItem?.type === 'branchPoint') {
+    const branchPoint = system.branchPoints.find((item) => item.id === selectedItem.id);
+    return containerOrParent(branchPoint?.parent ? byId.get(branchPoint.parent) : undefined);
   }
 
-  return containerOrParent(drillDownEnclosure ? byId.get(drillDownEnclosure) : undefined);
+  return containerOrParent(openEnclosureId ? byId.get(openEnclosureId) : undefined);
 }
 
-function enclosureDepth(enclosure: Enclosure, byId: Map<string, Enclosure>): number {
+function enclosureDepth(enclosure: HierarchyEntity, byId: Map<string, HierarchyEntity>): number {
   let depth = 0;
   let parentId = enclosure.parent;
   const visited = new Set<string>();
@@ -57,26 +57,26 @@ export function CreateHierarchyEntityModal({
   onCreated,
 }: CreateHierarchyEntityModalProps) {
   const formId = useId();
-  const harness = useHarnessStore((state) => state.harness);
-  const selectedItem = useHarnessStore((state) => state.selectedItem);
-  const drillDownEnclosure = useHarnessStore((state) => state.drillDownEnclosure);
-  const addEnclosure = useHarnessStore((state) => state.addEnclosure);
-  const isEditor = useHarnessStore((state) => state.session.isEditor);
+  const system = useSystemStore((state) => state.system);
+  const selectedItem = useSystemStore((state) => state.selectedItem);
+  const openEnclosureId = useSystemStore((state) => state.openEnclosureId);
+  const addEnclosure = useSystemStore((state) => state.addEnclosure);
+  const isEditor = useSystemStore((state) => state.session.isEditor);
   const [kind, setKind] = useState<HierarchyEntityKind>('device');
   const [name, setName] = useState('');
   const [parentId, setParentId] = useState<string | null>(() =>
-    harness ? preferredParent(harness, selectedItem, drillDownEnclosure) : null,
+    system ? preferredParent(system, selectedItem, openEnclosureId) : null,
   );
 
   const parentOptions = useMemo(() => {
-    if (!harness) return [];
-    const byId = new Map(harness.enclosures.map((item) => [item.id, item]));
-    return harness.enclosures
-      .filter((item) => item.container)
+    if (!system) return [];
+    const byId = new Map(system.hierarchy.map((item) => [item.id, item]));
+    return system.hierarchy
+      .filter((item) => item.kind === 'enclosure')
       .map((item) => ({ enclosure: item, depth: enclosureDepth(item, byId) }));
-  }, [harness]);
+  }, [system]);
 
-  if (!harness) return null;
+  if (!system) return null;
 
   const canEdit = isEditor;
   const trimmedName = name.trim();
@@ -87,7 +87,7 @@ export function CreateHierarchyEntityModal({
     const createdId = addEnclosure({
       name: trimmedName,
       parent: parentId,
-      container: kind === 'enclosure',
+      kind,
     });
     if (!createdId) return;
     onCreated(parentId);
@@ -129,12 +129,12 @@ export function CreateHierarchyEntityModal({
               onClick={() => setKind('device')}
               className={`rounded-md border p-3 text-left transition-colors ${
                 kind === 'device'
-                  ? 'border-teal-500 bg-teal-950/40 text-teal-100'
+                  ? 'border-vw-device bg-vw-device/15 text-vw-device'
                   : 'border-zinc-700 bg-zinc-800/50 text-zinc-300 hover:border-zinc-600 hover:bg-zinc-800'
               }`}
             >
               <span className="flex items-center gap-2 text-sm font-medium">
-                <svg className="h-4 w-4 text-teal-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <svg className="h-4 w-4 text-vw-device" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <rect x="2" y="4" width="20" height="16" rx="2" />
                   <circle cx="8" cy="12" r="1.5" />
                   <circle cx="16" cy="12" r="1.5" />
@@ -151,12 +151,12 @@ export function CreateHierarchyEntityModal({
               onClick={() => setKind('enclosure')}
               className={`rounded-md border p-3 text-left transition-colors ${
                 kind === 'enclosure'
-                  ? 'border-amber-500 bg-amber-950/40 text-amber-100'
+                  ? 'border-vw-enclosure bg-white/10 text-vw-enclosure'
                   : 'border-zinc-700 bg-zinc-800/50 text-zinc-300 hover:border-zinc-600 hover:bg-zinc-800'
               }`}
             >
               <span className="flex items-center gap-2 text-sm font-medium">
-                <svg className="h-4 w-4 text-amber-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <svg className="h-4 w-4 text-vw-enclosure" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <rect x="3" y="3" width="18" height="18" rx="2" />
                   <path d="M3 9h18" />
                 </svg>
@@ -176,7 +176,11 @@ export function CreateHierarchyEntityModal({
             value={name}
             onChange={(event) => setName(event.target.value)}
             placeholder={kind === 'device' ? 'e.g. Motor controller' : 'e.g. Battery enclosure'}
-            className="w-full rounded border border-zinc-700 bg-zinc-950 px-2.5 py-2 text-sm text-zinc-100 outline-none transition-colors placeholder:text-zinc-600 focus:border-amber-500"
+            className={`w-full rounded border border-zinc-700 bg-zinc-950 px-2.5 py-2 text-sm outline-none transition-colors placeholder:text-zinc-600 ${
+              kind === 'device'
+                ? 'text-vw-device focus:border-vw-device'
+                : 'text-vw-enclosure focus:border-vw-enclosure'
+            }`}
           />
         </label>
 
@@ -187,7 +191,7 @@ export function CreateHierarchyEntityModal({
             onChange={(event) => setParentId(event.target.value || null)}
             className="w-full rounded border border-zinc-700 bg-zinc-950 px-2.5 py-2 text-sm text-zinc-100 outline-none transition-colors focus:border-amber-500"
           >
-            <option value="">{harness.name ?? 'System'} (top level)</option>
+            <option value="">{system.name ?? 'System'} (top level)</option>
             {parentOptions.map(({ enclosure, depth }) => (
               <option key={enclosure.id} value={enclosure.id}>
                 {`${'\u00a0\u00a0'.repeat(depth + 1)}${enclosure.name}`}

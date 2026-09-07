@@ -1,21 +1,33 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ImagePickerPanel } from '../graph/ImagePickerPanel';
 import { GENERIC_MULTIPIN_TYPE_ID, isConnectorFamily } from '../../lib/connectorFamily';
-import { flushAutoSave, useHarnessStore } from '../../store';
+import { flushAutoSave, useSystemStore } from '../../store';
 import type {
   ConnectorCavityVariant,
   ConnectorLibrary,
   ConnectorType,
-  HarnessData,
+  SystemData,
 } from '../../types';
+import { PresenceBadge, PresenceEditingRegion } from '../collab/PresenceBadge';
 
 const PROTECTED_TYPE_IDS = new Set([
   GENERIC_MULTIPIN_TYPE_ID,
 ]);
 
+const CONNECTOR_KIND_OPTIONS = {
+  family: {
+    label: 'Strict pin variant only',
+    title: 'Use this for known pin configurations like Molex MiniFit or Deutsch DT.',
+  },
+  fixed: {
+    label: 'Variable pin allowed',
+    title: 'Read the other option description to understand this one.',
+  },
+} as const;
+
 interface UsageEntry {
   total: number;
-  harnesses: Record<string, number>;
+  systems: Record<string, number>;
   pin_counts: Record<string, number>;
   keyings: Record<string, number>;
 }
@@ -193,16 +205,17 @@ function KeyingsEditor({
 }
 
 export function ConnectorLibraryPage() {
-  const library = useHarnessStore((state) => state.connectorLibrary);
-  const targetId = useHarnessStore((state) => state.connectorLibraryTargetId);
-  const activeHarnessName = useHarnessStore((state) => state.activeHarnessName);
-  const updateConnectorLibrary = useHarnessStore((state) => state.updateConnectorLibrary);
-  const loadConnectorLibrary = useHarnessStore((state) => state.loadConnectorLibrary);
-  const loadHarness = useHarnessStore((state) => state.loadHarness);
-  const closeConnectorLibrary = useHarnessStore((state) => state.closeConnectorLibrary);
-  const mutationError = useHarnessStore((state) => state.mutationError);
-  const setMutationError = useHarnessStore((state) => state.setMutationError);
-  const isEditor = useHarnessStore((state) => state.session.isEditor);
+  const library = useSystemStore((state) => state.connectorLibrary);
+  const targetId = useSystemStore((state) => state.connectorLibraryTargetId);
+  const activeSystemName = useSystemStore((state) => state.activeSystemName);
+  const updateConnectorLibrary = useSystemStore((state) => state.updateConnectorLibrary);
+  const loadConnectorLibrary = useSystemStore((state) => state.loadConnectorLibrary);
+  const loadSystem = useSystemStore((state) => state.loadSystem);
+  const closeConnectorLibrary = useSystemStore((state) => state.closeConnectorLibrary);
+  const mutationError = useSystemStore((state) => state.mutationError);
+  const setMutationError = useSystemStore((state) => state.setMutationError);
+  const setConnectorLibraryTarget = useSystemStore((state) => state.setConnectorLibraryTarget);
+  const isEditor = useSystemStore((state) => state.session.isEditor);
 
   const [selectedId, setSelectedId] = useState<string | null>(targetId);
   const [search, setSearch] = useState('');
@@ -261,6 +274,10 @@ export function ConnectorLibraryPage() {
 
   const selectedType = library?.connector_types.find((type) => type.id === selectedId);
   const selectedUsage = selectedType ? usage[selectedType.id] : undefined;
+
+  useEffect(() => {
+    setConnectorLibraryTarget(selectedType?.id ?? null);
+  }, [selectedType?.id, setConnectorLibraryTarget]);
 
   const replaceType = (next: ConnectorType) => {
     if (!isEditor || !library) return;
@@ -321,7 +338,7 @@ export function ConnectorLibraryPage() {
     const count = selectedUsage?.total ?? 0;
     const confirmed = window.confirm(
       count > 0
-        ? `Delete '${selectedType.name}'?\n\n${count} connector instance${count === 1 ? '' : 's'} across all harnesses will be migrated to Generic Multi-pin. Their cavity counts and custom properties will be preserved.`
+        ? `Delete '${selectedType.name}'?\n\n${count} connector instance${count === 1 ? '' : 's'} across all Systems will be migrated to Generic Multi-pin. Their cavity counts and custom properties will be preserved.`
         : `Delete unused connector type '${selectedType.name}'?`,
     );
     if (!confirmed) return;
@@ -334,20 +351,20 @@ export function ConnectorLibraryPage() {
         throw new Error('Save pending connector library edits before deleting.');
       }
       const response = await fetch(
-        `/api/library/connector-types/${encodeURIComponent(selectedType.id)}?harness=${encodeURIComponent(activeHarnessName)}`,
+        `/api/library/connector-types/${encodeURIComponent(selectedType.id)}?system=${encodeURIComponent(activeSystemName)}`,
         { method: 'DELETE' },
       );
       const body = await response.json() as {
         error?: string;
         library?: ConnectorLibrary;
-        harness?: HarnessData;
+        system?: SystemData;
         migrated?: number;
       };
       if (!response.ok || !body.library) {
         throw new Error(body.error ?? `Delete failed: ${response.status}`);
       }
       loadConnectorLibrary(body.library);
-      if (body.harness) loadHarness(body.harness);
+      if (body.system) loadSystem(body.system);
       const nextId = body.library.connector_types
         .filter((type) => type.id !== selectedType.id)
         .sort((a, b) => a.name.localeCompare(b.name))[0]?.id ?? null;
@@ -377,7 +394,7 @@ export function ConnectorLibraryPage() {
         <div>
           <h1 className="text-sm font-semibold text-zinc-100">Connector Library</h1>
           <p className="text-[10px] text-zinc-500 mt-0.5">
-            Shared across every harness · {isEditor ? 'changes save automatically' : 'log in to edit'}
+            Shared across every system · {isEditor ? 'changes save automatically' : 'log in to edit'}
           </p>
         </div>
         <button
@@ -446,14 +463,15 @@ export function ConnectorLibraryPage() {
                     <button
                       key={kind}
                       type="button"
+                      title={CONNECTOR_KIND_OPTIONS[kind].title}
                       onClick={() => setNewKind(kind)}
-                      className={`py-1 rounded border text-[10px] capitalize ${
+                      className={`px-1 py-1 rounded border text-[10px] leading-tight ${
                         newKind === kind
                           ? 'border-amber-600 bg-amber-950/40 text-amber-300'
                           : 'border-zinc-700 text-zinc-500'
                       }`}
                     >
-                      {kind}
+                      {CONNECTOR_KIND_OPTIONS[kind].label}
                     </button>
                   ))}
                 </div>
@@ -494,6 +512,7 @@ export function ConnectorLibraryPage() {
                 >
                   <div className="flex items-start gap-2">
                     <span className="min-w-0 flex-1 text-xs text-zinc-200 truncate">{type.name}</span>
+                    <PresenceBadge kind="connectorType" id={type.id} className="shrink-0" />
                     {typeUsage > 0 && (
                       <span className="shrink-0 text-[9px] px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-500">
                         {typeUsage}
@@ -520,21 +539,28 @@ export function ConnectorLibraryPage() {
               Select or create a connector type
             </div>
           ) : (
-            <fieldset
-              key={`${selectedType.id}:${isEditor ? 'editable' : 'read-only'}`}
-              disabled={!isEditor}
-              className="max-w-4xl min-w-0 mx-auto p-5 space-y-4 border-0"
+            <PresenceEditingRegion
+              target={{ kind: 'connectorType', id: selectedType.id }}
+              className="max-w-4xl min-w-0 mx-auto"
             >
+              <fieldset
+                key={`${selectedType.id}:${isEditor ? 'editable' : 'read-only'}`}
+                disabled={!isEditor}
+                className="p-5 space-y-4 border-0"
+              >
               <div className="flex items-start gap-3">
                 <div className="min-w-0 flex-1">
-                  <h2 className="text-lg font-semibold text-zinc-100">{selectedType.name}</h2>
+                  <div className="flex items-center gap-2">
+                    <h2 className="text-lg font-semibold text-zinc-100">{selectedType.name}</h2>
+                    <PresenceBadge kind="connectorType" id={selectedType.id} />
+                  </div>
                   <div className="mt-1 flex flex-wrap items-center gap-2 text-[10px] text-zinc-500">
                     <span className="font-mono">{selectedType.id}</span>
                     <span>·</span>
                     <span>{isConnectorFamily(selectedType) ? 'Connector family' : 'Fixed connector'}</span>
                     <span>·</span>
                     <span>
-                      {selectedUsage?.total ?? 0} instance{selectedUsage?.total === 1 ? '' : 's'} across all harnesses
+                      {selectedUsage?.total ?? 0} instance{selectedUsage?.total === 1 ? '' : 's'} across all Systems
                     </span>
                   </div>
                 </div>
@@ -579,8 +605,8 @@ export function ConnectorLibraryPage() {
                     PROTECTED_TYPE_IDS.has(selectedType.id)
                       ? 'This built-in type must keep its current mode.'
                       : (selectedUsage?.total ?? 0) > 0
-                      ? 'Fixed/family mode is locked while this type is in use.'
-                      : 'Families define multiple acceptable physical housings.'
+                      ? 'Type mode is locked while this type is in use.'
+                      : 'Strict pin variant types list the known housing sizes for this connector.'
                   }
                 >
                   <div className="grid grid-cols-2 gap-1.5">
@@ -589,36 +615,41 @@ export function ConnectorLibraryPage() {
                         ? kind === 'family'
                         : kind === 'fixed';
                       return (
-                        <button
+                        <span
                           key={kind}
-                          type="button"
-                          disabled={
-                            PROTECTED_TYPE_IDS.has(selectedType.id)
-                            || (selectedUsage?.total ?? 0) > 0
-                          }
-                          onClick={() => {
-                            if (kind === 'family') {
-                              patchType({
-                                pin_count: 0,
-                                cavity_variants: [{
-                                  pin_count: Math.max(1, selectedType.pin_count || 1),
-                                }],
-                              });
-                            } else {
-                              const pinCount = selectedType.cavity_variants?.[0]?.pin_count ?? 1;
-                              const next = { ...selectedType, pin_count: pinCount };
-                              delete next.cavity_variants;
-                              replaceType(next);
-                            }
-                          }}
-                          className={`py-1.5 rounded border text-xs capitalize disabled:cursor-not-allowed ${
-                            active
-                              ? 'border-amber-600 bg-amber-950/30 text-amber-300'
-                              : 'border-zinc-700 text-zinc-500 disabled:opacity-40'
-                          }`}
+                          title={CONNECTOR_KIND_OPTIONS[kind].title}
+                          className="block"
                         >
-                          {kind}
-                        </button>
+                          <button
+                            type="button"
+                            disabled={
+                              PROTECTED_TYPE_IDS.has(selectedType.id)
+                              || (selectedUsage?.total ?? 0) > 0
+                            }
+                            onClick={() => {
+                              if (kind === 'family') {
+                                patchType({
+                                  pin_count: 0,
+                                  cavity_variants: [{
+                                    pin_count: Math.max(1, selectedType.pin_count || 1),
+                                  }],
+                                });
+                              } else {
+                                const pinCount = selectedType.cavity_variants?.[0]?.pin_count ?? 1;
+                                const next = { ...selectedType, pin_count: pinCount };
+                                delete next.cavity_variants;
+                                replaceType(next);
+                              }
+                            }}
+                            className={`w-full px-2 py-1.5 rounded border text-xs leading-tight disabled:cursor-not-allowed ${
+                              active
+                                ? 'border-amber-600 bg-amber-950/30 text-amber-300'
+                                : 'border-zinc-700 text-zinc-500 disabled:opacity-40'
+                            }`}
+                          >
+                            {CONNECTOR_KIND_OPTIONS[kind].label}
+                          </button>
+                        </span>
                       );
                     })}
                   </div>
@@ -1054,7 +1085,8 @@ export function ConnectorLibraryPage() {
                   + Add default property
                 </button>
               </Section>
-            </fieldset>
+              </fieldset>
+            </PresenceEditingRegion>
           )}
         </main>
       </div>

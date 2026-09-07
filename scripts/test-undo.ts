@@ -1,14 +1,14 @@
-import { useHarnessStore } from '../src/store/index.js';
-import { deriveBundles, deriveSegments } from '../src/lib/harness.js';
-import type { HarnessData } from '../src/types/index.js';
+import { useSystemStore } from '../src/store/index.js';
+import { deriveHarnessBundles, deriveWires } from '../src/lib/systemTopology.js';
+import type { SystemData } from '../src/types/index.js';
 
-const fixture: HarnessData = {
+const fixture: SystemData = {
   signalPropertyDefinitions: [],
   schema_version: '0.1.0',
   name: 'Undo fixture',
-  enclosures: [
-    { id: 'dev_a', name: 'Device A', parent: null, container: false, tags: [], properties: {} },
-    { id: 'dev_b', name: 'Device B', parent: null, container: false, tags: [], properties: {} },
+  hierarchy: [
+    { id: 'dev_a', name: 'Device A', parent: null, kind: 'device', tags: [], properties: {} },
+    { id: 'dev_b', name: 'Device B', parent: null, kind: 'device', tags: [], properties: {} },
   ],
   connectors: [
     {
@@ -30,7 +30,7 @@ const fixture: HarnessData = {
       properties: {},
     },
   ],
-  mergePoints: [],
+  branchPoints: [],
   paths: [{
     id: 'path_wire',
     name: 'Wire',
@@ -57,102 +57,128 @@ function check(name: string, condition: boolean) {
   }
 }
 
-function reset(data: HarnessData = fixture) {
-  useHarnessStore.getState().resetForHarnessSwitch();
-  useHarnessStore.getState().setCollabAvailable(false);
-  useHarnessStore.getState().loadHarness(structuredClone(data));
-  useHarnessStore.setState({
+function reset(data: SystemData = fixture) {
+  useSystemStore.getState().resetForSystemSwitch();
+  useSystemStore.getState().setCollabAvailable(false);
+  useSystemStore.getState().loadSystem(structuredClone(data));
+  useSystemStore.setState({
     undoStack: [],
     redoStack: [],
     selectedItem: null,
-    selectedBundle: null,
+    selectedHarnessBundle: null,
     selectedTextBoxId: null,
   });
 }
 
 reset();
-useHarnessStore.getState().setSelectedBundle({ id: 'bundle:test', pathIds: ['path_wire'] });
-useHarnessStore.getState().deletePathBundle('bundle:test', ['path_wire']);
-check('deleting a path removes it', useHarnessStore.getState().harness?.paths.length === 0);
-useHarnessStore.getState().undo();
+useSystemStore.getState().setSelectedHarnessBundle({ id: 'bundle:test', pathIds: ['path_wire'] });
+useSystemStore.getState().deletePathHarnessBundle('bundle:test', ['path_wire']);
+check('deleting a path removes it', useSystemStore.getState().system?.paths.length === 0);
+useSystemStore.getState().undo();
 check(
   'undo restores a deleted path',
-  useHarnessStore.getState().harness?.paths.some((path) => path.id === 'path_wire') === true,
+  useSystemStore.getState().system?.paths.some((path) => path.id === 'path_wire') === true,
 );
 check(
   'undo restores deleted path selection',
-  useHarnessStore.getState().selectedBundle?.pathIds.includes('path_wire') === true,
+  useSystemStore.getState().selectedHarnessBundle?.pathIds.includes('path_wire') === true,
 );
 
 reset();
-useHarnessStore.getState().renameEntity('connector', 'con_a', 'Renamed A');
-useHarnessStore.getState().undo();
+const routePointBundleId = 'bundle:connector:con_a|connector:con_b';
+useSystemStore.getState().setEdgeWaypoints(routePointBundleId, [
+  { x: 40, y: 50 },
+  { x: 80, y: 50 },
+]);
+useSystemStore.getState().setSelectedHarnessBundle({
+  id: routePointBundleId,
+  pathIds: ['path_wire'],
+  routePoint: { index: 0 },
+});
+useSystemStore.getState().deleteSelectedRoutePoint();
+check(
+  'deleting a selected route point removes that bend',
+  (useSystemStore.getState().waypointLayouts[routePointBundleId] ?? []).length === 1,
+);
+check(
+  'deleting a selected route point keeps the bundle selected',
+  useSystemStore.getState().selectedHarnessBundle?.pathIds.includes('path_wire') === true
+    && useSystemStore.getState().selectedHarnessBundle?.routePoint == null,
+);
+check(
+  'deleting a selected route point does not delete the path',
+  useSystemStore.getState().system?.paths.some((path) => path.id === 'path_wire') === true,
+);
+
+reset();
+useSystemStore.getState().renameEntity('connector', 'con_a', 'Renamed A');
+useSystemStore.getState().undo();
 check(
   'undo reverts a rename',
-  useHarnessStore.getState().harness?.connectors.find((item) => item.id === 'con_a')?.name
+  useSystemStore.getState().system?.connectors.find((item) => item.id === 'con_a')?.name
     === 'Connector A',
 );
 
 reset();
-useHarnessStore.getState().renameEntity('connector', 'con_a', 'My rename');
-const concurrentHarness = structuredClone(useHarnessStore.getState().harness!);
-concurrentHarness.connectors.find((item) => item.id === 'con_b')!.name = 'Concurrent rename';
-useHarnessStore.setState({ harness: concurrentHarness });
-useHarnessStore.getState().undo();
+useSystemStore.getState().renameEntity('connector', 'con_a', 'My rename');
+const concurrentSystem = structuredClone(useSystemStore.getState().system!);
+concurrentSystem.connectors.find((item) => item.id === 'con_b')!.name = 'Concurrent rename';
+useSystemStore.setState({ system: concurrentSystem });
+useSystemStore.getState().undo();
 check(
   'scoped undo reverts my entity',
-  useHarnessStore.getState().harness?.connectors.find((item) => item.id === 'con_a')?.name
+  useSystemStore.getState().system?.connectors.find((item) => item.id === 'con_a')?.name
     === 'Connector A',
 );
 check(
   'scoped undo preserves an unrelated concurrent entity',
-  useHarnessStore.getState().harness?.connectors.find((item) => item.id === 'con_b')?.name
+  useSystemStore.getState().system?.connectors.find((item) => item.id === 'con_b')?.name
     === 'Concurrent rename',
 );
 
 reset();
-useHarnessStore.getState().pushUndoSnapshot('typing:no-change');
-useHarnessStore.getState().commitUndoSnapshot();
-check('an unchanged editing session creates no entry', useHarnessStore.getState().undoStack.length === 0);
+useSystemStore.getState().pushUndoSnapshot('typing:no-change');
+useSystemStore.getState().commitUndoSnapshot();
+check('an unchanged editing session creates no entry', useSystemStore.getState().undoStack.length === 0);
 
 reset();
 for (const notes of ['t', 'ty', 'typ', 'typi', 'typin', 'typing']) {
-  useHarnessStore.getState().updateManufacturingNotes('bundle_1', notes);
+  useSystemStore.getState().updateManufacturingNotes('bundle_1', notes);
 }
-check('a simulated typing burst creates one entry', useHarnessStore.getState().undoStack.length === 1);
-useHarnessStore.getState().undo();
+check('a simulated typing burst creates one entry', useSystemStore.getState().undoStack.length === 1);
+useSystemStore.getState().undo();
 check(
   'typing burst undo removes the whole edit',
-  useHarnessStore.getState().manufacturing.bundles.bundle_1?.notes === undefined,
+  useSystemStore.getState().manufacturing.bundles.bundle_1?.notes === undefined,
 );
 
 reset();
-useHarnessStore.getState().renameEntity('connector', 'con_a', 'Redo name');
-useHarnessStore.getState().undo();
-useHarnessStore.getState().redo();
+useSystemStore.getState().renameEntity('connector', 'con_a', 'Redo name');
+useSystemStore.getState().undo();
+useSystemStore.getState().redo();
 check(
   'redo reapplies an undone edit',
-  useHarnessStore.getState().harness?.connectors.find((item) => item.id === 'con_a')?.name
+  useSystemStore.getState().system?.connectors.find((item) => item.id === 'con_a')?.name
     === 'Redo name',
 );
-useHarnessStore.getState().undo();
-useHarnessStore.getState().updateConnectorProperty('con_b', 'note', 'new edit');
-check('a new edit clears redo', useHarnessStore.getState().redoStack.length === 0);
+useSystemStore.getState().undo();
+useSystemStore.getState().updateConnectorProperty('con_b', 'note', 'new edit');
+check('a new edit clears redo', useSystemStore.getState().redoStack.length === 0);
 
 reset();
 for (let index = 0; index < 65; index += 1) {
-  useHarnessStore.getState().updateNodePosition(`node_${index}`, index, index);
+  useSystemStore.getState().updateNodePosition(`node_${index}`, index, index);
 }
-check('undo depth caps at 60', useHarnessStore.getState().undoStack.length === 60);
+check('undo depth caps at 60', useSystemStore.getState().undoStack.length === 60);
 
-const junctionFixture = structuredClone(fixture);
-junctionFixture.connectors[0].pin_count = 2;
-junctionFixture.connectors[1].pin_count = 2;
-junctionFixture.enclosures.push(
-  { id: 'dev_c', name: 'Device C', parent: null, container: false, tags: [], properties: {} },
-  { id: 'dev_d', name: 'Device D', parent: null, container: false, tags: [], properties: {} },
+const sharedAnchorFixture = structuredClone(fixture);
+sharedAnchorFixture.connectors[0].pin_count = 2;
+sharedAnchorFixture.connectors[1].pin_count = 2;
+sharedAnchorFixture.hierarchy.push(
+  { id: 'dev_c', name: 'Device C', parent: null, kind: 'device', tags: [], properties: {} },
+  { id: 'dev_d', name: 'Device D', parent: null, kind: 'device', tags: [], properties: {} },
 );
-junctionFixture.connectors.push(
+sharedAnchorFixture.connectors.push(
   {
     id: 'con_c',
     name: 'Connector C',
@@ -172,13 +198,13 @@ junctionFixture.connectors.push(
     properties: {},
   },
 );
-junctionFixture.signals.push({
+sharedAnchorFixture.signals.push({
   id: 'sig_ground',
   name: 'Ground',
   tags: [],
   properties: {},
 });
-junctionFixture.paths.push(
+sharedAnchorFixture.paths.push(
   {
     id: 'path_parallel',
     name: 'Unselected wire in the same bundle',
@@ -205,73 +231,75 @@ junctionFixture.paths.push(
   },
 );
 
-reset(junctionFixture);
+reset(sharedAnchorFixture);
 const sourceEdgeId = 'bundle:connector:con_a|connector:con_b';
 const targetEdgeId = 'bundle:connector:con_c|connector:con_d';
-const signalIdsBeforeJunctions = useHarnessStore.getState().harness!.paths.map(
+const signalIdsBeforeSharedAnchors = useSystemStore.getState().system!.paths.map(
   (path) => [path.id, path.signal_id],
 );
-useHarnessStore.getState().setEdgeWaypoints(sourceEdgeId, [{ x: 25, y: 30 }]);
-const firstJunctionId = useHarnessStore.getState().createJunction(
+useSystemStore.getState().setEdgeWaypoints(sourceEdgeId, [{ x: 25, y: 30 }]);
+const firstSharedAnchorId = useSystemStore.getState().createSharedAnchor(
   { x: 50, y: 60 },
   sourceEdgeId,
   0,
+  { mode: 'branch' },
 );
-useHarnessStore.getState().linkEdgeToJunction(
-  firstJunctionId,
+useSystemStore.getState().linkEdgeToSharedAnchor(
+  firstSharedAnchorId,
   targetEdgeId,
   -1,
   { x: 50, y: 60 },
 );
-const firstMergePointId = useHarnessStore.getState().junctionLayouts[firstJunctionId]?.mergePointId;
-const firstJoinHarness = useHarnessStore.getState().harness!;
+const firstBranchPointId = useSystemStore.getState().sharedAnchors[firstSharedAnchorId]?.branchPointId;
+const firstJoinSystem = useSystemStore.getState().system!;
 check(
-  'any two harness bundles can meet at one splice point',
-  !!firstMergePointId
-    && firstJoinHarness.paths.every((path) =>
+  'any two Harness Bundles can meet at one branch point',
+  !!firstBranchPointId
+    && firstJoinSystem.paths.every((path) =>
       path.nodes.some(
-        (node) => node.kind === 'merge' && node.merge_point_id === firstMergePointId,
+        (node) => node.kind === 'branch' && node.branch_point_id === firstBranchPointId,
       ),
     ),
 );
 check(
-  'a bundle splice preserves each wire signal',
-  JSON.stringify(firstJoinHarness.paths.map((path) => [path.id, path.signal_id]))
-    === JSON.stringify(signalIdsBeforeJunctions),
+  'joining Harness Bundles preserves each wire signal',
+  JSON.stringify(firstJoinSystem.paths.map((path) => [path.id, path.signal_id]))
+    === JSON.stringify(signalIdsBeforeSharedAnchors),
 );
 
 const sourceToFirstMergeEdgeId =
-  `bundle:connector:con_a|merge:${firstMergePointId}`;
+  `bundle:branch:${firstBranchPointId}|connector:con_a`;
 const targetToFirstMergeEdgeId =
-  `bundle:connector:con_c|merge:${firstMergePointId}`;
-useHarnessStore.getState().setEdgeWaypoints(
+  `bundle:branch:${firstBranchPointId}|connector:con_c`;
+useSystemStore.getState().setEdgeWaypoints(
   sourceToFirstMergeEdgeId,
   [{ x: 75, y: 80 }],
 );
-const secondJunctionId = useHarnessStore.getState().createJunction(
+const secondSharedAnchorId = useSystemStore.getState().createSharedAnchor(
   { x: 90, y: 100 },
   sourceToFirstMergeEdgeId,
   0,
+  { mode: 'branch' },
 );
-useHarnessStore.getState().linkEdgeToJunction(
-  secondJunctionId,
+useSystemStore.getState().linkEdgeToSharedAnchor(
+  secondSharedAnchorId,
   targetToFirstMergeEdgeId,
   -1,
   { x: 90, y: 100 },
 );
-const junctionState = useHarnessStore.getState();
-const secondMergePointId = junctionState.junctionLayouts[secondJunctionId]?.mergePointId;
-const mergeRefKeys = [`merge:${firstMergePointId}`, `merge:${secondMergePointId}`].sort();
+const sharedAnchorState = useSystemStore.getState();
+const secondBranchPointId = sharedAnchorState.sharedAnchors[secondSharedAnchorId]?.branchPointId;
+const mergeRefKeys = [`branch:${firstBranchPointId}`, `branch:${secondBranchPointId}`].sort();
 const commonBundleId = `bundle:${mergeRefKeys[0]}|${mergeRefKeys[1]}`;
-const commonBundle = deriveBundles(deriveSegments(junctionState.harness!))
+const commonBundle = deriveHarnessBundles(deriveWires(sharedAnchorState.system!))
   .find((bundle) => bundle.id === commonBundleId);
 check(
-  'successive point joins create distinct splice points',
-  !!secondMergePointId && firstMergePointId !== secondMergePointId,
+  'successive point joins create distinct branch points',
+  !!secondBranchPointId && firstBranchPointId !== secondBranchPointId,
 );
 check(
-  'two splice points derive one combined harness segment',
-  commonBundle?.pathIds.length === junctionFixture.paths.length,
+  'two branch points derive one combined Harness Bundle segment',
+  commonBundle?.pathIds.length === sharedAnchorFixture.paths.length,
 );
 
 if (failures > 0) {

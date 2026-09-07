@@ -14,7 +14,7 @@
         "con_030": "male"
       }
     },
-    "bundle:connectors:con_021|con_071": {
+    "bundle:con_071|connectors:con_021": {
       "steps": {
         "ordered": true,
         "cut": true,
@@ -22,66 +22,478 @@
         "populated": true
       }
     },
-    "bundle:connectors:con_001|con_009": {
+    "bundle:con_128|connectors:con_034": {
       "steps": {},
-      "wire_progress": {
-        "path_021:0-1": {
+      "component_steps": {
+        "wire:path_auto_d9d4f91af264": {
+          "ordered": true
+        }
+      },
+      "work_log": [
+        {
+          "id": "work:bundle:connectors:con_034|con_128:1785907221250:0",
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05",
+          "task_key": "wire:path_auto_d9d4f91af264:cut",
+          "kind": "wire-cut",
+          "action": "complete"
+        },
+        {
+          "id": "work:bundle:connectors:con_034|con_128:1785907225792:1",
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05",
+          "task_key": "wire:path_auto_d9d4f91af264:cut",
+          "kind": "wire-cut",
+          "action": "reopen"
+        },
+        {
+          "id": "work:bundle:connectors:con_034|con_128:1785907226100:2",
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05",
+          "task_key": "wire:path_auto_d9d4f91af264:cut",
+          "kind": "wire-cut",
+          "action": "complete"
+        },
+        {
+          "id": "work:bundle:connectors:con_034|con_128:1785907226539:3",
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05",
+          "task_key": "wire:path_auto_d9d4f91af264:cut",
+          "kind": "wire-cut",
+          "action": "reopen"
+        }
+      ]
+    },
+    "bundle:con_030|connectors:con_017": {
+      "steps": {},
+      "component_steps": {
+        "wire:path_auto_8e79295c3ed2:end:from": {
+          "ordered": true,
           "cut": true,
-          "ends": {
-            "from": true,
-            "to": true
-          }
+          "crimped": true
         },
-        "path_013:0-1": {
+        "wire:path_auto_8e79295c3ed2": {
+          "ordered": true,
+          "cut": true
+        },
+        "wire:path_auto_8e79295c3ed2:end:to": {
+          "ordered": true,
+          "cut": true,
+          "crimped": true
+        },
+        "connector:con_017": {
+          "ordered": true,
+          "cut": true,
+          "crimped": true,
+          "populated": true,
+          "qc": true,
+          "installed": true
+        }
+      },
+      "endpoint_genders": {
+        "con_017": "male",
+        "con_030": "male"
+      },
+      "wire_progress": {
+        "path_auto_8e79295c3ed2": {
+          "ends": {
+            "to": true,
+            "from": true
+          },
+          "cut": true
+        }
+      },
+      "connector_guide_states": {
+        "con_017": "verified"
+      },
+      "task_attribution": {
+        "wire:path_auto_8e79295c3ed2:cut": {
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05"
+        },
+        "wire:path_auto_8e79295c3ed2:end:to": {
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05"
+        },
+        "wire:path_auto_8e79295c3ed2:end:from": {
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05"
+        },
+        "connector:con_017:guide": {
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05"
+        },
+        "component:connector:con_017:step:installed": {
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05"
+        }
+      },
+      "work_log": [
+        {
+          "id": "work:bundle:connectors:con_017|con_030:1785907577393:0",
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05",
+          "task_key": "wire:path_auto_8e79295c3ed2:end:from",
+          "kind": "wire-end",
+          "action": "complete",
+          "quantity": 1,
+          "unit": "ea"
+        },
+        {
+          "id": "work:bundle:connectors:con_017|con_030:1785907577994:1",
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05",
+          "task_key": "wire:path_auto_8e79295c3ed2:cut",
+          "kind": "wire-cut",
+          "action": "complete",
+          "quantity": 20,
+          "unit": "mm"
+        },
+        {
+          "id": "work:bundle:connectors:con_017|con_030:1785907580014:2",
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05",
+          "task_key": "wire:path_auto_8e79295c3ed2:end:to",
+          "kind": "wire-end",
+          "action": "complete",
+          "quantity": 1,
+          "unit": "ea"
+        },
+        {
+          "id": "work:bundle:connectors:con_017|con_030:1785907848037:3",
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05",
+          "task_key": "wire:path_auto_8e79295c3ed2:end:from",
+          "kind": "wire-end",
+          "action": "reopen",
+          "quantity": 1,
+          "unit": "ea"
+        },
+        {
+          "id": "work:bundle:connectors:con_017|con_030:1785907849536:4",
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05",
+          "task_key": "wire:path_auto_8e79295c3ed2:end:from",
+          "kind": "wire-end",
+          "action": "complete",
+          "quantity": 1,
+          "unit": "ea"
+        },
+        {
+          "id": "work:bundle:connectors:con_017|con_030:1785907851061:5",
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05",
+          "task_key": "wire:path_auto_8e79295c3ed2:end:from",
+          "kind": "wire-end",
+          "action": "reopen",
+          "quantity": 1,
+          "unit": "ea"
+        },
+        {
+          "id": "work:bundle:connectors:con_017|con_030:1785907853490:6",
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05",
+          "task_key": "wire:path_auto_8e79295c3ed2:end:from",
+          "kind": "wire-end",
+          "action": "complete",
+          "quantity": 1,
+          "unit": "ea"
+        },
+        {
+          "id": "work:bundle:connectors:con_017|con_030:1785907866888:7",
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05",
+          "task_key": "connector:con_017:guide",
+          "kind": "connector-guide",
+          "action": "complete",
+          "state": "checking"
+        },
+        {
+          "id": "work:bundle:connectors:con_017|con_030:1785907870570:8",
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05",
+          "task_key": "connector:con_017:guide",
+          "kind": "connector-guide",
+          "action": "complete",
+          "state": "verified"
+        },
+        {
+          "id": "work:bundle:connectors:con_017|con_030:1785907874546:9",
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05",
+          "task_key": "connector:con_017:guide",
+          "kind": "connector-guide",
+          "action": "reopen"
+        },
+        {
+          "id": "work:bundle:connectors:con_017|con_030:1785907875411:10",
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05",
+          "task_key": "connector:con_017:guide",
+          "kind": "connector-guide",
+          "action": "complete",
+          "state": "checking"
+        },
+        {
+          "id": "work:bundle:connectors:con_017|con_030:1785907876338:11",
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05",
+          "task_key": "connector:con_017:guide",
+          "kind": "connector-guide",
+          "action": "complete",
+          "state": "verified"
+        },
+        {
+          "id": "work:bundle:connectors:con_017|con_030:1785907879682:12",
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05",
+          "task_key": "connector:con_017:guide",
+          "kind": "connector-guide",
+          "action": "reopen"
+        },
+        {
+          "id": "work:bundle:connectors:con_017|con_030:1785907882724:13",
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05",
+          "task_key": "connector:con_017:guide",
+          "kind": "connector-guide",
+          "action": "complete",
+          "state": "checking"
+        },
+        {
+          "id": "work:bundle:connectors:con_017|con_030:1785907885548:14",
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05",
+          "task_key": "connector:con_017:guide",
+          "kind": "connector-guide",
+          "action": "complete",
+          "state": "verified"
+        },
+        {
+          "id": "work:bundle:connectors:con_017|con_030:1785907887413:15",
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05",
+          "task_key": "connector:con_017:guide",
+          "kind": "connector-guide",
+          "action": "reopen"
+        },
+        {
+          "id": "work:bundle:connectors:con_017|con_030:1785907888413:16",
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05",
+          "task_key": "connector:con_017:guide",
+          "kind": "connector-guide",
+          "action": "complete",
+          "state": "checking"
+        },
+        {
+          "id": "work:bundle:connectors:con_017|con_030:1785907890837:17",
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05",
+          "task_key": "connector:con_017:guide",
+          "kind": "connector-guide",
+          "action": "complete",
+          "state": "verified"
+        },
+        {
+          "id": "work:bundle:connectors:con_017|con_030:1785907891697:18",
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05",
+          "task_key": "connector:con_017:guide",
+          "kind": "connector-guide",
+          "action": "reopen"
+        },
+        {
+          "id": "work:bundle:connectors:con_017|con_030:1785907893094:19",
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05",
+          "task_key": "connector:con_017:guide",
+          "kind": "connector-guide",
+          "action": "complete",
+          "state": "checking"
+        },
+        {
+          "id": "work:bundle:connectors:con_017|con_030:1785907898157:20",
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05",
+          "task_key": "connector:con_017:guide",
+          "kind": "connector-guide",
+          "action": "complete",
+          "state": "verified"
+        },
+        {
+          "id": "work:bundle:connectors:con_017|con_030:1785907914678:21",
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05",
+          "task_key": "component:connector:con_017:step:installed",
+          "kind": "component-step",
+          "action": "complete",
+          "state": "installed"
+        }
+      ]
+    },
+    "bundle:con_127|connectors:con_030": {
+      "steps": {},
+      "endpoint_genders": {
+        "con_030": "female"
+      }
+    },
+    "bundle:con_079|connectors:con_002": {
+      "steps": {},
+      "component_steps": {
+        "wire:path_136:0-2": {
+          "ordered": true,
+          "cut": true
+        },
+        "wire:path_137:0-2": {
+          "ordered": true,
+          "cut": true
+        },
+        "wire:path_138:0-2": {
+          "ordered": true,
+          "cut": true
+        },
+        "wire:path_139:0-2": {
+          "ordered": true,
+          "cut": true
+        },
+        "wire:path_140:0-2": {
+          "ordered": true,
+          "cut": true
+        },
+        "wire:path_141:0-2": {
+          "ordered": true,
+          "cut": true
+        },
+        "wire:path_136:0-2:end:from": {
+          "ordered": true,
+          "cut": true,
+          "crimped": true
+        },
+        "wire:path_137:0-2:end:from": {
+          "ordered": true,
+          "cut": true,
+          "crimped": true
+        },
+        "wire:path_138:0-2:end:from": {
+          "ordered": true,
+          "cut": true,
+          "crimped": true
+        },
+        "wire:path_139:0-2:end:from": {
+          "ordered": true,
+          "cut": true,
+          "crimped": true
+        },
+        "wire:path_140:0-2:end:from": {
+          "ordered": true,
+          "cut": true,
+          "crimped": true
+        },
+        "wire:path_141:0-2:end:from": {
+          "ordered": true,
+          "cut": true,
+          "crimped": true
+        },
+        "wire:path_136:0-2:end:to": {
+          "ordered": true,
+          "cut": true,
+          "crimped": true
+        },
+        "wire:path_137:0-2:end:to": {
+          "ordered": true,
+          "cut": true,
+          "crimped": true
+        },
+        "wire:path_138:0-2:end:to": {
+          "ordered": true,
+          "cut": true,
+          "crimped": true
+        },
+        "wire:path_139:0-2:end:to": {
+          "ordered": true,
+          "cut": true,
+          "crimped": true
+        },
+        "wire:path_140:0-2:end:to": {
+          "ordered": true,
+          "cut": true,
+          "crimped": true
+        },
+        "wire:path_141:0-2:end:to": {
+          "ordered": true,
+          "cut": true,
+          "crimped": true
+        }
+      },
+      "wire_progress": {
+        "path_136:0-2": {
           "ends": {
             "from": true,
             "to": true
           },
           "cut": true
         },
-        "path_014:0-1": {
+        "path_137:0-2": {
           "ends": {
             "from": true,
             "to": true
           },
           "cut": true
         },
-        "path_015:0-1": {
+        "path_138:0-2": {
           "ends": {
             "from": true,
             "to": true
           },
           "cut": true
         },
-        "path_016:0-1": {
+        "path_139:0-2": {
           "ends": {
             "from": true,
             "to": true
           },
           "cut": true
         },
-        "path_017:0-1": {
+        "path_140:0-2": {
           "ends": {
             "from": true,
             "to": true
           },
           "cut": true
         },
-        "path_018:0-1": {
-          "ends": {
-            "from": true,
-            "to": true
-          },
-          "cut": true
-        },
-        "path_019:0-1": {
-          "ends": {
-            "from": true,
-            "to": true
-          },
-          "cut": true
-        },
-        "path_020:0-1": {
+        "path_141:0-2": {
           "ends": {
             "from": true,
             "to": true
@@ -89,6 +501,945 @@
           "cut": true
         }
       },
+      "task_attribution": {
+        "wire:path_136:0-2:end:from": {
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05"
+        },
+        "wire:path_137:0-2:end:from": {
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05"
+        },
+        "wire:path_138:0-2:end:from": {
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05"
+        },
+        "wire:path_139:0-2:end:from": {
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05"
+        },
+        "wire:path_140:0-2:end:from": {
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05"
+        },
+        "wire:path_141:0-2:end:from": {
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05"
+        },
+        "wire:path_136:0-2:end:to": {
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05"
+        },
+        "wire:path_137:0-2:end:to": {
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05"
+        },
+        "wire:path_138:0-2:end:to": {
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05"
+        },
+        "wire:path_139:0-2:end:to": {
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05"
+        },
+        "wire:path_140:0-2:end:to": {
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05"
+        },
+        "wire:path_141:0-2:end:to": {
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05"
+        },
+        "wire:path_136:0-2:cut": {
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05"
+        },
+        "wire:path_137:0-2:cut": {
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05"
+        },
+        "wire:path_138:0-2:cut": {
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05"
+        },
+        "wire:path_139:0-2:cut": {
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05"
+        },
+        "wire:path_140:0-2:cut": {
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05"
+        },
+        "wire:path_141:0-2:cut": {
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05"
+        }
+      },
+      "work_log": [
+        {
+          "id": "work:bundle:connectors:con_002|con_079:1785907717065:0",
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05",
+          "task_key": "wire:path_136:0-2:cut",
+          "kind": "wire-cut",
+          "action": "complete",
+          "quantity": 234,
+          "unit": "mm"
+        },
+        {
+          "id": "work:bundle:connectors:con_002|con_079:1785907719090:1",
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05",
+          "task_key": "wire:path_137:0-2:cut",
+          "kind": "wire-cut",
+          "action": "complete",
+          "quantity": 234,
+          "unit": "mm"
+        },
+        {
+          "id": "work:bundle:connectors:con_002|con_079:1785913458601:2",
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05",
+          "task_key": "wire:path_138:0-2:cut",
+          "kind": "wire-cut",
+          "action": "complete",
+          "quantity": 234,
+          "unit": "mm"
+        },
+        {
+          "id": "work:bundle:connectors:con_002|con_079:1785913458601:3",
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05",
+          "task_key": "wire:path_139:0-2:cut",
+          "kind": "wire-cut",
+          "action": "complete",
+          "quantity": 234,
+          "unit": "mm"
+        },
+        {
+          "id": "work:bundle:connectors:con_002|con_079:1785913458601:4",
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05",
+          "task_key": "wire:path_140:0-2:cut",
+          "kind": "wire-cut",
+          "action": "complete",
+          "quantity": 234,
+          "unit": "mm"
+        },
+        {
+          "id": "work:bundle:connectors:con_002|con_079:1785913458601:5",
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05",
+          "task_key": "wire:path_141:0-2:cut",
+          "kind": "wire-cut",
+          "action": "complete",
+          "quantity": 234,
+          "unit": "mm"
+        },
+        {
+          "id": "work:bundle:connectors:con_002|con_079:1785913460075:6",
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05",
+          "task_key": "wire:path_136:0-2:end:from",
+          "kind": "wire-end",
+          "action": "complete",
+          "quantity": 1,
+          "unit": "ea"
+        },
+        {
+          "id": "work:bundle:connectors:con_002|con_079:1785913460075:7",
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05",
+          "task_key": "wire:path_137:0-2:end:from",
+          "kind": "wire-end",
+          "action": "complete",
+          "quantity": 1,
+          "unit": "ea"
+        },
+        {
+          "id": "work:bundle:connectors:con_002|con_079:1785913460075:8",
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05",
+          "task_key": "wire:path_138:0-2:end:from",
+          "kind": "wire-end",
+          "action": "complete",
+          "quantity": 1,
+          "unit": "ea"
+        },
+        {
+          "id": "work:bundle:connectors:con_002|con_079:1785913460075:9",
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05",
+          "task_key": "wire:path_139:0-2:end:from",
+          "kind": "wire-end",
+          "action": "complete",
+          "quantity": 1,
+          "unit": "ea"
+        },
+        {
+          "id": "work:bundle:connectors:con_002|con_079:1785913460075:10",
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05",
+          "task_key": "wire:path_140:0-2:end:from",
+          "kind": "wire-end",
+          "action": "complete",
+          "quantity": 1,
+          "unit": "ea"
+        },
+        {
+          "id": "work:bundle:connectors:con_002|con_079:1785913460075:11",
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05",
+          "task_key": "wire:path_141:0-2:end:from",
+          "kind": "wire-end",
+          "action": "complete",
+          "quantity": 1,
+          "unit": "ea"
+        },
+        {
+          "id": "work:bundle:connectors:con_002|con_079:1785913462192:12",
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05",
+          "task_key": "wire:path_136:0-2:end:to",
+          "kind": "wire-end",
+          "action": "complete",
+          "quantity": 1,
+          "unit": "ea"
+        },
+        {
+          "id": "work:bundle:connectors:con_002|con_079:1785913462192:13",
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05",
+          "task_key": "wire:path_137:0-2:end:to",
+          "kind": "wire-end",
+          "action": "complete",
+          "quantity": 1,
+          "unit": "ea"
+        },
+        {
+          "id": "work:bundle:connectors:con_002|con_079:1785913462192:14",
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05",
+          "task_key": "wire:path_138:0-2:end:to",
+          "kind": "wire-end",
+          "action": "complete",
+          "quantity": 1,
+          "unit": "ea"
+        },
+        {
+          "id": "work:bundle:connectors:con_002|con_079:1785913462192:15",
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05",
+          "task_key": "wire:path_139:0-2:end:to",
+          "kind": "wire-end",
+          "action": "complete",
+          "quantity": 1,
+          "unit": "ea"
+        },
+        {
+          "id": "work:bundle:connectors:con_002|con_079:1785913462192:16",
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05",
+          "task_key": "wire:path_140:0-2:end:to",
+          "kind": "wire-end",
+          "action": "complete",
+          "quantity": 1,
+          "unit": "ea"
+        },
+        {
+          "id": "work:bundle:connectors:con_002|con_079:1785913462192:17",
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05",
+          "task_key": "wire:path_141:0-2:end:to",
+          "kind": "wire-end",
+          "action": "complete",
+          "quantity": 1,
+          "unit": "ea"
+        },
+        {
+          "id": "work:bundle:connectors:con_002|con_079:1785913466781:18",
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05",
+          "task_key": "wire:path_136:0-2:cut",
+          "kind": "wire-cut",
+          "action": "reopen",
+          "quantity": 234,
+          "unit": "mm"
+        },
+        {
+          "id": "work:bundle:connectors:con_002|con_079:1785913466781:19",
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05",
+          "task_key": "wire:path_137:0-2:cut",
+          "kind": "wire-cut",
+          "action": "reopen",
+          "quantity": 234,
+          "unit": "mm"
+        },
+        {
+          "id": "work:bundle:connectors:con_002|con_079:1785913466781:20",
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05",
+          "task_key": "wire:path_138:0-2:cut",
+          "kind": "wire-cut",
+          "action": "reopen",
+          "quantity": 234,
+          "unit": "mm"
+        },
+        {
+          "id": "work:bundle:connectors:con_002|con_079:1785913466781:21",
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05",
+          "task_key": "wire:path_139:0-2:cut",
+          "kind": "wire-cut",
+          "action": "reopen",
+          "quantity": 234,
+          "unit": "mm"
+        },
+        {
+          "id": "work:bundle:connectors:con_002|con_079:1785913466781:22",
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05",
+          "task_key": "wire:path_140:0-2:cut",
+          "kind": "wire-cut",
+          "action": "reopen",
+          "quantity": 234,
+          "unit": "mm"
+        },
+        {
+          "id": "work:bundle:connectors:con_002|con_079:1785913466781:23",
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05",
+          "task_key": "wire:path_141:0-2:cut",
+          "kind": "wire-cut",
+          "action": "reopen",
+          "quantity": 234,
+          "unit": "mm"
+        },
+        {
+          "id": "work:bundle:connectors:con_002|con_079:1785913472342:24",
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05",
+          "task_key": "wire:path_136:0-2:cut",
+          "kind": "wire-cut",
+          "action": "complete",
+          "quantity": 234,
+          "unit": "mm"
+        },
+        {
+          "id": "work:bundle:connectors:con_002|con_079:1785913472342:25",
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05",
+          "task_key": "wire:path_137:0-2:cut",
+          "kind": "wire-cut",
+          "action": "complete",
+          "quantity": 234,
+          "unit": "mm"
+        },
+        {
+          "id": "work:bundle:connectors:con_002|con_079:1785913472342:26",
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05",
+          "task_key": "wire:path_138:0-2:cut",
+          "kind": "wire-cut",
+          "action": "complete",
+          "quantity": 234,
+          "unit": "mm"
+        },
+        {
+          "id": "work:bundle:connectors:con_002|con_079:1785913472342:27",
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05",
+          "task_key": "wire:path_139:0-2:cut",
+          "kind": "wire-cut",
+          "action": "complete",
+          "quantity": 234,
+          "unit": "mm"
+        },
+        {
+          "id": "work:bundle:connectors:con_002|con_079:1785913472342:28",
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05",
+          "task_key": "wire:path_140:0-2:cut",
+          "kind": "wire-cut",
+          "action": "complete",
+          "quantity": 234,
+          "unit": "mm"
+        },
+        {
+          "id": "work:bundle:connectors:con_002|con_079:1785913472342:29",
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05",
+          "task_key": "wire:path_141:0-2:cut",
+          "kind": "wire-cut",
+          "action": "complete",
+          "quantity": 234,
+          "unit": "mm"
+        }
+      ]
+    },
+    "bundle:con_077|connectors:con_002": {
+      "steps": {},
+      "component_steps": {
+        "wire:path_106:0-3:end:from": {
+          "ordered": true,
+          "cut": true,
+          "crimped": true
+        },
+        "wire:path_107:0-3:end:from": {
+          "ordered": true,
+          "cut": true,
+          "crimped": true
+        },
+        "wire:path_108:0-3:end:from": {
+          "ordered": true,
+          "cut": true,
+          "crimped": true
+        },
+        "wire:path_106:0-3:end:to": {
+          "ordered": true,
+          "cut": true
+        },
+        "wire:path_107:0-3:end:to": {
+          "ordered": true,
+          "cut": true
+        },
+        "wire:path_107:0-3": {
+          "ordered": true
+        },
+        "wire:path_108:0-3:end:to": {
+          "ordered": true,
+          "cut": true,
+          "crimped": true
+        },
+        "wire:path_108:0-3": {
+          "ordered": true
+        },
+        "wire:path_106:0-3": {
+          "ordered": true
+        },
+        "branch:mp_004": {
+          "ordered": true
+        }
+      },
+      "endpoint_genders": {
+        "con_077": "male"
+      },
+      "wire_progress": {
+        "path_106:0-3": {
+          "ends": {
+            "from": true
+          }
+        },
+        "path_107:0-3": {
+          "ends": {
+            "from": true
+          }
+        },
+        "path_108:0-3": {
+          "ends": {
+            "from": true,
+            "to": true
+          }
+        }
+      },
+      "task_attribution": {
+        "wire:path_106:0-3:end:from": {
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05"
+        },
+        "wire:path_107:0-3:end:from": {
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05"
+        },
+        "wire:path_108:0-3:end:from": {
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05"
+        },
+        "wire:path_108:0-3:end:to": {
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05"
+        }
+      },
+      "work_log": [
+        {
+          "id": "work:bundle:connectors:con_002|con_077:1785913462192:0",
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05",
+          "task_key": "wire:path_106:0-3:end:from",
+          "kind": "wire-end",
+          "action": "complete",
+          "quantity": 1,
+          "unit": "ea"
+        },
+        {
+          "id": "work:bundle:connectors:con_002|con_077:1785913462192:1",
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05",
+          "task_key": "wire:path_107:0-3:end:from",
+          "kind": "wire-end",
+          "action": "complete",
+          "quantity": 1,
+          "unit": "ea"
+        },
+        {
+          "id": "work:bundle:connectors:con_002|con_077:1785913462192:2",
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05",
+          "task_key": "wire:path_108:0-3:end:from",
+          "kind": "wire-end",
+          "action": "complete",
+          "quantity": 1,
+          "unit": "ea"
+        },
+        {
+          "id": "work:bundle:connectors:con_002|con_077:1785913466779:3",
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05",
+          "task_key": "wire:path_106:0-3:end:to",
+          "kind": "wire-end",
+          "action": "complete",
+          "quantity": 1,
+          "unit": "ea"
+        },
+        {
+          "id": "work:bundle:connectors:con_002|con_077:1785913466779:4",
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05",
+          "task_key": "wire:path_107:0-3:end:to",
+          "kind": "wire-end",
+          "action": "complete",
+          "quantity": 1,
+          "unit": "ea"
+        },
+        {
+          "id": "work:bundle:connectors:con_002|con_077:1785913466779:5",
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05",
+          "task_key": "wire:path_107:0-3:cut",
+          "kind": "wire-cut",
+          "action": "complete"
+        },
+        {
+          "id": "work:bundle:connectors:con_002|con_077:1785913466779:6",
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05",
+          "task_key": "wire:path_108:0-3:end:to",
+          "kind": "wire-end",
+          "action": "complete",
+          "quantity": 1,
+          "unit": "ea"
+        },
+        {
+          "id": "work:bundle:connectors:con_002|con_077:1785913466779:7",
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05",
+          "task_key": "wire:path_108:0-3:cut",
+          "kind": "wire-cut",
+          "action": "complete"
+        },
+        {
+          "id": "work:bundle:connectors:con_002|con_077:1786045488974:8",
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-06",
+          "task_key": "wire:path_106:0-3:cut",
+          "kind": "wire-cut",
+          "action": "complete",
+          "quantity": 95,
+          "unit": "mm"
+        },
+        {
+          "id": "work:bundle:connectors:con_002|con_077:1786048482835:9",
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-06",
+          "task_key": "wire:path_106:0-3:end:to",
+          "kind": "wire-end",
+          "action": "reopen",
+          "quantity": 1,
+          "unit": "ea"
+        },
+        {
+          "id": "work:bundle:connectors:con_002|con_077:1786048482835:10",
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-06",
+          "task_key": "wire:path_107:0-3:end:to",
+          "kind": "wire-end",
+          "action": "reopen",
+          "quantity": 1,
+          "unit": "ea"
+        },
+        {
+          "id": "work:bundle:connectors:con_002|con_077:1786048486923:11",
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-06",
+          "task_key": "wire:path_106:0-3:cut",
+          "kind": "wire-cut",
+          "action": "reopen",
+          "quantity": 95,
+          "unit": "mm"
+        },
+        {
+          "id": "work:bundle:connectors:con_002|con_077:1786048488006:12",
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-06",
+          "task_key": "wire:path_106:0-3:cut",
+          "kind": "wire-cut",
+          "action": "complete",
+          "quantity": 95,
+          "unit": "mm"
+        },
+        {
+          "id": "work:bundle:connectors:con_002|con_077:1786048488532:13",
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-06",
+          "task_key": "wire:path_106:0-3:cut",
+          "kind": "wire-cut",
+          "action": "reopen",
+          "quantity": 95,
+          "unit": "mm"
+        },
+        {
+          "id": "work:bundle:connectors:con_002|con_077:1786048489324:14",
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-06",
+          "task_key": "branch:mp_004:measured",
+          "kind": "branch-measured",
+          "action": "complete"
+        },
+        {
+          "id": "work:bundle:connectors:con_002|con_077:1786048490489:15",
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-06",
+          "task_key": "branch:mp_004:measured",
+          "kind": "branch-measured",
+          "action": "reopen"
+        },
+        {
+          "id": "work:bundle:connectors:con_002|con_077:1786048491572:16",
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-06",
+          "task_key": "branch:mp_004:measured",
+          "kind": "branch-measured",
+          "action": "complete"
+        },
+        {
+          "id": "work:bundle:connectors:con_002|con_077:1786048492222:17",
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-06",
+          "task_key": "branch:mp_004:measured",
+          "kind": "branch-measured",
+          "action": "reopen"
+        },
+        {
+          "id": "work:bundle:connectors:con_002|con_077:1786048493664:18",
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-06",
+          "task_key": "wire:path_107:0-3:cut",
+          "kind": "wire-cut",
+          "action": "reopen"
+        },
+        {
+          "id": "work:bundle:connectors:con_002|con_077:1786048493664:19",
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-06",
+          "task_key": "wire:path_108:0-3:cut",
+          "kind": "wire-cut",
+          "action": "reopen"
+        }
+      ]
+    },
+    "bundle:con_078|connectors:con_002": {
+      "steps": {},
+      "component_steps": {
+        "wire:path_115:0-3:end:from": {
+          "ordered": true,
+          "cut": true,
+          "crimped": true
+        },
+        "wire:path_116:0-3:end:from": {
+          "ordered": true,
+          "cut": true,
+          "crimped": true
+        },
+        "wire:path_117:0-3:end:from": {
+          "ordered": true,
+          "cut": true,
+          "crimped": true
+        },
+        "wire:path_115:0-3": {
+          "ordered": true
+        },
+        "wire:path_115:0-3:end:to": {
+          "ordered": true,
+          "cut": true,
+          "crimped": true
+        },
+        "wire:path_116:0-3": {
+          "ordered": true
+        },
+        "wire:path_116:0-3:end:to": {
+          "ordered": true,
+          "cut": true,
+          "crimped": true
+        },
+        "wire:path_117:0-3": {
+          "ordered": true
+        },
+        "wire:path_117:0-3:end:to": {
+          "ordered": true,
+          "cut": true,
+          "crimped": true
+        }
+      },
+      "wire_progress": {
+        "path_115:0-3": {
+          "ends": {
+            "from": true,
+            "to": true
+          }
+        },
+        "path_116:0-3": {
+          "ends": {
+            "from": true,
+            "to": true
+          }
+        },
+        "path_117:0-3": {
+          "ends": {
+            "from": true,
+            "to": true
+          }
+        }
+      },
+      "task_attribution": {
+        "wire:path_115:0-3:end:from": {
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05"
+        },
+        "wire:path_116:0-3:end:from": {
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05"
+        },
+        "wire:path_117:0-3:end:from": {
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05"
+        },
+        "wire:path_115:0-3:end:to": {
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05"
+        },
+        "wire:path_116:0-3:end:to": {
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05"
+        },
+        "wire:path_117:0-3:end:to": {
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05"
+        }
+      },
+      "work_log": [
+        {
+          "id": "work:bundle:connectors:con_002|con_078:1785913462192:0",
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05",
+          "task_key": "wire:path_115:0-3:end:from",
+          "kind": "wire-end",
+          "action": "complete",
+          "quantity": 1,
+          "unit": "ea"
+        },
+        {
+          "id": "work:bundle:connectors:con_002|con_078:1785913462192:1",
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05",
+          "task_key": "wire:path_116:0-3:end:from",
+          "kind": "wire-end",
+          "action": "complete",
+          "quantity": 1,
+          "unit": "ea"
+        },
+        {
+          "id": "work:bundle:connectors:con_002|con_078:1785913462192:2",
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05",
+          "task_key": "wire:path_117:0-3:end:from",
+          "kind": "wire-end",
+          "action": "complete",
+          "quantity": 1,
+          "unit": "ea"
+        },
+        {
+          "id": "work:bundle:connectors:con_002|con_078:1785913466781:3",
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05",
+          "task_key": "wire:path_115:0-3:cut",
+          "kind": "wire-cut",
+          "action": "complete"
+        },
+        {
+          "id": "work:bundle:connectors:con_002|con_078:1785913466781:4",
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05",
+          "task_key": "wire:path_115:0-3:end:to",
+          "kind": "wire-end",
+          "action": "complete",
+          "quantity": 1,
+          "unit": "ea"
+        },
+        {
+          "id": "work:bundle:connectors:con_002|con_078:1785913466781:5",
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05",
+          "task_key": "wire:path_116:0-3:cut",
+          "kind": "wire-cut",
+          "action": "complete"
+        },
+        {
+          "id": "work:bundle:connectors:con_002|con_078:1785913466781:6",
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05",
+          "task_key": "wire:path_116:0-3:end:to",
+          "kind": "wire-end",
+          "action": "complete",
+          "quantity": 1,
+          "unit": "ea"
+        },
+        {
+          "id": "work:bundle:connectors:con_002|con_078:1785913466781:7",
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05",
+          "task_key": "wire:path_117:0-3:cut",
+          "kind": "wire-cut",
+          "action": "complete"
+        },
+        {
+          "id": "work:bundle:connectors:con_002|con_078:1785913466781:8",
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05",
+          "task_key": "wire:path_117:0-3:end:to",
+          "kind": "wire-end",
+          "action": "complete",
+          "quantity": 1,
+          "unit": "ea"
+        },
+        {
+          "id": "work:bundle:connectors:con_002|con_078:1786048493665:9",
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-06",
+          "task_key": "wire:path_115:0-3:cut",
+          "kind": "wire-cut",
+          "action": "reopen"
+        },
+        {
+          "id": "work:bundle:connectors:con_002|con_078:1786048494640:10",
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-06",
+          "task_key": "wire:path_116:0-3:cut",
+          "kind": "wire-cut",
+          "action": "reopen"
+        },
+        {
+          "id": "work:bundle:connectors:con_002|con_078:1786048494972:11",
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-06",
+          "task_key": "wire:path_117:0-3:cut",
+          "kind": "wire-cut",
+          "action": "reopen"
+        }
+      ]
+    },
+    "bundle:con_009|connectors:con_001": {
+      "steps": {},
       "component_steps": {
         "wire:path_016:0-1": {
           "ordered": true,
@@ -230,6 +1581,78 @@
           "populated": true,
           "qc": true
         }
+      },
+      "endpoint_genders": {
+        "con_001": "male"
+      },
+      "wire_progress": {
+        "path_021:0-1": {
+          "cut": true,
+          "ends": {
+            "from": true,
+            "to": true
+          }
+        },
+        "path_013:0-1": {
+          "ends": {
+            "from": true,
+            "to": true
+          },
+          "cut": true
+        },
+        "path_014:0-1": {
+          "ends": {
+            "from": true,
+            "to": true
+          },
+          "cut": true
+        },
+        "path_015:0-1": {
+          "ends": {
+            "from": true,
+            "to": true
+          },
+          "cut": true
+        },
+        "path_016:0-1": {
+          "ends": {
+            "from": true,
+            "to": true
+          },
+          "cut": true
+        },
+        "path_017:0-1": {
+          "ends": {
+            "from": true,
+            "to": true
+          },
+          "cut": true
+        },
+        "path_018:0-1": {
+          "ends": {
+            "from": true,
+            "to": true
+          },
+          "cut": true
+        },
+        "path_019:0-1": {
+          "ends": {
+            "from": true,
+            "to": true
+          },
+          "cut": true
+        },
+        "path_020:0-1": {
+          "ends": {
+            "from": true,
+            "to": true
+          },
+          "cut": true
+        }
+      },
+      "connector_guide_states": {
+        "con_009": "verified",
+        "con_001": "verified"
       },
       "task_attribution": {
         "wire:path_021:0-1:cut": {
@@ -406,2143 +1829,720 @@
       "work_log": [
         {
           "id": "work:bundle:connectors:con_001|con_009:1785907207592:0",
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05",
           "task_key": "wire:path_016:0-1:cut",
           "kind": "wire-cut",
           "action": "complete",
           "quantity": 22,
-          "unit": "mm",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
+          "unit": "mm"
         },
         {
           "id": "work:bundle:connectors:con_001|con_009:1785907208675:1",
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05",
           "task_key": "wire:path_013:0-1:cut",
           "kind": "wire-cut",
           "action": "complete",
           "quantity": 22,
-          "unit": "mm",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
+          "unit": "mm"
         },
         {
           "id": "work:bundle:connectors:con_001|con_009:1785907210075:2",
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05",
           "task_key": "wire:path_013:0-1:cut",
           "kind": "wire-cut",
           "action": "reopen",
           "quantity": 22,
-          "unit": "mm",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
+          "unit": "mm"
         },
         {
           "id": "work:bundle:connectors:con_001|con_009:1785907211166:3",
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05",
           "task_key": "wire:path_013:0-1:cut",
           "kind": "wire-cut",
           "action": "complete",
           "quantity": 22,
-          "unit": "mm",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
+          "unit": "mm"
         },
         {
           "id": "work:bundle:connectors:con_001|con_009:1785907211919:4",
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05",
           "task_key": "wire:path_014:0-1:cut",
           "kind": "wire-cut",
           "action": "complete",
           "quantity": 22,
-          "unit": "mm",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
+          "unit": "mm"
         },
         {
           "id": "work:bundle:connectors:con_001|con_009:1785907217051:5",
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05",
           "task_key": "wire:path_015:0-1:cut",
           "kind": "wire-cut",
           "action": "complete",
           "quantity": 22,
-          "unit": "mm",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
+          "unit": "mm"
         },
         {
           "id": "work:bundle:connectors:con_001|con_009:1785907217051:6",
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05",
           "task_key": "wire:path_017:0-1:cut",
           "kind": "wire-cut",
           "action": "complete",
           "quantity": 22,
-          "unit": "mm",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
+          "unit": "mm"
         },
         {
           "id": "work:bundle:connectors:con_001|con_009:1785907217051:7",
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05",
           "task_key": "wire:path_018:0-1:cut",
           "kind": "wire-cut",
           "action": "complete",
           "quantity": 22,
-          "unit": "mm",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
+          "unit": "mm"
         },
         {
           "id": "work:bundle:connectors:con_001|con_009:1785907217051:8",
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05",
           "task_key": "wire:path_019:0-1:cut",
           "kind": "wire-cut",
           "action": "complete",
           "quantity": 22,
-          "unit": "mm",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
+          "unit": "mm"
         },
         {
           "id": "work:bundle:connectors:con_001|con_009:1785907217051:9",
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05",
           "task_key": "wire:path_020:0-1:cut",
           "kind": "wire-cut",
           "action": "complete",
           "quantity": 22,
-          "unit": "mm",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
+          "unit": "mm"
         },
         {
           "id": "work:bundle:connectors:con_001|con_009:1785907217051:10",
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05",
           "task_key": "wire:path_021:0-1:cut",
           "kind": "wire-cut",
           "action": "complete",
           "quantity": 22,
-          "unit": "mm",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
+          "unit": "mm"
         },
         {
           "id": "work:bundle:connectors:con_001|con_009:1785907245192:11",
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05",
           "task_key": "wire:path_020:0-1:cut",
           "kind": "wire-cut",
           "action": "reopen",
           "quantity": 22,
-          "unit": "mm",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
+          "unit": "mm"
         },
         {
           "id": "work:bundle:connectors:con_001|con_009:1785907246345:12",
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05",
           "task_key": "wire:path_019:0-1:cut",
           "kind": "wire-cut",
           "action": "reopen",
           "quantity": 22,
-          "unit": "mm",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
+          "unit": "mm"
         },
         {
           "id": "work:bundle:connectors:con_001|con_009:1785907247062:13",
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05",
           "task_key": "wire:path_018:0-1:cut",
           "kind": "wire-cut",
           "action": "reopen",
           "quantity": 22,
-          "unit": "mm",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
+          "unit": "mm"
         },
         {
           "id": "work:bundle:connectors:con_001|con_009:1785907248328:14",
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05",
           "task_key": "wire:path_017:0-1:cut",
           "kind": "wire-cut",
           "action": "reopen",
           "quantity": 22,
-          "unit": "mm",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
+          "unit": "mm"
         },
         {
           "id": "work:bundle:connectors:con_001|con_009:1785907249105:15",
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05",
           "task_key": "wire:path_016:0-1:cut",
           "kind": "wire-cut",
           "action": "reopen",
           "quantity": 22,
-          "unit": "mm",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
+          "unit": "mm"
         },
         {
           "id": "work:bundle:connectors:con_001|con_009:1785907249958:16",
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05",
           "task_key": "wire:path_015:0-1:cut",
           "kind": "wire-cut",
           "action": "reopen",
           "quantity": 22,
-          "unit": "mm",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
+          "unit": "mm"
         },
         {
           "id": "work:bundle:connectors:con_001|con_009:1785907250607:17",
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05",
           "task_key": "wire:path_014:0-1:cut",
           "kind": "wire-cut",
           "action": "reopen",
           "quantity": 22,
-          "unit": "mm",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
+          "unit": "mm"
         },
         {
           "id": "work:bundle:connectors:con_001|con_009:1785907251276:18",
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05",
           "task_key": "wire:path_013:0-1:cut",
           "kind": "wire-cut",
           "action": "reopen",
           "quantity": 22,
-          "unit": "mm",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
+          "unit": "mm"
         },
         {
           "id": "work:bundle:connectors:con_001|con_009:1785907381535:19",
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05",
           "task_key": "wire:path_013:0-1:end:from",
           "kind": "wire-end",
           "action": "complete",
           "quantity": 1,
-          "unit": "ea",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
+          "unit": "ea"
         },
         {
           "id": "work:bundle:connectors:con_001|con_009:1785907382659:20",
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05",
           "task_key": "wire:path_014:0-1:end:from",
           "kind": "wire-end",
           "action": "complete",
           "quantity": 1,
-          "unit": "ea",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
+          "unit": "ea"
         },
         {
           "id": "work:bundle:connectors:con_001|con_009:1785907384851:21",
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05",
           "task_key": "wire:path_015:0-1:end:from",
           "kind": "wire-end",
           "action": "complete",
           "quantity": 1,
-          "unit": "ea",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
+          "unit": "ea"
         },
         {
           "id": "work:bundle:connectors:con_001|con_009:1785907384851:22",
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05",
           "task_key": "wire:path_016:0-1:end:from",
           "kind": "wire-end",
           "action": "complete",
           "quantity": 1,
-          "unit": "ea",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
+          "unit": "ea"
         },
         {
           "id": "work:bundle:connectors:con_001|con_009:1785907384851:23",
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05",
           "task_key": "wire:path_017:0-1:end:from",
           "kind": "wire-end",
           "action": "complete",
           "quantity": 1,
-          "unit": "ea",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
+          "unit": "ea"
         },
         {
           "id": "work:bundle:connectors:con_001|con_009:1785907384851:24",
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05",
           "task_key": "wire:path_018:0-1:end:from",
           "kind": "wire-end",
           "action": "complete",
           "quantity": 1,
-          "unit": "ea",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
+          "unit": "ea"
         },
         {
           "id": "work:bundle:connectors:con_001|con_009:1785907384851:25",
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05",
           "task_key": "wire:path_019:0-1:end:from",
           "kind": "wire-end",
           "action": "complete",
           "quantity": 1,
-          "unit": "ea",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
+          "unit": "ea"
         },
         {
           "id": "work:bundle:connectors:con_001|con_009:1785907384851:26",
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05",
           "task_key": "wire:path_020:0-1:end:from",
           "kind": "wire-end",
           "action": "complete",
           "quantity": 1,
-          "unit": "ea",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
+          "unit": "ea"
         },
         {
           "id": "work:bundle:connectors:con_001|con_009:1785907384851:27",
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05",
           "task_key": "wire:path_021:0-1:end:from",
           "kind": "wire-end",
           "action": "complete",
           "quantity": 1,
-          "unit": "ea",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
+          "unit": "ea"
         },
         {
           "id": "work:bundle:connectors:con_001|con_009:1785907485786:28",
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05",
           "task_key": "wire:path_013:0-1:end:to",
           "kind": "wire-end",
           "action": "complete",
           "quantity": 1,
-          "unit": "ea",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
+          "unit": "ea"
         },
         {
           "id": "work:bundle:connectors:con_001|con_009:1785907485786:29",
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05",
           "task_key": "wire:path_014:0-1:end:to",
           "kind": "wire-end",
           "action": "complete",
           "quantity": 1,
-          "unit": "ea",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
+          "unit": "ea"
         },
         {
           "id": "work:bundle:connectors:con_001|con_009:1785907485786:30",
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05",
           "task_key": "wire:path_015:0-1:end:to",
           "kind": "wire-end",
           "action": "complete",
           "quantity": 1,
-          "unit": "ea",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
+          "unit": "ea"
         },
         {
           "id": "work:bundle:connectors:con_001|con_009:1785907485786:31",
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05",
           "task_key": "wire:path_016:0-1:end:to",
           "kind": "wire-end",
           "action": "complete",
           "quantity": 1,
-          "unit": "ea",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
+          "unit": "ea"
         },
         {
           "id": "work:bundle:connectors:con_001|con_009:1785907485786:32",
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05",
           "task_key": "wire:path_017:0-1:end:to",
           "kind": "wire-end",
           "action": "complete",
           "quantity": 1,
-          "unit": "ea",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
+          "unit": "ea"
         },
         {
           "id": "work:bundle:connectors:con_001|con_009:1785907485786:33",
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05",
           "task_key": "wire:path_018:0-1:end:to",
           "kind": "wire-end",
           "action": "complete",
           "quantity": 1,
-          "unit": "ea",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
+          "unit": "ea"
         },
         {
           "id": "work:bundle:connectors:con_001|con_009:1785907485786:34",
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05",
           "task_key": "wire:path_019:0-1:end:to",
           "kind": "wire-end",
           "action": "complete",
           "quantity": 1,
-          "unit": "ea",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
+          "unit": "ea"
         },
         {
           "id": "work:bundle:connectors:con_001|con_009:1785907485786:35",
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05",
           "task_key": "wire:path_020:0-1:end:to",
           "kind": "wire-end",
           "action": "complete",
           "quantity": 1,
-          "unit": "ea",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
+          "unit": "ea"
         },
         {
           "id": "work:bundle:connectors:con_001|con_009:1785907485786:36",
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05",
           "task_key": "wire:path_021:0-1:end:to",
           "kind": "wire-end",
           "action": "complete",
           "quantity": 1,
-          "unit": "ea",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
+          "unit": "ea"
         },
         {
           "id": "work:bundle:connectors:con_001|con_009:1785907498721:37",
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05",
           "task_key": "component:connector:con_001:step:ordered",
           "kind": "component-step",
           "action": "complete",
-          "state": "ordered",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
+          "state": "ordered"
         },
         {
           "id": "work:bundle:connectors:con_001|con_009:1785907500197:38",
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05",
           "task_key": "component:connector:con_001:step:cut",
           "kind": "component-step",
           "action": "complete",
-          "state": "cut",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
+          "state": "cut"
         },
         {
           "id": "work:bundle:connectors:con_001|con_009:1785907500378:39",
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05",
           "task_key": "component:connector:con_001:step:crimped",
           "kind": "component-step",
           "action": "complete",
-          "state": "crimped",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
+          "state": "crimped"
         },
         {
           "id": "work:bundle:connectors:con_001|con_009:1785907500550:40",
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05",
           "task_key": "component:connector:con_001:step:populated",
           "kind": "component-step",
           "action": "complete",
-          "state": "populated",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
+          "state": "populated"
         },
         {
           "id": "work:bundle:connectors:con_001|con_009:1785907500737:41",
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05",
           "task_key": "component:connector:con_001:step:qc",
           "kind": "component-step",
           "action": "complete",
-          "state": "qc",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
+          "state": "qc"
         },
         {
           "id": "work:bundle:connectors:con_001|con_009:1785909085440:42",
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05",
           "task_key": "wire:path_016:0-1:cut",
           "kind": "wire-cut",
           "action": "complete",
           "quantity": 22,
-          "unit": "mm",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
+          "unit": "mm"
         },
         {
           "id": "work:bundle:connectors:con_001|con_009:1785909089652:43",
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05",
           "task_key": "wire:path_015:0-1:cut",
           "kind": "wire-cut",
           "action": "complete",
           "quantity": 22,
-          "unit": "mm",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
+          "unit": "mm"
         },
         {
           "id": "work:bundle:connectors:con_001|con_009:1785909090868:44",
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05",
           "task_key": "wire:path_015:0-1:cut",
           "kind": "wire-cut",
           "action": "reopen",
           "quantity": 22,
-          "unit": "mm",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
+          "unit": "mm"
         },
         {
           "id": "work:bundle:connectors:con_001|con_009:1785909101856:45",
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05",
           "task_key": "wire:path_013:0-1:cut",
           "kind": "wire-cut",
           "action": "complete",
           "quantity": 22,
-          "unit": "mm",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
+          "unit": "mm"
         },
         {
           "id": "work:bundle:connectors:con_001|con_009:1785909101856:46",
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05",
           "task_key": "wire:path_014:0-1:cut",
           "kind": "wire-cut",
           "action": "complete",
           "quantity": 22,
-          "unit": "mm",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
+          "unit": "mm"
         },
         {
           "id": "work:bundle:connectors:con_001|con_009:1785909101856:47",
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05",
           "task_key": "wire:path_015:0-1:cut",
           "kind": "wire-cut",
           "action": "complete",
           "quantity": 22,
-          "unit": "mm",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
+          "unit": "mm"
         },
         {
           "id": "work:bundle:connectors:con_001|con_009:1785909101856:48",
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05",
           "task_key": "wire:path_016:0-1:cut",
           "kind": "wire-cut",
           "action": "reopen",
           "quantity": 22,
-          "unit": "mm",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
+          "unit": "mm"
         },
         {
           "id": "work:bundle:connectors:con_001|con_009:1785909101856:49",
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05",
           "task_key": "wire:path_017:0-1:cut",
           "kind": "wire-cut",
           "action": "complete",
           "quantity": 22,
-          "unit": "mm",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
+          "unit": "mm"
         },
         {
           "id": "work:bundle:connectors:con_001|con_009:1785909101856:50",
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05",
           "task_key": "wire:path_018:0-1:cut",
           "kind": "wire-cut",
           "action": "complete",
           "quantity": 22,
-          "unit": "mm",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
+          "unit": "mm"
         },
         {
           "id": "work:bundle:connectors:con_001|con_009:1785909104693:51",
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05",
           "task_key": "wire:path_014:0-1:cut",
           "kind": "wire-cut",
           "action": "reopen",
           "quantity": 22,
-          "unit": "mm",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
+          "unit": "mm"
         },
         {
           "id": "work:bundle:connectors:con_001|con_009:1785909104693:52",
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05",
           "task_key": "wire:path_015:0-1:cut",
           "kind": "wire-cut",
           "action": "reopen",
           "quantity": 22,
-          "unit": "mm",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
+          "unit": "mm"
         },
         {
           "id": "work:bundle:connectors:con_001|con_009:1785909104693:53",
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05",
           "task_key": "wire:path_016:0-1:cut",
           "kind": "wire-cut",
           "action": "complete",
           "quantity": 22,
-          "unit": "mm",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
+          "unit": "mm"
         },
         {
           "id": "work:bundle:connectors:con_001|con_009:1785909104693:54",
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05",
           "task_key": "wire:path_017:0-1:cut",
           "kind": "wire-cut",
           "action": "reopen",
           "quantity": 22,
-          "unit": "mm",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
+          "unit": "mm"
         },
         {
           "id": "work:bundle:connectors:con_001|con_009:1785909104693:55",
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05",
           "task_key": "wire:path_018:0-1:cut",
           "kind": "wire-cut",
           "action": "reopen",
           "quantity": 22,
-          "unit": "mm",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
+          "unit": "mm"
         },
         {
           "id": "work:bundle:connectors:con_001|con_009:1785909104693:56",
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05",
           "task_key": "wire:path_019:0-1:cut",
           "kind": "wire-cut",
           "action": "complete",
           "quantity": 22,
-          "unit": "mm",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
+          "unit": "mm"
         },
         {
           "id": "work:bundle:connectors:con_001|con_009:1785909107927:57",
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05",
           "task_key": "wire:path_020:0-1:cut",
           "kind": "wire-cut",
           "action": "complete",
           "quantity": 22,
-          "unit": "mm",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
+          "unit": "mm"
         },
         {
           "id": "work:bundle:connectors:con_001|con_009:1785909110376:58",
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05",
           "task_key": "wire:path_015:0-1:cut",
           "kind": "wire-cut",
           "action": "complete",
           "quantity": 22,
-          "unit": "mm",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
+          "unit": "mm"
         },
         {
           "id": "work:bundle:connectors:con_001|con_009:1785909110736:59",
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05",
           "task_key": "wire:path_014:0-1:cut",
           "kind": "wire-cut",
           "action": "complete",
           "quantity": 22,
-          "unit": "mm",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
+          "unit": "mm"
         },
         {
           "id": "work:bundle:connectors:con_001|con_009:1785909116694:60",
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05",
           "task_key": "connector:con_009:guide",
           "kind": "connector-guide",
           "action": "complete",
-          "state": "checking",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
+          "state": "checking"
         },
         {
           "id": "work:bundle:connectors:con_001|con_009:1785909118119:61",
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05",
           "task_key": "connector:con_001:guide",
           "kind": "connector-guide",
           "action": "complete",
-          "state": "checking",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
+          "state": "checking"
         },
         {
           "id": "work:bundle:connectors:con_001|con_009:1785909119136:62",
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05",
           "task_key": "connector:con_001:guide",
           "kind": "connector-guide",
           "action": "complete",
-          "state": "verified",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
+          "state": "verified"
         },
         {
           "id": "work:bundle:connectors:con_001|con_009:1785909120603:63",
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05",
           "task_key": "connector:con_009:guide",
           "kind": "connector-guide",
           "action": "complete",
-          "state": "verified",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
+          "state": "verified"
         },
         {
           "id": "work:bundle:connectors:con_001|con_009:1785909138993:64",
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05",
           "task_key": "wire:path_017:0-1:cut",
           "kind": "wire-cut",
           "action": "complete",
           "quantity": 22,
-          "unit": "mm",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
+          "unit": "mm"
         },
         {
           "id": "work:bundle:connectors:con_001|con_009:1785909139661:65",
+          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
+          "user_name": "Gabe",
+          "day": "2026-08-05",
           "task_key": "wire:path_018:0-1:cut",
           "kind": "wire-cut",
           "action": "complete",
           "quantity": 22,
-          "unit": "mm",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
-        }
-      ],
-      "endpoint_genders": {
-        "con_001": "male"
-      },
-      "connector_guide_states": {
-        "con_009": "verified",
-        "con_001": "verified"
-      }
-    },
-    "bundle:connectors:con_034|con_128": {
-      "steps": {},
-      "component_steps": {
-        "wire:path_auto_d9d4f91af264": {
-          "ordered": true
-        }
-      },
-      "work_log": [
-        {
-          "id": "work:bundle:connectors:con_034|con_128:1785907221250:0",
-          "task_key": "wire:path_auto_d9d4f91af264:cut",
-          "kind": "wire-cut",
-          "action": "complete",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
-        },
-        {
-          "id": "work:bundle:connectors:con_034|con_128:1785907225792:1",
-          "task_key": "wire:path_auto_d9d4f91af264:cut",
-          "kind": "wire-cut",
-          "action": "reopen",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
-        },
-        {
-          "id": "work:bundle:connectors:con_034|con_128:1785907226100:2",
-          "task_key": "wire:path_auto_d9d4f91af264:cut",
-          "kind": "wire-cut",
-          "action": "complete",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
-        },
-        {
-          "id": "work:bundle:connectors:con_034|con_128:1785907226539:3",
-          "task_key": "wire:path_auto_d9d4f91af264:cut",
-          "kind": "wire-cut",
-          "action": "reopen",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
-        }
-      ]
-    },
-    "bundle:connectors:con_017|con_030": {
-      "steps": {},
-      "endpoint_genders": {
-        "con_017": "male",
-        "con_030": "male"
-      },
-      "wire_progress": {
-        "path_auto_8e79295c3ed2": {
-          "ends": {
-            "to": true,
-            "from": true
-          },
-          "cut": true
-        }
-      },
-      "component_steps": {
-        "wire:path_auto_8e79295c3ed2:end:from": {
-          "ordered": true,
-          "cut": true,
-          "crimped": true
-        },
-        "wire:path_auto_8e79295c3ed2": {
-          "ordered": true,
-          "cut": true
-        },
-        "wire:path_auto_8e79295c3ed2:end:to": {
-          "ordered": true,
-          "cut": true,
-          "crimped": true
-        },
-        "connector:con_017": {
-          "ordered": true,
-          "cut": true,
-          "crimped": true,
-          "populated": true,
-          "qc": true,
-          "installed": true
-        }
-      },
-      "task_attribution": {
-        "wire:path_auto_8e79295c3ed2:cut": {
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
-        },
-        "wire:path_auto_8e79295c3ed2:end:to": {
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
-        },
-        "wire:path_auto_8e79295c3ed2:end:from": {
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
-        },
-        "connector:con_017:guide": {
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
-        },
-        "component:connector:con_017:step:installed": {
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
-        }
-      },
-      "work_log": [
-        {
-          "id": "work:bundle:connectors:con_017|con_030:1785907577393:0",
-          "task_key": "wire:path_auto_8e79295c3ed2:end:from",
-          "kind": "wire-end",
-          "action": "complete",
-          "quantity": 1,
-          "unit": "ea",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
-        },
-        {
-          "id": "work:bundle:connectors:con_017|con_030:1785907577994:1",
-          "task_key": "wire:path_auto_8e79295c3ed2:cut",
-          "kind": "wire-cut",
-          "action": "complete",
-          "quantity": 20,
-          "unit": "mm",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
-        },
-        {
-          "id": "work:bundle:connectors:con_017|con_030:1785907580014:2",
-          "task_key": "wire:path_auto_8e79295c3ed2:end:to",
-          "kind": "wire-end",
-          "action": "complete",
-          "quantity": 1,
-          "unit": "ea",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
-        },
-        {
-          "id": "work:bundle:connectors:con_017|con_030:1785907848037:3",
-          "task_key": "wire:path_auto_8e79295c3ed2:end:from",
-          "kind": "wire-end",
-          "action": "reopen",
-          "quantity": 1,
-          "unit": "ea",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
-        },
-        {
-          "id": "work:bundle:connectors:con_017|con_030:1785907849536:4",
-          "task_key": "wire:path_auto_8e79295c3ed2:end:from",
-          "kind": "wire-end",
-          "action": "complete",
-          "quantity": 1,
-          "unit": "ea",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
-        },
-        {
-          "id": "work:bundle:connectors:con_017|con_030:1785907851061:5",
-          "task_key": "wire:path_auto_8e79295c3ed2:end:from",
-          "kind": "wire-end",
-          "action": "reopen",
-          "quantity": 1,
-          "unit": "ea",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
-        },
-        {
-          "id": "work:bundle:connectors:con_017|con_030:1785907853490:6",
-          "task_key": "wire:path_auto_8e79295c3ed2:end:from",
-          "kind": "wire-end",
-          "action": "complete",
-          "quantity": 1,
-          "unit": "ea",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
-        },
-        {
-          "id": "work:bundle:connectors:con_017|con_030:1785907866888:7",
-          "task_key": "connector:con_017:guide",
-          "kind": "connector-guide",
-          "action": "complete",
-          "state": "checking",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
-        },
-        {
-          "id": "work:bundle:connectors:con_017|con_030:1785907870570:8",
-          "task_key": "connector:con_017:guide",
-          "kind": "connector-guide",
-          "action": "complete",
-          "state": "verified",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
-        },
-        {
-          "id": "work:bundle:connectors:con_017|con_030:1785907874546:9",
-          "task_key": "connector:con_017:guide",
-          "kind": "connector-guide",
-          "action": "reopen",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
-        },
-        {
-          "id": "work:bundle:connectors:con_017|con_030:1785907875411:10",
-          "task_key": "connector:con_017:guide",
-          "kind": "connector-guide",
-          "action": "complete",
-          "state": "checking",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
-        },
-        {
-          "id": "work:bundle:connectors:con_017|con_030:1785907876338:11",
-          "task_key": "connector:con_017:guide",
-          "kind": "connector-guide",
-          "action": "complete",
-          "state": "verified",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
-        },
-        {
-          "id": "work:bundle:connectors:con_017|con_030:1785907879682:12",
-          "task_key": "connector:con_017:guide",
-          "kind": "connector-guide",
-          "action": "reopen",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
-        },
-        {
-          "id": "work:bundle:connectors:con_017|con_030:1785907882724:13",
-          "task_key": "connector:con_017:guide",
-          "kind": "connector-guide",
-          "action": "complete",
-          "state": "checking",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
-        },
-        {
-          "id": "work:bundle:connectors:con_017|con_030:1785907885548:14",
-          "task_key": "connector:con_017:guide",
-          "kind": "connector-guide",
-          "action": "complete",
-          "state": "verified",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
-        },
-        {
-          "id": "work:bundle:connectors:con_017|con_030:1785907887413:15",
-          "task_key": "connector:con_017:guide",
-          "kind": "connector-guide",
-          "action": "reopen",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
-        },
-        {
-          "id": "work:bundle:connectors:con_017|con_030:1785907888413:16",
-          "task_key": "connector:con_017:guide",
-          "kind": "connector-guide",
-          "action": "complete",
-          "state": "checking",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
-        },
-        {
-          "id": "work:bundle:connectors:con_017|con_030:1785907890837:17",
-          "task_key": "connector:con_017:guide",
-          "kind": "connector-guide",
-          "action": "complete",
-          "state": "verified",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
-        },
-        {
-          "id": "work:bundle:connectors:con_017|con_030:1785907891697:18",
-          "task_key": "connector:con_017:guide",
-          "kind": "connector-guide",
-          "action": "reopen",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
-        },
-        {
-          "id": "work:bundle:connectors:con_017|con_030:1785907893094:19",
-          "task_key": "connector:con_017:guide",
-          "kind": "connector-guide",
-          "action": "complete",
-          "state": "checking",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
-        },
-        {
-          "id": "work:bundle:connectors:con_017|con_030:1785907898157:20",
-          "task_key": "connector:con_017:guide",
-          "kind": "connector-guide",
-          "action": "complete",
-          "state": "verified",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
-        },
-        {
-          "id": "work:bundle:connectors:con_017|con_030:1785907914678:21",
-          "task_key": "component:connector:con_017:step:installed",
-          "kind": "component-step",
-          "action": "complete",
-          "state": "installed",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
-        }
-      ],
-      "connector_guide_states": {
-        "con_017": "verified"
-      }
-    },
-    "bundle:connectors:con_030|con_127": {
-      "steps": {},
-      "endpoint_genders": {
-        "con_030": "female"
-      }
-    },
-    "bundle:connectors:con_002|con_079": {
-      "steps": {},
-      "wire_progress": {
-        "path_136:0-2": {
-          "ends": {
-            "from": true,
-            "to": true
-          },
-          "cut": true
-        },
-        "path_137:0-2": {
-          "ends": {
-            "from": true,
-            "to": true
-          },
-          "cut": true
-        },
-        "path_138:0-2": {
-          "ends": {
-            "from": true,
-            "to": true
-          },
-          "cut": true
-        },
-        "path_139:0-2": {
-          "ends": {
-            "from": true,
-            "to": true
-          },
-          "cut": true
-        },
-        "path_140:0-2": {
-          "ends": {
-            "from": true,
-            "to": true
-          },
-          "cut": true
-        },
-        "path_141:0-2": {
-          "ends": {
-            "from": true,
-            "to": true
-          },
-          "cut": true
-        }
-      },
-      "component_steps": {
-        "wire:path_136:0-2": {
-          "ordered": true,
-          "cut": true
-        },
-        "wire:path_137:0-2": {
-          "ordered": true,
-          "cut": true
-        },
-        "wire:path_138:0-2": {
-          "ordered": true,
-          "cut": true
-        },
-        "wire:path_139:0-2": {
-          "ordered": true,
-          "cut": true
-        },
-        "wire:path_140:0-2": {
-          "ordered": true,
-          "cut": true
-        },
-        "wire:path_141:0-2": {
-          "ordered": true,
-          "cut": true
-        },
-        "wire:path_136:0-2:end:from": {
-          "ordered": true,
-          "cut": true,
-          "crimped": true
-        },
-        "wire:path_137:0-2:end:from": {
-          "ordered": true,
-          "cut": true,
-          "crimped": true
-        },
-        "wire:path_138:0-2:end:from": {
-          "ordered": true,
-          "cut": true,
-          "crimped": true
-        },
-        "wire:path_139:0-2:end:from": {
-          "ordered": true,
-          "cut": true,
-          "crimped": true
-        },
-        "wire:path_140:0-2:end:from": {
-          "ordered": true,
-          "cut": true,
-          "crimped": true
-        },
-        "wire:path_141:0-2:end:from": {
-          "ordered": true,
-          "cut": true,
-          "crimped": true
-        },
-        "wire:path_136:0-2:end:to": {
-          "ordered": true,
-          "cut": true,
-          "crimped": true
-        },
-        "wire:path_137:0-2:end:to": {
-          "ordered": true,
-          "cut": true,
-          "crimped": true
-        },
-        "wire:path_138:0-2:end:to": {
-          "ordered": true,
-          "cut": true,
-          "crimped": true
-        },
-        "wire:path_139:0-2:end:to": {
-          "ordered": true,
-          "cut": true,
-          "crimped": true
-        },
-        "wire:path_140:0-2:end:to": {
-          "ordered": true,
-          "cut": true,
-          "crimped": true
-        },
-        "wire:path_141:0-2:end:to": {
-          "ordered": true,
-          "cut": true,
-          "crimped": true
-        }
-      },
-      "task_attribution": {
-        "wire:path_136:0-2:end:from": {
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
-        },
-        "wire:path_137:0-2:end:from": {
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
-        },
-        "wire:path_138:0-2:end:from": {
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
-        },
-        "wire:path_139:0-2:end:from": {
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
-        },
-        "wire:path_140:0-2:end:from": {
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
-        },
-        "wire:path_141:0-2:end:from": {
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
-        },
-        "wire:path_136:0-2:end:to": {
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
-        },
-        "wire:path_137:0-2:end:to": {
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
-        },
-        "wire:path_138:0-2:end:to": {
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
-        },
-        "wire:path_139:0-2:end:to": {
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
-        },
-        "wire:path_140:0-2:end:to": {
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
-        },
-        "wire:path_141:0-2:end:to": {
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
-        },
-        "wire:path_136:0-2:cut": {
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
-        },
-        "wire:path_137:0-2:cut": {
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
-        },
-        "wire:path_138:0-2:cut": {
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
-        },
-        "wire:path_139:0-2:cut": {
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
-        },
-        "wire:path_140:0-2:cut": {
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
-        },
-        "wire:path_141:0-2:cut": {
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
-        }
-      },
-      "work_log": [
-        {
-          "id": "work:bundle:connectors:con_002|con_079:1785907717065:0",
-          "task_key": "wire:path_136:0-2:cut",
-          "kind": "wire-cut",
-          "action": "complete",
-          "quantity": 234,
-          "unit": "mm",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
-        },
-        {
-          "id": "work:bundle:connectors:con_002|con_079:1785907719090:1",
-          "task_key": "wire:path_137:0-2:cut",
-          "kind": "wire-cut",
-          "action": "complete",
-          "quantity": 234,
-          "unit": "mm",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
-        },
-        {
-          "id": "work:bundle:connectors:con_002|con_079:1785913458601:2",
-          "task_key": "wire:path_138:0-2:cut",
-          "kind": "wire-cut",
-          "action": "complete",
-          "quantity": 234,
-          "unit": "mm",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
-        },
-        {
-          "id": "work:bundle:connectors:con_002|con_079:1785913458601:3",
-          "task_key": "wire:path_139:0-2:cut",
-          "kind": "wire-cut",
-          "action": "complete",
-          "quantity": 234,
-          "unit": "mm",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
-        },
-        {
-          "id": "work:bundle:connectors:con_002|con_079:1785913458601:4",
-          "task_key": "wire:path_140:0-2:cut",
-          "kind": "wire-cut",
-          "action": "complete",
-          "quantity": 234,
-          "unit": "mm",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
-        },
-        {
-          "id": "work:bundle:connectors:con_002|con_079:1785913458601:5",
-          "task_key": "wire:path_141:0-2:cut",
-          "kind": "wire-cut",
-          "action": "complete",
-          "quantity": 234,
-          "unit": "mm",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
-        },
-        {
-          "id": "work:bundle:connectors:con_002|con_079:1785913460075:6",
-          "task_key": "wire:path_136:0-2:end:from",
-          "kind": "wire-end",
-          "action": "complete",
-          "quantity": 1,
-          "unit": "ea",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
-        },
-        {
-          "id": "work:bundle:connectors:con_002|con_079:1785913460075:7",
-          "task_key": "wire:path_137:0-2:end:from",
-          "kind": "wire-end",
-          "action": "complete",
-          "quantity": 1,
-          "unit": "ea",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
-        },
-        {
-          "id": "work:bundle:connectors:con_002|con_079:1785913460075:8",
-          "task_key": "wire:path_138:0-2:end:from",
-          "kind": "wire-end",
-          "action": "complete",
-          "quantity": 1,
-          "unit": "ea",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
-        },
-        {
-          "id": "work:bundle:connectors:con_002|con_079:1785913460075:9",
-          "task_key": "wire:path_139:0-2:end:from",
-          "kind": "wire-end",
-          "action": "complete",
-          "quantity": 1,
-          "unit": "ea",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
-        },
-        {
-          "id": "work:bundle:connectors:con_002|con_079:1785913460075:10",
-          "task_key": "wire:path_140:0-2:end:from",
-          "kind": "wire-end",
-          "action": "complete",
-          "quantity": 1,
-          "unit": "ea",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
-        },
-        {
-          "id": "work:bundle:connectors:con_002|con_079:1785913460075:11",
-          "task_key": "wire:path_141:0-2:end:from",
-          "kind": "wire-end",
-          "action": "complete",
-          "quantity": 1,
-          "unit": "ea",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
-        },
-        {
-          "id": "work:bundle:connectors:con_002|con_079:1785913462192:12",
-          "task_key": "wire:path_136:0-2:end:to",
-          "kind": "wire-end",
-          "action": "complete",
-          "quantity": 1,
-          "unit": "ea",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
-        },
-        {
-          "id": "work:bundle:connectors:con_002|con_079:1785913462192:13",
-          "task_key": "wire:path_137:0-2:end:to",
-          "kind": "wire-end",
-          "action": "complete",
-          "quantity": 1,
-          "unit": "ea",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
-        },
-        {
-          "id": "work:bundle:connectors:con_002|con_079:1785913462192:14",
-          "task_key": "wire:path_138:0-2:end:to",
-          "kind": "wire-end",
-          "action": "complete",
-          "quantity": 1,
-          "unit": "ea",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
-        },
-        {
-          "id": "work:bundle:connectors:con_002|con_079:1785913462192:15",
-          "task_key": "wire:path_139:0-2:end:to",
-          "kind": "wire-end",
-          "action": "complete",
-          "quantity": 1,
-          "unit": "ea",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
-        },
-        {
-          "id": "work:bundle:connectors:con_002|con_079:1785913462192:16",
-          "task_key": "wire:path_140:0-2:end:to",
-          "kind": "wire-end",
-          "action": "complete",
-          "quantity": 1,
-          "unit": "ea",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
-        },
-        {
-          "id": "work:bundle:connectors:con_002|con_079:1785913462192:17",
-          "task_key": "wire:path_141:0-2:end:to",
-          "kind": "wire-end",
-          "action": "complete",
-          "quantity": 1,
-          "unit": "ea",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
-        },
-        {
-          "id": "work:bundle:connectors:con_002|con_079:1785913466781:18",
-          "task_key": "wire:path_136:0-2:cut",
-          "kind": "wire-cut",
-          "action": "reopen",
-          "quantity": 234,
-          "unit": "mm",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
-        },
-        {
-          "id": "work:bundle:connectors:con_002|con_079:1785913466781:19",
-          "task_key": "wire:path_137:0-2:cut",
-          "kind": "wire-cut",
-          "action": "reopen",
-          "quantity": 234,
-          "unit": "mm",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
-        },
-        {
-          "id": "work:bundle:connectors:con_002|con_079:1785913466781:20",
-          "task_key": "wire:path_138:0-2:cut",
-          "kind": "wire-cut",
-          "action": "reopen",
-          "quantity": 234,
-          "unit": "mm",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
-        },
-        {
-          "id": "work:bundle:connectors:con_002|con_079:1785913466781:21",
-          "task_key": "wire:path_139:0-2:cut",
-          "kind": "wire-cut",
-          "action": "reopen",
-          "quantity": 234,
-          "unit": "mm",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
-        },
-        {
-          "id": "work:bundle:connectors:con_002|con_079:1785913466781:22",
-          "task_key": "wire:path_140:0-2:cut",
-          "kind": "wire-cut",
-          "action": "reopen",
-          "quantity": 234,
-          "unit": "mm",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
-        },
-        {
-          "id": "work:bundle:connectors:con_002|con_079:1785913466781:23",
-          "task_key": "wire:path_141:0-2:cut",
-          "kind": "wire-cut",
-          "action": "reopen",
-          "quantity": 234,
-          "unit": "mm",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
-        },
-        {
-          "id": "work:bundle:connectors:con_002|con_079:1785913472342:24",
-          "task_key": "wire:path_136:0-2:cut",
-          "kind": "wire-cut",
-          "action": "complete",
-          "quantity": 234,
-          "unit": "mm",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
-        },
-        {
-          "id": "work:bundle:connectors:con_002|con_079:1785913472342:25",
-          "task_key": "wire:path_137:0-2:cut",
-          "kind": "wire-cut",
-          "action": "complete",
-          "quantity": 234,
-          "unit": "mm",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
-        },
-        {
-          "id": "work:bundle:connectors:con_002|con_079:1785913472342:26",
-          "task_key": "wire:path_138:0-2:cut",
-          "kind": "wire-cut",
-          "action": "complete",
-          "quantity": 234,
-          "unit": "mm",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
-        },
-        {
-          "id": "work:bundle:connectors:con_002|con_079:1785913472342:27",
-          "task_key": "wire:path_139:0-2:cut",
-          "kind": "wire-cut",
-          "action": "complete",
-          "quantity": 234,
-          "unit": "mm",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
-        },
-        {
-          "id": "work:bundle:connectors:con_002|con_079:1785913472342:28",
-          "task_key": "wire:path_140:0-2:cut",
-          "kind": "wire-cut",
-          "action": "complete",
-          "quantity": 234,
-          "unit": "mm",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
-        },
-        {
-          "id": "work:bundle:connectors:con_002|con_079:1785913472342:29",
-          "task_key": "wire:path_141:0-2:cut",
-          "kind": "wire-cut",
-          "action": "complete",
-          "quantity": 234,
-          "unit": "mm",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
-        }
-      ]
-    },
-    "bundle:connectors:con_002|con_077": {
-      "steps": {},
-      "endpoint_genders": {
-        "con_077": "male"
-      },
-      "wire_progress": {
-        "path_106:0-3": {
-          "ends": {
-            "from": true
-          }
-        },
-        "path_107:0-3": {
-          "ends": {
-            "from": true
-          }
-        },
-        "path_108:0-3": {
-          "ends": {
-            "from": true,
-            "to": true
-          }
-        }
-      },
-      "component_steps": {
-        "wire:path_106:0-3:end:from": {
-          "ordered": true,
-          "cut": true,
-          "crimped": true
-        },
-        "wire:path_107:0-3:end:from": {
-          "ordered": true,
-          "cut": true,
-          "crimped": true
-        },
-        "wire:path_108:0-3:end:from": {
-          "ordered": true,
-          "cut": true,
-          "crimped": true
-        },
-        "wire:path_106:0-3:end:to": {
-          "ordered": true,
-          "cut": true
-        },
-        "wire:path_107:0-3:end:to": {
-          "ordered": true,
-          "cut": true
-        },
-        "wire:path_107:0-3": {
-          "ordered": true
-        },
-        "wire:path_108:0-3:end:to": {
-          "ordered": true,
-          "cut": true,
-          "crimped": true
-        },
-        "wire:path_108:0-3": {
-          "ordered": true
-        },
-        "wire:path_106:0-3": {
-          "ordered": true
-        },
-        "splice:mp_004": {
-          "ordered": true
-        }
-      },
-      "task_attribution": {
-        "wire:path_106:0-3:end:from": {
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
-        },
-        "wire:path_107:0-3:end:from": {
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
-        },
-        "wire:path_108:0-3:end:from": {
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
-        },
-        "wire:path_108:0-3:end:to": {
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
-        }
-      },
-      "work_log": [
-        {
-          "id": "work:bundle:connectors:con_002|con_077:1785913462192:0",
-          "task_key": "wire:path_106:0-3:end:from",
-          "kind": "wire-end",
-          "action": "complete",
-          "quantity": 1,
-          "unit": "ea",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
-        },
-        {
-          "id": "work:bundle:connectors:con_002|con_077:1785913462192:1",
-          "task_key": "wire:path_107:0-3:end:from",
-          "kind": "wire-end",
-          "action": "complete",
-          "quantity": 1,
-          "unit": "ea",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
-        },
-        {
-          "id": "work:bundle:connectors:con_002|con_077:1785913462192:2",
-          "task_key": "wire:path_108:0-3:end:from",
-          "kind": "wire-end",
-          "action": "complete",
-          "quantity": 1,
-          "unit": "ea",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
-        },
-        {
-          "id": "work:bundle:connectors:con_002|con_077:1785913466779:3",
-          "task_key": "wire:path_106:0-3:end:to",
-          "kind": "wire-end",
-          "action": "complete",
-          "quantity": 1,
-          "unit": "ea",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
-        },
-        {
-          "id": "work:bundle:connectors:con_002|con_077:1785913466779:4",
-          "task_key": "wire:path_107:0-3:end:to",
-          "kind": "wire-end",
-          "action": "complete",
-          "quantity": 1,
-          "unit": "ea",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
-        },
-        {
-          "id": "work:bundle:connectors:con_002|con_077:1785913466779:5",
-          "task_key": "wire:path_107:0-3:cut",
-          "kind": "wire-cut",
-          "action": "complete",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
-        },
-        {
-          "id": "work:bundle:connectors:con_002|con_077:1785913466779:6",
-          "task_key": "wire:path_108:0-3:end:to",
-          "kind": "wire-end",
-          "action": "complete",
-          "quantity": 1,
-          "unit": "ea",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
-        },
-        {
-          "id": "work:bundle:connectors:con_002|con_077:1785913466779:7",
-          "task_key": "wire:path_108:0-3:cut",
-          "kind": "wire-cut",
-          "action": "complete",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
-        },
-        {
-          "id": "work:bundle:connectors:con_002|con_077:1786045488974:8",
-          "task_key": "wire:path_106:0-3:cut",
-          "kind": "wire-cut",
-          "action": "complete",
-          "quantity": 95,
-          "unit": "mm",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-06"
-        },
-        {
-          "id": "work:bundle:connectors:con_002|con_077:1786048482835:9",
-          "task_key": "wire:path_106:0-3:end:to",
-          "kind": "wire-end",
-          "action": "reopen",
-          "quantity": 1,
-          "unit": "ea",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-06"
-        },
-        {
-          "id": "work:bundle:connectors:con_002|con_077:1786048482835:10",
-          "task_key": "wire:path_107:0-3:end:to",
-          "kind": "wire-end",
-          "action": "reopen",
-          "quantity": 1,
-          "unit": "ea",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-06"
-        },
-        {
-          "id": "work:bundle:connectors:con_002|con_077:1786048486923:11",
-          "task_key": "wire:path_106:0-3:cut",
-          "kind": "wire-cut",
-          "action": "reopen",
-          "quantity": 95,
-          "unit": "mm",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-06"
-        },
-        {
-          "id": "work:bundle:connectors:con_002|con_077:1786048488006:12",
-          "task_key": "wire:path_106:0-3:cut",
-          "kind": "wire-cut",
-          "action": "complete",
-          "quantity": 95,
-          "unit": "mm",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-06"
-        },
-        {
-          "id": "work:bundle:connectors:con_002|con_077:1786048488532:13",
-          "task_key": "wire:path_106:0-3:cut",
-          "kind": "wire-cut",
-          "action": "reopen",
-          "quantity": 95,
-          "unit": "mm",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-06"
-        },
-        {
-          "id": "work:bundle:connectors:con_002|con_077:1786048489324:14",
-          "task_key": "splice:mp_004:measured",
-          "kind": "splice-measured",
-          "action": "complete",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-06"
-        },
-        {
-          "id": "work:bundle:connectors:con_002|con_077:1786048490489:15",
-          "task_key": "splice:mp_004:measured",
-          "kind": "splice-measured",
-          "action": "reopen",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-06"
-        },
-        {
-          "id": "work:bundle:connectors:con_002|con_077:1786048491572:16",
-          "task_key": "splice:mp_004:measured",
-          "kind": "splice-measured",
-          "action": "complete",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-06"
-        },
-        {
-          "id": "work:bundle:connectors:con_002|con_077:1786048492222:17",
-          "task_key": "splice:mp_004:measured",
-          "kind": "splice-measured",
-          "action": "reopen",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-06"
-        },
-        {
-          "id": "work:bundle:connectors:con_002|con_077:1786048493664:18",
-          "task_key": "wire:path_107:0-3:cut",
-          "kind": "wire-cut",
-          "action": "reopen",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-06"
-        },
-        {
-          "id": "work:bundle:connectors:con_002|con_077:1786048493664:19",
-          "task_key": "wire:path_108:0-3:cut",
-          "kind": "wire-cut",
-          "action": "reopen",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-06"
-        }
-      ]
-    },
-    "bundle:connectors:con_002|con_078": {
-      "steps": {},
-      "wire_progress": {
-        "path_115:0-3": {
-          "ends": {
-            "from": true,
-            "to": true
-          }
-        },
-        "path_116:0-3": {
-          "ends": {
-            "from": true,
-            "to": true
-          }
-        },
-        "path_117:0-3": {
-          "ends": {
-            "from": true,
-            "to": true
-          }
-        }
-      },
-      "component_steps": {
-        "wire:path_115:0-3:end:from": {
-          "ordered": true,
-          "cut": true,
-          "crimped": true
-        },
-        "wire:path_116:0-3:end:from": {
-          "ordered": true,
-          "cut": true,
-          "crimped": true
-        },
-        "wire:path_117:0-3:end:from": {
-          "ordered": true,
-          "cut": true,
-          "crimped": true
-        },
-        "wire:path_115:0-3": {
-          "ordered": true
-        },
-        "wire:path_115:0-3:end:to": {
-          "ordered": true,
-          "cut": true,
-          "crimped": true
-        },
-        "wire:path_116:0-3": {
-          "ordered": true
-        },
-        "wire:path_116:0-3:end:to": {
-          "ordered": true,
-          "cut": true,
-          "crimped": true
-        },
-        "wire:path_117:0-3": {
-          "ordered": true
-        },
-        "wire:path_117:0-3:end:to": {
-          "ordered": true,
-          "cut": true,
-          "crimped": true
-        }
-      },
-      "task_attribution": {
-        "wire:path_115:0-3:end:from": {
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
-        },
-        "wire:path_116:0-3:end:from": {
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
-        },
-        "wire:path_117:0-3:end:from": {
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
-        },
-        "wire:path_115:0-3:end:to": {
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
-        },
-        "wire:path_116:0-3:end:to": {
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
-        },
-        "wire:path_117:0-3:end:to": {
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
-        }
-      },
-      "work_log": [
-        {
-          "id": "work:bundle:connectors:con_002|con_078:1785913462192:0",
-          "task_key": "wire:path_115:0-3:end:from",
-          "kind": "wire-end",
-          "action": "complete",
-          "quantity": 1,
-          "unit": "ea",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
-        },
-        {
-          "id": "work:bundle:connectors:con_002|con_078:1785913462192:1",
-          "task_key": "wire:path_116:0-3:end:from",
-          "kind": "wire-end",
-          "action": "complete",
-          "quantity": 1,
-          "unit": "ea",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
-        },
-        {
-          "id": "work:bundle:connectors:con_002|con_078:1785913462192:2",
-          "task_key": "wire:path_117:0-3:end:from",
-          "kind": "wire-end",
-          "action": "complete",
-          "quantity": 1,
-          "unit": "ea",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
-        },
-        {
-          "id": "work:bundle:connectors:con_002|con_078:1785913466781:3",
-          "task_key": "wire:path_115:0-3:cut",
-          "kind": "wire-cut",
-          "action": "complete",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
-        },
-        {
-          "id": "work:bundle:connectors:con_002|con_078:1785913466781:4",
-          "task_key": "wire:path_115:0-3:end:to",
-          "kind": "wire-end",
-          "action": "complete",
-          "quantity": 1,
-          "unit": "ea",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
-        },
-        {
-          "id": "work:bundle:connectors:con_002|con_078:1785913466781:5",
-          "task_key": "wire:path_116:0-3:cut",
-          "kind": "wire-cut",
-          "action": "complete",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
-        },
-        {
-          "id": "work:bundle:connectors:con_002|con_078:1785913466781:6",
-          "task_key": "wire:path_116:0-3:end:to",
-          "kind": "wire-end",
-          "action": "complete",
-          "quantity": 1,
-          "unit": "ea",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
-        },
-        {
-          "id": "work:bundle:connectors:con_002|con_078:1785913466781:7",
-          "task_key": "wire:path_117:0-3:cut",
-          "kind": "wire-cut",
-          "action": "complete",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
-        },
-        {
-          "id": "work:bundle:connectors:con_002|con_078:1785913466781:8",
-          "task_key": "wire:path_117:0-3:end:to",
-          "kind": "wire-end",
-          "action": "complete",
-          "quantity": 1,
-          "unit": "ea",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-05"
-        },
-        {
-          "id": "work:bundle:connectors:con_002|con_078:1786048493665:9",
-          "task_key": "wire:path_115:0-3:cut",
-          "kind": "wire-cut",
-          "action": "reopen",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-06"
-        },
-        {
-          "id": "work:bundle:connectors:con_002|con_078:1786048494640:10",
-          "task_key": "wire:path_116:0-3:cut",
-          "kind": "wire-cut",
-          "action": "reopen",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-06"
-        },
-        {
-          "id": "work:bundle:connectors:con_002|con_078:1786048494972:11",
-          "task_key": "wire:path_117:0-3:cut",
-          "kind": "wire-cut",
-          "action": "reopen",
-          "user_id": "ac89b199-5f27-4cca-b073-03675304a26e",
-          "user_name": "Gabe",
-          "day": "2026-08-06"
+          "unit": "mm"
         }
       ]
     }

@@ -338,3 +338,76 @@ export function getWireStrokeLayers(
     linecap: 'butt' as const,
   }));
 }
+
+const DEFAULT_UI_BACKGROUND = '#18181b';
+
+function normalizeHexColor(raw: string): string | null {
+  const value = raw.trim();
+  if (/^#[0-9a-f]{6}$/i.test(value)) return value.toLowerCase();
+  if (/^#[0-9a-f]{3}$/i.test(value)) {
+    const [r, g, b] = value.slice(1);
+    return `#${r}${r}${g}${g}${b}${b}`.toLowerCase();
+  }
+  return null;
+}
+
+function relativeLuminance(hex: string): number | null {
+  const normalized = normalizeHexColor(hex);
+  if (!normalized) return null;
+  const channels = [1, 3, 5].map((start) => {
+    const value = parseInt(normalized.slice(start, start + 2), 16) / 255;
+    return value <= 0.04045
+      ? value / 12.92
+      : ((value + 0.055) / 1.055) ** 2.4;
+  });
+  return 0.2126 * channels[0] + 0.7152 * channels[1] + 0.0722 * channels[2];
+}
+
+function contrastRatio(first: number, second: number): number {
+  const lighter = Math.max(first, second);
+  const darker = Math.min(first, second);
+  return (lighter + 0.05) / (darker + 0.05);
+}
+
+function mixHex(from: string, to: string, amount: number): string {
+  const t = Math.max(0, Math.min(1, amount));
+  const mixChannel = (start: number) => {
+    const a = parseInt(from.slice(start, start + 2), 16);
+    const b = parseInt(to.slice(start, start + 2), 16);
+    return Math.round(a + (b - a) * t).toString(16).padStart(2, '0');
+  };
+  return `#${mixChannel(1)}${mixChannel(3)}${mixChannel(5)}`;
+}
+
+/** Shift `color` toward white or black until it meets WCAG AA against `background`. */
+export function readableColorOnBackground(
+  color: string,
+  background: string = DEFAULT_UI_BACKGROUND,
+  minContrast = 4.5,
+): string {
+  const foreground = normalizeHexColor(color);
+  const bg = normalizeHexColor(background) ?? DEFAULT_UI_BACKGROUND;
+  if (!foreground) return '#e4e4e7';
+
+  const bgLum = relativeLuminance(bg);
+  const fgLum = relativeLuminance(foreground);
+  if (bgLum === null || fgLum === null) return '#e4e4e7';
+  if (contrastRatio(fgLum, bgLum) >= minContrast) return foreground;
+
+  const toward = bgLum > 0.45 ? '#000000' : '#ffffff';
+  let lo = 0;
+  let hi = 1;
+  let best = toward;
+  for (let i = 0; i < 14; i++) {
+    const mid = (lo + hi) / 2;
+    const mixed = mixHex(foreground, toward, mid);
+    const mixedLum = relativeLuminance(mixed);
+    if (mixedLum !== null && contrastRatio(mixedLum, bgLum) >= minContrast) {
+      best = mixed;
+      hi = mid;
+    } else {
+      lo = mid;
+    }
+  }
+  return best;
+}

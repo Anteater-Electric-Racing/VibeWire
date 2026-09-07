@@ -1,9 +1,9 @@
 import { useState } from 'react';
-import { useHarnessStore } from '../../store';
+import { useSystemStore } from '../../store';
 
 export function ConflictBanner() {
-  const conflict = useHarnessStore((state) => state.conflict);
-  const dismissConflict = useHarnessStore((state) => state.dismissConflict);
+  const conflict = useSystemStore((state) => state.conflict);
+  const dismissConflict = useSystemStore((state) => state.dismissConflict);
   const [copyError, setCopyError] = useState<string | null>(null);
 
   if (!conflict) return null;
@@ -45,7 +45,7 @@ export function ConflictBanner() {
         <div className="min-w-0 flex-1">
           <h2 className="text-sm font-semibold text-zinc-100">Your change was not saved</h2>
           <p className="mt-1 text-xs leading-relaxed text-zinc-300">
-            {displayName} changed the harness while you were editing. Your last change wasn&apos;t saved.
+            {displayName} changed the System while you were editing. Your last change wasn&apos;t saved.
           </p>
           {copyError && <p role="alert" className="mt-2 text-xs text-red-300">{copyError}</p>}
           <div className="mt-3 flex flex-wrap justify-end gap-2">

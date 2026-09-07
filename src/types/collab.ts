@@ -1,20 +1,23 @@
 import type {
   AppView,
   BackgroundLayouts,
+  CanvasImageLayouts,
   ConnectorLibrary,
   ConnectorTypeSizes,
   EditingSurface,
   FreePortLayouts,
-  HarnessData,
-  JunctionLayouts,
+  SystemData,
+  SharedAnchorLayouts,
   ManufacturingDocument,
-  MergePointLayouts,
+  BranchPointLayouts,
   NodeLayout,
   PortLayouts,
   RotationLayouts,
+  RouteStyleLayouts,
   SizeLayouts,
   SubsystemDocument,
   TextBoxLayouts,
+  ViewRouteStyleLayouts,
   WaypointLayouts,
 } from './index';
 
@@ -56,13 +59,14 @@ export interface CollaborationSession {
 export type PresenceTargetKind =
   | 'enclosure'
   | 'connector'
-  | 'mergePoint'
+  | 'branchPoint'
   | 'path'
   | 'signal'
-  | 'bundle'
+  | 'harnessBundle'
   | 'connectorType'
   | 'subsystem'
-  | 'textBox';
+  | 'textBox'
+  | 'image';
 
 export interface PresenceTarget {
   kind: PresenceTargetKind;
@@ -75,10 +79,10 @@ export interface PeerPresence {
   userId: string;
   displayName: string;
   color: string;
-  harness: string;
+  system: string;
   appView: AppView;
   editingSurface: EditingSurface;
-  drillDownEnclosure: string | null;
+  openEnclosureId: string | null;
   activeSubsystemId: string | null;
   focus: PresenceTarget | null;
   editing: PresenceTarget | null;
@@ -89,7 +93,7 @@ export type PresenceUpdate = Partial<Pick<
   PeerPresence,
   | 'appView'
   | 'editingSurface'
-  | 'drillDownEnclosure'
+  | 'openEnclosureId'
   | 'activeSubsystemId'
   | 'focus'
   | 'editing'
@@ -111,7 +115,7 @@ export interface RevisionConflictResponse {
 }
 
 export interface SyncConflict {
-  kind: 'harness' | 'library' | 'rebase';
+  kind: 'system' | 'library' | 'rebase';
   server: RevisionConflictResponse | {
     error: string;
     currentRev: number;
@@ -122,7 +126,7 @@ export interface SyncConflict {
 }
 
 export interface AttributionEntry {
-  by: string;
+  by: RevisionWriter;
   at: string;
   rev: number;
 }
@@ -133,18 +137,21 @@ export interface CollaborationLayouts {
   sizes: SizeLayouts;
   free: FreePortLayouts;
   backgrounds: BackgroundLayouts;
+  images: CanvasImageLayouts;
   connectorTypeSizes: ConnectorTypeSizes;
   textBoxes: TextBoxLayouts;
   waypoints: WaypointLayouts;
-  junctions: JunctionLayouts;
-  mergePoints: MergePointLayouts;
+  sharedAnchors: SharedAnchorLayouts;
+  branchPoints: BranchPointLayouts;
   rotations: RotationLayouts;
+  routeStyles: RouteStyleLayouts;
+  viewRouteStyles: ViewRouteStyleLayouts;
 }
 
-type FlatLayoutKey = Exclude<keyof CollaborationLayouts, 'mergePoints'>;
+type FlatLayoutKey = Exclude<keyof CollaborationLayouts, 'branchPoints'>;
 
 export type LayoutRemovedKeys = Partial<Record<FlatLayoutKey, string[]>> & {
-  mergePoints?: string[] | Record<string, string[]>;
+  branchPoints?: string[] | Record<string, string[]>;
 };
 
 export interface LayoutPatch {
@@ -158,7 +165,7 @@ export interface MapPatch<T> {
 }
 
 export interface CollaborationDocumentState {
-  harness?: HarnessData;
+  system?: SystemData;
   connectorLibrary?: ConnectorLibrary;
   library?: ConnectorLibrary;
   layouts?: Partial<CollaborationLayouts> | LayoutPatch;
@@ -171,7 +178,7 @@ export interface CollaborationDocumentState {
 export interface CollaborationStateResponse extends CollaborationDocumentState {
   rev: number;
   libraryRev: number;
-  harness: HarnessData;
+  system: SystemData;
   layouts: Partial<CollaborationLayouts>;
   manufacturing: ManufacturingDocument;
   subsystems: SubsystemDocument[] | Record<string, SubsystemDocument>;
@@ -180,7 +187,7 @@ export interface CollaborationStateResponse extends CollaborationDocumentState {
 }
 
 export type RevisionKind =
-  | 'harness'
+  | 'system'
   | 'layouts'
   | 'manufacturing'
   | 'subsystem'

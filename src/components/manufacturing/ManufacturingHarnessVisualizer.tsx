@@ -13,6 +13,7 @@ import {
   type ManufacturingWire,
 } from '../../lib/manufacturing';
 import { getWireAppearance, getWireStrokeLayers } from '../../lib/colors';
+import { CONNECTOR_COLOR } from '../../lib/entityColors';
 import { getWireDiameterPx } from '../../lib/gauge';
 import type { ManufacturingDocument, ManufacturingTaskUpdate } from '../../types';
 import {
@@ -27,7 +28,7 @@ export type ManufacturingVisualSelection =
       kind: 'segment';
       bundleId: string;
       wireId: string;
-      segmentIndex: number;
+      wireIndex: number;
     }
   | {
       kind: 'endpoint';
@@ -35,7 +36,7 @@ export type ManufacturingVisualSelection =
       wireId: string;
       end: 'from' | 'to';
     }
-  | { kind: 'splice'; spliceId: string; bundleId: string };
+  | { kind: 'branchPoint'; branchPointId: string; bundleId: string };
 
 export interface ManufacturingVisualTask {
   bundleId: string;
@@ -54,8 +55,8 @@ interface WireRoute {
   nodeKeys: string[];
 }
 
-/** A splice/branch point with the vertical span of the wires meeting there. */
-interface JunctionMark {
+/** A branch point with the vertical span of the wires meeting there. */
+interface BranchPointMark {
   id: string;
   x: number;
   topY: number;
@@ -67,7 +68,7 @@ interface DiagramLayout {
   width: number;
   height: number;
   routes: WireRoute[];
-  junctions: JunctionMark[];
+  branchPoints: BranchPointMark[];
 }
 
 function formatLength(mm: number | undefined): string {
@@ -240,7 +241,7 @@ function buildManufacturingHarnessLayout(
     })),
   );
   if (routes.length === 0) {
-    return { width: NOMINAL_WIDTH, height: 300, routes, junctions: [] };
+    return { width: NOMINAL_WIDTH, height: 300, routes, branchPoints: [] };
   }
 
   const graph = buildHarnessGraph(routes);
@@ -373,18 +374,18 @@ function buildManufacturingHarnessLayout(
   // just because one side is tight creates the overlapping hairpins this
   // layout is intended to avoid.
   for (const branchRoot of branchRoots) {
-    const junction = parentOf.get(branchRoot);
-    const junctionX = xByKey.get(junction ?? '');
-    if (junctionX === undefined) continue;
+    const parent = parentOf.get(branchRoot);
+    const parentX = xByKey.get(parent ?? '');
+    if (parentX === undefined) continue;
     const members = ordered.filter(
       (entry) => branchRootOf.get(entry.branchKey) === branchRoot,
     );
     if (members.length === 0) continue;
     const arrivalX = members.reduce(
-      (sum, entry) => sum + (xByKey.get(entry.otherKey) ?? junctionX),
+      (sum, entry) => sum + (xByKey.get(entry.otherKey) ?? parentX),
       0,
     ) / members.length;
-    const direction = manufacturingBranchDirection(arrivalX, junctionX, width);
+    const direction = manufacturingBranchDirection(arrivalX, parentX, width);
     const branchNodes = [...offAxisDepth.keys()]
       .filter((key) => branchRootOf.get(key) === branchRoot)
       .sort((left, right) => nodeDepth(left) - nodeDepth(right));
@@ -432,15 +433,19 @@ function buildManufacturingHarnessLayout(
     if (overflowsX) point.x = MARGIN_X + (point.x - extent.minX) * scaleX;
   }
 
-  const junctionSpans = new Map<string, { x: number; top: number; bottom: number; count: number }>();
+  const branchSpans = new Map<string, { x: number; top: number; bottom: number; count: number }>();
   for (const route of routes) {
     route.nodeKeys.forEach((key, index) => {
       const point = route.points[index];
-      if (!key.startsWith('merge:') || !point) return;
-      const id = key.slice('merge:'.length);
-      const current = junctionSpans.get(id);
+      const id = key.startsWith('branch:')
+        ? key.slice('branch:'.length)
+        : key.startsWith('merge:')
+          ? key.slice('merge:'.length)
+          : null;
+      if (!id || !point) return;
+      const current = branchSpans.get(id);
       if (!current) {
-        junctionSpans.set(id, { x: point.x, top: point.y, bottom: point.y, count: 1 });
+        branchSpans.set(id, { x: point.x, top: point.y, bottom: point.y, count: 1 });
         return;
       }
       current.top = Math.min(current.top, point.y);
@@ -453,7 +458,7 @@ function buildManufacturingHarnessLayout(
     width,
     height,
     routes,
-    junctions: [...junctionSpans].map(([id, span]) => ({
+    branchPoints: [...branchSpans].map(([id, span]) => ({
       id,
       x: span.x,
       topY: span.top,
@@ -482,7 +487,7 @@ export function ManufacturingHarnessVisualizer({
   onSegmentLengthChange?: (change: {
     bundleId: string;
     wireId: string;
-    segmentIndex: number;
+    wireIndex: number;
     lengthMm: number | undefined;
   }) => void;
   canEditLengths?: boolean;
@@ -493,7 +498,7 @@ export function ManufacturingHarnessVisualizer({
     draft: string;
     bundleId: string;
     wireId: string;
-    segmentIndex: number;
+    wireIndex: number;
     previousMm: number | undefined;
   } | null>(null);
   const lengthInputRef = useRef<HTMLInputElement>(null);
@@ -536,18 +541,18 @@ export function ManufacturingHarnessVisualizer({
         targets.set(taskTargetKey(task), task);
       });
     }
-    for (const spliceId of harness.spliceIds) {
+    for (const branchPointId of harness.branchPointIds) {
       const owner = harness.bundles.find((bundle) =>
         bundle.wires.some((wire) =>
-          wire.from.mergePointId === spliceId
-          || wire.to.mergePointId === spliceId
-          || wire.viaSplices.some((splice) => splice.id === spliceId)
+          wire.from.branchPointId === branchPointId
+          || wire.to.branchPointId === branchPointId
+          || wire.viaBranchPoints.some((point) => point.id === branchPointId)
         )
       );
       if (!owner) continue;
       const task: ManufacturingVisualTask = {
         bundleId: owner.id,
-        update: { kind: 'splice-measured', spliceId, completed: true },
+        update: { kind: 'branch-measured', branchPointId, completed: true },
       };
       targets.set(taskTargetKey(task), task);
     }
@@ -682,7 +687,7 @@ export function ManufacturingHarnessVisualizer({
     key: string;
     bundleId: string;
     wireId: string;
-    segmentIndex: number;
+    wireIndex: number;
     lengthMm: number | undefined;
     x: number;
     y: number;
@@ -700,10 +705,10 @@ export function ManufacturingHarnessVisualizer({
       const rawAngle = Math.atan2(to.y - from.y, to.x - from.x) * (180 / Math.PI);
       const angle = rawAngle > 90 || rawAngle < -90 ? rawAngle + 180 : rawAngle;
       lengthLabels.push({
-        key: `${route.bundle.id}:${route.wire.id}:${hop.segmentIndex}`,
+        key: `${route.bundle.id}:${route.wire.id}:${hop.wireIndex}`,
         bundleId: route.bundle.id,
         wireId: route.wire.id,
-        segmentIndex: hop.segmentIndex,
+        wireIndex: hop.wireIndex,
         lengthMm: hop.lengthMm,
         x: (from.x + to.x) / 2,
         y: (from.y + to.y) / 2,
@@ -712,7 +717,7 @@ export function ManufacturingHarnessVisualizer({
         missing: hop.lengthMm === undefined,
         highlighted: selection?.kind === 'segment'
           && selection.wireId === route.wire.id
-          && selection.segmentIndex === hop.segmentIndex,
+          && selection.wireIndex === hop.wireIndex,
       });
     });
   }
@@ -723,14 +728,14 @@ export function ManufacturingHarnessVisualizer({
       kind: 'segment',
       bundleId: label.bundleId,
       wireId: label.wireId,
-      segmentIndex: label.segmentIndex,
+      wireIndex: label.wireIndex,
     });
     setLengthEdit({
       key: label.key,
       draft: label.lengthMm === undefined ? '' : String(label.lengthMm),
       bundleId: label.bundleId,
       wireId: label.wireId,
-      segmentIndex: label.segmentIndex,
+      wireIndex: label.wireIndex,
       previousMm: label.lengthMm,
     });
   };
@@ -752,7 +757,7 @@ export function ManufacturingHarnessVisualizer({
         onSegmentLengthChange({
           bundleId: lengthEdit.bundleId,
           wireId: lengthEdit.wireId,
-          segmentIndex: lengthEdit.segmentIndex,
+          wireIndex: lengthEdit.wireIndex,
           lengthMm: undefined,
         });
       }
@@ -768,7 +773,7 @@ export function ManufacturingHarnessVisualizer({
       onSegmentLengthChange({
         bundleId: lengthEdit.bundleId,
         wireId: lengthEdit.wireId,
-        segmentIndex: lengthEdit.segmentIndex,
+        wireIndex: lengthEdit.wireIndex,
         lengthMm: parsed,
       });
     }
@@ -784,7 +789,7 @@ export function ManufacturingHarnessVisualizer({
         <div className="flex items-center gap-3 text-[9px] text-zinc-500">
           <span><span className="text-red-400">Red</span> = still to do</span>
           <span><span className="text-emerald-400">Green</span> = complete</span>
-          <span>Double-click a pin, splice, or wire to toggle it</span>
+          <span>Double-click a pin, branch point, or wire to toggle it</span>
           <span>Double-click a length to edit it</span>
         </div>
         <div className="rounded border-2 border-amber-900/70 bg-amber-950/30 px-2 py-1 text-[9px] text-amber-300">
@@ -845,7 +850,7 @@ export function ManufacturingHarnessVisualizer({
               x={column.x}
               y={column.top - 21}
               textAnchor="middle"
-              fill="#a1a1aa"
+              fill={CONNECTOR_COLOR}
               fontSize={10}
               fontWeight={700}
             >
@@ -862,10 +867,10 @@ export function ManufacturingHarnessVisualizer({
               if (!from || !to) return null;
               const segmentSelected = selection?.kind === 'segment'
                 && selection.wireId === route.wire.id
-                && selection.segmentIndex === hop.segmentIndex;
+                && selection.wireIndex === hop.wireIndex;
               const path = cubicPath(from, to);
               return (
-                <g key={`${route.wire.id}:${hop.segmentIndex}`}>
+                <g key={`${route.wire.id}:${hop.wireIndex}`}>
                   <path
                     d={path}
                     fill="none"
@@ -901,7 +906,7 @@ export function ManufacturingHarnessVisualizer({
                         kind: 'segment',
                         bundleId: route.bundle.id,
                         wireId: route.wire.id,
-                        segmentIndex: hop.segmentIndex,
+                        wireIndex: hop.wireIndex,
                       });
                       onInspectPath(route.wire.pathId);
                     }}
@@ -945,13 +950,13 @@ export function ManufacturingHarnessVisualizer({
           </g>
         ))}
 
-        {layout.junctions.map((junction) => (
+        {layout.branchPoints.map((mark) => (
           <line
-            key={`junction-bar:${junction.id}`}
-            x1={junction.x}
-            y1={junction.topY}
-            x2={junction.x}
-            y2={junction.bottomY}
+            key={`branch-bar:${mark.id}`}
+            x1={mark.x}
+            y1={mark.topY}
+            x2={mark.x}
+            y2={mark.bottomY}
             stroke="#c084fc"
             strokeOpacity={0.55}
             strokeWidth={3.5}
@@ -1047,7 +1052,7 @@ export function ManufacturingHarnessVisualizer({
                   kind: 'segment',
                   bundleId: label.bundleId,
                   wireId: label.wireId,
-                  segmentIndex: label.segmentIndex,
+                  wireIndex: label.wireIndex,
                 });
               }}
               onDoubleClick={(event) => {
@@ -1116,25 +1121,25 @@ export function ManufacturingHarnessVisualizer({
           );
         })}
 
-        {layout.junctions.map((junction) => {
+        {layout.branchPoints.map((mark) => {
           const target = [...completionTargets.values()].find(
-            (task) => task.update.kind === 'splice-measured'
-              && task.update.spliceId === junction.id,
+            (task) => task.update.kind === 'branch-measured'
+              && task.update.branchPointId === mark.id,
           );
           if (!target) return null;
           const done = isTaskDone(target);
-          const selected = selection?.kind === 'splice'
-            && selection.spliceId === junction.id;
+          const selected = selection?.kind === 'branchPoint'
+            && selection.branchPointId === mark.id;
           const size = 13;
           return (
             <g
-              key={`splice:${junction.id}`}
-              transform={`translate(${junction.x} ${junction.topY - 44})`}
+              key={`branch:${mark.id}`}
+              transform={`translate(${mark.x} ${mark.topY - 44})`}
               data-manufacturing-completion={taskTargetKey(target)}
               className="cursor-pointer"
               onClick={(event) => {
                 event.stopPropagation();
-                onSelect({ kind: 'splice', spliceId: junction.id, bundleId: target.bundleId });
+                onSelect({ kind: 'branchPoint', branchPointId: mark.id, bundleId: target.bundleId });
               }}
               onDoubleClick={(event) => {
                 event.stopPropagation();
@@ -1148,12 +1153,12 @@ export function ManufacturingHarnessVisualizer({
                 strokeWidth={selected ? 6 : 5}
               />
               <text y={-20} textAnchor="middle" fill="#c4b5fd" fontSize={9} fontWeight={600}>
-                SPLICE · {junction.wireCount}
+                BRANCH · {mark.wireCount}
               </text>
               <text y={24} textAnchor="middle" fill={done ? '#6ee7b7' : '#fca5a5'} fontSize={8}>
                 {done ? '✓ MEASURED' : 'MEASURE'}
               </text>
-              <title>{junction.id} · double-click to toggle measured</title>
+              <title>{mark.id} · double-click to toggle measured</title>
             </g>
           );
         })}

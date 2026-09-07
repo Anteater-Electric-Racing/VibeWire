@@ -11,12 +11,18 @@ node_modules
 dist
 dist-ssr
 *.local
+__pycache__/
+*.py[cod]
 
 # Editor and AI assistant directories
 .vscode/*
 !.vscode/extensions.json
 .idea
-.cursor/
+# Cursor local state; tracked project rules are the exception.
+.cursor/*
+!.cursor/rules/
+.cursor/rules/*
+!.cursor/rules/*.mdc
 .claude/
 .DS_Store
 *.suo

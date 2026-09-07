@@ -40,21 +40,27 @@
       "x": 69,
       "y": 20
     },
-    "con_auto_ada48fc9df29_2": {
-      "x": 74,
-      "y": -18,
-      "w": 96,
-      "h": 36
-    },
-    "con_auto_574cae58f04f_1": {
-      "x": -48,
-      "y": 235,
-      "w": 96,
-      "h": 36
-    },
     "con_006": {
       "x": 72,
       "y": 74
+    },
+    "con_auto_bulkhead_9f28d5d52bec7bb3": {
+      "x": -48,
+      "y": 72,
+      "w": 96,
+      "h": 36
+    },
+    "con_auto_bulkhead_fbe084332133c6ee": {
+      "x": -48,
+      "y": 72,
+      "w": 96,
+      "h": 36
+    },
+    "con_auto_bulkhead_fbe088332133cdba": {
+      "x": 472,
+      "y": 72,
+      "w": 96,
+      "h": 36
     }
   },
   "device_connector_mode": {

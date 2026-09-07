@@ -1,5 +1,5 @@
-import { useState, type FormEvent } from 'react';
-import { useHarnessStore } from '../../store';
+import { useState, type FormEvent, type KeyboardEvent } from 'react';
+import { useSystemStore } from '../../store';
 import type { UserRole } from '../../types/collab';
 import { ModalShell } from '../collab/ModalShell';
 
@@ -10,8 +10,8 @@ interface LoginPanelProps {
 type Mode = 'login' | 'create';
 
 export function LoginPanel({ onClose }: LoginPanelProps) {
-  const login = useHarnessStore((state) => state.login);
-  const createAccount = useHarnessStore((state) => state.createAccount);
+  const login = useSystemStore((state) => state.login);
+  const createAccount = useSystemStore((state) => state.createAccount);
   const [mode, setMode] = useState<Mode>('login');
   const [value, setValue] = useState('');
   const [displayName, setDisplayName] = useState('');
@@ -19,17 +19,31 @@ export function LoginPanel({ onClose }: LoginPanelProps) {
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
+  const canLogin = Boolean(value.trim()) && !submitting;
+  const canCreate = Boolean(value.trim() && displayName.trim()) && !submitting;
+
   function switchMode(next: Mode) {
     setMode(next);
     setError(null);
   }
 
+  function submitOnEnter(event: KeyboardEvent<HTMLInputElement>) {
+    if (event.key !== 'Enter' || event.nativeEvent.isComposing) return;
+    event.preventDefault();
+    event.currentTarget.form?.requestSubmit();
+  }
+
   async function handleLogin(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!value || submitting) return;
+    const loginName = value.trim();
+    if (!loginName) {
+      setError('Enter your login name.');
+      return;
+    }
+    if (submitting) return;
     setSubmitting(true);
     setError(null);
-    const outcome = await login(value);
+    const outcome = await login(loginName);
     setSubmitting(false);
 
     if (outcome.ok) {
@@ -54,10 +68,16 @@ export function LoginPanel({ onClose }: LoginPanelProps) {
 
   async function handleCreate(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!value || !displayName.trim() || submitting) return;
+    const loginName = value.trim();
+    const publicName = displayName.trim();
+    if (!loginName || !publicName) {
+      setError('Enter a login name and a display name.');
+      return;
+    }
+    if (submitting) return;
     setSubmitting(true);
     setError(null);
-    const outcome = await createAccount(value, displayName.trim(), role);
+    const outcome = await createAccount(loginName, publicName, role);
     setSubmitting(false);
 
     if (outcome.ok) {
@@ -96,6 +116,7 @@ export function LoginPanel({ onClose }: LoginPanelProps) {
               type="text"
               value={value}
               onChange={(event) => setValue(event.target.value)}
+              onKeyDown={submitOnEnter}
               autoComplete="off"
               spellCheck={false}
               autoFocus
@@ -116,6 +137,7 @@ export function LoginPanel({ onClose }: LoginPanelProps) {
               type="text"
               value={displayName}
               onChange={(event) => setDisplayName(event.target.value)}
+              onKeyDown={submitOnEnter}
               className="w-full rounded border border-zinc-700 bg-zinc-950 px-2.5 py-2 text-sm text-zinc-100 outline-none placeholder:text-zinc-600 focus:border-amber-500"
               placeholder="What everyone else sees"
             />
@@ -134,7 +156,7 @@ export function LoginPanel({ onClose }: LoginPanelProps) {
                 }`}
               >
                 <span className="block font-medium">Editor</span>
-                <span className="block text-[10px] text-zinc-500">Can view and change the harness</span>
+                <span className="block text-[10px] text-zinc-500">Can view and change the System</span>
               </button>
               <button
                 type="button"
@@ -175,8 +197,10 @@ export function LoginPanel({ onClose }: LoginPanelProps) {
               </button>
               <button
                 type="submit"
-                disabled={!value || !displayName.trim() || submitting}
-                className="rounded bg-amber-500 px-3 py-1.5 text-xs font-medium text-zinc-950 transition-colors hover:bg-amber-400 disabled:cursor-not-allowed disabled:opacity-40"
+                aria-disabled={!canCreate}
+                className={`rounded bg-amber-500 px-3 py-1.5 text-xs font-medium text-zinc-950 transition-colors hover:bg-amber-400 ${
+                  !canCreate ? 'cursor-not-allowed opacity-40' : ''
+                }`}
               >
                 {submitting ? 'Creating…' : 'Create account'}
               </button>
@@ -199,6 +223,7 @@ export function LoginPanel({ onClose }: LoginPanelProps) {
             type="text"
             value={value}
             onChange={(event) => setValue(event.target.value)}
+            onKeyDown={submitOnEnter}
             autoComplete="off"
             spellCheck={false}
             autoFocus
@@ -232,8 +257,10 @@ export function LoginPanel({ onClose }: LoginPanelProps) {
             </button>
             <button
               type="submit"
-              disabled={!value || submitting}
-              className="rounded bg-amber-500 px-3 py-1.5 text-xs font-medium text-zinc-950 transition-colors hover:bg-amber-400 disabled:cursor-not-allowed disabled:opacity-40"
+              aria-disabled={!canLogin}
+              className={`rounded bg-amber-500 px-3 py-1.5 text-xs font-medium text-zinc-950 transition-colors hover:bg-amber-400 ${
+                !canLogin ? 'cursor-not-allowed opacity-40' : ''
+              }`}
             >
               {submitting ? 'Logging in…' : 'Log in'}
             </button>

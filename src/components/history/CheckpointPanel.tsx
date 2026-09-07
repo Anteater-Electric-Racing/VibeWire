@@ -2,9 +2,9 @@ import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { ModalShell } from '../collab/ModalShell';
 
 interface EntityCounts {
-  enclosures: number;
+  hierarchy: number;
   connectors: number;
-  mergePoints: number;
+  branchPoints: number;
   paths: number;
   signals: number;
 }
@@ -37,15 +37,15 @@ interface RestoreResult {
 }
 
 interface CheckpointPanelProps {
-  harness: string;
+  system: string;
   isEditor: boolean;
   onClose: () => void;
 }
 
 const COUNT_LABELS: Array<[keyof EntityCounts, string]> = [
-  ['enclosures', 'enclosures'],
+  ['hierarchy', 'hierarchy'],
   ['connectors', 'connectors'],
-  ['mergePoints', 'merge points'],
+  ['branchPoints', 'branch points'],
   ['paths', 'paths'],
   ['signals', 'signals'],
 ];
@@ -90,7 +90,7 @@ async function responseError(response: Response, fallback: string): Promise<stri
   return body?.error || fallback;
 }
 
-export function CheckpointPanel({ harness, isEditor, onClose }: CheckpointPanelProps) {
+export function CheckpointPanel({ system, isEditor, onClose }: CheckpointPanelProps) {
   const [checkpoints, setCheckpoints] = useState<CheckpointMeta[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -104,7 +104,7 @@ export function CheckpointPanel({ harness, isEditor, onClose }: CheckpointPanelP
   const [highlightedId, setHighlightedId] = useState<string | null>(null);
   const [restoreNotice, setRestoreNotice] = useState<string | null>(null);
 
-  const query = `harness=${encodeURIComponent(harness)}`;
+  const query = `system=${encodeURIComponent(system)}`;
 
   const loadCheckpoints = useCallback(async () => {
     const response = await fetch(`/api/checkpoints?${query}`, {
@@ -172,9 +172,9 @@ export function CheckpointPanel({ harness, isEditor, onClose }: CheckpointPanelP
     setLabel('');
     setSelectedId(checkpoint.id);
     setDetails({ ...checkpoint, countDiff: {
-      enclosures: 0,
+      hierarchy: 0,
       connectors: 0,
-      mergePoints: 0,
+      branchPoints: 0,
       paths: 0,
       signals: 0,
     } });
@@ -348,7 +348,7 @@ export function CheckpointPanel({ harness, isEditor, onClose }: CheckpointPanelP
         <aside className="rounded border border-zinc-800 bg-zinc-950/40 p-3">
           {!selectedId ? (
             <div className="flex h-full min-h-48 items-center justify-center text-center text-xs text-zinc-600">
-              Select a checkpoint to see how it differs from the current harness.
+              Select a checkpoint to see how it differs from the current System.
             </div>
           ) : detailLoading ? (
             <p className="py-8 text-center text-xs text-zinc-500">Loading details…</p>
@@ -411,7 +411,7 @@ export function CheckpointPanel({ harness, isEditor, onClose }: CheckpointPanelP
                 <div className="mt-5 rounded border border-amber-700/70 bg-amber-950/30 p-3">
                   <p className="text-xs font-medium text-amber-300">Restore this checkpoint?</p>
                   <p className="mt-1.5 text-xs leading-relaxed text-zinc-300">
-                    The current harness state will be replaced by this checkpoint. A checkpoint of the current state is saved automatically first, so this restore can itself be undone.
+                    The current System state will be replaced by this checkpoint. A checkpoint of the current state is saved automatically first, so this restore can itself be undone.
                   </p>
                   <div className="mt-3 flex justify-end gap-2">
                     <button

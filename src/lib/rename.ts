@@ -1,6 +1,6 @@
 import type {
   EntityType,
-  HarnessData,
+  SystemData,
   SubsystemDocument,
 } from '../types';
 
@@ -16,30 +16,32 @@ export function normalizeDisplayName(value: string): string {
   return name;
 }
 
-export function renameHarnessEntity(
-  harness: HarnessData,
+export function renameSystemEntity(
+  system: SystemData,
   type: EntityType,
   id: string,
   value: string,
-): HarnessData {
+): SystemData {
   const name = normalizeDisplayName(value);
-  const next = structuredClone(harness);
-  const collection = type === 'mergePoint'
-    ? next.mergePoints
+  const next = structuredClone(system);
+  const collection = type === 'branchPoint'
+    ? next.branchPoints
     : type === 'path'
       ? next.paths
-      : next[`${type}s` as 'enclosures' | 'connectors' | 'signals'];
+      : type === 'enclosure'
+        ? next.hierarchy
+        : next[`${type}s` as 'connectors' | 'signals'];
   const entity = collection.find((item) => item.id === id);
   if (!entity) throw new Error(`Cannot rename missing ${type} '${id}'.`);
-  if (entity.name === name) return harness;
+  if (entity.name === name) return system;
   entity.name = name;
   return next;
 }
 
-export function renameSystem(harness: HarnessData, value: string): HarnessData {
+export function renameSystem(system: SystemData, value: string): SystemData {
   const name = normalizeDisplayName(value);
-  if (harness.name === name) return harness;
-  return { ...harness, name };
+  if (system.name === name) return system;
+  return { ...system, name };
 }
 
 export function renameSubsystem(

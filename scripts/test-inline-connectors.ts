@@ -1,20 +1,22 @@
 import assert from 'node:assert/strict';
-import { validateHarnessData } from '../server/api.js';
-import { splitHarness, verifyRoundTrip } from '../server/sheets.js';
+import { validateSystemData } from '../server/api.js';
+import { splitSystem, verifyRoundTrip } from '../server/sheets.js';
 import {
-  deriveSegments,
-  getBundleIdForSegment,
+  canMergePassThroughConnectors,
+  deriveWires,
+  getHarnessBundleIdForWire,
+  getConnectorOccupancy,
   getEnclosurePorts,
   getConnectorRole,
-} from '../src/lib/harness.js';
+} from '../src/lib/systemTopology.js';
 import {
   deriveManufacturingBom,
   deriveManufacturingBundles,
 } from '../src/lib/manufacturing.js';
-import { useHarnessStore } from '../src/store/index.js';
+import { useSystemStore } from '../src/store/index.js';
 import type {
   ConnectorLibrary,
-  HarnessData,
+  SystemData,
   Path,
 } from '../src/types/index.js';
 
@@ -54,15 +56,15 @@ const path = (
   }],
 });
 
-const fixture: HarnessData = {
+const fixture: SystemData = {
   schema_version: '0.2.0-sheets',
   name: 'Inline connector fixture',
-  enclosures: [
+  hierarchy: [
     {
       id: 'enc_box',
       name: 'Box',
       parent: null,
-      container: true,
+      kind: 'enclosure',
       tags: [],
       properties: {},
     },
@@ -70,7 +72,7 @@ const fixture: HarnessData = {
       id: 'dev_a',
       name: 'Device A',
       parent: null,
-      container: false,
+      kind: 'device',
       tags: [],
       properties: {},
     },
@@ -78,7 +80,7 @@ const fixture: HarnessData = {
       id: 'dev_b',
       name: 'Device B',
       parent: null,
-      container: false,
+      kind: 'device',
       tags: [],
       properties: {},
     },
@@ -112,7 +114,7 @@ const fixture: HarnessData = {
       properties: {},
     },
   ],
-  mergePoints: [],
+  branchPoints: [],
   paths: [
     path('path_1', 1, 100),
     path('path_2', 2, 200),
@@ -121,20 +123,23 @@ const fixture: HarnessData = {
   signalPropertyDefinitions: [],
 };
 
-useHarnessStore.getState().resetForHarnessSwitch();
-useHarnessStore.getState().setCollabAvailable(false);
-useHarnessStore.getState().loadHarness(structuredClone(fixture));
-useHarnessStore.getState().loadConnectorLibrary(structuredClone(library));
-useHarnessStore.setState({ undoStack: [], redoStack: [] });
+useSystemStore.getState().resetForSystemSwitch();
+useSystemStore.getState().setCollabAvailable(false);
+useSystemStore.getState().loadSystem(structuredClone(fixture));
+useSystemStore.getState().loadConnectorLibrary(structuredClone(library));
+useSystemStore.setState({ undoStack: [], redoStack: [] });
 
-const firstSegment = deriveSegments(fixture)[0];
-const bundleId = getBundleIdForSegment(firstSegment);
-useHarnessStore.setState({
+const firstSegment = deriveWires(fixture)[0];
+const bundleId = getHarnessBundleIdForWire(firstSegment);
+useSystemStore.setState({
   waypointLayouts: {
     [bundleId]: [{ x: 20, y: 30 }, { x: 80, y: 70 }],
   },
+  routeStyleLayouts: {
+    [bundleId]: 'grid',
+  },
 });
-const connectorId = useHarnessStore.getState().addInlineConnector({
+const connectorId = useSystemStore.getState().addInlineConnector({
   parent: null,
   position: { x: 120, y: 80 },
   bundle: {
@@ -148,15 +153,15 @@ const connectorId = useHarnessStore.getState().addInlineConnector({
 });
 assert.ok(connectorId);
 
-let harness = useHarnessStore.getState().harness!;
-const inline = harness.connectors.find((connector) => connector.id === connectorId);
+let system = useSystemStore.getState().system!;
+const inline = system.connectors.find((connector) => connector.id === connectorId);
 assert.equal(inline?.mounting, 'inline');
 assert.equal(inline?.parent, null);
 assert.equal(inline?.pin_count, 2);
-assert.equal(getConnectorRole(harness, connectorId), 'inline');
+assert.equal(getConnectorRole(system, connectorId), 'inline');
 assert.deepEqual(
-  harness.paths.map((wirePath) => wirePath.nodes.map((node) =>
-    node.kind === 'connector' ? `${node.connector_id}:${node.pin_number}` : node.merge_point_id
+  system.paths.map((wirePath) => wirePath.nodes.map((node) =>
+    node.kind === 'connector' ? `${node.connector_id}:${node.pin_number}` : node.branch_point_id
   )),
   [
     ['con_a:1', `${connectorId}:1`, 'con_b:1'],
@@ -164,67 +169,84 @@ assert.deepEqual(
   ],
 );
 assert.deepEqual(
-  harness.paths.map((wirePath) =>
+  system.paths.map((wirePath) =>
     wirePath.measurements.map((measurement) => measurement.length_mm)
   ),
   [[50, 50], [100, 100]],
 );
 assert.deepEqual(
-  useHarnessStore.getState().freePortLayouts[connectorId],
+  useSystemStore.getState().freePortLayouts[connectorId],
   { x: 120, y: 80 },
 );
-assert.equal(useHarnessStore.getState().waypointLayouts[bundleId], undefined);
+assert.equal(useSystemStore.getState().waypointLayouts[bundleId], undefined);
 assert.equal(
-  Object.values(useHarnessStore.getState().waypointLayouts).flat().length,
+  Object.values(useSystemStore.getState().waypointLayouts).flat().length,
   2,
   'bundle waypoints must be split across the two new edges',
 );
+{
+  const styles = useSystemStore.getState().routeStyleLayouts;
+  assert.equal(styles[bundleId], undefined, 'the original bundle style must move onto the new hops');
+  const hopStyles = Object.entries(styles)
+    .filter(([edgeId]) => edgeId.startsWith('bundle:'))
+    .map(([, style]) => style);
+  assert.equal(hopStyles.length, 2);
+  assert.ok(
+    hopStyles.every((style) => style === 'grid'),
+    'both hops after an inline split must keep the parent grid style',
+  );
+}
 assert.equal(
-  validateHarnessData(harness, library as never).valid,
+  validateSystemData(system, library as never).valid,
   true,
   'inline insertion must preserve strict connector occupancy',
 );
 
-const impact = useHarnessStore.getState().getDeleteImpact('connector', connectorId);
+const impact = useSystemStore.getState().getDeleteImpact('connector', connectorId);
 assert.deepEqual(impact.pathIds, [], 'complete through paths must survive inline deletion');
-useHarnessStore.getState().deleteEntityCascade('connector', connectorId);
-harness = useHarnessStore.getState().harness!;
-assert.equal(harness.connectors.some((connector) => connector.id === connectorId), false);
+useSystemStore.getState().deleteEntityCascade('connector', connectorId);
+system = useSystemStore.getState().system!;
+assert.equal(system.connectors.some((connector) => connector.id === connectorId), false);
 assert.deepEqual(
-  harness.paths.map((wirePath) => wirePath.nodes.map((node) =>
-    node.kind === 'connector' ? node.connector_id : node.merge_point_id
+  system.paths.map((wirePath) => wirePath.nodes.map((node) =>
+    node.kind === 'connector' ? node.connector_id : node.branch_point_id
   )),
   [['con_a', 'con_b'], ['con_a', 'con_b']],
 );
 assert.deepEqual(
-  harness.paths.map((wirePath) => wirePath.measurements[0]?.length_mm),
+  system.paths.map((wirePath) => wirePath.measurements[0]?.length_mm),
   [100, 200],
 );
 assert.deepEqual(
-  useHarnessStore.getState().waypointLayouts[bundleId],
+  useSystemStore.getState().waypointLayouts[bundleId],
   [{ x: 20, y: 30 }, { x: 80, y: 70 }],
   'deleting an inline connector must rejoin its two edge routes',
 );
+assert.equal(
+  useSystemStore.getState().routeStyleLayouts[bundleId],
+  'grid',
+  'rejoining an inline connector must restore the grid style on the original hop',
+);
 
-useHarnessStore.getState().undo();
-harness = useHarnessStore.getState().harness!;
-assert.equal(harness.connectors.some((connector) => connector.id === connectorId), true);
-assert.equal(harness.paths.every((wirePath) => wirePath.nodes.length === 3), true);
+useSystemStore.getState().undo();
+system = useSystemStore.getState().system!;
+assert.equal(system.connectors.some((connector) => connector.id === connectorId), true);
+assert.equal(system.paths.every((wirePath) => wirePath.nodes.length === 3), true);
 
-const insideInlineId = useHarnessStore.getState().addInlineConnector({
+const insideInlineId = useSystemStore.getState().addInlineConnector({
   parent: 'enc_box',
   position: { x: 40, y: 60 },
 });
 assert.ok(insideInlineId);
-harness = useHarnessStore.getState().harness!;
-assert.equal(getConnectorRole(harness, insideInlineId), 'inline');
+system = useSystemStore.getState().system!;
+assert.equal(getConnectorRole(system, insideInlineId), 'inline');
 assert.deepEqual(
-  getEnclosurePorts(harness, 'enc_box').map((connector) => connector.id),
+  getEnclosurePorts(system, 'enc_box').map((connector) => connector.id),
   ['con_bulkhead'],
   'an enclosure-inline connector must not appear as a wall port in the parent view',
 );
 
-const split = splitHarness(harness, new Set(['enc_box']));
+const split = splitSystem(system, new Set(['enc_box']));
 assert.equal(
   split.sheets.get('enc_box')?.connectors.find(
     (connector) => connector.id === insideInlineId,
@@ -232,20 +254,155 @@ assert.equal(
   'inline',
 );
 assert.deepEqual(
-  verifyRoundTrip(harness, split, new Set(['enc_box'])),
+  verifyRoundTrip(system, split, new Set(['enc_box'])),
   [],
   'inline mounting must survive sheet splitting and assembly',
 );
 
-const bomHarness = structuredClone(harness);
-const bomInline = bomHarness.connectors.find((connector) => connector.id === connectorId)!;
+const bomSystem = structuredClone(system);
+const bomInline = bomSystem.connectors.find((connector) => connector.id === connectorId)!;
 bomInline.properties.housing_part_number = 'INLINE-PAIR';
-const bundles = deriveManufacturingBundles(bomHarness, library);
-const bom = deriveManufacturingBom(bomHarness, library, bundles);
+const bundles = deriveManufacturingBundles(bomSystem, library);
+const bom = deriveManufacturingBom(bomSystem, library, bundles);
 assert.equal(
   bom.find((row) => row.category === 'Housing' && row.partNumber === 'INLINE-PAIR')?.quantity,
   2,
   'an inline mating interface must contribute both physical housings',
+);
+
+const mergeInlineSystem: SystemData = {
+  schema_version: '0.2.0-sheets',
+  name: 'Inline merge fixture',
+  hierarchy: [
+    { id: 'enc_box', name: 'Box', parent: null, kind: 'enclosure', tags: [], properties: {} },
+    { id: 'dev_a', name: 'Device A', parent: null, kind: 'device', tags: [], properties: {} },
+    { id: 'dev_b', name: 'Device B', parent: null, kind: 'device', tags: [], properties: {} },
+  ],
+  connectors: [
+    { id: 'con_a', name: 'A', parent: 'dev_a', connector_type: 'generic_multipin', pin_count: 1, tags: [], properties: {} },
+    { id: 'con_b', name: 'B', parent: 'dev_b', connector_type: 'generic_multipin', pin_count: 1, tags: [], properties: {} },
+    { id: 'con_c', name: 'C', parent: 'dev_a', connector_type: 'generic_multipin', pin_count: 1, tags: [], properties: {} },
+    { id: 'con_d', name: 'D', parent: 'dev_b', connector_type: 'generic_multipin', pin_count: 1, tags: [], properties: {} },
+    {
+      id: 'inline_a',
+      name: 'Inline A',
+      parent: null,
+      connector_type: 'generic_multipin',
+      pin_count: 1,
+      mounting: 'inline',
+      tags: [],
+      properties: {},
+    },
+    {
+      id: 'inline_b',
+      name: 'Inline B',
+      parent: null,
+      connector_type: 'generic_multipin',
+      pin_count: 1,
+      mounting: 'inline',
+      tags: [],
+      properties: {},
+    },
+    {
+      id: 'bh_box',
+      name: 'Box bulkhead',
+      parent: 'enc_box',
+      connector_type: 'generic_multipin',
+      pin_count: 1,
+      mounting: 'bulkhead',
+      tags: [],
+      properties: {},
+    },
+  ],
+  branchPoints: [],
+  paths: [
+    {
+      id: 'path_left',
+      name: 'Left',
+      signal_id: 'sig_power',
+      tags: [],
+      properties: {},
+      nodes: [
+        { kind: 'connector', connector_id: 'con_a', pin_number: 1 },
+        { kind: 'connector', connector_id: 'inline_a', pin_number: 1 },
+        { kind: 'connector', connector_id: 'con_b', pin_number: 1 },
+      ],
+      measurements: [],
+    },
+    {
+      id: 'path_right',
+      name: 'Right',
+      signal_id: 'sig_power',
+      tags: [],
+      properties: {},
+      nodes: [
+        { kind: 'connector', connector_id: 'con_c', pin_number: 1 },
+        { kind: 'connector', connector_id: 'inline_b', pin_number: 1 },
+        { kind: 'connector', connector_id: 'con_d', pin_number: 1 },
+      ],
+      measurements: [],
+    },
+  ],
+  signals: [{ id: 'sig_power', name: 'Power', tags: [], properties: {} }],
+  signalPropertyDefinitions: [],
+};
+
+useSystemStore.getState().resetForSystemSwitch();
+useSystemStore.getState().setCollabAvailable(false);
+useSystemStore.getState().loadSystem(structuredClone(mergeInlineSystem));
+useSystemStore.getState().loadConnectorLibrary(structuredClone(library));
+useSystemStore.setState({
+  freePortLayouts: {
+    inline_a: { x: 100, y: 100 },
+    inline_b: { x: 110, y: 108 },
+  },
+  undoStack: [],
+  redoStack: [],
+});
+
+assert.equal(
+  canMergePassThroughConnectors(mergeInlineSystem, 'inline_a', 'inline_b'),
+  true,
+  'two free inline connectors must be mergeable',
+);
+assert.equal(
+  canMergePassThroughConnectors(mergeInlineSystem, 'inline_a', 'bh_box'),
+  false,
+  'an inline connector must not merge with a bulkhead',
+);
+assert.equal(
+  canMergePassThroughConnectors(mergeInlineSystem, 'con_a', 'con_b'),
+  false,
+  'endpoint connectors must not merge',
+);
+
+const keptInline = useSystemStore.getState().mergeBulkheadConnectors('inline_a', 'inline_b');
+assert.equal(keptInline, 'inline_b');
+const mergedInlineSystem = useSystemStore.getState().system!;
+assert.equal(mergedInlineSystem.connectors.some((connector) => connector.id === 'inline_a'), false);
+assert.equal(mergedInlineSystem.connectors.find((connector) => connector.id === 'inline_b')?.pin_count, 2);
+assert.equal(getConnectorOccupancy(mergedInlineSystem, 'inline_b').length, 2);
+assert.equal(useSystemStore.getState().freePortLayouts.inline_a, undefined);
+assert.deepEqual(
+  mergedInlineSystem.paths.find((wirePath) => wirePath.id === 'path_left')?.nodes[1],
+  { kind: 'connector', connector_id: 'inline_b', pin_number: 2 },
+  'absorbed inline cavities must land on the next free pin of the survivor',
+);
+
+const sharedPathSystem = structuredClone(mergeInlineSystem);
+sharedPathSystem.paths = [{
+  ...mergeInlineSystem.paths[0],
+  nodes: [
+    { kind: 'connector', connector_id: 'con_a', pin_number: 1 },
+    { kind: 'connector', connector_id: 'inline_a', pin_number: 1 },
+    { kind: 'connector', connector_id: 'inline_b', pin_number: 1 },
+    { kind: 'connector', connector_id: 'con_b', pin_number: 1 },
+  ],
+}];
+assert.equal(
+  canMergePassThroughConnectors(sharedPathSystem, 'inline_a', 'inline_b'),
+  false,
+  'inlines that already share a path must not merge',
 );
 
 console.log('Inline connector tests passed.');

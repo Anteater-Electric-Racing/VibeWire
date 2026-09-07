@@ -27,6 +27,6 @@ server.listen(port, () => {
   Serves the same endpoints the app uses in dev, for running a production
   build with working persistence. Point the built frontend at this origin.
 
-  Try:    curl http://localhost:${port}/api/harnesses
+  Try:    curl http://localhost:${port}/api/systems
 `);
 });

@@ -4,31 +4,31 @@
  * all have to survive a rename untouched.
  */
 import assert from 'node:assert/strict';
-import { splitHarness, verifyRoundTrip } from '../server/sheets.js';
+import { splitSystem, verifyRoundTrip } from '../server/sheets.js';
 import {
-  renameHarnessEntity,
+  renameSystemEntity,
   renameSubsystem,
   renameSystem,
 } from '../src/lib/rename.js';
 import type {
-  HarnessData,
+  SystemData,
   SubsystemDocument,
 } from '../src/types/index.js';
 
-const original: HarnessData = {
+const original: SystemData = {
   signalPropertyDefinitions: [],
   schema_version: '0.2.0-sheets',
   name: 'Original System',
-  enclosures: [
-    { id: 'enc_box', name: 'Box', parent: null, container: true, tags: [], properties: {} },
-    { id: 'dev_ecu', name: 'ECU', parent: 'enc_box', container: false, tags: [], properties: {} },
+  hierarchy: [
+    { id: 'enc_box', name: 'Box', parent: null, kind: 'enclosure', tags: [], properties: {} },
+    { id: 'dev_ecu', name: 'ECU', parent: 'enc_box', kind: 'device', tags: [], properties: {} },
   ],
   connectors: [
     { id: 'con_root', name: 'Root Plug', parent: null, connector_type: 'type_2p', tags: [], properties: {} },
     { id: 'con_ecu', name: 'ECU Plug', parent: 'dev_ecu', connector_type: 'type_2p', tags: ['system:cooling'], properties: {} },
   ],
-  mergePoints: [
-    { id: 'mp_001', name: 'Splice', parent: 'enc_box', tags: [], properties: {} },
+  branchPoints: [
+    { id: 'mp_001', name: 'Branch', parent: 'enc_box', tags: [], properties: {} },
   ],
   paths: [{
     id: 'path_power',
@@ -51,15 +51,15 @@ const original: HarnessData = {
   ],
 };
 
-function identityAndReferenceFingerprint(harness: HarnessData) {
+function identityAndReferenceFingerprint(system: SystemData) {
   return {
-    enclosureIds: harness.enclosures.map((item) => item.id),
-    enclosureParents: harness.enclosures.map((item) => [item.id, item.parent]),
-    connectorIds: harness.connectors.map((item) => item.id),
-    connectorParentsAndTypes: harness.connectors.map((item) => [item.id, item.parent, item.connector_type]),
-    mergePointIds: harness.mergePoints.map((item) => item.id),
-    pathIds: harness.paths.map((item) => item.id),
-    pathReferences: harness.paths.map((item) => ({
+    enclosureIds: system.hierarchy.map((item) => item.id),
+    enclosureParents: system.hierarchy.map((item) => [item.id, item.parent]),
+    connectorIds: system.connectors.map((item) => item.id),
+    connectorParentsAndTypes: system.connectors.map((item) => [item.id, item.parent, item.connector_type]),
+    branchPointIds: system.branchPoints.map((item) => item.id),
+    pathIds: system.paths.map((item) => item.id),
+    pathReferences: system.paths.map((item) => ({
       id: item.id,
       signal_id: item.signal_id,
       nodes: item.nodes,
@@ -67,25 +67,25 @@ function identityAndReferenceFingerprint(harness: HarnessData) {
       tags: item.tags,
       properties: item.properties,
     })),
-    signalIds: harness.signals.map((item) => item.id),
+    signalIds: system.signals.map((item) => item.id),
   };
 }
 
 const before = identityAndReferenceFingerprint(original);
 let renamed = renameSystem(original, 'Renamed System');
-renamed = renameHarnessEntity(renamed, 'enclosure', 'enc_box', 'Main Enclosure');
-renamed = renameHarnessEntity(renamed, 'enclosure', 'dev_ecu', 'Vehicle Controller');
-renamed = renameHarnessEntity(renamed, 'connector', 'con_root', 'Shared Display Name');
-renamed = renameHarnessEntity(renamed, 'connector', 'con_ecu', 'Shared Display Name');
-renamed = renameHarnessEntity(renamed, 'mergePoint', 'mp_001', 'Main Splice');
-renamed = renameHarnessEntity(renamed, 'path', 'path_power', 'Controller Power');
-renamed = renameHarnessEntity(renamed, 'signal', 'sig_power', 'Controller Supply');
+renamed = renameSystemEntity(renamed, 'enclosure', 'enc_box', 'Main Enclosure');
+renamed = renameSystemEntity(renamed, 'enclosure', 'dev_ecu', 'Vehicle Controller');
+renamed = renameSystemEntity(renamed, 'connector', 'con_root', 'Shared Display Name');
+renamed = renameSystemEntity(renamed, 'connector', 'con_ecu', 'Shared Display Name');
+renamed = renameSystemEntity(renamed, 'branchPoint', 'mp_001', 'Main Branch');
+renamed = renameSystemEntity(renamed, 'path', 'path_power', 'Controller Power');
+renamed = renameSystemEntity(renamed, 'signal', 'sig_power', 'Controller Supply');
 
 assert.equal(renamed.name, 'Renamed System');
 assert.deepEqual(identityAndReferenceFingerprint(renamed), before);
 assert.equal(renamed.connectors.filter((item) => item.name === 'Shared Display Name').length, 2);
-assert.throws(() => renameHarnessEntity(renamed, 'connector', 'missing', 'Anything'), /missing/);
-assert.throws(() => renameHarnessEntity(renamed, 'connector', 'con_root', '  '), /empty/);
+assert.throws(() => renameSystemEntity(renamed, 'connector', 'missing', 'Anything'), /missing/);
+assert.throws(() => renameSystemEntity(renamed, 'connector', 'con_root', '  '), /empty/);
 
 const subsystem: SubsystemDocument = {
   schema_version: '1.0.0',
@@ -102,7 +102,7 @@ assert.deepEqual(renamedSubsystem.tags, ['system:cooling']);
 assert.deepEqual(Object.keys(renamedSubsystem.devices), ['dev_ecu']);
 
 const sheetIds = new Set(['enc_box']);
-const split = splitHarness(renamed, sheetIds);
+const split = splitSystem(renamed, sheetIds);
 assert.equal(split.sheets.get(null)?.name, 'Renamed System');
 assert.deepEqual(verifyRoundTrip(renamed, split, sheetIds), []);
 

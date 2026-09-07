@@ -13,15 +13,15 @@ export function scaleManufacturingRun(lengthMm: number | undefined): number {
 
 /**
  * Grow away from the connector side that feeds a branch. When the branch
- * starts directly on a junction, continue outward from the nearest canvas edge.
+ * starts directly on a parent node, continue outward from the nearest canvas edge.
  */
 export function manufacturingBranchDirection(
   arrivalX: number,
-  junctionX: number,
+  parentX: number,
   canvasWidth: number,
 ): -1 | 1 {
-  if (Math.abs(arrivalX - junctionX) > 0.5) {
-    return arrivalX > junctionX ? -1 : 1;
+  if (Math.abs(arrivalX - parentX) > 0.5) {
+    return arrivalX > parentX ? -1 : 1;
   }
-  return junctionX < canvasWidth / 2 ? -1 : 1;
+  return parentX < canvasWidth / 2 ? -1 : 1;
 }

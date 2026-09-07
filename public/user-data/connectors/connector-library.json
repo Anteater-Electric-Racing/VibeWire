@@ -10,9 +10,7 @@
       "notes": "Sealed size-16 contact mating-pair family. Select the physical housing by cavity count.",
       "cavity_variants": [
         {
-          "pin_count": 2,
-          "image": "SCR-20260806-naea.png",
-          "side_image": "IMG_1255.jpg"
+          "pin_count": 2
         },
         {
           "pin_count": 3
@@ -86,6 +84,22 @@
       ]
     },
     {
+      "id": "deutsch_dtp",
+      "name": "Deutsch DTP",
+      "pin_count": 0,
+      "crimp_spec": "",
+      "wire_gauge": "14-10 AWG",
+      "notes": "Provisional high-current Deutsch family for VM18 source labels marked “Deutsch (Thick)”. Confirm exact housings, contacts, seals, and wire range before release.",
+      "cavity_variants": [
+        {
+          "pin_count": 2
+        },
+        {
+          "pin_count": 4
+        }
+      ]
+    },
+    {
       "id": "molex_minifit_jr",
       "name": "Molex Mini-Fit Jr. (dual-row)",
       "pin_count": 0,
@@ -138,6 +152,27 @@
       "crimp_spec": "",
       "wire_gauge": "",
       "notes": "Generic multi-pin connector — pin count varies"
+    },
+    {
+      "id": "test",
+      "name": "test",
+      "pin_count": 1,
+      "crimp_spec": "",
+      "wire_gauge": "",
+      "notes": ""
+    },
+    {
+      "id": "test2",
+      "name": "test2",
+      "pin_count": 0,
+      "crimp_spec": "",
+      "wire_gauge": "",
+      "notes": "",
+      "cavity_variants": [
+        {
+          "pin_count": 2
+        }
+      ]
     }
   ]
 }

@@ -1,4 +1,4 @@
-import { useHarnessStore } from '../../store';
+import { useSystemStore } from '../../store';
 
 const STATUS_DETAILS = {
   live: {
@@ -22,8 +22,8 @@ const STATUS_DETAILS = {
 } as const;
 
 export function SyncStatus() {
-  const collabAvailable = useHarnessStore((state) => state.collabAvailable);
-  const syncStatus = useHarnessStore((state) => state.syncStatus);
+  const collabAvailable = useSystemStore((state) => state.collabAvailable);
+  const syncStatus = useSystemStore((state) => state.syncStatus);
 
   if (!collabAvailable) return null;
 

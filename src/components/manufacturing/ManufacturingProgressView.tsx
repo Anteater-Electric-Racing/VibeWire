@@ -9,7 +9,7 @@ interface HarnessProgress {
   harness: ManufacturingHarness;
   cuts: { complete: number; total: number };
   crimps: { complete: number; total: number };
-  splices: { complete: number; total: number };
+  branchPoints: { complete: number; total: number };
   guides: { complete: number; total: number };
   complete: number;
   total: number;
@@ -20,7 +20,7 @@ interface OperatorMetrics {
   name: string;
   crimps: number;
   wireMm: number;
-  splices: number;
+  branchPoints: number;
   guides: number;
   totalTasks: number;
   days: Set<string>;
@@ -60,13 +60,13 @@ function harnessProgress(
     ).length,
     total: crimpEnds.length,
   };
-  const splices = {
-    complete: harness.spliceIds.filter((spliceId) =>
+  const branchPoints = {
+    complete: harness.branchPointIds.filter((branchPointId) =>
       harness.bundleIds.some((bundleId) =>
-        document.bundles[bundleId]?.splice_measured?.[spliceId]
+        document.bundles[bundleId]?.branch_measured?.[branchPointId]
       )
     ).length,
-    total: harness.spliceIds.length,
+    total: harness.branchPointIds.length,
   };
   const guides = {
     complete: harness.connectorIds.filter((connectorId) =>
@@ -76,9 +76,9 @@ function harnessProgress(
     ).length,
     total: harness.connectorIds.length,
   };
-  const complete = cuts.complete + crimps.complete + splices.complete + guides.complete;
-  const total = cuts.total + crimps.total + splices.total + guides.total;
-  return { harness, cuts, crimps, splices, guides, complete, total };
+  const complete = cuts.complete + crimps.complete + branchPoints.complete + guides.complete;
+  const total = cuts.total + crimps.total + branchPoints.total + guides.total;
+  return { harness, cuts, crimps, branchPoints, guides, complete, total };
 }
 
 function ProgressBar({ completed, total }: { completed: number; total: number }) {
@@ -130,7 +130,7 @@ export function ManufacturingProgressView({
           name: attribution.user_name,
           crimps: 0,
           wireMm: 0,
-          splices: 0,
+          branchPoints: 0,
           guides: 0,
           totalTasks: 0,
           days: new Set<string>(),
@@ -141,7 +141,7 @@ export function ManufacturingProgressView({
         if (taskKey.includes(':end:')) current.crimps += 1;
         else if (taskKey.endsWith(':cut')) {
           current.wireMm += wireByTask.get(taskKey)?.lengthMm ?? 0;
-        } else if (taskKey.startsWith('splice:')) current.splices += 1;
+        } else if (taskKey.startsWith('branch:')) current.branchPoints += 1;
         else if (taskKey.endsWith(':guide')) current.guides += 1;
         users.set(current.id, current);
       }
@@ -171,7 +171,7 @@ export function ManufacturingProgressView({
             <div>
               <h2 className="text-sm font-semibold text-zinc-100">Harnessing progress</h2>
               <p className="mt-1 text-[10px] text-zinc-500">
-                Cuts, crimps, splice measurements, and verified pin guides.
+                Cuts, crimps, branch-point measurements, and verified pin guides.
               </p>
             </div>
             <div className="text-right">
@@ -205,7 +205,7 @@ export function ManufacturingProgressView({
                       <div className="mt-1 grid grid-cols-4 gap-2 text-[8px]">
                         <span className="text-sky-400">Cuts {item.cuts.complete}/{item.cuts.total}</span>
                         <span className="text-violet-400">Crimps {item.crimps.complete}/{item.crimps.total}</span>
-                        <span className="text-fuchsia-400">Splices {item.splices.complete}/{item.splices.total}</span>
+                        <span className="text-fuchsia-400">Branch points {item.branchPoints.complete}/{item.branchPoints.total}</span>
                         <span className="text-emerald-400">Guides {item.guides.complete}/{item.guides.total}</span>
                       </div>
                       <div className="mt-2">
@@ -246,7 +246,7 @@ export function ManufacturingProgressView({
                     </div>
                     <div className="mt-0.5 text-[8px] text-zinc-500">
                       {operator.crimps} crimps · {(operator.wireMm / 304.8).toFixed(1)} ft cut
-                      {' · '}{operator.splices} splices · {operator.days.size} day{operator.days.size === 1 ? '' : 's'}
+                      {' · '}{operator.branchPoints} branch points · {operator.days.size} day{operator.days.size === 1 ? '' : 's'}
                     </div>
                   </div>
                   <span className="text-sm font-bold text-amber-300">{operator.totalTasks}</span>

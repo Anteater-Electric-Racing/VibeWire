@@ -1,0 +1,69 @@
+{
+  "schema_version": "1.0.0",
+  "id": "demo",
+  "name": "demo",
+  "tags": [
+    "system:demo"
+  ],
+  "enclosures": {
+    "enc_en1": {
+      "x": 40,
+      "y": 40,
+      "w": 520,
+      "h": 360
+    },
+    "enc_en2": {
+      "x": 257.2828979967983,
+      "y": 171.13505560675324,
+      "w": 250,
+      "h": 186
+    }
+  },
+  "devices": {
+    "dev_dev2": {
+      "x": -537,
+      "y": 126
+    },
+    "dev_dev1": {
+      "x": 0,
+      "y": 0,
+      "w": 208,
+      "h": 120
+    },
+    "dev_dev3": {
+      "x": 224,
+      "y": 7
+    }
+  },
+  "connectors": {
+    "con_002": {
+      "x": 69,
+      "y": 20
+    },
+    "con_auto_ada48fc9df29_2": {
+      "x": 74,
+      "y": -18,
+      "w": 96,
+      "h": 36
+    },
+    "con_auto_574cae58f04f_1": {
+      "x": -48,
+      "y": 235,
+      "w": 96,
+      "h": 36
+    },
+    "con_006": {
+      "x": 72,
+      "y": 74
+    }
+  },
+  "device_connector_mode": {
+    "dev_dev1": "all",
+    "dev_dev2": "all",
+    "dev_dev3": "all"
+  },
+  "rev": 35,
+  "hidden_connectors": [
+    "con_001"
+  ]
+}

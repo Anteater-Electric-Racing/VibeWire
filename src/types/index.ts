@@ -4,12 +4,13 @@ export interface Connector {
   parent: string | null;
   connector_type: string;
   /**
-   * Optional physical placement override.
+   * Physical placement. Bulkhead and inline are written explicitly.
+   * Omitted `mounting` means endpoint.
    *
-   * Legacy connectors omit this field: a connector directly owned by a
-   * container is treated as a bulkhead, while every other connector remains a
-   * normal endpoint. New free-hanging pass-through connectors persist
-   * `inline`, even when their spatial parent is a container enclosure.
+   * `bulkhead` is only valid when `parent` is an Enclosure. `inline` is a
+   * free-hanging pass-through. Legacy files that omit the field are inferred
+   * only during input normalization: a connector whose parent is an enclosure
+   * becomes a bulkhead.
    */
   mounting?: 'inline' | 'bulkhead';
   /**
@@ -28,34 +29,48 @@ export interface Connector {
   properties: Record<string, string>;
   /**
    * True when this connector is not authored directly, but synthesized at
-   * load time from a `BulkheadPort` declared on a parent sheet (see
-   * `server/sheets.ts`). Only meaningful for harnesses stored in the
+   * load time from a `SheetBoundaryPort` declared on a parent sheet (see
+   * `server/sheets.ts`). Only meaningful for systems stored in the
    * per-enclosure "sheet" format. Edit the source wiring on the parent
    * sheet instead of this connector's identity fields.
    */
   derived?: boolean;
-  /** The id of the `BulkheadPort` this connector was derived from, when `derived` is true. */
+  /** The id of the `SheetBoundaryPort` this connector was derived from, when `derived` is true. */
   derived_from_port?: string;
 }
 
-export interface Enclosure {
+interface HierarchyEntityBase {
   id: string;
   name: string;
   parent: string | null;
-  container: boolean;
   tags: string[];
   properties: Record<string, string>;
 }
 
-export interface MergePoint {
+/** Leaf equipment. Owns connectors and has no internal sheet. */
+export interface Device extends HierarchyEntityBase {
+  kind: 'device';
+}
+
+/**
+ * Equipment with an internal sheet. Conceptually a device that can contain
+ * Devices or Enclosures. Remains named Enclosure.
+ */
+export interface Enclosure extends HierarchyEntityBase {
+  kind: 'enclosure';
+}
+
+export type HierarchyEntity = Device | Enclosure;
+
+export interface BranchPoint {
   id: string;
   name: string;
   parent: string | null;
   tags: string[];
   properties: Record<string, string>;
-  /** See `Connector.derived` — the same sheet-derivation mechanism applies to merge points. */
+  /** See `Connector.derived` — the same sheet-derivation mechanism applies to branch points. */
   derived?: boolean;
-  /** The id of the `BulkheadPort` this merge point was derived from, when `derived` is true. */
+  /** The id of the `SheetBoundaryPort` this branch point was derived from, when `derived` is true. */
   derived_from_port?: string;
 }
 
@@ -83,12 +98,12 @@ export interface ConnectorPathNode {
   pin_number: number;
 }
 
-export interface MergePointPathNode {
-  kind: 'merge';
-  merge_point_id: string;
+export interface BranchPointPathNode {
+  kind: 'branch';
+  branch_point_id: string;
 }
 
-export type PathNode = ConnectorPathNode | MergePointPathNode;
+export type PathNode = ConnectorPathNode | BranchPointPathNode;
 
 export interface ConnectorPathNodeRef {
   kind: 'connector';
@@ -96,12 +111,12 @@ export interface ConnectorPathNodeRef {
   pin_number: number;
 }
 
-export interface MergePointPathNodeRef {
-  kind: 'merge';
-  merge_point_id: string;
+export interface BranchPointPathNodeRef {
+  kind: 'branch';
+  branch_point_id: string;
 }
 
-export type PathNodeRef = ConnectorPathNodeRef | MergePointPathNodeRef;
+export type PathNodeRef = ConnectorPathNodeRef | BranchPointPathNodeRef;
 
 export interface PathMeasurement {
   from: PathNodeRef;
@@ -121,13 +136,14 @@ export interface Path {
   measurements: PathMeasurement[];
 }
 
-export interface HarnessData {
+/** Complete loaded design. */
+export interface SystemData {
   schema_version: string;
-  /** Mutable system display name. The harness storage key/filename is separate and stable. */
+  /** Mutable system display name. The system storage key/filename is separate and stable. */
   name?: string;
-  enclosures: Enclosure[];
+  hierarchy: HierarchyEntity[];
   connectors: Connector[];
-  mergePoints: MergePoint[];
+  branchPoints: BranchPoint[];
   paths: Path[];
   signals: Signal[];
   signalPropertyDefinitions: SignalPropertyDefinition[];
@@ -194,23 +210,25 @@ export interface ConnectorLibrary {
   connector_types: ConnectorType[];
 }
 
-export type EntityType = 'enclosure' | 'connector' | 'mergePoint' | 'path' | 'signal';
+export type EntityType = 'enclosure' | 'connector' | 'branchPoint' | 'path' | 'signal';
 
 export interface SelectedItem {
   type: EntityType;
   id: string;
 }
 
-/** Canvas bundle edge selection — `id` is the graph bundle/edge id. */
-export interface SelectedBundle {
-  id: string;
-  pathIds: string[];
+/** Selected bend / waypoint on a Harness Bundle. `index` is into that edge's stored waypoints. */
+export interface SelectedRoutePoint {
+  index: number;
 }
 
-/** An inline connector or splice whose neighboring hop lengths can be redistributed. */
-export type LengthSplitTarget =
-  | { kind: 'connector'; connectorId: string }
-  | { kind: 'merge'; mergePointId: string };
+/** Canvas Harness Bundle edge selection — `id` is the graph Harness Bundle edge id. */
+export interface SelectedHarnessBundle {
+  id: string;
+  pathIds: string[];
+  /** When set, Delete/Backspace removes this bend instead of the whole Harness Bundle. */
+  routePoint?: SelectedRoutePoint;
+}
 
 export interface NodeLayout {
   [nodeId: string]: { x: number; y: number };
@@ -233,14 +251,14 @@ export interface FreePortLayouts {
   [connectorId: string]: { x: number; y: number };
 }
 
-export interface MergePointPosition {
+export interface BranchPointPosition {
   x: number;
   y: number;
 }
 
-export interface MergePointLayouts {
+export interface BranchPointLayouts {
   [contextKey: string]: {
-    [mergePointId: string]: MergePointPosition;
+    [branchPointId: string]: BranchPointPosition;
   };
 }
 
@@ -255,6 +273,25 @@ export interface BackgroundLayout {
 
 export interface BackgroundLayouts {
   [contextKey: string]: BackgroundLayout;
+}
+
+export type CanvasImageLayer = 'background' | 'foreground';
+
+export interface CanvasImageLayout {
+  id: string;
+  contextKey: string;
+  image: string;
+  name: string;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  locked: boolean;
+  layer: CanvasImageLayer;
+}
+
+export interface CanvasImageLayouts {
+  [id: string]: CanvasImageLayout;
 }
 
 export interface ConnectorTypeSizes {
@@ -284,28 +321,49 @@ export interface TextBoxLayout {
   borderRadius: number;
   opacity: number;
   padding: number;
+  /** When true, font size is computed to fill the box. Legacy boxes omit this. */
+  autoFit?: boolean;
+  /** Enclosure/device this box is attached to. Positions are parent-relative. */
+  parentId?: string;
 }
 
 export interface TextBoxLayouts {
   [id: string]: TextBoxLayout;
 }
 
-export type WaypointItem = { x: number; y: number } | { junctionId: string };
+export type WaypointItem = { x: number; y: number } | { sharedAnchorId: string };
 
 export interface WaypointLayouts {
   [edgeId: string]: WaypointItem[];
 }
 
-export interface JunctionLayout {
+/** How a Path Harness Bundle is drawn on the schematic. */
+export type WireRouteStyle = 'grid' | 'straight';
+
+/** Per-edge routing style. Missing keys inherit the current view default. */
+export interface RouteStyleLayouts {
+  [edgeId: string]: WireRouteStyle;
+}
+
+/**
+ * View-wide routing default. Keys are `system` or `subsystem:<id>`.
+ * New wires in that view inherit this until given a per-edge override.
+ */
+export interface ViewRouteStyleLayouts {
+  [viewKey: string]: WireRouteStyle;
+}
+
+export interface SharedAnchorLayout {
   id: string;
   x: number;
   y: number;
   memberEdgeIds: string[];
-  mergePointId?: string;
+  /** Set only when this join is a Branch Point; omitted means visual Shared Anchor. */
+  branchPointId?: string;
 }
 
-export interface JunctionLayouts {
-  [id: string]: JunctionLayout;
+export interface SharedAnchorLayouts {
+  [id: string]: SharedAnchorLayout;
 }
 
 export interface RotationLayouts {
@@ -320,20 +378,26 @@ export interface ConnectorOccupancy {
   tags: string[];
 }
 
-export interface DerivedSegment {
+/** One conductor between adjacent termination points on a Path. */
+export interface Wire {
   id: string;
   pathId: string;
   pathName: string;
-  segmentIndex: number;
+  wireIndex: number;
   from: PathNode;
   to: PathNode;
   tags: string[];
   properties: Record<string, string>;
+  /**
+   * Far-side neighbor(s) when this wire meets a branch point. Distinct through-routes
+   * that share a branch approach (A→branch→B vs A→branch→C) get different keys.
+   */
+  throughKey?: string;
 }
 
-export interface DerivedBundle {
+export interface HarnessBundle {
   id: string;
-  segmentIds: string[];
+  wireIds: string[];
   pathIds: string[];
   sourceRefKey: string;
   targetRefKey: string;
@@ -357,7 +421,7 @@ export interface ManufacturingWorkAttribution {
 export type ManufacturingWorkKind =
   | 'wire-cut'
   | 'wire-end'
-  | 'splice-measured'
+  | 'branch-measured'
   | 'connector-guide'
   | 'component-step';
 
@@ -394,8 +458,8 @@ export type ManufacturingTaskUpdate =
       completed: boolean;
     }
   | {
-      kind: 'splice-measured';
-      spliceId: string;
+      kind: 'branch-measured';
+      branchPointId: string;
       completed: boolean;
     }
   | {
@@ -407,19 +471,19 @@ export type ManufacturingTaskUpdate =
 export interface ManufacturingBundleProgress {
   /** Legacy whole-harness progress. Used as a fallback for pre-component data. */
   steps: Partial<Record<ManufacturingStep, boolean>>;
-  /** Build progress for each connector end or splice within this harness run. */
+  /** Build progress for each connector end or branch point within this harness run. */
   component_steps?: Record<string, Partial<Record<ManufacturingStep, boolean>>>;
-  /** Contact gender for every wire ending at a connector in this bundle. */
+  /** Contact gender for every wire ending at a connector in this Harness Bundle. */
   endpoint_genders?: Record<string, 'male' | 'female'>;
   /** Visual workbench progress, kept at wire granularity. */
   wire_progress?: Record<string, ManufacturingWireProgress>;
-  /** A splice is measured once even when several wires meet there. */
-  splice_measured?: Record<string, boolean>;
+  /** A branch point is measured once even when several wires meet there. */
+  branch_measured?: Record<string, boolean>;
   /** Two-stage pin-guide review: checking (yellow) then verified (green). */
   connector_guide_states?: Record<string, ManufacturingConnectorGuideState>;
   /** Current ownership of completed visual tasks, used for progress metrics. */
   task_attribution?: Record<string, ManufacturingWorkAttribution>;
-  /** Append-only, day-granular operator activity for this harness run. */
+  /** Append-only, day-granular operator activity for this physical harness run. */
   work_log?: ManufacturingWorkEvent[];
   notes?: string;
 }
@@ -447,7 +511,7 @@ export interface SubsystemDocument {
   tags: string[];
   /** Enclosure frames are both membership and subsystem-specific geometry. */
   enclosures: Record<string, SubsystemEntityLayout>;
-  /** Devices are enclosure entities, normally `container: false`. */
+  /** Devices are hierarchy entities with `kind: 'device'`. */
   devices: Record<string, SubsystemEntityLayout>;
   /** Directly placed connectors; omitted when their owning device is present. */
   connectors: Record<string, SubsystemEntityLayout>;
@@ -455,5 +519,7 @@ export interface SubsystemDocument {
   hidden_connectors?: string[];
   /** `selected` means the device shell only exposes explicitly placed connectors. */
   device_connector_mode?: Record<string, 'all' | 'selected'>;
+  /** Architecture-summary mode: route represented links between owning equipment cards. */
+  collapse_connectors?: boolean;
   viewport?: { x: number; y: number; zoom: number };
 }

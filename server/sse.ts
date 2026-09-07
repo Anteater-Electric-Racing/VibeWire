@@ -6,14 +6,14 @@ interface Client {
   cleanup: () => void;
 }
 
-const clientsByHarness = new Map<string, Set<Client>>();
+const clientsBySystem = new Map<string, Set<Client>>();
 let nextEventId = 1n;
 
-function removeClient(harness: string, client: Client): void {
-  const clients = clientsByHarness.get(harness);
+function removeClient(systemKey: string, client: Client): void {
+  const clients = clientsBySystem.get(systemKey);
   if (!clients) return;
   clients.delete(client);
-  if (clients.size === 0) clientsByHarness.delete(harness);
+  if (clients.size === 0) clientsBySystem.delete(systemKey);
 }
 
 function isWritable(res: ServerResponse): boolean {
@@ -23,7 +23,7 @@ function isWritable(res: ServerResponse): boolean {
 export function addClient(
   req: IncomingMessage,
   res: ServerResponse,
-  harness: string,
+  systemKey: string,
 ): () => void {
   let cleaned = false;
   let keepalive: NodeJS.Timeout | undefined;
@@ -32,7 +32,7 @@ export function addClient(
     if (cleaned) return;
     cleaned = true;
     if (keepalive) clearInterval(keepalive);
-    if (client) removeClient(harness, client);
+    if (client) removeClient(systemKey, client);
     req.removeListener('aborted', cleanup);
     req.removeListener('close', cleanup);
     req.removeListener('error', cleanup);
@@ -70,9 +70,9 @@ export function addClient(
     res.setHeader('X-Accel-Buffering', 'no');
     res.flushHeaders();
 
-    const clients = clientsByHarness.get(harness) ?? new Set<Client>();
+    const clients = clientsBySystem.get(systemKey) ?? new Set<Client>();
     clients.add(client);
-    clientsByHarness.set(harness, clients);
+    clientsBySystem.set(systemKey, clients);
 
     req.once('aborted', cleanup);
     req.once('close', cleanup);
@@ -92,7 +92,7 @@ export function addClient(
   return cleanup;
 }
 
-export function broadcast(harness: string, event: string, data: unknown): string | null {
+export function broadcast(systemKey: string, event: string, data: unknown): string | null {
   try {
     if (!/^[^\r\n:]+$/.test(event)) return null;
     const encoded = JSON.stringify(data);
@@ -100,7 +100,7 @@ export function broadcast(harness: string, event: string, data: unknown): string
     const eventId = String(nextEventId);
     nextEventId += 1n;
     const frame = `id: ${eventId}\nevent: ${event}\ndata: ${encoded}\n\n`;
-    const clients = clientsByHarness.get(harness);
+    const clients = clientsBySystem.get(systemKey);
     if (!clients) return eventId;
 
     for (const client of [...clients]) {
@@ -122,14 +122,14 @@ export function broadcast(harness: string, event: string, data: unknown): string
   }
 }
 
-export function clientCount(harness: string): number {
+export function clientCount(systemKey: string): number {
   try {
-    const clients = clientsByHarness.get(harness);
+    const clients = clientsBySystem.get(systemKey);
     if (!clients) return 0;
     for (const client of [...clients]) {
       if (!isWritable(client.res)) client.cleanup();
     }
-    return clientsByHarness.get(harness)?.size ?? 0;
+    return clientsBySystem.get(systemKey)?.size ?? 0;
   } catch {
     return 0;
   }

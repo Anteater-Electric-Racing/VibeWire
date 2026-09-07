@@ -40,9 +40,21 @@
     }
   },
   "connectors": {
-    "con_auto_df056da206c4_1": {
+    "con_auto_bulkhead_76ac4ff49f764ed7": {
+      "x": -48,
+      "y": 72,
+      "w": 96,
+      "h": 36
+    },
+    "con_dot_33c3e5a6-ebe0-48d2-a6d6-bb13da92d499": {
       "x": 609,
-      "y": 220,
+      "y": 72,
+      "w": 96,
+      "h": 36
+    },
+    "con_dot_b47fcc15-217f-405f-b316-5f1d85d21410": {
+      "x": -24,
+      "y": 96,
       "w": 96,
       "h": 36
     }

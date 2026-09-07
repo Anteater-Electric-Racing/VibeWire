@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { useHarnessStore } from '../../store';
+import { useSystemStore } from '../../store';
 import {
   MANUFACTURING_STEPS,
   completedManufacturingComponentStepCount,
@@ -17,6 +17,7 @@ import {
   type ManufacturingLengthHop,
   type ManufacturingWire,
 } from '../../lib/manufacturing';
+import { PresenceBadge, PresenceEditingRegion } from '../collab/PresenceBadge';
 import { WIRE_COLOR_PRESETS } from '../../lib/colors';
 import { WIRE_GAUGE_PRESETS } from '../../lib/gauge';
 import {
@@ -43,7 +44,7 @@ function InspectorLink({
   title?: string;
   children: ReactNode;
 }) {
-  const inspectEntity = useHarnessStore((state) => state.inspectEntityQuiet);
+  const inspectEntity = useSystemStore((state) => state.inspectEntityQuiet);
   if (!item) {
     return <span className={className}>{children}</span>;
   }
@@ -61,7 +62,7 @@ function InspectorLink({
 
 interface WorkComponent {
   key: string;
-  kind: 'connector' | 'splice';
+  kind: 'connector' | 'branchPoint';
   entityId: string;
   label: string;
   endpoint?: ManufacturingEndpoint;
@@ -120,19 +121,19 @@ function deriveWorkComponents(bundle: ManufacturingBundle): WorkComponent[] {
           wire.id,
           endpoint,
         );
-      } else if (endpoint.kind === 'merge' && endpoint.mergePointId) {
+      } else if (endpoint.kind === 'branch' && endpoint.branchPointId) {
         add(
-          `splice:${endpoint.mergePointId}`,
-          'splice',
-          endpoint.mergePointId,
+          `branchPoint:${endpoint.branchPointId}`,
+          'branchPoint',
+          endpoint.branchPointId,
           endpoint.label,
           wire.id,
           endpoint,
         );
       }
     }
-    for (const splice of wire.viaSplices) {
-      add(`splice:${splice.id}`, 'splice', splice.id, splice.label, wire.id);
+    for (const point of wire.viaBranchPoints) {
+      add(`branchPoint:${point.id}`, 'branchPoint', point.id, point.label, wire.id);
     }
   }
 
@@ -171,7 +172,7 @@ function StepButton({
   checked: boolean;
   onChange: (checked: boolean) => void;
 }) {
-  const isEditor = useHarnessStore((state) => state.session.isEditor);
+  const isEditor = useSystemStore((state) => state.session.isEditor);
   return (
     <button
       type="button"
@@ -205,18 +206,21 @@ function EndpointCell({
   endpoint: ManufacturingEndpoint;
   crimpOwned?: boolean;
 }) {
-  if (endpoint.kind === 'merge') {
+  if (endpoint.kind === 'branch') {
     return (
       <div>
+        {endpoint.branchPointId && (
+          <PresenceBadge kind="branchPoint" id={endpoint.branchPointId} className="mb-1" />
+        )}
         <InspectorLink
-          item={endpoint.mergePointId
-            ? { type: 'mergePoint', id: endpoint.mergePointId }
+          item={endpoint.branchPointId
+            ? { type: 'branchPoint', id: endpoint.branchPointId }
             : null}
           className="text-[11px] font-medium text-violet-300"
         >
           {endpoint.label}
         </InspectorLink>
-        <div className="text-[9px] text-violet-500">Splice</div>
+        <div className="text-[9px] text-violet-500">Branch point</div>
       </div>
     );
   }
@@ -228,13 +232,16 @@ function EndpointCell({
   return (
     <div className="min-w-0">
       <div className="flex items-baseline gap-1 text-[11px] font-medium text-zinc-200">
-        <InspectorLink item={connectorItem} className="min-w-0 truncate text-[11px] font-medium text-zinc-200">
+        <InspectorLink item={connectorItem} className="min-w-0 truncate text-[11px] font-medium text-vw-connector hover:opacity-80">
           {endpoint.connectorName ?? endpoint.connectorId}
         </InspectorLink>
         {endpoint.pinNumber !== undefined && (
           <span className="shrink-0 rounded bg-amber-950/60 px-1 py-0.5 text-amber-300 font-mono">
             P{endpoint.pinNumber}
           </span>
+        )}
+        {endpoint.connectorId && (
+          <PresenceBadge kind="connector" id={endpoint.connectorId} className="ml-auto" />
         )}
       </div>
       {crimpOwned && (
@@ -243,7 +250,7 @@ function EndpointCell({
         </div>
       )}
       {!crimpOwned && (
-        <div className="text-[9px] mt-0.5 text-violet-500">Joined at splice</div>
+        <div className="text-[9px] mt-0.5 text-violet-500">Joined at branch point</div>
       )}
     </div>
   );
@@ -276,7 +283,7 @@ function confirmMatchBundleLengths(
       `• ${candidate.wireId}: ${candidate.lengthMm === undefined ? 'no length' : `${candidate.lengthMm} mm`}`,
     ),
     '',
-    'Totals are matched; multi-run wires keep their relative splice/connector proportions when possible.',
+    'Totals are matched; multi-run wires keep their relative branch/connector proportions when possible.',
   ].join('\n'));
 }
 
@@ -285,11 +292,11 @@ function confirmMatchBundleHopLengths(
   sourceWire: ManufacturingWire,
   hop: ManufacturingLengthHop,
   lengthMm: number | undefined,
-): Array<{ pathId: string; segmentIndex: number }> {
+): Array<{ pathId: string; wireIndex: number }> {
   const matches: Array<{
     pathId: string;
     wireId: string;
-    segmentIndex: number;
+    wireIndex: number;
     lengthMm?: number;
   }> = [];
   for (const other of bundle.wires) {
@@ -299,7 +306,7 @@ function confirmMatchBundleHopLengths(
     matches.push({
       pathId: other.pathId,
       wireId: other.wireId,
-      segmentIndex: match.segmentIndex,
+      wireIndex: match.wireIndex,
       lengthMm: match.lengthMm,
     });
   }
@@ -314,12 +321,12 @@ function confirmMatchBundleHopLengths(
       '',
       ...withLength.map((candidate) => `• ${candidate.wireId}: ${candidate.lengthMm} mm`),
       '',
-      'Only this splice/connector section is cleared; other segments stay unchanged.',
+      'Only this branch/connector section is cleared; other segments stay unchanged.',
     ].join('\n'));
     return confirmed
       ? withLength.map((candidate) => ({
         pathId: candidate.pathId,
-        segmentIndex: candidate.segmentIndex,
+        wireIndex: candidate.wireIndex,
       }))
       : [];
   }
@@ -333,12 +340,12 @@ function confirmMatchBundleHopLengths(
       `• ${candidate.wireId}: ${candidate.lengthMm === undefined ? 'no length' : `${candidate.lengthMm} mm`}`,
     ),
     '',
-    'Only this splice/connector section is updated; other segments stay unchanged.',
+    'Only this branch/connector section is updated; other segments stay unchanged.',
   ].join('\n'));
   return confirmed
     ? differing.map((candidate) => ({
       pathId: candidate.pathId,
-      segmentIndex: candidate.segmentIndex,
+      wireIndex: candidate.wireIndex,
     }))
     : [];
 }
@@ -350,14 +357,14 @@ function WireLengthEditor({
   wire: ManufacturingWire;
   bundle: ManufacturingBundle;
 }) {
-  const updatePathSpanLengths = useHarnessStore((state) => state.updatePathSpanLengths);
-  const updatePathSegmentLengths = useHarnessStore((state) => state.updatePathSegmentLengths);
-  const isEditor = useHarnessStore((state) => state.session.isEditor);
+  const updatePathSpanLengths = useSystemStore((state) => state.updatePathSpanLengths);
+  const updatePathSegmentLengths = useSystemStore((state) => state.updatePathSegmentLengths);
+  const isEditor = useSystemStore((state) => state.session.isEditor);
   const initialTotal = wire.lengthMm === undefined ? '' : String(wire.lengthMm);
   const [totalDraft, setTotalDraft] = useState(initialTotal);
   const [hopDrafts, setHopDrafts] = useState<Record<number, string>>(() =>
     Object.fromEntries(
-      wire.hops.map((hop) => [hop.segmentIndex, hop.lengthMm === undefined ? '' : String(hop.lengthMm)]),
+      wire.hops.map((hop) => [hop.wireIndex, hop.lengthMm === undefined ? '' : String(hop.lengthMm)]),
     ),
   );
   const cancelBlur = useRef(false);
@@ -418,19 +425,19 @@ function WireLengthEditor({
       cancelBlur.current = false;
       return;
     }
-    const trimmed = (hopDrafts[hop.segmentIndex] ?? '').trim();
+    const trimmed = (hopDrafts[hop.wireIndex] ?? '').trim();
     const previous = hop.lengthMm;
     if (!trimmed) {
       if (previous === undefined) return;
-      const updates: Array<{ pathId: string; segmentIndex: number; lengthMm: number | undefined }> = [{
+      const updates: Array<{ pathId: string; wireIndex: number; lengthMm: number | undefined }> = [{
         pathId: wire.pathId,
-        segmentIndex: hop.segmentIndex,
+        wireIndex: hop.wireIndex,
         lengthMm: undefined,
       }];
       for (const match of confirmMatchBundleHopLengths(bundle, wire, hop, undefined)) {
         updates.push({
           pathId: match.pathId,
-          segmentIndex: match.segmentIndex,
+          wireIndex: match.wireIndex,
           lengthMm: undefined,
         });
       }
@@ -441,25 +448,25 @@ function WireLengthEditor({
     if (!Number.isFinite(parsed) || parsed < 0) {
       setHopDrafts((current) => ({
         ...current,
-        [hop.segmentIndex]: previous === undefined ? '' : String(previous),
+        [hop.wireIndex]: previous === undefined ? '' : String(previous),
       }));
       return;
     }
     if (previous === parsed) {
-      setHopDrafts((current) => ({ ...current, [hop.segmentIndex]: String(parsed) }));
+      setHopDrafts((current) => ({ ...current, [hop.wireIndex]: String(parsed) }));
       return;
     }
 
-    setHopDrafts((current) => ({ ...current, [hop.segmentIndex]: String(parsed) }));
-    const updates: Array<{ pathId: string; segmentIndex: number; lengthMm: number | undefined }> = [{
+    setHopDrafts((current) => ({ ...current, [hop.wireIndex]: String(parsed) }));
+    const updates: Array<{ pathId: string; wireIndex: number; lengthMm: number | undefined }> = [{
       pathId: wire.pathId,
-      segmentIndex: hop.segmentIndex,
+      wireIndex: hop.wireIndex,
       lengthMm: parsed,
     }];
     for (const match of confirmMatchBundleHopLengths(bundle, wire, hop, parsed)) {
       updates.push({
         pathId: match.pathId,
-        segmentIndex: match.segmentIndex,
+        wireIndex: match.wireIndex,
         lengthMm: parsed,
       });
     }
@@ -468,8 +475,8 @@ function WireLengthEditor({
 
   const missingHop = wire.hops.some((hop) => hop.lengthMm === undefined);
   const showHopBreakdown = wire.hops.length > 1
-    || wire.hops.some((hop) => hop.fromKind === 'merge' || hop.toKind === 'merge');
-  const spliceMarks = wire.hops.reduce<{
+    || wire.hops.some((hop) => hop.fromKind === 'branch' || hop.toKind === 'branch');
+  const branchMarks = wire.hops.reduce<{
     distanceMm: number | undefined;
     marks: Array<{ label: string; distanceMm: number | undefined }>;
   }>((state, hop) => {
@@ -478,7 +485,7 @@ function WireLengthEditor({
       : state.distanceMm + hop.lengthMm;
     return {
       distanceMm,
-      marks: hop.toKind === 'merge'
+      marks: hop.toKind === 'branch'
         ? [...state.marks, { label: hop.toLabel, distanceMm }]
         : state.marks,
     };
@@ -521,7 +528,7 @@ function WireLengthEditor({
           {wire.lengthMm === undefined && wire.lengthLabel && (
             <div className="mt-0.5 text-[8px] text-zinc-600">Legacy estimate</div>
           )}
-          {spliceMarks.map((mark) => (
+          {branchMarks.map((mark) => (
             <div
               key={`${wire.id}:${mark.label}`}
               className="mt-1 whitespace-normal text-[9px] font-medium text-violet-300"
@@ -539,12 +546,12 @@ function WireLengthEditor({
             <div className={`mb-1.5 text-[8px] font-semibold uppercase tracking-wide ${
               missingHop ? 'text-amber-500' : 'text-zinc-500'
             }`}>
-              Splice sections · {wire.hops.length}{missingHop ? ' · incomplete' : ''}
+              Branch sections · {wire.hops.length}{missingHop ? ' · incomplete' : ''}
             </div>
             <div className="space-y-1.5">
               {wire.hops.map((hop) => (
                 <div
-                  key={`${wire.id}:${hop.segmentIndex}`}
+                  key={`${wire.id}:${hop.wireIndex}`}
                   className="grid grid-cols-[minmax(0,1fr)_56px_16px] items-center gap-1.5"
                 >
                   <div
@@ -561,10 +568,10 @@ function WireLengthEditor({
                     min={0}
                     step="any"
                     inputMode="decimal"
-                    value={hopDrafts[hop.segmentIndex] ?? ''}
+                    value={hopDrafts[hop.wireIndex] ?? ''}
                     onChange={(event) => setHopDrafts((current) => ({
                       ...current,
-                      [hop.segmentIndex]: event.target.value,
+                      [hop.wireIndex]: event.target.value,
                     }))}
                     onBlur={() => commitHop(hop)}
                     onKeyDown={(event) => {
@@ -573,7 +580,7 @@ function WireLengthEditor({
                         cancelBlur.current = true;
                         setHopDrafts((current) => ({
                           ...current,
-                          [hop.segmentIndex]: hop.lengthMm === undefined ? '' : String(hop.lengthMm),
+                          [hop.wireIndex]: hop.lengthMm === undefined ? '' : String(hop.lengthMm),
                         }));
                         event.currentTarget.blur();
                       }
@@ -604,10 +611,10 @@ function WireRow({
   wire: ManufacturingWire;
   bundle: ManufacturingBundle;
 }) {
-  const harness = useHarnessStore((state) => state.harness);
-  const updatePathProperty = useHarnessStore((state) => state.updatePathProperty);
-  const isEditor = useHarnessStore((state) => state.session.isEditor);
-  const path = harness?.paths.find((candidate) => candidate.id === wire.pathId);
+  const system = useSystemStore((state) => state.system);
+  const updatePathProperty = useSystemStore((state) => state.updatePathProperty);
+  const isEditor = useSystemStore((state) => state.session.isEditor);
+  const path = system?.paths.find((candidate) => candidate.id === wire.pathId);
   const explicitColor = path?.properties.wire_color ?? path?.properties.color ?? '';
   const explicitGauge = path?.properties.wire_gauge ?? '';
   const colorOptions = Array.from(new Set([
@@ -622,6 +629,7 @@ function WireRow({
   return (
     <tr className="border-b border-zinc-800/80 align-top hover:bg-zinc-900/70">
       <td className="px-3 py-2">
+        <PresenceBadge kind="path" id={wire.pathId} className="mb-1" />
         <InspectorLink
           item={{ type: 'path', id: wire.pathId }}
           className="font-mono text-xs font-semibold text-amber-300"
@@ -641,7 +649,7 @@ function WireRow({
       <td className="px-3 py-2 whitespace-nowrap">
         <WireLengthEditor
           key={`${wire.id}:${wire.lengthMm ?? ''}:${wire.hops
-            .map((hop) => `${hop.segmentIndex}:${hop.lengthMm ?? ''}`)
+            .map((hop) => `${hop.wireIndex}:${hop.lengthMm ?? ''}`)
             .join('|')}`}
           wire={wire}
           bundle={bundle}
@@ -712,7 +720,7 @@ function BundleNotes({
   value: string;
   onSave: (notes: string) => void;
 }) {
-  const isEditor = useHarnessStore((state) => state.session.isEditor);
+  const isEditor = useSystemStore((state) => state.session.isEditor);
   const [draft, setDraft] = useState(value);
   return (
     <textarea
@@ -735,14 +743,14 @@ function componentInstruction(
   crimpPartNumber: string | undefined,
 ): string {
   if (!step) return 'This end is complete.';
-  if (component.kind === 'splice') {
+  if (component.kind === 'branchPoint') {
     switch (step) {
-      case 'ordered': return 'Gather the splice, seal, and required consumables.';
-      case 'cut': return `Mark and strip the ${component.wireIds.length} splice leg${component.wireIds.length === 1 ? '' : 's'}.`;
-      case 'crimped': return 'Join the splice legs using the approved splice process.';
-      case 'populated': return 'Seal and finish the splice.';
+      case 'ordered': return 'Gather the branch hardware, seal, and required consumables.';
+      case 'cut': return `Mark and strip the ${component.wireIds.length} branch leg${component.wireIds.length === 1 ? '' : 's'}.`;
+      case 'crimped': return 'Join the branch legs using the approved process.';
+      case 'populated': return 'Seal and finish the branch point.';
       case 'qc': return 'Inspect, pull-test, and verify continuity.';
-      case 'installed': return 'Secure the splice in the finished harness.';
+      case 'installed': return 'Secure the branch point in the finished harness.';
     }
   }
 
@@ -774,13 +782,13 @@ function ComponentWorkCard({
   bundles: ManufacturingBundle[];
   component: WorkComponent;
 }) {
-  const harness = useHarnessStore((state) => state.harness);
-  const manufacturing = useHarnessStore((state) => state.manufacturing);
-  const updateStep = useHarnessStore((state) => state.updateManufacturingStep);
-  const updateGender = useHarnessStore(
+  const system = useSystemStore((state) => state.system);
+  const manufacturing = useSystemStore((state) => state.manufacturing);
+  const updateStep = useSystemStore((state) => state.updateManufacturingStep);
+  const updateGender = useSystemStore(
     (state) => state.updateManufacturingEndpointGender,
   );
-  const isEditor = useHarnessStore((state) => state.session.isEditor);
+  const isEditor = useSystemStore((state) => state.session.isEditor);
   const progress = manufacturing.bundles[bundle.id];
   const steps = manufacturingComponentSteps(manufacturing, bundle.id, component.key);
   const completed = completedManufacturingComponentStepCount(
@@ -798,9 +806,9 @@ function ComponentWorkCard({
     : gender === 'female'
       ? endpoint?.femaleCrimpPartNumber
       : endpoint?.crimpPartNumber;
-  const genderRelationship = component.kind === 'connector' && harness
+  const genderRelationship = component.kind === 'connector' && system
     ? manufacturingGenderBundleRelationship(
-        harness,
+        system,
         bundles,
         bundle.id,
         component.entityId,
@@ -851,13 +859,13 @@ function ComponentWorkCard({
   };
   const inspectorItem: SelectedItem = component.kind === 'connector'
     ? { type: 'connector', id: component.entityId }
-    : { type: 'mergePoint', id: component.entityId };
+    : { type: 'branchPoint', id: component.entityId };
 
   return (
     <section className={`rounded-lg border p-2.5 ${
       completed === MANUFACTURING_STEPS.length
         ? 'border-emerald-800/70 bg-emerald-950/15'
-        : component.kind === 'splice'
+        : component.kind === 'branchPoint'
           ? 'border-violet-900/80 bg-violet-950/10'
           : 'border-zinc-800 bg-zinc-950/70'
     }`}>
@@ -865,11 +873,11 @@ function ComponentWorkCard({
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
             <span className={`rounded px-1.5 py-0.5 text-[8px] font-semibold uppercase tracking-wide ${
-              component.kind === 'splice'
+              component.kind === 'branchPoint'
                 ? 'bg-violet-950 text-violet-300'
                 : 'bg-zinc-800 text-zinc-400'
             }`}>
-              {component.kind === 'splice' ? 'Splice' : 'Connector end'}
+              {component.kind === 'branchPoint' ? 'Branch point' : 'Connector end'}
             </span>
             <span className="text-[9px] text-zinc-600">
               {completed}/{MANUFACTURING_STEPS.length}
@@ -877,7 +885,9 @@ function ComponentWorkCard({
           </div>
           <InspectorLink
             item={inspectorItem}
-            className="mt-1 block max-w-full truncate text-xs font-semibold text-zinc-100"
+            className={`mt-1 block max-w-full truncate text-xs font-semibold hover:opacity-80 ${
+              component.kind === 'branchPoint' ? 'text-violet-300' : 'text-vw-connector'
+            }`}
           >
             {component.label}
           </InspectorLink>
@@ -978,7 +988,7 @@ function EmptyManufacturing() {
         <h2 className="text-sm font-semibold text-zinc-300">No manufacturable wires</h2>
         <p className="mt-1 text-xs text-zinc-600">
           Add paths between connectors. Each connector-to-connector run becomes a
-          buildable harness; splice legs remain visible as marked work points.
+          buildable harness; branch legs remain visible as marked work points.
         </p>
       </div>
     </div>
@@ -992,26 +1002,26 @@ function BundleCutList({
   manufacturingHarness: ManufacturingHarness;
   bundles: ManufacturingBundle[];
 }) {
-  const harness = useHarnessStore((state) => state.harness);
-  const connectorLibrary = useHarnessStore((state) => state.connectorLibrary);
-  const manufacturing = useHarnessStore((state) => state.manufacturing);
-  const updateNotes = useHarnessStore((state) => state.updateManufacturingNotes);
-  const updateTasks = useHarnessStore((state) => state.updateManufacturingTasks);
-  const updatePathSegmentLengths = useHarnessStore((state) => state.updatePathSegmentLengths);
-  const updateGender = useHarnessStore(
+  const system = useSystemStore((state) => state.system);
+  const connectorLibrary = useSystemStore((state) => state.connectorLibrary);
+  const manufacturing = useSystemStore((state) => state.manufacturing);
+  const updateNotes = useSystemStore((state) => state.updateManufacturingNotes);
+  const updateTasks = useSystemStore((state) => state.updateManufacturingTasks);
+  const updatePathSegmentLengths = useSystemStore((state) => state.updatePathSegmentLengths);
+  const updateGender = useSystemStore(
     (state) => state.updateManufacturingEndpointGender,
   );
-  const inspectEntityQuiet = useHarnessStore((state) => state.inspectEntityQuiet);
-  const openConnectorLibrary = useHarnessStore((state) => state.openConnectorLibrary);
-  const isEditor = useHarnessStore((state) => state.session.isEditor);
-  const showBundleInHierarchy = useHarnessStore(
+  const inspectEntityQuiet = useSystemStore((state) => state.inspectEntityQuiet);
+  const openConnectorLibrary = useSystemStore((state) => state.openConnectorLibrary);
+  const isEditor = useSystemStore((state) => state.session.isEditor);
+  const showBundleInHierarchy = useSystemStore(
     (state) => state.showBundleInHierarchy,
   );
   const [selection, setSelection] = useState<ManufacturingVisualSelection | null>(null);
   const trunk = manufacturingHarness.bundles.find(
     (bundle) => bundle.id === manufacturingHarness.trunkBundleId,
   ) ?? manufacturingHarness.bundles[0];
-  if (!harness || !trunk) return null;
+  if (!system || !trunk) return null;
   const progress = manufacturing.bundles[trunk.id] ?? { steps: {} };
   const bundleById = new Map(
     manufacturingHarness.bundles.map((bundle) => [bundle.id, bundle]),
@@ -1031,37 +1041,37 @@ function BundleCutList({
   const applySegmentLengthChange = ({
     bundleId,
     wireId,
-    segmentIndex,
+    wireIndex,
     lengthMm,
   }: {
     bundleId: string;
     wireId: string;
-    segmentIndex: number;
+    wireIndex: number;
     lengthMm: number | undefined;
   }) => {
     if (!isEditor) return;
     const bundle = manufacturingHarness.bundles.find((candidate) => candidate.id === bundleId);
     const wire = bundle?.wires.find((candidate) => candidate.id === wireId);
-    const hop = wire?.hops.find((candidate) => candidate.segmentIndex === segmentIndex);
+    const hop = wire?.hops.find((candidate) => candidate.wireIndex === wireIndex);
     if (!bundle || !wire || !hop || hop.lengthMm === lengthMm) return;
-    const updates: Array<{ pathId: string; segmentIndex: number; lengthMm: number | undefined }> = [{
+    const updates: Array<{ pathId: string; wireIndex: number; lengthMm: number | undefined }> = [{
       pathId: wire.pathId,
-      segmentIndex: hop.segmentIndex,
+      wireIndex: hop.wireIndex,
       lengthMm,
     }];
     for (const match of confirmMatchBundleHopLengths(bundle, wire, hop, lengthMm)) {
       updates.push({
         pathId: match.pathId,
-        segmentIndex: match.segmentIndex,
+        wireIndex: match.wireIndex,
         lengthMm,
       });
     }
     updatePathSegmentLengths(updates);
   };
 
-  const spliceComplete = (spliceId: string): boolean =>
+  const branchPointComplete = (branchPointId: string): boolean =>
     manufacturingHarness.bundleIds.some(
-      (bundleId) => manufacturing.bundles[bundleId]?.splice_measured?.[spliceId],
+      (bundleId) => manufacturing.bundles[bundleId]?.branch_measured?.[branchPointId],
     );
 
   const ownerBundleForConnector = (connectorId: string): ManufacturingBundle | undefined => {
@@ -1082,7 +1092,7 @@ function BundleCutList({
     if (!ownerGender) return undefined;
     const expected = ownerGender === 'male' ? 'female' : 'male';
     const relationship = manufacturingGenderBundleRelationship(
-      harness,
+      system,
       bundles,
       ownerBundleId,
       connectorId,
@@ -1116,7 +1126,7 @@ function BundleCutList({
   ) => {
     if (!isEditor) return;
     const relationship = manufacturingGenderBundleRelationship(
-      harness,
+      system,
       bundles,
       bundleId,
       connectorId,
@@ -1199,7 +1209,7 @@ function BundleCutList({
   const completedWireTasks = allWireTasks.filter((task) =>
     manufacturingTaskCompleted(manufacturing.bundles[task.bundleId], task.update)
   ).length;
-  const completedSplices = manufacturingHarness.spliceIds.filter(spliceComplete).length;
+  const completedBranchPoints = manufacturingHarness.branchPointIds.filter(branchPointComplete).length;
   const verifiedGuides = manufacturingHarness.connectorIds.filter((connectorId) =>
     manufacturingHarness.bundleIds.some(
       (bundleId) =>
@@ -1207,25 +1217,25 @@ function BundleCutList({
         === 'verified',
     )
   ).length;
-  const visualCompleted = completedWireTasks + completedSplices + verifiedGuides;
+  const visualCompleted = completedWireTasks + completedBranchPoints + verifiedGuides;
   const visualTotal =
     allWireTasks.length
-    + manufacturingHarness.spliceIds.length
+    + manufacturingHarness.branchPointIds.length
     + manufacturingHarness.connectorIds.length;
 
-  const selectedBundle = selection && 'bundleId' in selection
+  const selectedHarnessBundle = selection && 'bundleId' in selection
     ? bundleById.get(selection.bundleId)
     : undefined;
-  const selectedComponent = selection?.kind === 'endpoint' && selectedBundle
-    ? deriveWorkComponents(selectedBundle).find((component) => {
-        const wire = selectedBundle.wires.find((candidate) => candidate.id === selection.wireId);
+  const selectedComponent = selection?.kind === 'endpoint' && selectedHarnessBundle
+    ? deriveWorkComponents(selectedHarnessBundle).find((component) => {
+        const wire = selectedHarnessBundle.wires.find((candidate) => candidate.id === selection.wireId);
         return component.kind === 'connector'
           && component.entityId === wire?.[selection.end].connectorId;
       })
-    : selection?.kind === 'splice' && selectedBundle
-      ? deriveWorkComponents(selectedBundle).find(
-          (component) => component.kind === 'splice'
-            && component.entityId === selection.spliceId,
+    : selection?.kind === 'branchPoint' && selectedHarnessBundle
+      ? deriveWorkComponents(selectedHarnessBundle).find(
+          (component) => component.kind === 'branchPoint'
+            && component.entityId === selection.branchPointId,
         )
       : undefined;
 
@@ -1243,6 +1253,7 @@ function BundleCutList({
               >
                 {manufacturingHarness.name}
               </button>
+              <PresenceBadge kind="harnessBundle" id={trunk.id} />
               <span className="shrink-0 text-[9px] text-zinc-500">
                 {manufacturingHarness.wireCount} wire{manufacturingHarness.wireCount === 1 ? '' : 's'}
                 {' · '}
@@ -1257,11 +1268,13 @@ function BundleCutList({
             </p>
           </div>
           <div className="w-44 shrink-0">
-            <BundleNotes
-            key={`${trunk.id}:${isEditor ? 'editable' : 'read-only'}`}
-              value={progress.notes ?? ''}
-              onSave={(notes) => updateNotes(trunk.id, notes)}
-            />
+            <PresenceEditingRegion target={{ kind: 'harnessBundle', id: trunk.id }}>
+              <BundleNotes
+                key={`${trunk.id}:${isEditor ? 'editable' : 'read-only'}`}
+                value={progress.notes ?? ''}
+                onSave={(notes) => updateNotes(trunk.id, notes)}
+              />
+            </PresenceEditingRegion>
           </div>
           <div className="w-32 shrink-0">
             <div className={`mb-1 text-right text-[9px] font-semibold ${
@@ -1298,10 +1311,10 @@ function BundleCutList({
           </div>
 
           <div className="flex-1 min-h-[180px] overflow-auto bg-zinc-950">
-            {selectedComponent && selectedBundle && (
+            {selectedComponent && selectedHarnessBundle && (
               <div className="sticky left-0 top-0 z-20 border-b border-zinc-800 bg-zinc-950 p-2">
                 <ComponentWorkCard
-                  bundle={selectedBundle}
+                  bundle={selectedHarnessBundle}
                   bundles={bundles}
                   component={selectedComponent}
                 />
@@ -1312,7 +1325,7 @@ function BundleCutList({
                 <tr className="border-b border-zinc-700">
                   {[
                     ['Wire / signal', 'w-[18%]'],
-                    ['Cut + splice sections', 'w-[40%]'],
+                    ['Cut + branch sections', 'w-[40%]'],
                     ['Material', 'w-[14%]'],
                     ['Connector ends', 'w-[28%]'],
                   ].map(([label, width]) => (
@@ -1350,7 +1363,7 @@ function BundleCutList({
               const ownerBundle = ownerBundleForConnector(connectorId);
               if (!ownerBundle) return null;
               const genderRelationship = manufacturingGenderBundleRelationship(
-                harness,
+                system,
                 bundles,
                 ownerBundle.id,
                 connectorId,
@@ -1361,7 +1374,7 @@ function BundleCutList({
                   connectorId={connectorId}
                   ownerBundleId={ownerBundle.id}
                   manufacturingHarness={manufacturingHarness}
-                  harness={harness}
+                  system={system}
                   library={connectorLibrary}
                   manufacturing={manufacturing}
                   isEditor={isEditor}
@@ -1389,34 +1402,34 @@ function BundleCutList({
 }
 
 export function ManufacturingPage() {
-  const harness = useHarnessStore((state) => state.harness);
-  const connectorLibrary = useHarnessStore((state) => state.connectorLibrary);
-  const manufacturing = useHarnessStore((state) => state.manufacturing);
-  const manufacturingTargetBundleId = useHarnessStore(
+  const system = useSystemStore((state) => state.system);
+  const connectorLibrary = useSystemStore((state) => state.connectorLibrary);
+  const manufacturing = useSystemStore((state) => state.manufacturing);
+  const manufacturingTargetBundleId = useSystemStore(
     (state) => state.manufacturingTargetBundleId,
   );
-  const setManufacturingTargetBundle = useHarnessStore(
+  const setManufacturingTargetBundle = useSystemStore(
     (state) => state.setManufacturingTargetBundle,
   );
-  const tab = useHarnessStore((state) => state.manufacturingTab);
-  const setTab = useHarnessStore((state) => state.setManufacturingTab);
-  const activeHarnessName = useHarnessStore((state) => state.activeHarnessName);
+  const tab = useSystemStore((state) => state.manufacturingTab);
+  const setTab = useSystemStore((state) => state.setManufacturingTab);
+  const activeSystemName = useSystemStore((state) => state.activeSystemName);
 
   const [search, setSearch] = useState('');
 
   const bundles = useMemo(
-    () => harness
-      ? deriveManufacturingBundles(harness, connectorLibrary, manufacturing)
+    () => system
+      ? deriveManufacturingBundles(system, connectorLibrary, manufacturing)
       : [],
-    [harness, connectorLibrary, manufacturing],
+    [system, connectorLibrary, manufacturing],
   );
   const manufacturingHarnesses = useMemo(
     () => deriveManufacturingHarnesses(bundles),
     [bundles],
   );
   const bom = useMemo(
-    () => harness ? deriveManufacturingBom(harness, connectorLibrary, bundles) : [],
-    [harness, connectorLibrary, bundles],
+    () => system ? deriveManufacturingBom(system, connectorLibrary, bundles) : [],
+    [system, connectorLibrary, bundles],
   );
   const visibleHarnesses = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -1431,7 +1444,7 @@ export function ManufacturingPage() {
           wire.signalName,
           wire.from.label,
           wire.to.label,
-          ...wire.viaSplices.map((splice) => splice.label),
+          ...wire.viaBranchPoints.map((point) => point.label),
         ].some((value) => value.toLowerCase().includes(query))
       ))
     );
@@ -1489,10 +1502,10 @@ export function ManufacturingPage() {
         }
       }
     }
-    total += manufacturingHarness.spliceIds.length;
-    completed += manufacturingHarness.spliceIds.filter((spliceId) =>
+    total += manufacturingHarness.branchPointIds.length;
+    completed += manufacturingHarness.branchPointIds.filter((branchPointId) =>
       manufacturingHarness.bundleIds.some(
-        (bundleId) => manufacturing.bundles[bundleId]?.splice_measured?.[spliceId],
+        (bundleId) => manufacturing.bundles[bundleId]?.branch_measured?.[branchPointId],
       )
     ).length;
     total += manufacturingHarness.connectorIds.length;
@@ -1521,14 +1534,14 @@ export function ManufacturingPage() {
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement('a');
     anchor.href = url;
-    anchor.download = `${activeHarnessName}-bom.csv`;
+    anchor.download = `${activeSystemName}-bom.csv`;
     document.body.appendChild(anchor);
     anchor.click();
     anchor.remove();
     URL.revokeObjectURL(url);
   };
 
-  if (!harness) return null;
+  if (!system) return null;
 
   return (
     <div className="h-full min-h-0 flex flex-col bg-zinc-950">
@@ -1536,7 +1549,7 @@ export function ManufacturingPage() {
         <div className="min-w-0">
           <h1 className="text-sm font-semibold text-zinc-100">Manufacturing</h1>
           <p className="max-w-44 truncate text-[9px] text-zinc-500">
-            {harness.name ?? activeHarnessName}
+            {system.name ?? activeSystemName}
           </p>
         </div>
         <div className="flex items-center rounded-md border border-zinc-700 overflow-hidden">

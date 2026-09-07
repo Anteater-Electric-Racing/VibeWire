@@ -9,7 +9,7 @@ import path from 'node:path';
 import { getCollaborationPaths, type RevisionWriter } from './revisions.js';
 
 export type EditKind =
-  | 'harness'
+  | 'system'
   | 'layouts'
   | 'manufacturing'
   | 'subsystem'
@@ -20,7 +20,7 @@ export interface EditLogEntry {
   ts: string;
   user: string;
   displayName: string;
-  harness: string;
+  system: string;
   kind: EditKind;
   rev: number;
   added: number;
@@ -29,24 +29,24 @@ export interface EditLogEntry {
   entityIds: string[];
 }
 
-export type NewEditLogEntry = Omit<EditLogEntry, 'ts' | 'harness'> & {
+export type NewEditLogEntry = Omit<EditLogEntry, 'ts' | 'system'> & {
   ts?: string;
 };
 
 export type ActivitySummary = Record<string, Record<string, number>>;
 
-function assertHarness(harness: string): string {
-  if (!/^[a-zA-Z0-9_-]+$/.test(harness)) {
-    throw new Error(`Invalid edit-log harness key '${harness}'.`);
+function assertSystemKey(value: unknown): string {
+  if (typeof value !== 'string' || !/^[a-zA-Z0-9_-]+$/.test(value)) {
+    throw new Error(`Invalid edit-log system key '${String(value)}'.`);
   }
-  return harness;
+  return value;
 }
 
-function editLogFile(harness: string): string {
+function editLogFile(systemKey: string): string {
   return path.join(
     getCollaborationPaths().stateRoot,
     'edit-log',
-    `${assertHarness(harness)}.jsonl`,
+    `${assertSystemKey(systemKey)}.jsonl`,
   );
 }
 
@@ -54,10 +54,14 @@ function validateEntry(value: unknown, context: string): EditLogEntry {
   if (!value || typeof value !== 'object') {
     throw new Error(`${context}: expected an object.`);
   }
-  const entry = value as Partial<EditLogEntry>;
-  const timestamp = typeof entry.ts === 'string' ? Date.parse(entry.ts) : Number.NaN;
+  const raw = value as Record<string, unknown>;
+  const systemName = typeof raw.system === 'string' ? raw.system
+    : typeof raw.harness === 'string' ? raw.harness
+    : '';
+  const kind = raw.kind === 'harness' ? 'system' : raw.kind;
+  const timestamp = typeof raw.ts === 'string' ? Date.parse(raw.ts) : Number.NaN;
   const kinds = new Set<EditKind>([
-    'harness',
+    'system',
     'layouts',
     'manufacturing',
     'subsystem',
@@ -66,53 +70,63 @@ function validateEntry(value: unknown, context: string): EditLogEntry {
   ]);
   if (
     !Number.isFinite(timestamp)
-    || typeof entry.user !== 'string'
-    || !entry.user
-    || typeof entry.displayName !== 'string'
-    || !entry.displayName
-    || typeof entry.harness !== 'string'
-    || !entry.harness
-    || !entry.kind
-    || !kinds.has(entry.kind)
-    || !Number.isSafeInteger(entry.rev)
-    || (entry.rev ?? -1) < 0
-    || !Number.isSafeInteger(entry.added)
-    || (entry.added ?? -1) < 0
-    || !Number.isSafeInteger(entry.modified)
-    || (entry.modified ?? -1) < 0
-    || !Number.isSafeInteger(entry.removed)
-    || (entry.removed ?? -1) < 0
-    || !Array.isArray(entry.entityIds)
-    || entry.entityIds.some((id) => typeof id !== 'string' || !id)
+    || typeof raw.user !== 'string'
+    || !raw.user
+    || typeof raw.displayName !== 'string'
+    || !raw.displayName
+    || !systemName
+    || !kind
+    || !kinds.has(kind as EditKind)
+    || !Number.isSafeInteger(raw.rev)
+    || (raw.rev as number) < 0
+    || !Number.isSafeInteger(raw.added)
+    || (raw.added as number) < 0
+    || !Number.isSafeInteger(raw.modified)
+    || (raw.modified as number) < 0
+    || !Number.isSafeInteger(raw.removed)
+    || (raw.removed as number) < 0
+    || !Array.isArray(raw.entityIds)
+    || raw.entityIds.some((id) => typeof id !== 'string' || !id)
   ) {
     throw new Error(`${context}: invalid edit-log entry.`);
   }
-  return entry as EditLogEntry;
+  return {
+    ts: raw.ts as string,
+    user: raw.user,
+    displayName: raw.displayName,
+    system: systemName,
+    kind: kind as EditKind,
+    rev: raw.rev as number,
+    added: raw.added as number,
+    modified: raw.modified as number,
+    removed: raw.removed as number,
+    entityIds: raw.entityIds as string[],
+  };
 }
 
 export function appendEditLog(
-  harness: string,
+  systemKey: string,
   input: NewEditLogEntry,
 ): EditLogEntry {
   const entry = validateEntry(
     {
       ...input,
       ts: input.ts ?? new Date().toISOString(),
-      harness: assertHarness(harness),
+      system: assertSystemKey(systemKey),
     },
-    `Cannot append edit log for '${harness}'`,
+    `Cannot append edit log for '${systemKey}'`,
   );
-  const filePath = editLogFile(harness);
+  const filePath = editLogFile(systemKey);
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
   fs.appendFileSync(filePath, `${JSON.stringify(entry)}\n`, 'utf8');
   return { ...entry, entityIds: [...entry.entityIds] };
 }
 
-export function aggregateActivity(harness: string, days: number): ActivitySummary {
+export function aggregateActivity(systemKey: string, days: number): ActivitySummary {
   if (!Number.isSafeInteger(days) || days <= 0) {
     throw new Error(`Activity window must be a positive integer, received '${days}'.`);
   }
-  const filePath = editLogFile(harness);
+  const filePath = editLogFile(systemKey);
   if (!fs.existsSync(filePath)) return {};
 
   let raw: string;
@@ -120,7 +134,7 @@ export function aggregateActivity(harness: string, days: number): ActivitySummar
     raw = fs.readFileSync(filePath, 'utf8');
   } catch (error) {
     throw new Error(
-      `Cannot read edit log for '${harness}': ${
+      `Cannot read edit log for '${systemKey}': ${
         error instanceof Error ? error.message : String(error)
       }`,
     );
@@ -147,9 +161,9 @@ export function aggregateActivity(harness: string, days: number): ActivitySummar
       );
     }
     const entry = validateEntry(parsed, `Invalid edit log '${filePath}' at line ${index + 1}`);
-    if (entry.harness !== harness) {
+    if (entry.system !== systemKey) {
       throw new Error(
-        `Invalid edit log '${filePath}' at line ${index + 1}: harness is '${entry.harness}'.`,
+        `Invalid edit log '${filePath}' at line ${index + 1}: system is '${entry.system}'.`,
       );
     }
     const timestamp = new Date(entry.ts);
@@ -173,16 +187,16 @@ export function aggregateActivity(harness: string, days: number): ActivitySummar
 }
 
 /**
- * Everyone who successfully wrote to this harness after `sinceIso` (exclusive),
+ * Everyone who successfully wrote to this System after `sinceIso` (exclusive),
  * in first-seen order. `sinceIso === null` means "since the beginning of the
  * log" — used when no prior daily checkpoint exists yet. Backs the daily
  * checkpoint's contributor list.
  */
 export function listContributorsSince(
-  harness: string,
+  systemKey: string,
   sinceIso: string | null,
 ): RevisionWriter[] {
-  const filePath = editLogFile(harness);
+  const filePath = editLogFile(systemKey);
   if (!fs.existsSync(filePath)) return [];
 
   let raw: string;
@@ -190,7 +204,7 @@ export function listContributorsSince(
     raw = fs.readFileSync(filePath, 'utf8');
   } catch (error) {
     throw new Error(
-      `Cannot read edit log for '${harness}': ${
+      `Cannot read edit log for '${systemKey}': ${
         error instanceof Error ? error.message : String(error)
       }`,
     );
@@ -212,9 +226,9 @@ export function listContributorsSince(
       );
     }
     const entry = validateEntry(parsed, `Invalid edit log '${filePath}' at line ${index + 1}`);
-    if (entry.harness !== harness) {
+    if (entry.system !== systemKey) {
       throw new Error(
-        `Invalid edit log '${filePath}' at line ${index + 1}: harness is '${entry.harness}'.`,
+        `Invalid edit log '${filePath}' at line ${index + 1}: system is '${entry.system}'.`,
       );
     }
     if (Date.parse(entry.ts) <= sinceMs) continue;
