@@ -21,6 +21,8 @@ import type {
   PortLayouts,
   RotationLayouts,
   RouteStyleLayouts,
+  SignalLabelLayouts,
+  SignalLabelOffset,
   SelectedHarnessBundle,
   SelectedItem,
   Signal,
@@ -208,6 +210,7 @@ interface UndoSnapshot {
   rotationLayouts: RotationLayouts;
   routeStyleLayouts: RouteStyleLayouts;
   viewRouteStyleLayouts: ViewRouteStyleLayouts;
+  signalLabelLayouts: SignalLabelLayouts;
   subsystems: Record<string, SubsystemDocument>;
   selectedItem: SelectedItem | null;
   selectedHarnessBundle: SelectedHarnessBundle | null;
@@ -286,6 +289,8 @@ export interface SystemStore {
   selectedHarnessBundle: SelectedHarnessBundle | null;
   /** Hide the inspector while keeping the current selection (e.g. while editing waypoints). */
   inspectorDismissed: boolean;
+  /** Inspector name field to focus after a canvas create. */
+  pendingInspectorNameFocusId: string | null;
   revealRequest: { item: SelectedItem; requestId: number } | null;
   revealRequestSequence: number;
   waypointLayouts: WaypointLayouts;
@@ -294,6 +299,7 @@ export interface SystemStore {
   rotationLayouts: RotationLayouts;
   routeStyleLayouts: RouteStyleLayouts;
   viewRouteStyleLayouts: ViewRouteStyleLayouts;
+  signalLabelLayouts: SignalLabelLayouts;
   editingSurface: EditingSurface;
   subsystems: Record<string, SubsystemDocument>;
   activeSubsystemId: string | null;
@@ -340,10 +346,18 @@ export interface SystemStore {
     layout: SubsystemEntityLayout,
     previousRenderedLayout?: SubsystemEntityLayout,
   ) => void;
-  addEntityToActiveSubsystem: (type: 'enclosure' | 'connector', id: string) => void;
+  addEntityToActiveSubsystem: (
+    type: 'enclosure' | 'connector',
+    id: string,
+    subsystemId?: string,
+  ) => void;
   /** Rewrite the active subsystem canvas from the current system physical layout. */
   resetActiveSubsystemLayoutFromSystem: () => void;
-  removeEntityFromActiveSubsystem: (type: 'enclosure' | 'connector', id: string) => void;
+  removeEntityFromActiveSubsystem: (
+    type: 'enclosure' | 'connector',
+    id: string,
+    subsystemId?: string,
+  ) => void;
   renumberConnectorCavities: (connectorId: string, orderedOldPinNumbers: number[]) => void;
   /**
    * Absorb `sourceId` into `targetId` (same-parent inline connectors or bulkheads).
@@ -380,8 +394,13 @@ export interface SystemStore {
     patch: Partial<Pick<SignalPropertyDefinition, 'name' | 'options'>>,
   ) => void;
   deleteSignalPropertyDefinition: (id: string) => void;
-  addEnclosure: (input: Pick<HierarchyEntity, 'name' | 'parent' | 'kind'>) => string | null;
-  addConnector: (parentId: string) => string | null;
+  addEnclosure: (input: Pick<HierarchyEntity, 'name' | 'parent' | 'kind'> & {
+    position?: { x: number; y: number };
+    size?: { w: number; h: number };
+    /** Focus the inspector name field after create. */
+    focusName?: boolean;
+  }) => string | null;
+  addConnector: (parentId: string, options?: { mounting?: 'bulkhead'; focusName?: boolean }) => string | null;
   addInlineConnector: (input: {
     parent: string | null;
     position: { x: number; y: number };
@@ -502,6 +521,7 @@ export interface SystemStore {
   loadRotationLayouts: (rotations: RotationLayouts) => void;
   loadRouteStyleLayouts: (styles: RouteStyleLayouts) => void;
   loadViewRouteStyleLayouts: (styles: ViewRouteStyleLayouts) => void;
+  loadSignalLabelLayouts: (labels: SignalLabelLayouts) => void;
   rotateConnector: (connectorId: string) => void;
   rotateEnclosure: (enclosureId: string) => void;
 
@@ -535,8 +555,11 @@ export interface SystemStore {
   setOpenEnclosure: (encId: string | null) => void;
   setSelectedHarnessBundle: (bundle: SelectedHarnessBundle | null) => void;
   dismissInspector: () => void;
+  clearPendingInspectorNameFocus: () => void;
 
   setEdgeWaypoints: (edgeId: string, waypoints: WaypointItem[]) => void;
+  setHarnessBundleSignalLabelOffset: (edgeId: string, offset: SignalLabelOffset | null) => void;
+  setHarnessBundleSignalLabelHidden: (edgeId: string, hidden: boolean) => void;
   /** Remove the selected bend/waypoint. Returns true if a point was deleted. */
   deleteSelectedRoutePoint: () => boolean;
   setEdgeRouteStyle: (edgeId: string, style: WireRouteStyle) => void;
@@ -696,17 +719,30 @@ function insertInlineConnectorIntoSystem(
 function removeBundlePresentation(
   waypointLayouts: WaypointLayouts,
   sharedAnchors: SharedAnchorLayouts,
+  signalLabelLayouts: SignalLabelLayouts,
   edgeIds: ReadonlySet<string>,
-): { waypointLayouts: WaypointLayouts; sharedAnchors: SharedAnchorLayouts } {
-  if (edgeIds.size === 0) return { waypointLayouts, sharedAnchors };
+): {
+  waypointLayouts: WaypointLayouts;
+  sharedAnchors: SharedAnchorLayouts;
+  signalLabelLayouts: SignalLabelLayouts;
+} {
+  if (edgeIds.size === 0) return { waypointLayouts, sharedAnchors, signalLabelLayouts };
   const nextWaypoints = { ...waypointLayouts };
-  for (const edgeId of edgeIds) delete nextWaypoints[edgeId];
+  const nextSignalLabels = { ...signalLabelLayouts };
+  for (const edgeId of edgeIds) {
+    delete nextWaypoints[edgeId];
+    delete nextSignalLabels[edgeId];
+  }
   const nextSharedAnchors = structuredClone(sharedAnchors);
   for (const [sharedAnchorId, sharedAnchor] of Object.entries(nextSharedAnchors)) {
     sharedAnchor.memberEdgeIds = sharedAnchor.memberEdgeIds.filter((edgeId) => !edgeIds.has(edgeId));
     if (sharedAnchor.memberEdgeIds.length === 0) delete nextSharedAnchors[sharedAnchorId];
   }
-  return { waypointLayouts: nextWaypoints, sharedAnchors: nextSharedAnchors };
+  return {
+    waypointLayouts: nextWaypoints,
+    sharedAnchors: nextSharedAnchors,
+    signalLabelLayouts: nextSignalLabels,
+  };
 }
 
 function bundleIdForRefs(left: string, right: string): string {
@@ -719,6 +755,7 @@ function replaceBundlePresentationForInline(
   waypointLayouts: WaypointLayouts,
   sharedAnchors: SharedAnchorLayouts,
   routeStyleLayouts: RouteStyleLayouts,
+  signalLabelLayouts: SignalLabelLayouts,
   oldEdgeId: string,
   connectorId: string,
   split: InlineBundleSplitLayout | undefined,
@@ -726,6 +763,7 @@ function replaceBundlePresentationForInline(
   waypointLayouts: WaypointLayouts;
   sharedAnchors: SharedAnchorLayouts;
   routeStyleLayouts: RouteStyleLayouts;
+  signalLabelLayouts: SignalLabelLayouts;
 } {
   const parsed = parseHarnessBundleId(oldEdgeId);
   if (!parsed || !split) {
@@ -735,6 +773,7 @@ function replaceBundlePresentationForInline(
       ...removeBundlePresentation(
         waypointLayouts,
         sharedAnchors,
+        signalLabelLayouts,
         new Set([oldEdgeId]),
       ),
       routeStyleLayouts: nextStyles,
@@ -779,10 +818,18 @@ function replaceBundlePresentationForInline(
     nextStyles[beforeId] = inherited;
     nextStyles[afterId] = inherited;
   }
+  const nextLabels = { ...signalLabelLayouts };
+  const inheritedLabel = getHarnessBundleLayoutValue(nextLabels, oldEdgeId);
+  delete nextLabels[oldEdgeId];
+  if (inheritedLabel) {
+    nextLabels[beforeId] = inheritedLabel;
+    nextLabels[afterId] = inheritedLabel;
+  }
   return {
     waypointLayouts: nextWaypoints,
     sharedAnchors: nextSharedAnchors,
     routeStyleLayouts: nextStyles,
+    signalLabelLayouts: nextLabels,
   };
 }
 
@@ -790,12 +837,14 @@ function rejoinBundlePresentationAfterInline(
   waypointLayouts: WaypointLayouts,
   sharedAnchors: SharedAnchorLayouts,
   routeStyleLayouts: RouteStyleLayouts,
+  signalLabelLayouts: SignalLabelLayouts,
   system: SystemData,
   connectorId: string,
 ): {
   waypointLayouts: WaypointLayouts;
   sharedAnchors: SharedAnchorLayouts;
   routeStyleLayouts: RouteStyleLayouts;
+  signalLabelLayouts: SignalLabelLayouts;
 } {
   const connectorRef = `connector:${connectorId}`;
   const pairs = new Map<string, { left: string; right: string }>();
@@ -816,12 +865,13 @@ function rejoinBundlePresentationAfterInline(
     });
   }
   if (pairs.size === 0) {
-    return { waypointLayouts, sharedAnchors, routeStyleLayouts };
+    return { waypointLayouts, sharedAnchors, routeStyleLayouts, signalLabelLayouts };
   }
 
   const nextWaypoints = { ...waypointLayouts };
   const nextSharedAnchors = structuredClone(sharedAnchors);
   const nextStyles = { ...routeStyleLayouts };
+  const nextLabels = { ...signalLabelLayouts };
   const oriented = (edgeId: string, from: string): WaypointItem[] => {
     const parsed = parseHarnessBundleId(edgeId);
     const waypoints = nextWaypoints[edgeId] ?? [];
@@ -869,11 +919,17 @@ function rejoinBundlePresentationAfterInline(
       ? 'grid'
       : (leftStyle ?? rightStyle);
     if (joinedStyle) nextStyles[joinedEdgeId] = joinedStyle;
+    const joinedLabel = getHarnessBundleLayoutValue(nextLabels, leftEdgeId)
+      ?? getHarnessBundleLayoutValue(nextLabels, rightEdgeId);
+    delete nextLabels[leftEdgeId];
+    delete nextLabels[rightEdgeId];
+    if (joinedLabel) nextLabels[joinedEdgeId] = joinedLabel;
   }
   return {
     waypointLayouts: nextWaypoints,
     sharedAnchors: nextSharedAnchors,
     routeStyleLayouts: nextStyles,
+    signalLabelLayouts: nextLabels,
   };
 }
 
@@ -948,6 +1004,7 @@ function makeSnapshot(state: SystemStore): UndoSnapshot {
     rotationLayouts: state.rotationLayouts,
     routeStyleLayouts: state.routeStyleLayouts,
     viewRouteStyleLayouts: state.viewRouteStyleLayouts,
+    signalLabelLayouts: state.signalLabelLayouts,
     subsystems: state.subsystems,
     selectedItem: state.selectedItem,
     selectedHarnessBundle: state.selectedHarnessBundle,
@@ -997,6 +1054,7 @@ function layoutsFromSnapshot(s: {
   rotationLayouts: RotationLayouts;
   routeStyleLayouts: RouteStyleLayouts;
   viewRouteStyleLayouts: ViewRouteStyleLayouts;
+  signalLabelLayouts: SignalLabelLayouts;
 }): CollaborationLayouts {
   return {
     nodes: s.nodeLayouts,
@@ -1013,6 +1071,7 @@ function layoutsFromSnapshot(s: {
     rotations: s.rotationLayouts,
     routeStyles: s.routeStyleLayouts,
     viewRouteStyles: s.viewRouteStyleLayouts,
+    signalLabels: s.signalLabelLayouts,
   };
 }
 
@@ -1057,6 +1116,7 @@ function applySnapshotDelta(
     rotationLayouts: layouts.rotations,
     routeStyleLayouts: layouts.routeStyles,
     viewRouteStyleLayouts: layouts.viewRouteStyles,
+    signalLabelLayouts: layouts.signalLabels,
     subsystems: isRecordDiffEmpty(subsystemDiff)
       ? base.subsystems
       : applyRecordDiff(base.subsystems, subsystemDiff),
@@ -1089,6 +1149,7 @@ function snapshotsEqual(left: UndoSnapshot, right: UndoSnapshot): boolean {
     && left.rotationLayouts === right.rotationLayouts
     && left.routeStyleLayouts === right.routeStyleLayouts
     && left.viewRouteStyleLayouts === right.viewRouteStyleLayouts
+    && left.signalLabelLayouts === right.signalLabelLayouts
     && left.subsystems === right.subsystems
     && deepEqual(left.selectedItem, right.selectedItem)
     && deepEqual(left.selectedHarnessBundle, right.selectedHarnessBundle)
@@ -1262,6 +1323,7 @@ function scopedHistoryPatch(
     rotationLayouts: applied.rotationLayouts,
     routeStyleLayouts: applied.routeStyleLayouts,
     viewRouteStyleLayouts: applied.viewRouteStyleLayouts,
+    signalLabelLayouts: applied.signalLabelLayouts,
     subsystems: applied.subsystems,
     selectedItem,
     selectedHarnessBundle,
@@ -1405,6 +1467,7 @@ const DOCUMENT_SLICES = [
   'rotationLayouts',
   'routeStyleLayouts',
   'viewRouteStyleLayouts',
+  'signalLabelLayouts',
 ] as const satisfies readonly (keyof SystemStore)[];
 
 function trustedDocumentPatch<T extends object>(patch: T): T {
@@ -1471,6 +1534,7 @@ function layoutStatePatch(layouts: CollaborationLayouts): Pick<
   | 'rotationLayouts'
   | 'routeStyleLayouts'
   | 'viewRouteStyleLayouts'
+  | 'signalLabelLayouts'
 > {
   return {
     nodeLayouts: layouts.nodes,
@@ -1486,6 +1550,7 @@ function layoutStatePatch(layouts: CollaborationLayouts): Pick<
     rotationLayouts: layouts.rotations,
     routeStyleLayouts: layouts.routeStyles,
     viewRouteStyleLayouts: layouts.viewRouteStyles,
+    signalLabelLayouts: layouts.signalLabels,
   };
 }
 
@@ -1705,6 +1770,7 @@ export const useSystemStore = create<SystemStore>(readOnlyMiddleware((set, get) 
   selectedImageId: null,
   selectedHarnessBundle: null,
   inspectorDismissed: false,
+  pendingInspectorNameFocusId: null,
   revealRequest: null,
   revealRequestSequence: 0,
   waypointLayouts: {},
@@ -1713,6 +1779,7 @@ export const useSystemStore = create<SystemStore>(readOnlyMiddleware((set, get) 
   rotationLayouts: {},
   routeStyleLayouts: {},
   viewRouteStyleLayouts: {},
+  signalLabelLayouts: {},
   editingSurface: 'hierarchy',
   subsystems: {},
   activeSubsystemId: null,
@@ -2327,8 +2394,8 @@ export const useSystemStore = create<SystemStore>(readOnlyMiddleware((set, get) 
       },
     }, `subsystem:${activeId}:${kind}:${id}:resize`);
   }),
-  addEntityToActiveSubsystem: (type, id) => set((state) => {
-    const subsystemId = state.activeSubsystemId;
+  addEntityToActiveSubsystem: (type, id, requestedSubsystemId) => set((state) => {
+    const subsystemId = requestedSubsystemId ?? state.activeSubsystemId;
     const system = state.system;
     const current = subsystemId ? state.subsystems[subsystemId] : undefined;
     if (!subsystemId || !system || !current) return state;
@@ -2452,8 +2519,8 @@ export const useSystemStore = create<SystemStore>(readOnlyMiddleware((set, get) 
       isDirty: true,
     }, `subsystem:${subsystemId}:reset-layout`);
   }),
-  removeEntityFromActiveSubsystem: (type, id) => set((state) => {
-    const subsystemId = state.activeSubsystemId;
+  removeEntityFromActiveSubsystem: (type, id, requestedSubsystemId) => set((state) => {
+    const subsystemId = requestedSubsystemId ?? state.activeSubsystemId;
     const current = subsystemId ? state.subsystems[subsystemId] : undefined;
     if (!subsystemId || !current || !state.system) return state;
     const document = structuredClone(current);
@@ -2823,6 +2890,7 @@ export const useSystemStore = create<SystemStore>(readOnlyMiddleware((set, get) 
           state.waypointLayouts,
           state.sharedAnchors,
           state.routeStyleLayouts,
+          state.signalLabelLayouts,
           state.system,
           id,
         )
@@ -2830,6 +2898,7 @@ export const useSystemStore = create<SystemStore>(readOnlyMiddleware((set, get) 
           waypointLayouts: state.waypointLayouts,
           sharedAnchors: state.sharedAnchors,
           routeStyleLayouts: state.routeStyleLayouts,
+          signalLabelLayouts: state.signalLabelLayouts,
         };
     const mergeLayoutCleanup = cleanLayoutsForRemovedBranchPoints({
       branchPointLayouts: state.branchPointLayouts,
@@ -2850,6 +2919,7 @@ export const useSystemStore = create<SystemStore>(readOnlyMiddleware((set, get) 
     const presentationCleanup = removeBundlePresentation(
       mergeLayoutCleanup.waypointLayouts,
       mergeLayoutCleanup.sharedAnchors,
+      inlinePresentation.signalLabelLayouts ?? state.signalLabelLayouts,
       removedEdgeIds,
     );
     const routeStyleLayouts = { ...(inlinePresentation.routeStyleLayouts ?? state.routeStyleLayouts) };
@@ -2965,8 +3035,6 @@ export const useSystemStore = create<SystemStore>(readOnlyMiddleware((set, get) 
         if (connector.parent !== id) continue;
         if (converted.kind === 'enclosure') {
           if (connector.mounting !== 'inline') connector.mounting = 'bulkhead';
-        } else if (connector.mounting === 'bulkhead') {
-          delete connector.mounting;
         }
       }
 
@@ -2990,6 +3058,7 @@ export const useSystemStore = create<SystemStore>(readOnlyMiddleware((set, get) 
       const presentationCleanup = removeBundlePresentation(
         mergeLayoutCleanup.waypointLayouts,
         mergeLayoutCleanup.sharedAnchors,
+        current.signalLabelLayouts,
         removedEdgeIds,
       );
       const portLayouts = { ...current.portLayouts };
@@ -3111,6 +3180,10 @@ export const useSystemStore = create<SystemStore>(readOnlyMiddleware((set, get) 
     delete routeStyleLayouts[bundleId];
     delete routeStyleLayouts[getHarnessBundleLayoutId(bundleId)];
     delete routeStyleLayouts[getBaseHarnessBundleId(bundleId)];
+    const signalLabelLayouts = { ...state.signalLabelLayouts };
+    delete signalLabelLayouts[bundleId];
+    delete signalLabelLayouts[getHarnessBundleLayoutId(bundleId)];
+    delete signalLabelLayouts[getBaseHarnessBundleId(bundleId)];
     const sharedAnchors = structuredClone(state.sharedAnchors);
     for (const [sharedAnchorId, sharedAnchor] of Object.entries(sharedAnchors)) {
       sharedAnchor.memberEdgeIds = sharedAnchor.memberEdgeIds.filter((edgeId) => edgeId !== bundleId);
@@ -3122,6 +3195,7 @@ export const useSystemStore = create<SystemStore>(readOnlyMiddleware((set, get) 
       subsystems,
       waypointLayouts,
       routeStyleLayouts,
+      signalLabelLayouts,
       sharedAnchors,
       selectedItem:
         (
@@ -3394,10 +3468,18 @@ export const useSystemStore = create<SystemStore>(readOnlyMiddleware((set, get) 
       system.hierarchy.push(enclosure);
       return historyPatch(prev, {
         system,
+        ...(input.position ? {
+          nodeLayouts: { ...prev.nodeLayouts, [enclosureId]: input.position },
+        } : {}),
+        ...(input.size ? {
+          sizeLayouts: { ...prev.sizeLayouts, [enclosureId]: input.size },
+        } : {}),
         selectedItem: { type: 'enclosure', id: enclosureId },
         selectedHarnessBundle: null,
         selectedTextBoxId: null,
         selectedImageId: null,
+        inspectorDismissed: false,
+        pendingInspectorNameFocusId: input.focusName ? enclosureId : null,
         mutationError: null,
         isDirty: true,
       }, `enclosure:${enclosureId}:add`);
@@ -3405,7 +3487,7 @@ export const useSystemStore = create<SystemStore>(readOnlyMiddleware((set, get) 
 
     return enclosureId;
   },
-  addConnector: (parentId) => {
+  addConnector: (parentId, options) => {
     const state = get();
     if (!state.system) return null;
     const parent = state.system.hierarchy.find((item) => item.id === parentId);
@@ -3415,7 +3497,7 @@ export const useSystemStore = create<SystemStore>(readOnlyMiddleware((set, get) 
     // connector on the nearest sheet-owning ancestor of that parent. Do not
     // mark `derived` or invent SheetBoundaryPorts here — those are computed from
     // cross-sheet path usage when writing.
-    const isBulkhead = parent.kind === 'enclosure';
+    const isBulkhead = options?.mounting === 'bulkhead' || parent.kind === 'enclosure';
     const genericDefaults = state.connectorLibrary?.connector_types.find(
       (type) => type.id === GENERIC_MULTIPIN_TYPE_ID,
     )?.default_properties ?? {};
@@ -3505,6 +3587,7 @@ export const useSystemStore = create<SystemStore>(readOnlyMiddleware((set, get) 
         subsystems,
         portLayouts,
         selectedItem: { type: 'connector', id: connectorId },
+        pendingInspectorNameFocusId: options?.focusName ? connectorId : null,
         selectedHarnessBundle: null,
         selectedTextBoxId: null,
         selectedImageId: null,
@@ -3565,6 +3648,7 @@ export const useSystemStore = create<SystemStore>(readOnlyMiddleware((set, get) 
           state.waypointLayouts,
           state.sharedAnchors,
           state.routeStyleLayouts,
+          state.signalLabelLayouts,
           input.bundle.id,
           connectorId,
           input.bundleLayout,
@@ -3572,6 +3656,7 @@ export const useSystemStore = create<SystemStore>(readOnlyMiddleware((set, get) 
       : {
           waypointLayouts: state.waypointLayouts,
           sharedAnchors: state.sharedAnchors,
+          signalLabelLayouts: state.signalLabelLayouts,
         };
     const manufacturing = input.bundle
       ? pruneReplacedManufacturingBundles(
@@ -3620,6 +3705,7 @@ export const useSystemStore = create<SystemStore>(readOnlyMiddleware((set, get) 
       state.waypointLayouts,
       state.sharedAnchors,
       state.routeStyleLayouts,
+      state.signalLabelLayouts,
       bundle.id,
       connectorId,
       bundleLayout,
@@ -4013,6 +4099,7 @@ export const useSystemStore = create<SystemStore>(readOnlyMiddleware((set, get) 
     rotationLayouts: {},
     routeStyleLayouts: {},
     viewRouteStyleLayouts: {},
+    signalLabelLayouts: {},
     editingSurface: 'hierarchy',
     subsystems: {},
     activeSubsystemId: null,
@@ -4290,6 +4377,10 @@ export const useSystemStore = create<SystemStore>(readOnlyMiddleware((set, get) 
       ...state.serverLayouts,
       viewRouteStyles: structuredClone(normalizeRouteStyleMap(styles)),
     },
+  })),
+  loadSignalLabelLayouts: (labels) => set((state) => trustedDocumentPatch({
+    signalLabelLayouts: labels,
+    serverLayouts: { ...state.serverLayouts, signalLabels: structuredClone(labels) },
   })),
   rotateConnector: (connectorId) =>
     set((state) => {
@@ -4617,14 +4708,16 @@ export const useSystemStore = create<SystemStore>(readOnlyMiddleware((set, get) 
     };
   }),
 
-  selectItem: (item) => set({
+  selectItem: (item) => set((state) => ({
     selectedItem: item,
     selectedHarnessBundle: null,
     selectedTextBoxId: null,
     selectedImageId: null,
     inspectorDismissed: false,
     revealRequest: null,
-  }),
+    pendingInspectorNameFocusId:
+      item?.id === state.pendingInspectorNameFocusId ? state.pendingInspectorNameFocusId : null,
+  })),
   revealItem: (item) => set((state) => {
     const requestId = (state.revealRequestSequence ?? 0) + 1;
     const openEnclosureId =
@@ -4772,13 +4865,65 @@ export const useSystemStore = create<SystemStore>(readOnlyMiddleware((set, get) 
     inspectorDismissed: false,
     revealRequest: null,
   }),
-  dismissInspector: () => set({ inspectorDismissed: true }),
+  dismissInspector: () => set({ inspectorDismissed: true, pendingInspectorNameFocusId: null }),
+  clearPendingInspectorNameFocus: () => set({ pendingInspectorNameFocusId: null }),
 
   setEdgeWaypoints: (edgeId, waypoints) => set((state) => {
     const layoutId = getHarnessBundleLayoutId(edgeId);
     return historyPatch(state, {
       waypointLayouts: { ...state.waypointLayouts, [layoutId]: waypoints },
     }, `edge:${layoutId}:waypoints`);
+  }),
+  setHarnessBundleSignalLabelOffset: (edgeId, offset) => set((state) => {
+    const layoutId = getHarnessBundleLayoutId(edgeId);
+    const current = getHarnessBundleLayoutValue(state.signalLabelLayouts, layoutId);
+    const next = { ...state.signalLabelLayouts };
+    if (
+      offset == null
+      || !Number.isFinite(offset.x)
+      || !Number.isFinite(offset.y)
+    ) {
+      if (current?.hidden) {
+        if (current.x === 0 && current.y === 0) return state;
+        next[layoutId] = { x: 0, y: 0, hidden: true };
+      } else {
+        if (!current) return state;
+        delete next[layoutId];
+      }
+    } else if (offset.x === 0 && offset.y === 0 && !current?.hidden) {
+      if (!current) return state;
+      delete next[layoutId];
+    } else {
+      const hidden = offset.hidden ?? current?.hidden;
+      const nextLabel: SignalLabelOffset = hidden
+        ? { x: offset.x, y: offset.y, hidden: true }
+        : { x: offset.x, y: offset.y };
+      if (current?.x === nextLabel.x && current?.y === nextLabel.y && !!current.hidden === !!nextLabel.hidden) {
+        return state;
+      }
+      next[layoutId] = nextLabel;
+    }
+    return historyPatch(state, {
+      signalLabelLayouts: next,
+    }, `edge:${layoutId}:signal-label`);
+  }),
+  setHarnessBundleSignalLabelHidden: (edgeId, hidden) => set((state) => {
+    const layoutId = getHarnessBundleLayoutId(edgeId);
+    const current = getHarnessBundleLayoutValue(state.signalLabelLayouts, layoutId);
+    if (!!current?.hidden === hidden) return state;
+    const next = { ...state.signalLabelLayouts };
+    if (!hidden && (!current || (current.x === 0 && current.y === 0))) {
+      delete next[layoutId];
+    } else {
+      next[layoutId] = {
+        x: current?.x ?? 0,
+        y: current?.y ?? 0,
+        ...(hidden ? { hidden: true as const } : {}),
+      };
+    }
+    return historyPatch(state, {
+      signalLabelLayouts: next,
+    }, `edge:${layoutId}:signal-label`);
   }),
   deleteSelectedRoutePoint: () => {
     const state = get();

@@ -3,6 +3,7 @@ import type { Node } from '@xyflow/react';
 import {
   BULKHEAD_DISPLAY_PROPERTY,
   BULKHEAD_DOT_DISPLAY,
+  DEFAULT_BULKHEAD_SIZE,
   ensureEnclosureBulkheadPlaceholders,
   getVisualDotRoutePin,
   isBulkheadDot,
@@ -12,11 +13,16 @@ import {
 } from '../src/lib/bulkheadRouting.js';
 import {
   canMergePassThroughConnectors,
+  getConnectorRole,
   mergeConnectors,
 } from '../src/lib/systemTopology.js';
 import { positionNonAnchoringDots } from '../src/components/graph/graphModel.js';
 import { useSystemStore } from '../src/store/index.js';
 import type { SystemData } from '../src/types/index.js';
+import {
+  resolveRoutingDraftPreview,
+  resolveDraftRouteDrop,
+} from '../src/lib/routingPreview.js';
 
 const system: SystemData = {
   schema_version: '0.1.0',
@@ -370,5 +376,135 @@ assert.deepEqual(
   { x: 20, y: 30, w: 96, h: 36 },
 );
 assert.equal(convertedState.expandedNodes.has('con_dot'), false);
+
+{
+  const deviceBulkhead = structuredClone(system);
+  deviceBulkhead.connectors.push({
+    id: 'con_device_bh',
+    name: 'Device wall',
+    parent: 'dev_outside',
+    connector_type: 'generic_multipin',
+    mounting: 'bulkhead',
+    pin_count: 1,
+    tags: ['bulkhead'],
+    properties: {},
+  });
+  assert.equal(getConnectorRole(deviceBulkhead, 'con_device_bh'), 'bulkhead');
+
+  deviceBulkhead.connectors.push(
+    {
+      id: 'con_device_end',
+      name: 'Device endpoint',
+      parent: 'dev_outside',
+      connector_type: 'generic_multipin',
+      pin_count: 1,
+      tags: [],
+      properties: {},
+    },
+    {
+      id: 'con_device_draft',
+      name: 'Draft visual dot',
+      parent: 'dev_outside',
+      connector_type: 'generic_multipin',
+      mounting: 'bulkhead',
+      pin_count: 1,
+      tags: ['generated', 'unresolved', 'dot', 'bulkhead'],
+      properties: {
+        bulkhead_display: 'dot',
+        generated_by_route: 'path_device_draft',
+        generated_by_routes: 'path_device_draft',
+        bulkhead_group_anchor: 'dot:con_device_draft',
+      },
+    },
+  );
+  deviceBulkhead.paths.push({
+    id: 'path_device_draft',
+    name: 'Device draft',
+    tags: [],
+    properties: {},
+    nodes: [
+      { kind: 'connector', connector_id: 'con_device_end', pin_number: 1 },
+      { kind: 'connector', connector_id: 'con_device_draft', pin_number: 1 },
+    ],
+    measurements: [],
+  });
+  const keptDraft = ensureEnclosureBulkheadPlaceholders(deviceBulkhead).system.connectors
+    .find((connector) => connector.id === 'con_device_draft');
+  assert.ok(keptDraft, 'device-wall routed drafts must survive the auto-placeholder prune');
+  assert.equal(keptDraft?.mounting, 'bulkhead');
+}
+
+const box = {
+  nodeId: 'enc_box',
+  entityId: 'enc_box',
+  kind: 'enclosure' as const,
+  rect: { x: 100, y: 100, w: 200, h: 180 },
+};
+const wallDot = resolveRoutingDraftPreview({
+  cursor: { x: 100, y: 190 },
+  targets: [box],
+  existing: [],
+  sheetParentId: null,
+  routing: true,
+});
+assert.equal(wallDot?.kind, 'dot');
+assert.equal(wallDot?.parentId, 'enc_box');
+
+const blankBulkhead = resolveRoutingDraftPreview({
+  cursor: { x: 200, y: 190 },
+  targets: [box],
+  existing: [],
+  sheetParentId: null,
+  routing: true,
+});
+assert.equal(blankBulkhead?.kind, 'bulkhead');
+assert.deepEqual(blankBulkhead?.size, DEFAULT_BULKHEAD_SIZE);
+
+const idleInterior = resolveRoutingDraftPreview({
+  cursor: { x: 200, y: 190 },
+  targets: [box],
+  existing: [],
+  sheetParentId: null,
+  routing: false,
+});
+assert.equal(idleInterior, null, 'blank-space bulkheads only preview while a wire is being routed');
+
+const nearExisting = resolveRoutingDraftPreview({
+  cursor: { x: 118, y: 190 },
+  targets: [box],
+  existing: [{ rect: { x: 91, y: 181, w: 18, h: 18 }, isDot: true }],
+  sheetParentId: null,
+  routing: true,
+});
+assert.equal(nearExisting, null, 'existing dots must keep a dead zone so a new draft is not offered on top of them');
+
+const sheetBlank = resolveRoutingDraftPreview({
+  cursor: { x: 500, y: 500 },
+  targets: [box],
+  existing: [],
+  sheetParentId: 'enc_box',
+  routing: true,
+});
+assert.equal(sheetBlank?.kind, 'bulkhead');
+assert.equal(sheetBlank?.layout, 'free');
+assert.equal(sheetBlank?.parentId, 'enc_box');
+
+assert.ok(wallDot);
+assert.ok(blankBulkhead);
+const draftSource = { ...wallDot, id: 'draft_source' };
+for (const preview of [wallDot, blankBulkhead]) {
+  const route = resolveDraftRouteDrop(draftSource, null, preview, () => 'draft_target');
+  assert.deepEqual(route?.to, { connector_id: 'draft_target', pin_number: 1 });
+  assert.deepEqual(route?.drafts, [draftSource, { ...preview, id: 'draft_target' }],
+    'releasing over a grey preview must retain both drafts for signal confirmation');
+}
+const existingEndpoint = { connector_id: 'existing_connector', pin_number: 3 };
+assert.deepEqual(resolveDraftRouteDrop(draftSource, existingEndpoint, wallDot), {
+  from: { connector_id: draftSource.id, pin_number: 1 },
+  to: existingEndpoint,
+  drafts: [draftSource],
+}, 'an existing cavity takes priority over a draft preview');
+assert.equal(resolveDraftRouteDrop(draftSource, null, null), null,
+  'releasing in a dead zone must cancel without creating hardware');
 
 console.log('bulkhead dot tests passed');

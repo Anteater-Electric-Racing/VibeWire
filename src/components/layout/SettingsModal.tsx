@@ -76,7 +76,10 @@ export function SettingsModal() {
 
       <Section title="Editing">
         <Shortcut keys={<Kbd>E</Kbd>}>
-          Continue as the last logged-in user (arms editing after a cookie restore)
+          Add an enclosure while editing; otherwise continue as the last logged-in user after a cookie restore
+        </Shortcut>
+        <Shortcut keys={<Kbd>D</Kbd>}>
+          Add a device on the current canvas sheet
         </Shortcut>
         <Shortcut keys={<><Kbd>⌘</Kbd><Kbd>Z</Kbd></>}>
           Undo (Ctrl+Z on Windows/Linux)
@@ -94,15 +97,17 @@ export function SettingsModal() {
           Confirm the Choose signal popup after routing a wire
         </Shortcut>
         <Shortcut keys={<Kbd>Delete</Kbd>}>
-          Delete the selection (Backspace also works). Devices and Harness Bundles ask first. A selected route point is removed immediately.
+          Delete the selection (Backspace also works). Devices and Harness Bundles ask first. A selected route point is removed immediately. A selected signal name is hidden.
         </Shortcut>
       </Section>
 
       <Section title="Hierarchy">
         <ul className="divide-y divide-transparent">
+          <Tip>While editing the canvas, press <span className="text-zinc-100">D</span> for a new Device or <span className="text-zinc-100">E</span> for a new Enclosure, then type its name. These shortcuts pause while typing or while a modal is open.</Tip>
           <Tip>Double-click a row to expand or collapse it.</Tip>
           <Tip>Hold <span className="text-zinc-100">Shift</span> and drag across rows to open several dropdowns at once.</Tip>
-          <Tip>Press <span className="text-zinc-100">N</span> or click <span className="text-zinc-100">+</span> to add a device or enclosure.</Tip>
+          <Tip>Press <span className="text-zinc-100">N</span> or click <span className="text-zinc-100">+</span> in the hierarchy to add a device or enclosure. The left-canvas <span className="text-zinc-100">+ Device</span> and <span className="text-zinc-100">+ Enclosure</span> buttons create one immediately on the sheet you are looking at and put the cursor in the inspector name. In a subsystem view they are created on the system root sheet. <span className="text-zinc-100">+ Inline connector</span>, <span className="text-zinc-100">+ Image</span>, and <span className="text-zinc-100">+ Text Box</span> are in the same stack.</Tip>
+          <Tip>With a device or enclosure inspector open, click <span className="text-zinc-100">+ Connector</span> in the top-left canvas stack to add a connector to it. Devices get an endpoint; enclosures get a bulkhead. The button is first in the stack, and the new connector’s name is selected in the inspector so you can type immediately.</Tip>
           <Tip>Images and text boxes for the current sheet are listed at the bottom. System, each enclosure, and each subsystem keep their own images. Click a row to inspect it.</Tip>
         </ul>
       </Section>
@@ -114,8 +119,8 @@ export function SettingsModal() {
           <Tip>When several circuits share a branch approach but go to different places, a small colored handle appears at the branch point. Drag it away to separate that connection onto its own new branch point — wires that go to the same destinations stay together and can&apos;t be pulled apart.</Tip>
           <Tip>Click a branch point to see each signal, the full device chain of every path through it in both directions, and a <span className="text-zinc-100">Harness Bundles</span> list with a <span className="text-zinc-100">Split out</span> button for each distinct connection — the explicit way to undo a fuse.</Tip>
           <Tip>Drag one free-floating branch point onto another to fuse them into one — the inverse of separating one apart.</Tip>
-          <Tip>Click the triangle on a connector, or double-click / Shift-click the connector, to open or close its pin table. Wires fan out to each cavity; collapse it to bundle them again.</Tip>
-          <Tip>Drag a cavity pin handle onto another cavity to reorder it, or onto another connector to route a wire there.</Tip>
+          <Tip>Click the triangle on a connector, or double-click / Shift-click the connector, to open or close its pin table. Wires fan out to each cavity; collapse it to bundle them again. A wire that carries only one signal shows that signal name beside the route — drag the name to move it, Delete or × to hide it, and use <span className="text-zinc-100">Show signal name</span> on the selected Harness Bundle to bring it back. Double-click the name to put it at the default midpoint.</Tip>
+          <Tip>Drag a cavity pin handle onto another cavity to reorder it, or onto another connector to route a wire there. Dragging a wire onto a device or enclosure wall previews a greyed visual dot; dragging into blank space previews a greyed bulkhead. Existing dots and bulkheads keep a gap so it is hard to drop onto the wrong one — aim at a cavity handle when you mean that connector. You can also start from the greyed dot on a wall and drop onto another wall to create both dots together. The preview stays greyed until you drop and choose a signal.</Tip>
           <Tip>While dragging a wire from a pin, hover another connector to open its pin table so you can drop on a specific cavity. After you finish the route, that table stays open briefly, then closes.</Tip>
           <Tip>After you drop a wire, the signal popup starts on an uninitialized signal. Type a name, pick a color, and press Enter to route — or choose an existing signal from the list. Open full editor routes and takes you to the Signals page. Esc cancels.</Tip>
           <Tip>Drag one inline connector or bulkhead onto another of the same kind to merge them. Nearby bulkheads on the same wall also merge.</Tip>
@@ -124,7 +129,9 @@ export function SettingsModal() {
           <Tip>With a Harness Bundle selected, use <span className="text-zinc-100">+ Route points</span> or <span className="text-zinc-100">+ Inline connector</span> then click anywhere to place — drag existing points to move them, Esc when done.</Tip>
           <Tip>On a grid wire, drag the segment to move a run. Bend dots appear only where you placed a point or the wire actually turns — computed grid corners are not leftover handles.</Tip>
           <Tip>In the wire-color picker, Shift/Ctrl/Cmd-click two swatches to build a striped color like <span className="font-mono text-zinc-100">white/brown</span>.</Tip>
-          <Tip>Click <span className="text-zinc-100">Image</span> to drop pictures on the sheet you are looking at — System, an open enclosure, or a subsystem each has its own set. In the inspector, lock one so dragging does not move it — double-click a locked image to select it. Background images sit behind the wiring; Foreground images sit on top.</Tip>
+          <Tip>Inspect a device or enclosure and use <span className="text-zinc-100">+ Bulkhead</span> to put a wall connector on it. Devices also have <span className="text-zinc-100">+ Connector</span> for interior endpoints. A visual dot inspector hides connector-library details until you convert it back. Connectors, bulkheads, and dots have a <span className="text-zinc-100">Subsystems</span> dropdown of checkboxes.</Tip>
+          <Tip>Click a boxed name on a device, enclosure, or connector to rename it in place. Double-click still opens an enclosure or expands a connector — the name box waits a beat so it does not steal that gesture. Inspector names, comments, and image titles use the same boxed fields.</Tip>
+          <Tip>Click <span className="text-zinc-100">+ Image</span> on the left to drop pictures on the sheet you are looking at — System, an open enclosure, or a subsystem each has its own set. In the inspector, lock one so dragging does not move it — double-click a locked image to select it. Background images sit behind the wiring; Foreground images sit on top.</Tip>
         </ul>
       </Section>
 
@@ -138,7 +145,6 @@ export function SettingsModal() {
       <Section title="Collaboration">
         <ul className="divide-y divide-transparent">
           <Tip>Colored initials show where other people are working. A pulsing badge means they are actively editing that item; hover a badge or the topbar people list for names and locations.</Tip>
-          <Tip>The inspector footer shows who last saved the selected item and when. For a Harness Bundle, it shows the newest save among its paths.</Tip>
           <Tip><span className="text-zinc-100">Read only</span> appears for viewers — they can look around but can&apos;t change data.</Tip>
           <Tip>
             Undo is <span className="text-zinc-100">per-person and time-ordered</span>, not a global history: it undoes

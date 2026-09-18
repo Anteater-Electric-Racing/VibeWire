@@ -23,6 +23,7 @@ import type {
   PathNodeRef,
   SharedAnchorLayout,
   SharedAnchorLayouts,
+  SignalLabelLayouts,
   SystemData,
   WaypointItem,
   WaypointLayouts,
@@ -361,6 +362,20 @@ function normalizeWaypointItem(raw: unknown): WaypointItem | null {
   return null;
 }
 
+function normalizeSignalLabelLayouts(raw: unknown): SignalLabelLayouts {
+  if (!isRecord(raw)) return {};
+  const next: SignalLabelLayouts = {};
+  for (const [key, value] of Object.entries(raw)) {
+    if (!isRecord(value)) continue;
+    const x = typeof value.x === 'number' && Number.isFinite(value.x) ? value.x : 0;
+    const y = typeof value.y === 'number' && Number.isFinite(value.y) ? value.y : 0;
+    const hidden = value.hidden === true;
+    if (!hidden && x === 0 && y === 0) continue;
+    next[rewriteLegacyRefKey(key)] = hidden ? { x, y, hidden: true } : { x, y };
+  }
+  return next;
+}
+
 function normalizeWaypointLayouts(raw: unknown): WaypointLayouts {
   if (!isRecord(raw)) return {};
   const next: WaypointLayouts = {};
@@ -449,6 +464,7 @@ export function emptyLayouts(): CollaborationLayouts {
     rotations: {},
     routeStyles: {},
     viewRouteStyles: {},
+    signalLabels: {},
   };
 }
 
@@ -494,6 +510,7 @@ export function normalizeLayouts(raw: unknown): CollaborationLayouts {
     viewRouteStyles: isRecord(record.viewRouteStyles)
       ? record.viewRouteStyles as CollaborationLayouts['viewRouteStyles']
       : empty.viewRouteStyles,
+    signalLabels: normalizeSignalLabelLayouts(record.signalLabels),
   };
 }
 

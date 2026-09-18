@@ -9,16 +9,16 @@ runs ESLint.
 Every `package.json` `test:*` command must remain named here:
 
 - `test:renaming` — stable identity, display-name changes, and sheet round trips.
-- `test:routing` — Subsystem projection/routing, boundary connectors, cavity renumbering.
+- `test:routing` — Subsystem projection/routing, boundary connectors, cavity renumbering, and atomic routes with two draft endpoints.
 - `test:route-style` — straight/grid defaults, overrides, and orthogonal path editing.
-- `test:bulkhead-dots` — generated boundary visual-dot repair and routing.
+- `test:bulkhead-dots` — generated boundary visual-dot repair, wall vs blank-space routing drafts, draft-origin drops, and routing.
 - `test:connectors` — connector families, capacities, keying, media, and round trips.
 - `test:inline-connectors` — insertion and pass-through connector merge behavior.
 - `test:gauge` — wire-gauge parsing and compatibility intersection.
 - `test:hierarchy` — hierarchy moves, containment, and reference preservation.
 - `test:manufacturing` — physical grouping, lengths, progress, gender, and BOM derivation.
 - `test:undo` — unified snapshots, coalescing, scoping, and depth.
-- `test:enclosure-kind` — Device/Enclosure variant behavior.
+- `test:enclosure-kind` — Device/Enclosure variant behavior, creation hotkey guards, connector creation, selection, undo, and inspector double-click reveal delay.
 - `test:domain-model` — canonical System writes and compatibility reads across documents/sheets.
 - `test:branch-point-families` — Branch Point through families, split, and fuse.
 - `test:join-choice` — Shared Anchor default, Branch Point choice, conversion, and undo.

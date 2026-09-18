@@ -56,8 +56,8 @@ Do not infer unlimited route depth from the directory format. Read the current b
 
 `layouts.<key>.json` stores maps for nodes, ports, sizes, free connectors, images, text boxes,
 waypoints, Shared Anchors, Branch Point positions by context, rotations, per-Harness-Bundle route
-styles, and per-view route defaults. Old background and connector-type-size maps still round-trip
-for compatibility.
+styles, per-view route defaults, and signal-name placement (`signalLabels`, including a hidden
+flag). Old background and connector-type-size maps still round-trip for compatibility.
 
 Subsystem documents use schema `1.0.0` and store only membership, local geometry, connector
 visibility mode, summary mode, and viewport. Manufacturing documents write schema `1.2.0` and store
@@ -99,6 +99,10 @@ provide working API persistence; use `npm run dev` or run `dev:web` and `dev:api
 
 Mutating routes require an editor role. The API is an application backend, not a general automation
 interface; add endpoints only for a product flow.
+
+Routing requests accept up to two `draft_connectors`, each identifying a requested endpoint and
+its parent, display, and placement. Both connectors and the Path are committed in one transaction;
+Subsystem routes also save both placements. The single `draft_connector` request remains accepted.
 
 ### Compatibility aliases
 

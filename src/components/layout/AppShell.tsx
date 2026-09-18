@@ -12,6 +12,7 @@ import { useSystemStore } from '../../store';
 import { isInlineConnector } from '../../lib/systemTopology';
 import { ViewHistoryController } from './ViewHistoryController';
 import { PresenceController } from '../collab/PresenceController';
+import { useDelayedInspectorReveal } from '../../lib/doubleClickGuard';
 
 const LEFT_WIDTH_MIN = 160;
 const LEFT_WIDTH_MAX = 520;
@@ -41,6 +42,7 @@ export function AppShell() {
   const deleteEntityCascade = useSystemStore((s) => s.deleteEntityCascade);
   const deletePathHarnessBundle = useSystemStore((s) => s.deletePathHarnessBundle);
   const deleteSelectedRoutePoint = useSystemStore((s) => s.deleteSelectedRoutePoint);
+  const setHarnessBundleSignalLabelHidden = useSystemStore((s) => s.setHarnessBundleSignalLabelHidden);
   const removeTextBox = useSystemStore((s) => s.removeTextBox);
   const removeImage = useSystemStore((s) => s.removeImage);
   const editingSurface = useSystemStore((s) => s.editingSurface);
@@ -57,11 +59,16 @@ export function AppShell() {
   const activateEditSession = useSystemStore((s) => s.activateEditSession);
   const inspectorDismissed = useSystemStore((s) => s.inspectorDismissed);
   const dismissInspector = useSystemStore((s) => s.dismissInspector);
+  const pendingInspectorNameFocusId = useSystemStore((s) => s.pendingInspectorNameFocusId);
   const showInspector = !inspectorDismissed && !!(
     selectedItem
     || (selectedHarnessBundle && selectedHarnessBundle.pathIds.length > 0)
     || selectedTextBoxId
     || selectedImageId
+  );
+  const inspectorRevealed = useDelayedInspectorReveal(
+    appView === 'manufacturing' ? !!selectedItem : showInspector,
+    !!pendingInspectorNameFocusId,
   );
 
   // Left sidebar state
@@ -101,6 +108,15 @@ export function AppShell() {
         if (selectedHarnessBundle.routePoint) {
           e.preventDefault();
           deleteSelectedRoutePoint();
+          return;
+        }
+        if (selectedHarnessBundle.signalLabel) {
+          e.preventDefault();
+          setHarnessBundleSignalLabelHidden(selectedHarnessBundle.id, true);
+          setSelectedHarnessBundle({
+            id: selectedHarnessBundle.id,
+            pathIds: selectedHarnessBundle.pathIds,
+          });
           return;
         }
         e.preventDefault();
@@ -263,7 +279,7 @@ export function AppShell() {
 
         // Wire bundles have no parent chain — tilde just exits them.
         if (selectedHarnessBundle) {
-          if (selectedHarnessBundle.routePoint) {
+          if (selectedHarnessBundle.routePoint || selectedHarnessBundle.signalLabel) {
             setSelectedHarnessBundle({ id: selectedHarnessBundle.id, pathIds: selectedHarnessBundle.pathIds });
             return;
           }
@@ -346,7 +362,7 @@ export function AppShell() {
     }
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [showInspector, inspectorDismissed, dismissInspector, openEnclosureId, system, selectItem, selectTextBox, selectImage, setSelectedHarnessBundle, setOpenEnclosure, redo, selectedItem, selectedHarnessBundle, selectedTextBoxId, selectedImageId, rotateConnector, rotateEnclosure, editingSurface, appView, getDeleteImpact, deleteEntityCascade, deletePathHarnessBundle, deleteSelectedRoutePoint, removeEntityFromActiveSubsystem, removeImage, removeTextBox, isEditor, sessionUser, editSessionActive, activateEditSession, closeConnectorLibrary, setEditingSurface, openManufacturing, openConnectorLibrary, openSignalLibrary]);
+  }, [showInspector, inspectorDismissed, dismissInspector, openEnclosureId, system, selectItem, selectTextBox, selectImage, setSelectedHarnessBundle, setOpenEnclosure, redo, selectedItem, selectedHarnessBundle, selectedTextBoxId, selectedImageId, rotateConnector, rotateEnclosure, editingSurface, appView, getDeleteImpact, deleteEntityCascade, deletePathHarnessBundle, deleteSelectedRoutePoint, setHarnessBundleSignalLabelHidden, removeEntityFromActiveSubsystem, removeImage, removeTextBox, isEditor, sessionUser, editSessionActive, activateEditSession, closeConnectorLibrary, setEditingSurface, openManufacturing, openConnectorLibrary, openSignalLibrary]);
 
   return (
     <div className="h-screen w-screen flex flex-col bg-zinc-950 text-zinc-100 overflow-hidden">
@@ -366,7 +382,7 @@ export function AppShell() {
           <main className="min-w-0 flex-1">
             <ManufacturingPage />
           </main>
-          {selectedItem && (
+          {inspectorRevealed && (
             <aside className="w-64 shrink-0 border-l border-zinc-800 bg-zinc-900 overflow-hidden">
               <InspectorPanel />
             </aside>
@@ -448,7 +464,7 @@ export function AppShell() {
         </main>
 
         {/* Right sidebar: inspector */}
-        {showInspector && (
+        {inspectorRevealed && (
           <aside className="w-64 shrink-0 border-l border-zinc-800 bg-zinc-900 overflow-hidden">
             <InspectorPanel />
           </aside>

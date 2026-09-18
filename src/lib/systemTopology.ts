@@ -130,6 +130,61 @@ export function getPathSignalName(
     ?? signalId.replace(/^sig_/, '');
 }
 
+/** Name assigned to a freshly created signal before a person renames it. */
+export const DEFAULT_NEW_SIGNAL_NAME = 'new signal';
+
+function isDefaultSignalName(name: string): boolean {
+  return name.trim().toLowerCase() === DEFAULT_NEW_SIGNAL_NAME;
+}
+
+/** Signal id when every Path in the bundle carries the same signal. */
+export function getHarnessBundleSignalId(
+  system: Pick<SystemData, 'paths'>,
+  pathIds: string[],
+): string | null {
+  if (pathIds.length === 0) return null;
+  let uniqueId: string | null = null;
+  for (const pathId of pathIds) {
+    const path = system.paths.find((candidate) => candidate.id === pathId);
+    if (!path) return null;
+    const signalId = getPathSignalId(path);
+    if (!signalId) return null;
+    if (uniqueId == null) {
+      uniqueId = signalId;
+      continue;
+    }
+    if (uniqueId !== signalId) return null;
+  }
+  return uniqueId;
+}
+
+/**
+ * Unique catalog name when every Path in the bundle carries the same named
+ * signal, unless that signal still has its default (unedited) name.
+ */
+export function getHarnessBundleSignalName(
+  system: Pick<SystemData, 'paths' | 'signals'>,
+  pathIds: string[],
+): string | null {
+  if (pathIds.length === 0) return null;
+  let uniqueId: string | null = null;
+  let uniqueName: string | null = null;
+  for (const pathId of pathIds) {
+    const path = system.paths.find((candidate) => candidate.id === pathId);
+    if (!path) return null;
+    const signalId = getPathSignalId(path);
+    if (!signalId) return null;
+    if (uniqueId == null) {
+      uniqueId = signalId;
+      uniqueName = getPathSignalName(path, system);
+      continue;
+    }
+    if (uniqueId !== signalId) return null;
+  }
+  if (!uniqueName || uniqueName.length === 0) return null;
+  return isDefaultSignalName(uniqueName) ? null : uniqueName;
+}
+
 export const BRANCH_REF_PREFIX = 'branch:';
 const LEGACY_MERGE_REF_PREFIX = 'merge:';
 
@@ -461,9 +516,10 @@ export function getConnectorRole(
   if (!connector) return 'endpoint';
   if (connector.mounting === 'inline') return 'inline';
   if (connector.mounting === 'bulkhead') {
-    return system.hierarchy.find((candidate) => candidate.id === connector.parent)?.kind === 'enclosure'
-      ? 'bulkhead'
-      : 'endpoint';
+    const parent = connector.parent
+      ? system.hierarchy.find((candidate) => candidate.id === connector.parent)
+      : undefined;
+    return parent ? 'bulkhead' : 'endpoint';
   }
   if (!connector.parent) return 'endpoint';
   return system.hierarchy.find((candidate) => candidate.id === connector.parent)?.kind === 'enclosure'
@@ -479,8 +535,8 @@ export function isInlineConnector(
 }
 
 /**
- * True when a connector is mounted on a container enclosure wall (a bulkhead).
- * Device-mounted connectors and free/root connectors are not bulkheads.
+ * True when a connector is mounted on a Device or Enclosure wall (a bulkhead).
+ * Free/root connectors without explicit bulkhead mounting are not bulkheads.
  */
 export function isBulkheadConnector(
   system: SystemData,

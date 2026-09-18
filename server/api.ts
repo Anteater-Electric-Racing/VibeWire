@@ -24,6 +24,8 @@ import {
   AUTO_BULKHEAD_REASON,
   BULKHEAD_DISPLAY_PROPERTY,
   BULKHEAD_DOT_DISPLAY,
+  BULKHEAD_DOT_SIZE,
+  DEFAULT_BULKHEAD_SIZE,
   ensureEnclosureBulkheadPlaceholders,
   isTerminalVisualDot,
   routeRequestToken,
@@ -281,6 +283,7 @@ interface LayoutData {
   rotations?: Record<string, number>;
   routeStyles?: Record<string, 'grid' | 'straight'>;
   viewRouteStyles?: Record<string, 'grid' | 'straight'>;
+  signalLabels?: Record<string, { x: number; y: number }>;
 }
 
 interface SubsystemDocument {
@@ -526,8 +529,8 @@ export function validateSystemData(system: SystemData, library: ConnectorLibrary
       const parent = connector.parent
         ? system.hierarchy.find((enclosure) => enclosure.id === connector.parent)
         : undefined;
-      if (parent?.kind !== 'enclosure') {
-        errors.push(`Connector '${connector.id}' is marked as a bulkhead without a container parent`);
+      if (!parent) {
+        errors.push(`Connector '${connector.id}' is marked as a bulkhead without a parent`);
       }
     }
     if (connector.connector_type && !connectorTypeById.has(connector.connector_type)) {
@@ -1480,6 +1483,7 @@ export function createApiMiddleware(projectRoot: string) {
     'rotations',
     'routeStyles',
     'viewRouteStyles',
+    'signalLabels',
   ] as const;
 
   function isRecord(value: unknown): value is Record<string, unknown> {
@@ -2240,13 +2244,21 @@ export function createApiMiddleware(projectRoot: string) {
         }
 
         const result = await commitSystemDocument(req, name, 'system', (system) => {
-          const draftSpec = body.draft_connector;
-          let draftConnector: Connector | undefined;
-          if (draftSpec) {
+          const draftSpecs = body.draft_connectors ?? (body.draft_connector ? [body.draft_connector] : []);
+          if (!Array.isArray(draftSpecs) || draftSpecs.length > 2) {
+            throw new ApiWriteError(400, { error: 'A route accepts at most two draft connectors.' });
+          }
+          const draftIds = new Set<string>();
+          for (const draftSpec of draftSpecs) {
+            if (!draftSpec || typeof draftSpec !== 'object') {
+              throw new ApiWriteError(400, { error: 'Invalid draft connector.' });
+            }
+            let draftConnector: Connector;
             const draftId = String(draftSpec.id ?? '');
             const draftParentId = String(draftSpec.parent ?? '');
             if (
               !draftId
+              || draftIds.has(draftId)
               || !draftParentId
               || (
                 draftId !== body.from.connector_id
@@ -2257,6 +2269,7 @@ export function createApiMiddleware(projectRoot: string) {
                 error: 'Draft connector must identify one requested route endpoint and parent.',
               });
             }
+            draftIds.add(draftId);
             const existingDraft = system.connectors.find((item) => item.id === draftId);
             if (existingDraft) {
               draftConnector = existingDraft;
@@ -2267,16 +2280,21 @@ export function createApiMiddleware(projectRoot: string) {
                   error: `Draft connector parent not found: ${draftParentId}`,
                 });
               }
+              const draftDisplay = draftSpec.display === 'bulkhead' ? 'bulkhead' : 'dot';
+              const isDot = draftDisplay === 'dot';
+              const wallMounted = parent.kind === 'enclosure' || parent.kind === 'device';
               const systemTags = requestedSubsystemId ? [`system:${requestedSubsystemId}`] : [];
               const properties: Record<string, string> = {
-                [BULKHEAD_DISPLAY_PROPERTY]: BULKHEAD_DOT_DISPLAY,
                 generated_by_route: pathId,
                 generated_by_routes: pathId,
+                // Keep routed drafts out of the orphaned-placeholder prune in
+                // ensureEnclosureBulkheadPlaceholders (tags look like auto-bulkheads).
+                bulkhead_group_anchor: `${isDot ? 'dot' : 'bulkhead'}:${draftId}`,
               };
+              if (isDot) properties[BULKHEAD_DISPLAY_PROPERTY] = BULKHEAD_DOT_DISPLAY;
               if (parent.kind === 'enclosure') {
                 Object.assign(properties, {
                   placeholder_reason: AUTO_BULKHEAD_REASON,
-                  bulkhead_group_anchor: `dot:${draftId}`,
                   boundary_enclosure: parent.id,
                   boundary_sheet: parent.id,
                   boundary_name: parent.name,
@@ -2286,16 +2304,16 @@ export function createApiMiddleware(projectRoot: string) {
                 id: draftId,
                 name: typeof draftSpec.name === 'string' && draftSpec.name.trim()
                   ? draftSpec.name.trim()
-                  : 'Visual dot',
+                  : isDot ? 'Visual dot' : 'New Bulkhead',
                 parent: parent.id,
                 connector_type: GENERIC_MULTIPIN_TYPE_ID,
-                mounting: parent.kind === 'enclosure' ? 'bulkhead' : 'inline',
+                mounting: wallMounted ? 'bulkhead' : 'inline',
                 pin_count: 1,
                 tags: Array.from(new Set([
                   'generated',
                   'unresolved',
-                  'dot',
-                  ...(parent.kind === 'enclosure' ? ['bulkhead'] : ['inline']),
+                  ...(isDot ? ['dot'] : []),
+                  ...(wallMounted ? ['bulkhead'] : ['inline']),
                   ...systemTags,
                 ])),
                 properties,
@@ -2316,7 +2334,7 @@ export function createApiMiddleware(projectRoot: string) {
           }
           for (const connector of [fromConnector, toConnector]) {
             if (
-              connector.id !== draftConnector?.id
+              !draftIds.has(connector.id)
               && connector.properties[BULKHEAD_DISPLAY_PROPERTY] === BULKHEAD_DOT_DISPLAY
               && !isTerminalVisualDot(system, connector.id)
             ) {
@@ -2481,13 +2499,10 @@ export function createApiMiddleware(projectRoot: string) {
             recordRouteRequest(existingPath);
             wirePath = existingPath;
           }
-          if (draftConnector) {
-            draftConnector = candidate.connectors.find(
-              (item) => item.id === draftConnector?.id,
-            );
-            if (draftConnector) {
-              draftConnector.properties.generated_by_route = wirePath.id;
-              draftConnector.properties.generated_by_routes = wirePath.id;
+          for (const connector of candidate.connectors) {
+            if (draftIds.has(connector.id)) {
+              connector.properties.generated_by_route = wirePath.id;
+              connector.properties.generated_by_routes = wirePath.id;
             }
           }
           const unmergedDots = unmergeNonTerminalVisualDots(
@@ -2496,28 +2511,19 @@ export function createApiMiddleware(projectRoot: string) {
           );
           candidate = unmergedDots.system;
           wirePath = candidate.paths.find((item) => item.id === wirePath.id)!;
-          if (draftConnector) {
-            draftConnector = candidate.connectors.find(
-              (item) => item.id === draftConnector?.id,
-            );
-          }
           const repaired = ensureEnclosureBulkheadPlaceholders(candidate, {
             pathIds: new Set([wirePath.id]),
           });
           candidate = repaired.system;
           wirePath = candidate.paths.find((item) => item.id === wirePath.id)!;
-          if (draftConnector) {
-            draftConnector = candidate.connectors.find(
-              (item) => item.id === draftConnector?.id,
-            );
-          }
+          const draftConnectors = candidate.connectors.filter((item) => draftIds.has(item.id));
           const bulkheadConnectors = repaired.insertedConnectorIds.flatMap((connectorId) => {
             const connector = candidate.connectors.find((item) => item.id === connectorId);
             return connector ? [connector] : [];
           });
           const subsystemConnectors = Array.from(new Map([
             ...bulkheadConnectors,
-            ...(draftConnector ? [draftConnector] : []),
+            ...draftConnectors,
             ...unmergedDots.created.flatMap(({ connectorId }) => {
               const connector = candidate.connectors.find((item) => item.id === connectorId);
               return connector ? [connector] : [];
@@ -2547,15 +2553,18 @@ export function createApiMiddleware(projectRoot: string) {
               );
               if (!savedSubsystem.connectors[connector.id]) {
                 const connectorIndex = Object.keys(savedSubsystem.connectors).length;
-                const isDraft = connector.id === draftConnector?.id;
+                const draftSpec = draftSpecs.find((spec) => spec.id === connector.id);
+                const isDraft = !!draftSpec;
                 const splitSourceId = unmergedDots.created.find(
                   ({ connectorId }) => connectorId === connector.id,
                 )?.sourceConnectorId;
                 const splitSourceLayout = splitSourceId
                   ? savedSubsystem.connectors[splitSourceId]
                   : undefined;
-                const draftX = Number(body.draft_connector?.x);
-                const draftY = Number(body.draft_connector?.y);
+                const draftX = Number(draftSpec?.x);
+                const draftY = Number(draftSpec?.y);
+                const draftIsDot = isDraft
+                  && (draftSpec?.display !== 'bulkhead');
                 savedSubsystem.connectors[connector.id] = {
                   x: splitSourceLayout
                     ? splitSourceLayout.x + 24
@@ -2567,8 +2576,12 @@ export function createApiMiddleware(projectRoot: string) {
                     : isDraft && Number.isFinite(draftY)
                     ? draftY
                     : 80 + Math.floor(connectorIndex / 3) * 52,
-                  w: isDraft ? 18 : 96,
-                  h: isDraft ? 18 : 36,
+                  w: isDraft
+                    ? (draftIsDot ? BULKHEAD_DOT_SIZE : DEFAULT_BULKHEAD_SIZE.w)
+                    : 96,
+                  h: isDraft
+                    ? (draftIsDot ? BULKHEAD_DOT_SIZE : DEFAULT_BULKHEAD_SIZE.h)
+                    : 36,
                 };
               }
               savedSubsystem.hidden_connectors = (savedSubsystem.hidden_connectors ?? [])
@@ -2594,7 +2607,8 @@ export function createApiMiddleware(projectRoot: string) {
               pathId: wirePath.id,
               generated: bulkheadConnectors.map((connector) => connector.id),
               created: repaired.createdConnectorIds,
-              draftConnectorId: draftConnector?.id,
+              draftConnectorId: draftConnectors[0]?.id,
+              draftConnectorIds: draftConnectors.map((connector) => connector.id),
               unmergedDots: unmergedDots.created,
               subsystem: savedSubsystem,
             },
@@ -2609,6 +2623,7 @@ export function createApiMiddleware(projectRoot: string) {
           generated_connectors: result.value.generated,
           created_connectors: result.value.created,
           draft_connector_id: result.value.draftConnectorId,
+          draft_connector_ids: result.value.draftConnectorIds,
           unmerged_dots: result.value.unmergedDots,
           ...(result.value.subsystem ? { subsystem: result.value.subsystem } : {}),
           validation: validateSystemData(saved, readLibrary()),

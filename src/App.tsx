@@ -16,6 +16,7 @@ import type {
   PortLayouts,
   RotationLayouts,
   RouteStyleLayouts,
+  SignalLabelLayouts,
   SizeLayouts,
   SubsystemDocument,
   TextBoxLayouts,
@@ -44,6 +45,7 @@ interface LayoutFile extends Partial<CollaborationLayouts> {
   rotations?: RotationLayouts;
   routeStyles?: RouteStyleLayouts;
   viewRouteStyles?: ViewRouteStyleLayouts;
+  signalLabels?: SignalLabelLayouts;
 }
 
 export default function App() {
@@ -140,6 +142,7 @@ export default function App() {
       store.loadRotationLayouts(layouts.rotations ?? {});
       store.loadRouteStyleLayouts(layouts.routeStyles ?? {});
       store.loadViewRouteStyleLayouts(layouts.viewRouteStyles ?? {});
+      store.loadSignalLabelLayouts(layouts.signalLabels ?? {});
       store.loadSubsystems(subsystems);
       store.loadManufacturing(manufacturing);
     };

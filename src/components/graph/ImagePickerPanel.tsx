@@ -4,6 +4,7 @@ interface Props {
   onPick: (filename: string) => void;
   onClose: () => void;
   title?: string;
+  align?: 'left' | 'right';
 }
 
 const LIST_ENDPOINT = '/api/list-assets';
@@ -32,6 +33,7 @@ export function ImagePickerPanel({
   onPick,
   onClose,
   title = 'Pick image',
+  align = 'right',
 }: Props) {
   const [assets, setAssets] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
@@ -97,7 +99,7 @@ export function ImagePickerPanel({
     <div
       ref={ref}
       className="absolute z-50 bg-zinc-900 border border-zinc-700 rounded-lg shadow-2xl p-3 w-72"
-      style={{ top: 40, right: 0 }}
+      style={{ top: 40, ...(align === 'left' ? { left: 0 } : { right: 0 }) }}
       onMouseDown={(e) => e.stopPropagation()}
       onDragEnter={(e) => {
         e.preventDefault();

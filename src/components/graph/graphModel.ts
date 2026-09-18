@@ -193,7 +193,7 @@ export function positionNonAnchoringDots(
 
     const parent = connector.parent ? enclosureById.get(connector.parent) : undefined;
     let center: Point;
-    if (parent?.kind === 'enclosure') {
+    if (parent) {
       const crossings = segmentRectIntersections(previousCenter, nextCenter, parentRect);
       if (crossings.length === 0) return dotNode;
       center = crossings.reduce((nearest, candidate) =>
@@ -210,17 +210,11 @@ export function positionNonAnchoringDots(
       x: center.x - parentRect.x - BULKHEAD_DOT_SIZE / 2,
       y: center.y - parentRect.y - BULKHEAD_DOT_SIZE / 2,
     };
-    const position = parent?.kind === 'enclosure'
-      ? projectNodeToEnclosureWall(
-          relative,
-          { w: BULKHEAD_DOT_SIZE, h: BULKHEAD_DOT_SIZE },
-          { w: parentRect.w, h: parentRect.h },
-        )
-      : clampNodeToParentBounds(
-          relative,
-          { w: BULKHEAD_DOT_SIZE, h: BULKHEAD_DOT_SIZE },
-          { w: parentRect.w, h: parentRect.h },
-        );
+    const position = projectNodeToEnclosureWall(
+      relative,
+      { w: BULKHEAD_DOT_SIZE, h: BULKHEAD_DOT_SIZE },
+      { w: parentRect.w, h: parentRect.h },
+    );
     return {
       ...dotNode,
       position,
@@ -228,13 +222,11 @@ export function positionNonAnchoringDots(
       data: {
         ...dotNode.data,
         autoPositioned: true,
-        wallSide: parent?.kind === 'enclosure'
-          ? getNearestWallSide(
-              position,
-              { w: BULKHEAD_DOT_SIZE, h: BULKHEAD_DOT_SIZE },
-              { w: parentRect.w, h: parentRect.h },
-            )
-          : undefined,
+        wallSide: getNearestWallSide(
+          position,
+          { w: BULKHEAD_DOT_SIZE, h: BULKHEAD_DOT_SIZE },
+          { w: parentRect.w, h: parentRect.h },
+        ),
       },
     };
   });

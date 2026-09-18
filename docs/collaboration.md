@@ -62,13 +62,9 @@ and `mergePoint`, then normalizes them immediately. Stored and broadcast presenc
 ## Attribution and activity
 
 Each successful save updates `vibewire-state/attribution/<system>.json` as
-`entityId -> { by: { id, displayName }, at, rev }`. The inspector shows the selected record's last
-writer and time. A selected Harness Bundle uses the newest attribution among its Path IDs, with
-revision as the timestamp tie-breaker.
-
-The API also appends one edit-log line per successful write. Activity aggregates these as **changes
-saved**, not semantic edit counts. Attribution and edit logs are tracked managed state; do not
-hand-edit them.
+`entityId -> { by: { id, displayName }, at, rev }`. The API also appends one edit-log line per
+successful write. Activity aggregates these as **changes saved**, not semantic edit counts.
+Attribution and edit logs are tracked managed state; do not hand-edit them.
 
 ## Checkpoints and restore
 

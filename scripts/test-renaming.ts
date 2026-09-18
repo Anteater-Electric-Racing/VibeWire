@@ -6,6 +6,7 @@
 import assert from 'node:assert/strict';
 import { splitSystem, verifyRoundTrip } from '../server/sheets.js';
 import {
+  nextNumberedName,
   renameSystemEntity,
   renameSubsystem,
   renameSystem,
@@ -105,5 +106,9 @@ const sheetIds = new Set(['enc_box']);
 const split = splitSystem(renamed, sheetIds);
 assert.equal(split.sheets.get(null)?.name, 'Renamed System');
 assert.deepEqual(verifyRoundTrip(renamed, split, sheetIds), []);
+
+assert.equal(nextNumberedName([], 'New Device'), 'New Device');
+assert.equal(nextNumberedName(['New Device'], 'New Device'), 'New Device 2');
+assert.equal(nextNumberedName(['New Device', 'New Device 2'], 'New Device'), 'New Device 3');
 
 console.log('Rename integrity tests passed');

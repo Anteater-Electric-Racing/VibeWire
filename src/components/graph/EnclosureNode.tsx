@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useRef, useState } from 'react';
+import { memo, useCallback, useRef, useState } from 'react';
 import {
   Handle,
   NodeResizer,
@@ -8,8 +8,8 @@ import {
 } from '@xyflow/react';
 import { useSystemStore } from '../../store';
 import { DEVICE_COLOR, ENCLOSURE_COLOR, enclosureShell } from '../../lib/entityColors';
-import { fitTextToBox, TEXT_BOX_FONT_FAMILY } from '../../lib/textBoxes';
 import { PresenceBadge } from '../collab/PresenceBadge';
+import { NodeTitleEditor } from './NodeTitleEditor';
 
 type EnclosureNodeData = {
   enclosureId: string;
@@ -36,14 +36,13 @@ export const EnclosureNode = memo(function EnclosureNode({
   const setOpenEnclosure = useSystemStore((s) => s.setOpenEnclosure);
   const pushUndoSnapshot = useSystemStore((s) => s.pushUndoSnapshot);
   const commitUndoSnapshot = useSystemStore((s) => s.commitUndoSnapshot);
+  const renameEntity = useSystemStore((s) => s.renameEntity);
   const isEditor = useSystemStore((s) => s.session.isEditor);
   const rotation = useSystemStore((s) => s.rotationLayouts[data.enclosureId] ?? 0);
   const subsystem = useSystemStore((s) => s.activeSubsystemId ? s.subsystems[s.activeSubsystemId] : undefined);
   const resizeSubsystemEntityLayout = useSystemStore((s) => s.resizeSubsystemEntityLayout);
-  const titleRef = useRef<HTMLDivElement>(null);
   const resizeStartRef = useRef<{ x: number; y: number; w: number; h: number } | null>(null);
   const [hovered, setHovered] = useState(false);
-  const [titleSize, setTitleSize] = useState(14);
   const hasImage = Boolean(data.image);
 
   const handleDoubleClick = useCallback(
@@ -59,29 +58,6 @@ export const EnclosureNode = memo(function EnclosureNode({
     },
     [selectItem, setOpenEnclosure, data.enclosureId, data.isContainer, data.subsystemFrame, data.subsystemDevice],
   );
-
-  useEffect(() => {
-    if (hasImage) return;
-    const el = titleRef.current;
-    if (!el) return;
-    const update = () => {
-      setTitleSize(fitTextToBox({
-        text: data.label,
-        width: el.clientWidth,
-        height: Math.max(18, el.clientHeight),
-        fontFamily: TEXT_BOX_FONT_FAMILY.sans,
-        fontWeight: 'bold',
-        lineHeight: 1.15,
-        minSize: 10,
-        maxSize: 36,
-        whiteSpace: 'nowrap',
-      }));
-    };
-    update();
-    const observer = new ResizeObserver(update);
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, [data.label, hasImage]);
 
   const nameColor = data.isContainer ? ENCLOSURE_COLOR : DEVICE_COLOR;
   const shell = enclosureShell(data.isContainer, data.fillColor);
@@ -208,14 +184,17 @@ export const EnclosureNode = memo(function EnclosureNode({
       )}
 
       {!hasImage && (
-        <div className="p-3 select-none pointer-events-none relative z-10 h-full flex flex-col">
-          <div ref={titleRef} className="min-h-0 flex-1">
-            <div
-              className="font-bold leading-tight"
-              style={{ fontSize: titleSize, color: nameColor }}
-            >
-              {data.label}
-            </div>
+        <div className="p-3 select-none relative z-10 h-full flex flex-col pointer-events-none">
+          <div className="min-h-0 flex-1 pointer-events-auto">
+            <NodeTitleEditor
+              value={data.label}
+              color={nameColor}
+              disabled={!isEditor}
+              ariaLabel={`Rename ${data.isContainer ? 'enclosure' : 'device'}`}
+              className="max-w-full truncate"
+              passThroughDoubleClick={data.isContainer && !data.subsystemFrame && !data.subsystemDevice}
+              onCommit={(next) => renameEntity('enclosure', data.enclosureId, next)}
+            />
           </div>
           <div className="text-[10px] text-zinc-500 mt-2 space-y-0.5 shrink-0">
             {data.childEnclosureCount > 0 && (

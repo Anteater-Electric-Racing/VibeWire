@@ -54,9 +54,15 @@ Dragging between two unoccupied cavity handles calls `POST /api/paths/route`. Th
 4. writes one ordered Path under the System lock;
 5. returns the newly saved assembled System and any updated Subsystem.
 
-Request-derived IDs make retries idempotent. Connector capacity overruns are validation warnings;
-duplicate cavity claims are rejected. The route picker may select or create a signal before routing.
-Routing bypasses debounced System autosave because it is an atomic server-first transaction.
+A `draft_connector` may identify a provisional visual dot (`display: 'dot'`, default) or a user-placed
+Bulkhead (`display: 'bulkhead'`). Request-derived IDs make retries idempotent. Connector capacity
+overruns are validation warnings; duplicate cavity claims are rejected. The route picker may select
+or create a signal before routing. Routing bypasses debounced System autosave because it is an
+atomic server-first transaction.
+
+The canvas **+ Device** / **+ Enclosure** buttons create the entity on the System root sheet when used
+from a Subsystem view, then add it to that Subsystem. Connector, Bulkhead, and visual-dot inspectors
+list every Subsystem as checkboxes for membership.
 
 Subsystem sidecars otherwise autosave as changed-key merges. Their Paths, signals, connectors, and
 hierarchy always come from the loaded System.

@@ -48,6 +48,8 @@ import {
   getPathNodeLabel,
   getPathNodeRefKey,
   getPathSegmentMeasurement,
+  getHarnessBundleLayoutValue,
+  getHarnessBundleSignalName,
   getPathSignalId,
   getPathSignalName,
   getPathWireAppearance,
@@ -80,16 +82,14 @@ import {
   parseHexColor,
 } from '../../lib/entityColors';
 import {
-  isAutoBulkheadPlaceholder,
   isBulkheadDot,
 } from '../../lib/bulkheadRouting';
-import { newestAttribution } from '../../lib/collaborationPresence';
 import {
-  AttributionDisplay,
   PresenceBadge,
   PresenceEditingRegion,
 } from '../collab/PresenceBadge';
-import type { AttributionEntry, PresenceTarget } from '../../types/collab';
+import type { PresenceTarget } from '../../types/collab';
+import { EDITABLE_FIELD_CLASS } from '../graph/NodeTitleEditor';
 
 function TagPill({
   tag,
@@ -174,7 +174,7 @@ function TagEditor({
             }
           }}
           placeholder="Add tag…"
-          className="w-full text-[11px] px-2 py-1 bg-zinc-800 border border-zinc-700 rounded text-zinc-300 placeholder-zinc-600 focus:border-amber-600 focus:outline-none"
+          className={`w-full text-[11px] text-zinc-300 ${EDITABLE_FIELD_CLASS}`}
         />
         {showSuggestions && suggestions.length > 0 && (
           <div className="absolute z-10 top-full left-0 right-0 mt-0.5 bg-zinc-800 border border-zinc-700 rounded shadow-lg max-h-32 overflow-y-auto">
@@ -306,9 +306,22 @@ function NameEditor({
   const pushUndoSnapshot = useSystemStore((s) => s.pushUndoSnapshot);
   const commitUndoSnapshot = useSystemStore((s) => s.commitUndoSnapshot);
   const cancelUndoSnapshot = useSystemStore((s) => s.cancelUndoSnapshot);
+  const pendingInspectorNameFocusId = useSystemStore((s) => s.pendingInspectorNameFocusId);
+  const clearPendingInspectorNameFocus = useSystemStore((s) => s.clearPendingInspectorNameFocus);
   const [draft, setDraft] = useState(name);
   const [error, setError] = useState<string | null>(null);
   const cancelBlur = useRef(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (pendingInspectorNameFocusId !== id) return;
+    const frame = requestAnimationFrame(() => {
+      inputRef.current?.focus();
+      inputRef.current?.select();
+      clearPendingInspectorNameFocus();
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [clearPendingInspectorNameFocus, id, pendingInspectorNameFocusId]);
 
   const commit = (value: string) => {
     try {
@@ -327,6 +340,7 @@ function NameEditor({
       <label className="flex items-center gap-2">
         <span className="text-[10px] text-zinc-500 w-20 shrink-0 text-right">{label}</span>
         <input
+          ref={inputRef}
           value={draft}
           data-presence-field="name"
           onChange={(event) => setDraft(event.target.value)}
@@ -352,12 +366,32 @@ function NameEditor({
             }
           }}
           aria-label={`Rename ${label.toLowerCase()}`}
-          className={`min-w-0 flex-1 bg-zinc-800 border border-zinc-700 rounded px-2 py-1 text-[11px] ${textClassName} focus:border-amber-500 focus:outline-none`}
+          className={`min-w-0 flex-1 text-[11px] ${textClassName} ${EDITABLE_FIELD_CLASS}`}
         />
       </label>
       {error && <div className="pl-[5.5rem] pt-0.5 text-[9px] text-red-400">{error}</div>}
     </div>
   );
+}
+
+const SHELL_COLOR_NAMES: Record<string, string> = {
+  '#ef4444': 'Red',
+  '#f97316': 'Orange',
+  '#eab308': 'Yellow',
+  '#22c55e': 'Green',
+  '#14b8a6': 'Teal',
+  '#3b82f6': 'Blue',
+  '#8b5cf6': 'Purple',
+  '#ec4899': 'Pink',
+  '#f8fafc': 'White',
+  '#a1a1aa': 'Silver',
+  '#52525b': 'Gray',
+  '#27272a': 'Charcoal',
+};
+
+function shellColorLabel(hex: string | null): string {
+  if (!hex) return 'Color';
+  return SHELL_COLOR_NAMES[hex] ?? hex;
 }
 
 function EntityColorPicker({
@@ -373,63 +407,174 @@ function EntityColorPicker({
 }) {
   const parsed = parseHexColor(value);
   const display = parsed ?? fallback;
-  const [hex, setHex] = useState(display);
-  useEffect(() => { setHex(display); }, [display]);
+  const [open, setOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onDoc = (event: MouseEvent) => {
+      if (!rootRef.current?.contains(event.target as Node)) setOpen(false);
+    };
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setOpen(false);
+    };
+    document.addEventListener('mousedown', onDoc);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDoc);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [open]);
+
+  const choose = (next: string) => {
+    onChange(next);
+    setOpen(false);
+  };
 
   return (
     <div className="py-1">
-      <div className="flex items-center gap-2 mb-1.5">
+      <div className="flex items-center gap-2">
         <span className="text-[10px] text-zinc-500 w-20 shrink-0 text-right">Color</span>
-        <label className="relative flex min-w-0 flex-1 items-center gap-1.5 cursor-pointer">
-          <span
-            className="w-5 h-5 rounded border border-zinc-600 shrink-0 inline-block"
-            style={{ backgroundColor: display }}
-          />
-          <input
-            type="color"
-            value={display}
-            onChange={(event) => {
-              setHex(event.target.value);
-              onChange(event.target.value);
-            }}
-            className="absolute left-0 top-0 h-5 w-5 cursor-pointer opacity-0"
-          />
-          <input
-            type="text"
-            value={hex}
-            onChange={(event) => setHex(event.target.value)}
-            onBlur={() => {
-              if (/^#[0-9a-f]{6}$/i.test(hex) || /^#[0-9a-f]{3}$/i.test(hex)) onChange(hex);
-              else setHex(display);
-            }}
-            className="flex-1 text-[10px] font-mono px-1.5 py-0.5 bg-zinc-800 border border-zinc-700 rounded text-zinc-300 focus:border-amber-600 focus:outline-none"
-          />
-        </label>
-        <button
-          type="button"
-          disabled={!parsed}
-          onClick={() => onChange('')}
-          className="shrink-0 text-[10px] text-zinc-500 hover:text-zinc-300 disabled:opacity-30 disabled:hover:text-zinc-500"
-        >
-          Reset
-        </button>
-      </div>
-      <div className="flex flex-wrap gap-1 pl-[5.5rem]">
-        {ENTITY_SHELL_PRESETS.map((preset) => (
+        <div ref={rootRef} className="relative min-w-0 flex-1">
           <button
-            key={preset}
             type="button"
-            title={preset}
-            onClick={() => { setHex(preset); onChange(preset); }}
-            className="h-4 w-4 rounded border transition-all hover:scale-110"
-            style={{
-              backgroundColor: preset,
-              borderColor: parsed === preset.toLowerCase() ? '#f59e0b' : 'rgba(255,255,255,0.12)',
-            }}
-          />
-        ))}
+            aria-haspopup="listbox"
+            aria-expanded={open}
+            aria-label={`Color: ${shellColorLabel(parsed)}`}
+            onClick={() => setOpen((prev) => !prev)}
+            className="flex w-full items-center gap-1.5 rounded border border-zinc-700 bg-zinc-800 px-1.5 py-0.5 text-[11px] text-zinc-300 hover:border-zinc-500 focus:border-amber-500 focus:outline-none"
+          >
+            <span
+              className="h-3.5 w-3.5 shrink-0 rounded border border-zinc-600"
+              style={{ backgroundColor: display }}
+            />
+            <span className="min-w-0 flex-1 truncate text-left">{shellColorLabel(parsed)}</span>
+            <svg
+              viewBox="0 0 12 12"
+              className={`h-3 w-3 shrink-0 text-zinc-500 transition-transform ${open ? 'rotate-180' : ''}`}
+              aria-hidden="true"
+            >
+              <path d="M2.5 4.25 L6 8 L9.5 4.25" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </button>
+          {open && (
+            <div
+              role="listbox"
+              aria-label="Color"
+              className="absolute z-50 mt-0.5 max-h-56 w-full overflow-y-auto rounded border border-zinc-700 bg-zinc-800 shadow-lg"
+            >
+              <button
+                type="button"
+                role="option"
+                aria-selected={!parsed}
+                onClick={() => choose('')}
+                className={`flex w-full items-center gap-1.5 px-1.5 py-1 text-left text-[11px] hover:bg-zinc-700 ${
+                  !parsed ? 'text-amber-300' : 'text-zinc-300'
+                }`}
+              >
+                <span
+                  className="h-3.5 w-3.5 shrink-0 rounded border border-zinc-600"
+                  style={{ backgroundColor: fallback }}
+                />
+                Color
+              </button>
+              {ENTITY_SHELL_PRESETS.map((preset) => {
+                const selected = parsed === preset.toLowerCase();
+                return (
+                  <button
+                    key={preset}
+                    type="button"
+                    role="option"
+                    aria-selected={selected}
+                    onClick={() => choose(preset)}
+                    className={`flex w-full items-center gap-1.5 px-1.5 py-1 text-left text-[11px] hover:bg-zinc-700 ${
+                      selected ? 'text-amber-300' : 'text-zinc-300'
+                    }`}
+                  >
+                    <span
+                      className="h-3.5 w-3.5 shrink-0 rounded border border-zinc-600"
+                      style={{ backgroundColor: preset }}
+                    />
+                    {shellColorLabel(preset)}
+                  </button>
+                );
+              })}
+              {parsed && !ENTITY_SHELL_PRESETS.some((preset) => preset.toLowerCase() === parsed) && (
+                <button
+                  type="button"
+                  role="option"
+                  aria-selected
+                  onClick={() => choose(parsed)}
+                  className="flex w-full items-center gap-1.5 px-1.5 py-1 text-left text-[11px] font-mono text-amber-300 hover:bg-zinc-700"
+                >
+                  <span
+                    className="h-3.5 w-3.5 shrink-0 rounded border border-zinc-600"
+                    style={{ backgroundColor: parsed }}
+                  />
+                  {parsed}
+                </button>
+              )}
+            </div>
+          )}
+        </div>
       </div>
       {hint && <div className="pl-[5.5rem] pt-0.5 text-[9px] text-zinc-600">{hint}</div>}
+    </div>
+  );
+}
+
+function DescriptionEditor({
+  entityId,
+  value,
+  onChange,
+}: {
+  entityId: string;
+  value: string;
+  onChange: (next: string) => void;
+}) {
+  const pushUndoSnapshot = useSystemStore((s) => s.pushUndoSnapshot);
+  const commitUndoSnapshot = useSystemStore((s) => s.commitUndoSnapshot);
+  const cancelUndoSnapshot = useSystemStore((s) => s.cancelUndoSnapshot);
+  const [draft, setDraft] = useState(value);
+  const cancelBlur = useRef(false);
+
+  useEffect(() => {
+    setDraft(value);
+  }, [value]);
+
+  return (
+    <div className="mt-3 pt-2 border-t border-zinc-700/50">
+      <label className="block">
+        <span className="mb-1 block text-[10px] font-medium text-zinc-500">Description</span>
+        <textarea
+          value={draft}
+          data-presence-field="description"
+          rows={5}
+          placeholder="Add a description…"
+          aria-label="Description"
+          onChange={(event) => setDraft(event.target.value)}
+          onFocus={() => pushUndoSnapshot(`enclosure:${entityId}:property:description`)}
+          onBlur={() => {
+            if (cancelBlur.current) {
+              cancelBlur.current = false;
+              cancelUndoSnapshot();
+              return;
+            }
+            const next = draft.trim();
+            if (next !== value) onChange(next);
+            commitUndoSnapshot();
+          }}
+          onKeyDown={(event) => {
+            if (event.key === 'Escape') {
+              event.preventDefault();
+              cancelBlur.current = true;
+              setDraft(value);
+              event.currentTarget.blur();
+            }
+          }}
+          className="w-full resize-y rounded border border-zinc-700 bg-zinc-800 px-2 py-1.5 text-[11px] text-zinc-200 placeholder-zinc-600 focus:border-amber-600 focus:outline-none whitespace-pre-wrap"
+        />
+      </label>
     </div>
   );
 }
@@ -611,17 +756,6 @@ function ConnectorGaugeBulkEditor({ connector }: { connector: Connector }) {
             : 'No wires on this connector'
           : `${targets.length} ${sideLabel} path${targets.length === 1 ? '' : 's'} will be updated`}
       </div>
-    </div>
-  );
-}
-
-function DerivedFromPortNote({ portId }: { portId?: string }) {
-  return (
-    <div className="mb-2 text-[10px] leading-snug px-2 py-1.5 rounded border border-sky-800/50 bg-sky-900/20 text-sky-300">
-      <span className="font-medium text-sky-200">Derived</span> — this entity isn't authored
-      directly. It's synthesized from a bulkhead port{portId ? ` ('${portId}')` : ''} declared on
-      the parent sheet, based on which wires actually reach into this enclosure. Its stable ID is
-      managed by that port, while name, tags, and properties edited here safely round-trip back to it.
     </div>
   );
 }
@@ -1054,6 +1188,14 @@ function BundleInspector({
   const waypointLayouts = useSystemStore((s) => s.waypointLayouts);
   const convertSharedAnchorToBranchPoint = useSystemStore((s) => s.convertSharedAnchorToBranchPoint);
   const isEditor = useSystemStore((s) => s.session.isEditor);
+  const signalLabelLayout = useSystemStore((s) =>
+    getHarnessBundleLayoutValue(s.signalLabelLayouts, bundleId)
+  );
+  const setHarnessBundleSignalLabelHidden = useSystemStore((s) => s.setHarnessBundleSignalLabelHidden);
+  const setSelectedHarnessBundle = useSystemStore((s) => s.setSelectedHarnessBundle);
+  const signalLabelSelected = useSystemStore((s) =>
+    s.selectedHarnessBundle?.id === bundleId && s.selectedHarnessBundle.signalLabel === true
+  );
 
   if (!system) return null;
 
@@ -1149,6 +1291,11 @@ function BundleInspector({
               deleteSelectedRoutePoint();
               return;
             }
+            if (signalLabelSelected) {
+              setHarnessBundleSignalLabelHidden(bundleId, true);
+              setSelectedHarnessBundle({ id: bundleId, pathIds });
+              return;
+            }
             const label = paths.length === 1
               ? `Delete path “${paths[0].name}”?`
               : `Delete all ${paths.length} paths in this Harness Bundle?`;
@@ -1157,7 +1304,7 @@ function BundleInspector({
             }
           }}
         >
-          {selectedRoutePoint ? 'Delete point' : 'Delete'}
+          {selectedRoutePoint ? 'Delete point' : signalLabelSelected ? 'Hide name' : 'Delete'}
         </button>
       </div>
 
@@ -1189,6 +1336,21 @@ function BundleInspector({
             </span>
           )}
         </div>
+      )}
+
+      {getHarnessBundleSignalName(system, pathIds) && (
+        <label className="mb-2 flex cursor-pointer items-center gap-2 text-[11px] text-zinc-300">
+          <input
+            type="checkbox"
+            className="accent-amber-500"
+            checked={signalLabelLayout?.hidden !== true}
+            disabled={!isEditor}
+            onChange={(event) => {
+              setHarnessBundleSignalLabelHidden(bundleId, !event.target.checked);
+            }}
+          />
+          Show signal name
+        </label>
       )}
 
       <div className="mb-2">
@@ -1686,7 +1848,9 @@ function EnclosureInspector({ enc }: { enc: HierarchyEntity }) {
   const directConnectors = system.connectors.filter((c) => c.parent === enc.id);
   const directBranchPoints = system.branchPoints.filter((branchPoint) => branchPoint.parent === enc.id);
   const encImage = enc.properties?.image as string | undefined;
-  const extraProperties = Object.entries(enc.properties ?? {}).filter(([key]) => key !== 'image' && key !== 'color');
+  const extraProperties = Object.entries(enc.properties ?? {}).filter(
+    ([key]) => key !== 'image' && key !== 'color' && key !== 'description',
+  );
   const pathCount = countPathsTouchingConnectors(system, allConnectors.map((connector) => connector.id));
   const isDevice = enc.kind === 'device';
 
@@ -1720,7 +1884,6 @@ function EnclosureInspector({ enc }: { enc: HierarchyEntity }) {
         fallback={(enc.kind === 'enclosure' ? ENCLOSURE_SHELL : DEVICE_SHELL).fill}
         onChange={(next) => updateEnclosureProperty(enc.id, 'color', next)}
       />
-      <PropertyRow label="Stable ID" value={enc.id} />
       {enc.parent && <div className="mb-1"><ParentLink parentId={enc.parent} /></div>}
 
       <div className="mb-2">
@@ -1877,20 +2040,37 @@ function EnclosureInspector({ enc }: { enc: HierarchyEntity }) {
 
       <div className="mt-3 pt-2 border-t border-zinc-700/50 space-y-1.5">
         {!isDevice && editingSurface !== 'subsystem' && <AddChildDeviceForm parentId={enc.id} />}
+        {isDevice && (
+          <button
+            type="button"
+            onClick={() => addConnector(enc.id)}
+            title="Add connector"
+            aria-label="Add connector"
+            className="w-full flex items-center justify-center py-1.5 rounded border border-dashed border-zinc-700 text-zinc-400 hover:text-vw-connector hover:border-vw-connector/60 hover:bg-vw-connector/10 transition-colors text-[10px]"
+          >
+            + Connector
+          </button>
+        )}
         <button
           type="button"
-          onClick={() => addConnector(enc.id)}
-          title={isDevice ? 'Add connector' : 'Add bulkhead'}
-          aria-label={isDevice ? 'Add connector' : 'Add bulkhead'}
+          onClick={() => addConnector(enc.id, { mounting: 'bulkhead' })}
+          title="Add bulkhead"
+          aria-label="Add bulkhead"
           className="w-full flex items-center justify-center py-1.5 rounded border border-dashed border-zinc-700 text-zinc-400 hover:text-vw-connector hover:border-vw-connector/60 hover:bg-vw-connector/10 transition-colors text-[10px]"
         >
-          {isDevice ? '+ Connector' : '+ Bulkhead'}
+          + Bulkhead
         </button>
       </div>
 
       <div className="mt-3 pt-2 border-t border-zinc-700/50">
         <TagEditor entityType="enclosure" entityId={enc.id} tags={enc.tags} />
       </div>
+
+      <DescriptionEditor
+        entityId={enc.id}
+        value={enc.properties?.description ?? ''}
+        onChange={(next) => updateEnclosureProperty(enc.id, 'description', next)}
+      />
 
       {extraProperties.length > 0 && (
         <div className="mt-3 pt-2 border-t border-zinc-700/50">
@@ -1899,6 +2079,10 @@ function EnclosureInspector({ enc }: { enc: HierarchyEntity }) {
           ))}
         </div>
       )}
+
+      <div className="mt-3 pt-2 border-t border-zinc-700/50">
+        <PropertyRow label="Stable ID" value={enc.id} />
+      </div>
     </>
   );
 }
@@ -2269,6 +2453,56 @@ function ConnectorGenderEditor({ connector }: { connector: Connector }) {
   );
 }
 
+function ConnectorSubsystemMembership({ connectorId }: { connectorId: string }) {
+  const system = useSystemStore((s) => s.system);
+  const subsystems = useSystemStore((s) => s.subsystems);
+  const addEntity = useSystemStore((s) => s.addEntityToActiveSubsystem);
+  const removeEntity = useSystemStore((s) => s.removeEntityFromActiveSubsystem);
+  const isEditor = useSystemStore((s) => s.session.isEditor);
+  const [open, setOpen] = useState(false);
+  const list = Object.values(subsystems).sort((left, right) => left.name.localeCompare(right.name));
+
+  if (!system || list.length === 0) return null;
+
+  return (
+    <div className="mt-2 pt-2 border-t border-zinc-700/50">
+      <button
+        type="button"
+        onClick={() => setOpen((value) => !value)}
+        className="flex w-full items-center justify-between rounded border border-zinc-600 bg-zinc-800 px-2 py-1.5 text-[10px] text-zinc-300 hover:border-zinc-500 hover:text-zinc-100"
+      >
+        <span>Subsystems</span>
+        <span className="text-zinc-500">{open ? '▴' : '▾'}</span>
+      </button>
+      {open && (
+        <div className="mt-1 space-y-0.5 rounded border border-zinc-700 bg-zinc-900/80 p-1.5">
+          {list.map((subsystem) => {
+            const included = isRepresentedInSubsystem(system, subsystem, 'connector', connectorId);
+            return (
+              <label
+                key={subsystem.id}
+                className="flex cursor-pointer items-center gap-2 rounded px-1 py-0.5 text-[11px] text-zinc-300 hover:bg-zinc-800"
+              >
+                <input
+                  type="checkbox"
+                  checked={included}
+                  disabled={!isEditor}
+                  onChange={() => {
+                    if (included) removeEntity('connector', connectorId, subsystem.id);
+                    else addEntity('connector', connectorId, subsystem.id);
+                  }}
+                  className="accent-amber-500"
+                />
+                <span className="min-w-0 truncate">{subsystem.name}</span>
+              </label>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function ConnectorInspector({ con }: { con: Connector }) {
   const system = useSystemStore((s) => s.system);
   const connectorLibrary = useSystemStore((s) => s.connectorLibrary);
@@ -2311,7 +2545,6 @@ function ConnectorInspector({ con }: { con: Connector }) {
   );
   const maxUsedPin = Math.max(0, ...getConnectorOccupancy(system, con.id).map((entry) => entry.pinNumber));
   const familyType = isConnectorFamily(ct);
-  const supportedPinCounts = getConnectorSupportedPinCounts(ct);
   const previousPinCount = getPreviousConnectorPinCount(ct, effectivePinCount, maxUsedPin);
   const nextPinCount = getNextConnectorPinCount(ct, effectivePinCount);
   const canRemoveCavity = previousPinCount < effectivePinCount;
@@ -2326,19 +2559,15 @@ function ConnectorInspector({ con }: { con: Connector }) {
   const sideImage = getConnectorSideImage(con, ct);
   const bulkhead = isBulkheadConnector(system, con.id);
   const dot = isBulkheadDot(con);
-  const canChangeBulkheadDisplay = bulkhead
-    && (dot || isAutoBulkheadPlaceholder(con));
+  const canChangeBulkheadDisplay = bulkhead || dot;
 
   return (
     <>
       <div className="flex items-center gap-2 mb-1">
-        <span className="text-sm font-bold text-vw-connector">Connector</span>
-        <span className="text-[9px] px-1.5 py-0.5 rounded bg-zinc-700 text-zinc-300">
-          Instance
-        </span>
-        {con.derived && (
-          <span className="text-[9px] px-1.5 py-0.5 rounded bg-sky-900/50 text-sky-300 border border-sky-800/50">
-            Derived
+        <span className="text-sm font-bold text-vw-connector">{dot ? 'Visual dot' : 'Connector'}</span>
+        {!dot && (
+          <span className="text-[9px] px-1.5 py-0.5 rounded bg-zinc-700 text-zinc-300">
+            Instance
           </span>
         )}
         {isInlineConnector(system, con) && (
@@ -2359,8 +2588,7 @@ function ConnectorInspector({ con }: { con: Connector }) {
         onChange={(next) => updateConnectorProperty(con.id, 'color', next)}
         hint="Default uses the signal tint when this connector has a single signal."
       />
-      <PropertyRow label="Stable ID" value={con.id} />
-      <SubsystemMembershipButton type="connector" id={con.id} />
+      <ConnectorSubsystemMembership connectorId={con.id} />
 
       {con.parent && (
         <div className="mb-2">
@@ -2386,8 +2614,8 @@ function ConnectorInspector({ con }: { con: Connector }) {
         </div>
       )}
 
-      {con.derived && <DerivedFromPortNote portId={con.derived_from_port} />}
-
+      {!dot && (
+      <>
       <div className="mb-2 pb-2 border-b border-zinc-700/50">
         <label className="flex items-center gap-2 py-0.5">
           <span className="text-[10px] text-zinc-500 w-20 shrink-0 text-right">Type</span>
@@ -2421,23 +2649,6 @@ function ConnectorInspector({ con }: { con: Connector }) {
             <option value="__manage_connector_library__">Manage connector library…</option>
           </select>
         </label>
-        <div className="pl-[5.5rem] text-[9px] text-zinc-600">
-          {con.connector_type}
-          {' · '}
-          {effectivePinCount} {effectivePinCount === 1 ? 'cavity' : 'cavities'}
-          {familyType ? ' (family housing)' : con.pin_count != null ? ' (instance)' : ' (type)'}
-        </div>
-        {familyType && supportedPinCounts.length > 0 && (
-          <div className="pl-[5.5rem] text-[9px] text-zinc-600">
-            Available: {supportedPinCounts.join(', ')} cavities
-          </div>
-        )}
-        {ct && (ct.crimp_spec || ct.wire_gauge) && (
-          <div className="pl-[5.5rem] flex gap-x-3 text-[10px] text-zinc-500">
-            {ct.crimp_spec && <span>{ct.crimp_spec}</span>}
-            {ct.wire_gauge && <span>{ct.wire_gauge}</span>}
-          </div>
-        )}
       </div>
 
       {familyType && keyingOptions.length > 0 && (
@@ -2573,8 +2784,12 @@ function ConnectorInspector({ con }: { con: Connector }) {
       <div className="mb-1 pb-1 border-b border-zinc-700/50">
         <TagEditor entityType="connector" entityId={con.id} tags={con.tags} />
       </div>
+      </>
+      )}
 
       <ConnectorOccupancyTable connector={con} />
+      {!dot && (
+      <>
       <ConnectorGaugeBulkEditor connector={con} />
       <ConnectorGenderEditor connector={con} />
 
@@ -2607,6 +2822,12 @@ function ConnectorInspector({ con }: { con: Connector }) {
         >
           +
         </button>
+      </div>
+      </>
+      )}
+
+      <div className="mt-3 pt-2 border-t border-zinc-700/50">
+        <PropertyRow label="Stable ID" value={con.id} />
       </div>
     </>
   );
@@ -2679,11 +2900,6 @@ function BranchPointInspector({ branchPoint }: { branchPoint: BranchPoint }) {
     <>
       <div className="flex items-center gap-2 mb-2">
         <span className="text-sm font-bold text-zinc-100">Branch Point</span>
-        {branchPoint.derived && (
-          <span className="text-[9px] px-1.5 py-0.5 rounded bg-sky-900/50 text-sky-300 border border-sky-800/50">
-            Derived
-          </span>
-        )}
       </div>
 
       {isEditor && (
@@ -2702,9 +2918,6 @@ function BranchPointInspector({ branchPoint }: { branchPoint: BranchPoint }) {
         )
       )}
       <NameEditor key={`${branchPoint.id}:${branchPoint.name}`} name={branchPoint.name} type="branchPoint" id={branchPoint.id} />
-      {branchPoint.derived && <DerivedFromPortNote portId={branchPoint.derived_from_port} />}
-
-      <PropertyRow label="Stable ID" value={branchPoint.id} />
       {branchPoint.parent && (
         <div className="flex items-start gap-2 py-0.5">
           <span className="text-[10px] text-zinc-500 w-20 shrink-0 text-right">Parent</span>
@@ -2802,6 +3015,9 @@ function BranchPointInspector({ branchPoint }: { branchPoint: BranchPoint }) {
       <div className="mt-2 pt-2 border-t border-zinc-700/50">
         <TagEditor entityType="branchPoint" entityId={branchPoint.id} tags={branchPoint.tags} />
       </div>
+      <div className="mt-3 pt-2 border-t border-zinc-700/50">
+        <PropertyRow label="Stable ID" value={branchPoint.id} />
+      </div>
     </>
   );
 }
@@ -2815,7 +3031,6 @@ function SignalInspector({ signal }: { signal: Signal }) {
     <>
       <div className="text-sm font-bold text-zinc-100 mb-2">Signal</div>
       <NameEditor key={`${signal.id}:${signal.name}`} name={signal.name} type="signal" id={signal.id} />
-      <PropertyRow label="Stable ID" value={signal.id} />
       <div className="mt-2 pt-2 border-t border-zinc-700/50">
         <WireColorEditor
           label="Preferred"
@@ -2855,6 +3070,9 @@ function SignalInspector({ signal }: { signal: Signal }) {
       </div>
       <div className="mt-3 pt-2 border-t border-zinc-700/50">
         <TagEditor entityType="signal" entityId={signal.id} tags={signal.tags} />
+      </div>
+      <div className="mt-3 pt-2 border-t border-zinc-700/50">
+        <PropertyRow label="Stable ID" value={signal.id} />
       </div>
     </>
   );
@@ -3001,7 +3219,7 @@ function StretchLengthEditor({
           }}
           placeholder="—"
           aria-label={`Length from ${fromLabel} to ${toLabel} in millimeters`}
-          className="ml-auto w-20 bg-zinc-800 border border-zinc-700 rounded px-1.5 py-0.5 text-right font-mono text-[10px] text-zinc-200 placeholder-zinc-600 focus:border-amber-500 focus:outline-none"
+          className={`ml-auto w-20 text-right font-mono text-[10px] text-zinc-200 ${EDITABLE_FIELD_CLASS}`}
         />
         <span className="w-5 text-[9px] text-zinc-500">mm</span>
       </div>
@@ -3047,7 +3265,7 @@ function PathCommentEditor({ pathId, comment }: { pathId: string; comment: strin
       rows={3}
       placeholder="Add a comment…"
       aria-label="Wire comment"
-      className="w-full resize-y bg-zinc-800 border border-zinc-700 rounded px-2 py-1.5 text-[11px] leading-relaxed text-zinc-200 placeholder-zinc-600 focus:border-amber-500 focus:outline-none"
+      className={`w-full resize-y text-[11px] leading-relaxed text-zinc-200 ${EDITABLE_FIELD_CLASS}`}
     />
   );
 }
@@ -3117,7 +3335,6 @@ function PathInspector({ path }: { path: Path }) {
       </div>
 
       <NameEditor key={`${path.id}:${path.name}`} name={path.name} type="path" id={path.id} />
-      <PropertyRow label="Stable ID" value={path.id} />
       <PropertyRow label="Nodes" value={String(path.nodes.length)} />
       <PropertyRow label="Segments" value={String(Math.max(0, path.nodes.length - 1))} />
       <label className="flex items-center gap-2 py-0.5">
@@ -3257,6 +3474,9 @@ function PathInspector({ path }: { path: Path }) {
       <div className="mt-2 pt-2 border-t border-zinc-700/50">
         <div className="text-[10px] text-zinc-500 font-medium mb-1">Tags</div>
         <TagEditor entityType="path" entityId={path.id} tags={path.tags} />
+      </div>
+      <div className="mt-3 pt-2 border-t border-zinc-700/50">
+        <PropertyRow label="Stable ID" value={path.id} />
       </div>
     </>
   );
@@ -3574,7 +3794,7 @@ function ImageInspector({ img }: { img: CanvasImageLayout }) {
           value={img.name}
           onChange={(e) => updateImage(img.id, { name: e.target.value })}
           onKeyDown={(e) => e.stopPropagation()}
-          className="min-w-0 flex-1 text-sm font-bold bg-transparent text-zinc-100 focus:outline-none focus:border-b focus:border-amber-600"
+          className={`min-w-0 flex-1 text-sm font-bold text-zinc-100 ${EDITABLE_FIELD_CLASS}`}
         />
         <button
           className="text-[10px] text-zinc-500 hover:text-red-400 transition-colors"
@@ -3743,11 +3963,9 @@ function SubsystemLayoutResetFooter() {
 function InspectorShell({
   children,
   scrollKey,
-  attribution,
 }: {
   children: React.ReactNode;
   scrollKey: unknown;
-  attribution?: AttributionEntry | null;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const editingSurface = useSystemStore((s) => s.editingSurface);
@@ -3769,7 +3987,6 @@ function InspectorShell({
       <div ref={containerRef} className="min-h-0 flex-1 overflow-y-auto">
         {children}
       </div>
-      <AttributionDisplay entry={attribution ?? null} />
       {showAddDevice && <SubsystemAddDeviceFooter />}
       {showReset && <SubsystemLayoutResetFooter />}
     </div>
@@ -3785,34 +4002,14 @@ export function InspectorPanel() {
   const imageLayouts = useSystemStore((s) => s.imageLayouts);
   const findEntity = useSystemStore((s) => s.findEntity);
   const system = useSystemStore((s) => s.system);
-  const attribution = useSystemStore((s) => s.attribution);
   const scrollKey = selectedImageId ?? selectedTextBoxId ?? selectedHarnessBundle?.id ?? selectedItem?.id;
-  const selectedAttribution = newestAttribution(
-    attribution,
-    selectedHarnessBundle?.pathIds
-      ?? (selectedImageId
-        ? [selectedImageId]
-        : selectedTextBoxId
-          ? [selectedTextBoxId]
-          : selectedItem
-            ? [selectedItem.id]
-            : []),
-  );
 
   if (selectedImageId) {
     const img = imageLayouts[selectedImageId];
     return (
-      <InspectorShell scrollKey={scrollKey} attribution={selectedAttribution}>
-        <div className="px-2 py-1 flex items-center gap-1.5">
-          <span className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">
-            Inspector
-          </span>
-          <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-900/40 text-amber-400 border border-amber-800/50">
-            Image
-          </span>
-          <PresenceBadge kind="image" id={selectedImageId} />
-        </div>
-        <div className="px-2 pb-3">
+      <InspectorShell scrollKey={scrollKey}>
+        <div className="px-2 pt-2 pb-3">
+          <PresenceBadge kind="image" id={selectedImageId} className="mb-1" />
           <PresenceEditingRegion target={{ kind: 'image', id: selectedImageId }}>
             <ReadOnlyInspectorControls>
               {img ? (
@@ -3831,17 +4028,9 @@ export function InspectorPanel() {
   if (selectedTextBoxId) {
     const tb = textBoxLayouts[selectedTextBoxId];
     return (
-      <InspectorShell scrollKey={scrollKey} attribution={selectedAttribution}>
-        <div className="px-2 py-1 flex items-center gap-1.5">
-          <span className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">
-            Inspector
-          </span>
-          <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-900/40 text-amber-400 border border-amber-800/50">
-            Text Box
-          </span>
-          <PresenceBadge kind="textBox" id={selectedTextBoxId} />
-        </div>
-        <div className="px-2 pb-3">
+      <InspectorShell scrollKey={scrollKey}>
+        <div className="px-2 pt-2 pb-3">
+          <PresenceBadge kind="textBox" id={selectedTextBoxId} className="mb-1" />
           <PresenceEditingRegion target={{ kind: 'textBox', id: selectedTextBoxId }}>
             <ReadOnlyInspectorControls>
               {tb ? (
@@ -3858,7 +4047,7 @@ export function InspectorPanel() {
 
   if (!system) {
     return (
-      <InspectorShell scrollKey={scrollKey} attribution={selectedAttribution}>
+      <InspectorShell scrollKey={scrollKey}>
         <div className="p-3 text-xs text-zinc-500 italic">
           Select an item to inspect
         </div>
@@ -3870,16 +4059,8 @@ export function InspectorPanel() {
   if (selectedHarnessBundle && selectedHarnessBundle.pathIds.length > 0) {
     return (
       <InspectorShell scrollKey={scrollKey}>
-        <div className="px-2 py-1 flex items-center gap-1.5">
-          <span className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">
-            Inspector
-          </span>
-          <span className="text-[10px] px-1.5 py-0.5 rounded bg-zinc-700 text-zinc-400">
-            Harness Bundle
-          </span>
-          <PresenceBadge kind="harnessBundle" id={selectedHarnessBundle.id} />
-        </div>
-        <div className="px-2 pb-3">
+        <div className="px-2 pt-2 pb-3">
+          <PresenceBadge kind="harnessBundle" id={selectedHarnessBundle.id} className="mb-1" />
           <PresenceEditingRegion target={{ kind: 'harnessBundle', id: selectedHarnessBundle.id }}>
             <ReadOnlyInspectorControls>
               <BundleInspector bundleId={selectedHarnessBundle.id} pathIds={selectedHarnessBundle.pathIds} />
@@ -3935,26 +4116,10 @@ export function InspectorPanel() {
     }
   };
 
-  const typeLabels: Record<string, string> = {
-    enclosure: 'Enclosure',
-    connector: 'Connector',
-    branchPoint: 'Branch Point',
-    path: 'Path',
-    signal: 'Signal',
-  };
-
   return (
-    <InspectorShell scrollKey={scrollKey} attribution={selectedAttribution}>
-      <div className="px-2 py-1 flex items-center gap-1.5">
-        <span className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">
-          Inspector
-        </span>
-        <span className="text-[10px] px-1.5 py-0.5 rounded bg-zinc-700 text-zinc-400">
-          {typeLabels[selectedItem.type] ?? selectedItem.type}
-        </span>
-        <PresenceBadge kind={selectedItem.type} id={selectedItem.id} />
-      </div>
-      <div className="px-2 pb-3">
+    <InspectorShell scrollKey={scrollKey}>
+      <div className="px-2 pt-2 pb-3">
+        <PresenceBadge kind={selectedItem.type} id={selectedItem.id} className="mb-1" />
         <PresenceEditingRegion
           target={{ kind: selectedItem.type, id: selectedItem.id } as PresenceTarget}
         >

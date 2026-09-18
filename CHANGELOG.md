@@ -3,6 +3,75 @@
 User-facing and architectural product changes, newest first. Fixture-specific System edits, pinouts,
 IDs, and data corrections belong in Git history, not this changelog.
 
+## 2026-09-17 — Black wires keep a light grey outline
+
+- Solid and striped black wires draw a light grey outline on the canvas and in manufacturing so they
+  stay visible on the dark background.
+
+## 2026-09-17 — Hide and restore signal names
+
+- Delete, Backspace, or the × on a single-signal name hides that label. Selecting the Harness
+  Bundle shows a **Show signal name** checkbox to display it again.
+
+## 2026-09-17 — Double-click is not stolen by rename or the inspector
+
+- Double-clicking a boxed name still opens an enclosure or expands a connector. The name waits a
+  beat before turning into a text caret.
+- When a canvas click first opens the inspector, the panel waits that same beat so it does not
+  cover the second click or focus the name field.
+
+## 2026-09-17 — Draggable signal names
+
+- Drag a single-signal name beside its Harness Bundle to place it. The offset is saved with the
+  layout. Double-click the name to snap it back to the default midpoint.
+
+## 2026-09-17 — Signal names on single-signal wires
+
+- A Harness Bundle that carries exactly one named signal shows that name next to the route. Bundles
+  with mixed or uninitialized signals still show the path-count chip.
+
+## 2026-09-17 — Device and Enclosure hotkeys
+
+- While editing the canvas, press **D** to create a Device or **E** to create an Enclosure and name
+  it immediately. E still resumes the saved editing session when editing is inactive.
+
+## 2026-09-17 — Complete routes between new wall dots
+
+- Dragging from a new wall dot to another greyed dot or Bulkhead now opens **Choose signal** and
+  creates both endpoints with the Wire. Canceling leaves no new connectors.
+
+## 2026-09-17 — Create connectors from the canvas controls
+
+- The top-left **+ Connector** button appears while inspecting a Device or Enclosure. It adds an
+  endpoint to the Device or a Bulkhead to the Enclosure and opens the new connector in the inspector.
+  The button is first in the stack, and the name field is focused with its default text selected for
+  immediate typing.
+
+## 2026-09-07 — Canvas create, routing drafts, and editable names
+
+- Added left-canvas **+ Device** and **+ Enclosure** buttons that create a box on the current sheet. In a
+  Subsystem view they land on the System root sheet and are added to that Subsystem. The inspector
+  name field is focused so the new box can be renamed immediately. **+ Inline connector**, **+ Image**,
+  and **+ Text Box** sit in the same left stack.
+- Inspector **+ Bulkhead** is available on both Devices and Enclosures; Devices still have
+  **+ Connector** for interior endpoints. Bulkheads can mount on Device walls as well as Enclosure
+  walls.
+- Routing a wire onto a Device or Enclosure wall previews a greyed visual dot. Routing into blank
+  space previews a greyed Bulkhead. Existing dots and bulkheads keep a drop dead zone.
+- Visual-dot inspectors hide connector-library controls (type, images, cavities, gender, gauge)
+  until the dot is converted back to a bulkhead. Connectors, bulkheads, and dots have a Subsystems
+  checkbox dropdown.
+- Names and other editable text use a visible box, including canvas titles.
+
+## 2026-09-07 — Inspector layout
+
+- Removed the inspector title row and **Last saved by** footer.
+- Color is a chevron dropdown of named swatches; device and enclosure **description** is an editable
+  text box; **Stable ID** sits at the bottom of the selected record.
+- Connector **Type** no longer repeats family housing, cavity lists, crimp spec, or wire gauge under
+  the control.
+- Removed the inspector **Derived** badge and bulkhead-port explanation.
+
 ## 2026-09-04 — Versioned documentation standards
 
 - Added canonical task-oriented documentation under `docs/`, concise human onboarding, and

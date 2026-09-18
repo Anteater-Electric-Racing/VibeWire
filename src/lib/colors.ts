@@ -315,12 +315,29 @@ export function getWireBorderColor(appearance: WireAppearance | null): string {
   return appearance?.primaryColor ?? '#555';
 }
 
+const BLACK_WIRE_HEX = '#111827';
+const BLACK_WIRE_OUTLINE = '#d4d4d8';
+const BLACK_WIRE_OUTLINE_EXTRA = 2;
+
+function appearanceUsesBlack(appearance: WireAppearance): boolean {
+  return appearance.colors.some((color) => normalizeHexColor(color) === BLACK_WIRE_HEX);
+}
+
+function withBlackWireOutline(appearance: WireAppearance, layers: WireStrokeLayer[]): WireStrokeLayer[] {
+  if (!appearanceUsesBlack(appearance)) return layers;
+  const width = layers[0]?.width ?? 2;
+  return [
+    { color: BLACK_WIRE_OUTLINE, width: width + BLACK_WIRE_OUTLINE_EXTRA },
+    ...layers,
+  ];
+}
+
 export function getWireStrokeLayers(
   appearance: WireAppearance,
   width: number,
 ): WireStrokeLayer[] {
   if (appearance.kind === 'solid' || appearance.colors.length < 2) {
-    return [{ color: appearance.primaryColor, width }];
+    return withBlackWireOutline(appearance, [{ color: appearance.primaryColor, width }]);
   }
 
   // Each color gets an equal-length segment. Two interlocked strokes of the
@@ -330,13 +347,13 @@ export function getWireStrokeLayers(
   const segLen = Math.max(8, width * 4);
   const period = segLen * n;
 
-  return appearance.colors.map((color, index) => ({
+  return withBlackWireOutline(appearance, appearance.colors.map((color, index) => ({
     color,
     width,
     dasharray: `${segLen} ${period - segLen}`,
     dashoffset: -(index * segLen),
     linecap: 'butt' as const,
-  }));
+  })));
 }
 
 const DEFAULT_UI_BACKGROUND = '#18181b';

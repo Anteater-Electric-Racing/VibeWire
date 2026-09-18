@@ -14,6 +14,7 @@ import type {
   PortLayouts,
   RotationLayouts,
   RouteStyleLayouts,
+  SignalLabelLayouts,
   SizeLayouts,
   SubsystemDocument,
   TextBoxLayouts,
@@ -146,6 +147,7 @@ export interface CollaborationLayouts {
   rotations: RotationLayouts;
   routeStyles: RouteStyleLayouts;
   viewRouteStyles: ViewRouteStyleLayouts;
+  signalLabels: SignalLabelLayouts;
 }
 
 type FlatLayoutKey = Exclude<keyof CollaborationLayouts, 'branchPoints'>;

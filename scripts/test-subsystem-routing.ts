@@ -15,6 +15,7 @@ import {
   dissolveBranchPoint,
   getConnectorOccupancy,
   getPathSignalId,
+  getHarnessBundleSignalName,
   getBaseHarnessBundleId,
   getHarnessBundleLayoutValue,
   mergeConnectors,
@@ -208,6 +209,103 @@ assert.deepEqual(unmeasured.measurements, [], 'inserting a branch point on an un
 
 assert.equal(getPathSignalId({ signal_id: 'sig_TEST', tags: [] }), 'sig_TEST');
 assert.equal(getPathSignalId({ signal_id: undefined, tags: ['signal:LEGACY'] }), 'sig_LEGACY');
+assert.equal(
+  getHarnessBundleSignalName(system, ['path_nested']),
+  'Test',
+  'a one-signal harness bundle exposes that signal name',
+);
+assert.equal(
+  getHarnessBundleSignalName({
+    signals: [
+      { id: 'sig_A', name: 'CAN_H', tags: [], properties: {} },
+      { id: 'sig_B', name: 'CAN_L', tags: [], properties: {} },
+    ],
+    paths: [
+      {
+        id: 'path_a',
+        name: 'A',
+        signal_id: 'sig_A',
+        tags: [],
+        properties: {},
+        nodes: [],
+        measurements: [],
+      },
+      {
+        id: 'path_a2',
+        name: 'A2',
+        signal_id: 'sig_A',
+        tags: [],
+        properties: {},
+        nodes: [],
+        measurements: [],
+      },
+      {
+        id: 'path_b',
+        name: 'B',
+        signal_id: 'sig_B',
+        tags: [],
+        properties: {},
+        nodes: [],
+        measurements: [],
+      },
+      {
+        id: 'path_open',
+        name: 'Open',
+        tags: [],
+        properties: {},
+        nodes: [],
+        measurements: [],
+      },
+    ],
+  }, ['path_a', 'path_a2']),
+  'CAN_H',
+  'several paths of the same signal still count as one signal',
+);
+assert.equal(
+  getHarnessBundleSignalName({
+    signals: [
+      { id: 'sig_A', name: 'CAN_H', tags: [], properties: {} },
+      { id: 'sig_B', name: 'CAN_L', tags: [], properties: {} },
+    ],
+    paths: [
+      {
+        id: 'path_a',
+        name: 'A',
+        signal_id: 'sig_A',
+        tags: [],
+        properties: {},
+        nodes: [],
+        measurements: [],
+      },
+      {
+        id: 'path_b',
+        name: 'B',
+        signal_id: 'sig_B',
+        tags: [],
+        properties: {},
+        nodes: [],
+        measurements: [],
+      },
+    ],
+  }, ['path_a', 'path_b']),
+  null,
+  'mixed-signal harness bundles have no single name',
+);
+assert.equal(
+  getHarnessBundleSignalName({
+    signals: [],
+    paths: [{
+      id: 'path_open',
+      name: 'Open',
+      tags: [],
+      properties: {},
+      nodes: [],
+      measurements: [],
+    }],
+  }, ['path_open']),
+  null,
+  'an uninitialized path has no signal name',
+);
 assert.deepEqual(
   planSheetRoute(system, sheetIds, system.connectors[0], system.connectors[1]).crossedChildScopes,
   ['enc_a1', 'enc_a', 'enc_b'],
@@ -2131,12 +2229,78 @@ async function testRouteEndpoint() {
       (connector) => connector.id === 'con_dot_draft',
     );
     assert.equal(savedDraftDot?.properties.bulkhead_display, 'dot');
-    assert.equal(savedDraftDot?.mounting, 'inline');
+    assert.equal(savedDraftDot?.mounting, 'bulkhead');
     assert.deepEqual(
       draftDotResult.subsystem.connectors.con_dot_draft,
       { x: 84, y: 66, w: 18, h: 18 },
       'the committed dot must keep its preview position',
     );
+
+    // A drag starting at an uncommitted wall dot can end at another draft.
+    for (const display of ['dot', 'bulkhead'] as const) {
+      const drafts = [
+        { id: `con_pair_source_${display}`, parent: 'dev_external_1', display: 'dot', x: 211, y: 40 },
+        { id: `con_pair_target_${display}`, parent: 'dev_external_2', display, x: -9, y: 70 },
+      ];
+      const request = {
+        from: { connector_id: drafts[0].id, pin_number: 1 },
+        to: { connector_id: drafts[1].id, pin_number: 1 },
+        signal_id: 'sig_TEST',
+        subsystem_id: 'routing',
+        request_id: `two-drafts-${display}`,
+        draft_connectors: drafts,
+      };
+      const response: Response = await fetch(`${base}/api/paths/route?system=test`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Cookie: cookie },
+        body: JSON.stringify(request),
+      });
+      const result = await response.json() as {
+        error?: string;
+        draft_connector_ids: string[];
+        path: { nodes: Array<{ connector_id?: string }> };
+        subsystem: SubsystemDocument;
+      };
+      assert.equal(response.status, 201, result.error);
+      assert.deepEqual(result.draft_connector_ids, drafts.map((draft) => draft.id));
+      assert.deepEqual(result.path.nodes.map((node) => node.connector_id), drafts.map((draft) => draft.id));
+      const saved = readSheetedSystem(systemDir);
+      for (const draft of drafts) {
+        const connector = saved.connectors.find((item) => item.id === draft.id);
+        assert.equal(connector?.parent, draft.parent);
+        assert.equal(connector?.properties.bulkhead_display, draft.display === 'dot' ? 'dot' : undefined);
+        assert.deepEqual(result.subsystem.connectors[draft.id], {
+          x: draft.x, y: draft.y,
+          w: draft.display === 'dot' ? 18 : 100,
+          h: draft.display === 'dot' ? 18 : 32,
+        });
+      }
+      const retry: Response = await fetch(`${base}/api/paths/route?system=test`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Cookie: cookie },
+        body: JSON.stringify(request),
+      });
+      assert.equal(retry.status, 200);
+      assert.equal(readSheetedSystem(systemDir).paths.length, saved.paths.length);
+    }
+    const beforeRejectedDrafts = readSheetedSystem(systemDir);
+    const rejectedDrafts = await fetch(`${base}/api/paths/route?system=test`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Cookie: cookie },
+      body: JSON.stringify({
+        from: { connector_id: 'con_rejected_source', pin_number: 1 },
+        to: { connector_id: 'con_rejected_target', pin_number: 1 },
+        signal_id: 'sig_TEST',
+        request_id: 'rejected-two-drafts',
+        draft_connectors: [
+          { id: 'con_rejected_source', parent: 'dev_external_1' },
+          { id: 'con_rejected_target', parent: 'missing-device' },
+        ],
+      }),
+    });
+    assert.equal(rejectedDrafts.status, 404);
+    assert.deepEqual(readSheetedSystem(systemDir), beforeRejectedDrafts,
+      'a rejected target must not leave an orphan source dot');
 
     const afterDelete = readSheetedSystem(systemDir);
     const deletedEnclosures = new Set([

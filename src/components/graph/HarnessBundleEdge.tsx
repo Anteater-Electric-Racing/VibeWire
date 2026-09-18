@@ -36,6 +36,8 @@ import {
 import type { WaypointItem } from '../../types';
 import {
   getHarnessBundleLayoutValue,
+  getHarnessBundleSignalId,
+  getHarnessBundleSignalName,
   getConnectorOccupancy,
   getBranchPointWireFamilies,
   isGraphPinHandle,
@@ -260,9 +262,17 @@ export function HarnessBundleEdge(props: EdgeProps<HarnessBundleEdgeType>) {
   const selectedRoutePointIndex = useSystemStore((s) =>
     s.selectedHarnessBundle?.id === id ? s.selectedHarnessBundle.routePoint?.index : undefined
   );
+  const signalLabelSelected = useSystemStore((s) =>
+    s.selectedHarnessBundle?.id === id && s.selectedHarnessBundle.signalLabel === true
+  );
   const dismissInspector = useSystemStore((s) => s.dismissInspector);
   const inspectorDismissed = useSystemStore((s) => s.inspectorDismissed);
   const setEdgeWaypoints = useSystemStore((s) => s.setEdgeWaypoints);
+  const setHarnessBundleSignalLabelOffset = useSystemStore((s) => s.setHarnessBundleSignalLabelOffset);
+  const setHarnessBundleSignalLabelHidden = useSystemStore((s) => s.setHarnessBundleSignalLabelHidden);
+  const signalLabelOffset = useSystemStore((s) =>
+    getHarnessBundleLayoutValue(s.signalLabelLayouts, id) ?? null
+  );
   const moveSharedAnchor = useSystemStore((s) => s.moveSharedAnchor);
   const unlinkEdgeFromSharedAnchor = useSystemStore((s) => s.unlinkEdgeFromSharedAnchor);
   const deleteSharedAnchor = useSystemStore((s) => s.deleteSharedAnchor);
@@ -270,6 +280,8 @@ export function HarnessBundleEdge(props: EdgeProps<HarnessBundleEdgeType>) {
   const setDraggingEdgeInfo = useSystemStore((s) => s.setDraggingEdgeInfo);
   const pushUndoSnapshot = useSystemStore((s) => s.pushUndoSnapshot);
   const commitUndoSnapshot = useSystemStore((s) => s.commitUndoSnapshot);
+  const cancelUndoSnapshot = useSystemStore((s) => s.cancelUndoSnapshot);
+  const renameEntity = useSystemStore((s) => s.renameEntity);
   const setInteracting = useSystemStore((s) => s.setInteracting);
   const system = useSystemStore((s) => s.system);
   const splitBulkheadDotPath = useSystemStore((s) => s.splitBulkheadDotPath);
@@ -302,9 +314,22 @@ export function HarnessBundleEdge(props: EdgeProps<HarnessBundleEdgeType>) {
   const dragPosRef = useRef<Point | null>(null);
   const rawWaypointsRef = useRef<WaypointItem[]>([]);
   const suppressClickRef = useRef(false);
+  const [editingSignalLabel, setEditingSignalLabel] = useState(false);
+  const [signalLabelDraft, setSignalLabelDraft] = useState('');
+  const signalLabelInputRef = useRef<HTMLInputElement>(null);
 
   const wireCount = data?.pathCount ?? 1;
   const pathIds = data?.pathIds;
+  const signalId = useMemo(
+    () => (system && pathIds ? getHarnessBundleSignalId(system, pathIds) : null),
+    [system, pathIds],
+  );
+  const signalName = useMemo(
+    () => (system && pathIds ? getHarnessBundleSignalName(system, pathIds) : null),
+    [system, pathIds],
+  );
+  const signalLabelHidden = signalLabelOffset?.hidden === true;
+  const signalLabel = signalName && !signalLabelHidden ? signalName : null;
   const color = data?.bundleColor ?? '#666';
   const routeStyle = data?.routeStyle ?? DEFAULT_WIRE_ROUTE_STYLE;
   const resolvedWaypoints = useMemo(
@@ -1065,6 +1090,124 @@ export function HarnessBundleEdge(props: EdgeProps<HarnessBundleEdgeType>) {
     const offset = strokeWidth + 12;
     return { x: mx + nx * offset, y: my + ny * offset };
   })();
+  const labelText = signalLabel ?? (selected ? `${wireCount} path${wireCount !== 1 ? 's' : ''}` : `${wireCount}p`);
+  const labelCharWidth = selected || signalLabel ? 7.2 : 6;
+  const labelWidth = Math.min(220, Math.max(signalLabel ? 40 : selected ? 60 : 32, labelText.length * labelCharWidth + 18));
+  const labelHeight = selected || signalLabel ? 24 : 16;
+  const placedLabelPos = {
+    x: labelPos.x + (signalLabelOffset?.x ?? 0),
+    y: labelPos.y + (signalLabelOffset?.y ?? 0),
+  };
+
+  const handleSignalLabelDragStart = useCallback((event: React.MouseEvent) => {
+    if (!isEditor || !signalLabel || event.button !== 0) return;
+    event.preventDefault();
+    event.stopPropagation();
+    if (pathIds) setSelectedHarnessBundle({ id, pathIds, signalLabel: true });
+
+    const origin = labelPos;
+    const startFlow = screenToFlowPosition({ x: event.clientX, y: event.clientY });
+    const grabDx = startFlow.x - placedLabelPos.x;
+    const grabDy = startFlow.y - placedLabelPos.y;
+    const startClient = { x: event.clientX, y: event.clientY };
+    let dragging = false;
+
+    const onMove = (moveEvent: MouseEvent) => {
+      const dist = Math.hypot(moveEvent.clientX - startClient.x, moveEvent.clientY - startClient.y);
+      if (!dragging) {
+        if (dist < HANDLE_DRAG_THRESHOLD_PX) return;
+        dragging = true;
+        dismissInspector();
+        pushUndoSnapshot(`edge:${id}:signal-label`);
+        setInteracting('harnessBundle', id, true);
+      }
+      const pointer = screenToFlowPosition({ x: moveEvent.clientX, y: moveEvent.clientY });
+      setHarnessBundleSignalLabelOffset(id, {
+        x: pointer.x - grabDx - origin.x,
+        y: pointer.y - grabDy - origin.y,
+      });
+    };
+
+    const onUp = () => {
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+      setInteracting('harnessBundle', id, false);
+      if (dragging) {
+        suppressClickRef.current = true;
+        commitUndoSnapshot();
+      }
+    };
+
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  }, [
+    commitUndoSnapshot,
+    dismissInspector,
+    id,
+    isEditor,
+    labelPos,
+    placedLabelPos,
+    pathIds,
+    pushUndoSnapshot,
+    screenToFlowPosition,
+    setHarnessBundleSignalLabelOffset,
+    setInteracting,
+    setSelectedHarnessBundle,
+    signalLabel,
+  ]);
+
+  const handleSignalLabelDoubleClick = useCallback((event: React.MouseEvent) => {
+    if (!isEditor || !signalLabel || !signalId) return;
+    event.preventDefault();
+    event.stopPropagation();
+    setSignalLabelDraft(signalLabel);
+    setEditingSignalLabel(true);
+  }, [isEditor, signalId, signalLabel]);
+
+  const commitSignalLabelRename = useCallback((value: string) => {
+    setEditingSignalLabel(false);
+    if (!signalId) return;
+    const next = value.trim();
+    if (!next || next === signalLabel) return;
+    pushUndoSnapshot(`edge:${id}:signal-label-rename`);
+    renameEntity('signal', signalId, next);
+    commitUndoSnapshot();
+  }, [commitUndoSnapshot, id, pushUndoSnapshot, renameEntity, signalId, signalLabel]);
+
+  const resetSignalLabelPosition = useCallback((event?: React.MouseEvent) => {
+    if (!isEditor || !signalLabel) return;
+    event?.preventDefault();
+    event?.stopPropagation();
+    pushUndoSnapshot(`edge:${id}:signal-label-reset`);
+    setHarnessBundleSignalLabelOffset(id, null);
+    commitUndoSnapshot();
+  }, [
+    commitUndoSnapshot,
+    id,
+    isEditor,
+    pushUndoSnapshot,
+    setHarnessBundleSignalLabelOffset,
+    signalLabel,
+  ]);
+
+  const hideSignalLabel = useCallback((event?: React.MouseEvent) => {
+    if (!isEditor || !signalName) return;
+    event?.preventDefault();
+    event?.stopPropagation();
+    pushUndoSnapshot(`edge:${id}:signal-label-hide`);
+    setHarnessBundleSignalLabelHidden(id, true);
+    if (pathIds) setSelectedHarnessBundle({ id, pathIds });
+    commitUndoSnapshot();
+  }, [
+    commitUndoSnapshot,
+    id,
+    isEditor,
+    pathIds,
+    pushUndoSnapshot,
+    setHarnessBundleSignalLabelHidden,
+    setSelectedHarnessBundle,
+    signalName,
+  ]);
 
   // Keep the active edge (bend handles included) above crossing harnesses.
   const elevateEdge = useCallback((elevate: boolean) => {
@@ -1261,10 +1404,10 @@ export function HarnessBundleEdge(props: EdgeProps<HarnessBundleEdgeType>) {
           );
         })}
 
-      {/* Wire count label */}
+      {/* Signal name / path-count chip. Signal names are dragged from the later interactive layer. */}
       <foreignObject
-        x={labelPos.x + 16}
-        y={labelPos.y - 10}
+        x={placedLabelPos.x + labelWidth / 2 + 4}
+        y={placedLabelPos.y - 10}
         width={56}
         height={20}
         pointerEvents="none"
@@ -1276,18 +1419,23 @@ export function HarnessBundleEdge(props: EdgeProps<HarnessBundleEdgeType>) {
           className="pointer-events-auto"
         />
       </foreignObject>
-      {selected ? (
-        <foreignObject x={labelPos.x - 30} y={labelPos.y - 12} width={60} height={24} pointerEvents="none" className="overflow-visible">
+      {!signalLabel && (
+        <foreignObject
+          x={placedLabelPos.x - labelWidth / 2}
+          y={placedLabelPos.y - labelHeight / 2}
+          width={labelWidth}
+          height={labelHeight}
+          pointerEvents="none"
+          className="overflow-visible"
+        >
           <div className="flex items-center justify-center h-full">
-            <span className="text-[11px] font-medium bg-zinc-800 text-zinc-100 px-2 py-0.5 rounded border border-zinc-600 whitespace-nowrap shadow">
-              {wireCount} path{wireCount !== 1 ? 's' : ''}
-            </span>
-          </div>
-        </foreignObject>
-      ) : (
-        <foreignObject x={labelPos.x - 16} y={labelPos.y - 8} width={32} height={16} pointerEvents="none" className="overflow-visible">
-          <div className="flex items-center justify-center h-full">
-            <span className="text-[7px] bg-zinc-900/50 text-zinc-600 px-0.5 rounded whitespace-nowrap">{wireCount}p</span>
+            {selected ? (
+              <span className="text-[11px] font-medium bg-zinc-800 text-zinc-100 px-2 py-0.5 rounded border border-zinc-600 whitespace-nowrap shadow">
+                {wireCount} path{wireCount !== 1 ? 's' : ''}
+              </span>
+            ) : (
+              <span className="text-[7px] bg-zinc-900/50 text-zinc-600 px-0.5 rounded whitespace-nowrap">{wireCount}p</span>
+            )}
           </div>
         </foreignObject>
       )}
@@ -1462,6 +1610,51 @@ export function HarnessBundleEdge(props: EdgeProps<HarnessBundleEdgeType>) {
             />
           );
         })}
+
+      {signalLabel && (
+        <foreignObject
+          x={placedLabelPos.x - labelWidth / 2}
+          y={placedLabelPos.y - labelHeight / 2}
+          width={labelWidth + (isEditor ? 18 : 0)}
+          height={labelHeight}
+          className="overflow-visible"
+        >
+          <div className="flex items-center justify-center h-full gap-0.5">
+            <span
+              role="button"
+              className={`max-w-full truncate rounded px-1.5 py-0.5 font-medium shadow select-none ${
+                isEditor ? 'cursor-grab active:cursor-grabbing' : ''
+              } ${
+                signalLabelSelected || selected
+                  ? 'text-[11px] bg-zinc-800 text-zinc-100 border border-zinc-600'
+                  : 'text-[9px] bg-zinc-900/80 text-zinc-200 border border-zinc-700/80'
+              }`}
+              title={isEditor
+                ? `${signalLabel} — drag to move, Delete or × to hide, double-click to reset`
+                : signalLabel}
+              onMouseDown={handleSignalLabelDragStart}
+              onDoubleClick={handleSignalLabelDoubleClick}
+              onClick={(event) => event.stopPropagation()}
+            >
+              {signalLabel}
+            </span>
+            {isEditor && (selected || signalLabelSelected || hovered) && (
+              <button
+                type="button"
+                className="shrink-0 rounded px-0.5 text-[9px] leading-none text-zinc-400 hover:text-red-400"
+                title="Hide signal name"
+                onMouseDown={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                }}
+                onClick={hideSignalLabel}
+              >
+                ×
+              </button>
+            )}
+          </div>
+        </foreignObject>
+      )}
     </g>
   );
 }

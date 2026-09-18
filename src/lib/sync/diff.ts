@@ -300,6 +300,7 @@ export function emptyLayouts(): CollaborationLayouts {
     rotations: {},
     routeStyles: {},
     viewRouteStyles: {},
+    signalLabels: {},
   };
 }
 
@@ -323,6 +324,7 @@ const FLAT_LAYOUT_KEYS = [
   'rotations',
   'routeStyles',
   'viewRouteStyles',
+  'signalLabels',
 ] as const satisfies readonly Exclude<keyof CollaborationLayouts, 'branchPoints'>[];
 
 export function diffLayouts(

@@ -12,7 +12,7 @@ This page defines product language and semantic invariants. Types are owned by
 | **HierarchyEntity** | The union of a Device leaf and an Enclosure. |
 | **Device** | A leaf HierarchyEntity that owns connectors and has no internal sheet. |
 | **Enclosure** | A HierarchyEntity with an internal conceptual sheet; it may contain Devices or Enclosures. |
-| **Bulkhead connector** | A connector mounted on an Enclosure wall (`mounting: 'bulkhead'`). |
+| **Bulkhead connector** | A connector mounted on a Device or Enclosure wall (`mounting: 'bulkhead'`). |
 | **Path** | An ordered logical connection tracker through connector cavities and Branch Points. |
 | **Wire** | One physical conductor between adjacent termination points on a Path. |
 | **Harness Bundle** | Wires grouped because they share a rendered or physical route. |
@@ -30,7 +30,8 @@ Canonical flat writes use `schema_version: "0.3.0"`:
 - `hierarchy[]` contains explicit `kind: 'device' | 'enclosure'` variants with `id`, `name`,
   `parent`, `tags`, and string `properties`.
 - `connectors[]` reference a parent and connector-library type. Bulkhead and inline placement is
-  explicit; omitted `mounting` means an endpoint.
+  explicit. An explicit `mounting: 'bulkhead'` is valid on a Device or Enclosure wall; omitted
+  `mounting` means an endpoint on a Device and a bulkhead on an Enclosure.
 - `branchPoints[]` are semantic topology entities and may be parented in an Enclosure sheet.
 - `paths[]` contain ordered `nodes[]`, optional stable `signal_id`, tags, properties, and
   measurements.

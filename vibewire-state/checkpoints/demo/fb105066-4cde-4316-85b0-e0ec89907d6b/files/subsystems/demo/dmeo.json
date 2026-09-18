@@ -1,0 +1,17 @@
+{
+  "schema_version": "1.0.0",
+  "id": "dmeo",
+  "name": "dmeo",
+  "tags": [
+    "system:dmeo"
+  ],
+  "enclosures": {},
+  "devices": {},
+  "connectors": {},
+  "device_connector_mode": {
+    "dev_4": "all",
+    "dev_3": "all"
+  },
+  "rev": 8,
+  "hidden_connectors": []
+}

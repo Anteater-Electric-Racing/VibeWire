@@ -7,10 +7,10 @@ export interface Connector {
    * Physical placement. Bulkhead and inline are written explicitly.
    * Omitted `mounting` means endpoint.
    *
-   * `bulkhead` is only valid when `parent` is an Enclosure. `inline` is a
-   * free-hanging pass-through. Legacy files that omit the field are inferred
+   * `bulkhead` is valid when `parent` is a Device or Enclosure wall. `inline` is
+   * a free-hanging pass-through. Legacy files that omit the field are inferred
    * only during input normalization: a connector whose parent is an enclosure
-   * becomes a bulkhead.
+   * becomes a bulkhead; a Device parent becomes an endpoint.
    */
   mounting?: 'inline' | 'bulkhead';
   /**
@@ -228,6 +228,8 @@ export interface SelectedHarnessBundle {
   pathIds: string[];
   /** When set, Delete/Backspace removes this bend instead of the whole Harness Bundle. */
   routePoint?: SelectedRoutePoint;
+  /** When set, Delete/Backspace hides the signal-name label instead of the Harness Bundle. */
+  signalLabel?: boolean;
 }
 
 export interface NodeLayout {
@@ -351,6 +353,19 @@ export interface RouteStyleLayouts {
  */
 export interface ViewRouteStyleLayouts {
   [viewKey: string]: WireRouteStyle;
+}
+
+/** Offset from the default midpoint label, in flow coordinates. */
+export interface SignalLabelOffset {
+  x: number;
+  y: number;
+  /** When true the name is hidden until shown again from the inspector. */
+  hidden?: boolean;
+}
+
+/** Per-Harness-Bundle signal-name label placement. */
+export interface SignalLabelLayouts {
+  [edgeId: string]: SignalLabelOffset;
 }
 
 export interface SharedAnchorLayout {

@@ -3,6 +3,8 @@
  * and flip connector roles derived from `container`.
  */
 import assert from 'node:assert/strict';
+import { DOUBLE_CLICK_GUARD_MS, inspectorRevealDelayMs } from '../src/lib/doubleClickGuard.js';
+import { getHierarchyHotkey } from '../src/lib/hierarchyHotkeys.js';
 import { getConnectorRole } from '../src/lib/systemTopology.js';
 import { useSystemStore } from '../src/store/index.js';
 import type { SystemData } from '../src/types/index.js';
@@ -96,7 +98,7 @@ reset();
   assert.equal(system.branchPoints.length, 0);
   assert.equal(system.paths.some((path) => path.id === 'path_nested'), false);
   assert.ok(system.paths.some((path) => path.id === 'path_wall'));
-  assert.equal(getConnectorRole(system, 'con_wall'), 'endpoint');
+  assert.equal(getConnectorRole(system, 'con_wall'), 'bulkhead');
   assert.equal(useSystemStore.getState().openEnclosureId, null);
 }
 
@@ -121,5 +123,55 @@ reset();
   assert.equal(impact?.fromEnclosure, true);
   assert.equal(impact?.nestedDeviceIds.length, 0);
 }
+
+// The contextual canvas action uses the inspected entity as the connector parent.
+for (const [parentId, expectedRole] of [['dev_solo', 'endpoint'], ['enc_box', 'bulkhead']] as const) {
+  reset();
+  const beforeCount = useSystemStore.getState().system!.connectors.length;
+  const connectorId = useSystemStore.getState().addConnector(parentId, { focusName: true });
+  assert.ok(connectorId);
+  const state = useSystemStore.getState();
+  assert.equal(state.system!.connectors.find((item) => item.id === connectorId)?.parent, parentId);
+  assert.equal(getConnectorRole(state.system!, connectorId), expectedRole);
+  assert.deepEqual(state.selectedItem, { type: 'connector', id: connectorId });
+  assert.equal(state.pendingInspectorNameFocusId, connectorId, 'new connector name is ready for typing');
+  assert.ok(state.portLayouts[connectorId], 'new connector has a canvas position');
+  state.undo();
+  assert.equal(useSystemStore.getState().system!.connectors.length, beforeCount);
+}
+
+// Creation keys must not steal typing, modified commands, or session activation.
+const keyEvent = {
+  key: 'd', metaKey: false, ctrlKey: false, altKey: false, shiftKey: false,
+  repeat: false, defaultPrevented: false, isComposing: false,
+};
+const hotkeyContext = { isEditor: true, isTyping: false, modalOpen: false };
+for (const [key, kind] of [['d', 'device'], ['D', 'device'], ['e', 'enclosure'], ['E', 'enclosure']] as const) {
+  const event = { ...keyEvent, key };
+  assert.equal(getHierarchyHotkey(event, hotkeyContext), kind);
+  assert.equal(getHierarchyHotkey(event, { ...hotkeyContext, isEditor: false }), null);
+  assert.equal(getHierarchyHotkey(event, { ...hotkeyContext, isTyping: true }), null);
+  assert.equal(getHierarchyHotkey(event, { ...hotkeyContext, modalOpen: true }), null);
+  for (const guard of ['metaKey', 'ctrlKey', 'altKey', 'shiftKey', 'repeat', 'defaultPrevented', 'isComposing'] as const) {
+    assert.equal(getHierarchyHotkey({ ...event, [guard]: true }, hotkeyContext), null, guard);
+  }
+}
+assert.equal(getHierarchyHotkey({ ...keyEvent, key: 'n' }, hotkeyContext), null);
+
+assert.equal(inspectorRevealDelayMs({
+  show: false, alreadyRevealed: false, immediate: false, fromCanvasPointer: true,
+}), null);
+assert.equal(inspectorRevealDelayMs({
+  show: true, alreadyRevealed: true, immediate: false, fromCanvasPointer: true,
+}), 0);
+assert.equal(inspectorRevealDelayMs({
+  show: true, alreadyRevealed: false, immediate: true, fromCanvasPointer: true,
+}), 0);
+assert.equal(inspectorRevealDelayMs({
+  show: true, alreadyRevealed: false, immediate: false, fromCanvasPointer: false,
+}), 0);
+assert.equal(inspectorRevealDelayMs({
+  show: true, alreadyRevealed: false, immediate: false, fromCanvasPointer: true,
+}), DOUBLE_CLICK_GUARD_MS);
 
 console.log('test-enclosure-kind: ok');

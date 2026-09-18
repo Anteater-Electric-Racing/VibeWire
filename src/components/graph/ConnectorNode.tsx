@@ -28,6 +28,7 @@ import {
 } from '../../lib/bulkheadRouting';
 import type { WallSide } from '../../lib/parentResize';
 import { PresenceBadge } from '../collab/PresenceBadge';
+import { NodeTitleEditor } from './NodeTitleEditor';
 
 type ConnectorNodeData = {
   label: string;
@@ -138,6 +139,7 @@ export const ConnectorNode = memo(function ConnectorNode({
   const renumberConnectorCavities = useSystemStore((s) => s.renumberConnectorCavities);
   const system = useSystemStore((s) => s.system);
   const isEditor = useSystemStore((s) => s.session.isEditor);
+  const renameEntity = useSystemStore((s) => s.renameEntity);
   const rotation = useSystemStore((s) => s.rotationLayouts[data.connectorId] ?? 0);
   const updateNodeInternals = useUpdateNodeInternals();
 
@@ -214,7 +216,6 @@ export const ConnectorNode = memo(function ConnectorNode({
   }, []);
 
   const fontScale = Math.min(1, Math.max(0.5, nodeWidth / 140));
-  const labelSize = Math.max(8, Math.round(12 * fontScale));
   const subSize = Math.max(7, Math.round(10 * fontScale));
 
   useEffect(() => {
@@ -494,10 +495,15 @@ export const ConnectorNode = memo(function ConnectorNode({
           >
             {isExpanded ? '▼' : '▶'}
           </button>
-          <div className="min-w-0">
-            <div className="font-bold leading-tight truncate text-vw-connector" style={{ fontSize: labelSize }}>
-              {data.label}
-            </div>
+          <div className="min-w-0 flex-1">
+            <NodeTitleEditor
+              value={data.label}
+              disabled={!isEditor}
+              ariaLabel="Rename connector"
+              className="truncate text-vw-connector"
+              passThroughDoubleClick
+              onCommit={(next) => renameEntity('connector', data.connectorId, next)}
+            />
             {data.parentName && (
               <div className="text-zinc-400 leading-tight truncate" style={{ fontSize: subSize }}>
                 {data.parentName}

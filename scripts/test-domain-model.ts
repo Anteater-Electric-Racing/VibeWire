@@ -94,6 +94,21 @@ const resorted = normalizeLayouts({
 assert.deepEqual(resorted.waypoints['bundle:branch:mp_001|connector:con_a'], [{ x: 1, y: 2 }]);
 assert.equal('bundle:connector:con_a|branch:mp_001' in resorted.waypoints, false);
 
+const labeled = normalizeLayouts({
+  signalLabels: {
+    'bundle:merge:mp_001|connector:con_a': { x: 12, y: -8 },
+    'bundle:bad': { x: 'nope' },
+  },
+});
+assert.deepEqual(labeled.signalLabels['bundle:branch:mp_001|connector:con_a'], { x: 12, y: -8 });
+assert.equal('bundle:bad' in labeled.signalLabels, false);
+assert.deepEqual(
+  normalizeLayouts({
+    signalLabels: { 'bundle:branch:mp_001|connector:con_a': { hidden: true } },
+  }).signalLabels['bundle:branch:mp_001|connector:con_a'],
+  { x: 0, y: 0, hidden: true },
+);
+
 const manufacturing = normalizeManufacturingDocument({
   schema_version: '1.1.0',
   bundles: {

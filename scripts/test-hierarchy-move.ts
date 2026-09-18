@@ -4,7 +4,11 @@
  */
 import assert from 'node:assert/strict';
 import { moveHierarchyEntity, getConnectorSignalGroups } from '../src/lib/systemTopology.js';
-import { readableColorOnBackground } from '../src/lib/colors.js';
+import {
+  getWireAppearance,
+  getWireStrokeLayers,
+  readableColorOnBackground,
+} from '../src/lib/colors.js';
 import { buildHierarchySearch } from '../src/lib/hierarchyTree.js';
 import type { SystemData } from '../src/types/index.js';
 
@@ -136,6 +140,29 @@ assert.throws(
   assert.notEqual(blackOnDark.toLowerCase(), '#111827');
   const yellowOnDark = readableColorOnBackground('#facc15', '#18181b');
   assert.equal(yellowOnDark.toLowerCase(), '#facc15');
+
+  const blackLayers = getWireStrokeLayers(
+    getWireAppearance({ tags: [], properties: { wire_color: 'black' } }),
+    2,
+  );
+  assert.equal(blackLayers[0]?.color, '#d4d4d8');
+  assert.equal(blackLayers[0]?.width, 4);
+  assert.equal(blackLayers[1]?.color, '#111827');
+  assert.equal(blackLayers[1]?.width, 2);
+
+  const redLayers = getWireStrokeLayers(
+    getWireAppearance({ tags: [], properties: { wire_color: 'red' } }),
+    2,
+  );
+  assert.equal(redLayers.length, 1);
+  assert.equal(redLayers[0]?.color, '#ef4444');
+
+  const stripedBlack = getWireStrokeLayers(
+    getWireAppearance({ tags: [], properties: { wire_color: 'black/orange' } }),
+    2,
+  );
+  assert.equal(stripedBlack[0]?.color, '#d4d4d8');
+  assert.equal(stripedBlack.length, 3);
 }
 
 {

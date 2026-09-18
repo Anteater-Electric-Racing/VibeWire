@@ -1,0 +1,25 @@
+{
+  "id": "fb105066-4cde-4316-85b0-e0ec89907d6b",
+  "label": "Daily save — September 7, 2026",
+  "createdAt": "2026-09-07T22:03:03.436Z",
+  "createdBy": {
+    "id": "ac89b199-5f27-4cca-b073-03675304a26e",
+    "displayName": "Gabe"
+  },
+  "rev": 233,
+  "auto": true,
+  "counts": {
+    "hierarchy": 6,
+    "connectors": 8,
+    "branchPoints": 1,
+    "paths": 2,
+    "signals": 2
+  },
+  "dailyKey": "2026-09-07",
+  "contributors": [
+    {
+      "id": "ac89b199-5f27-4cca-b073-03675304a26e",
+      "displayName": "Gabe"
+    }
+  ]
+}

@@ -3,6 +3,8 @@ export {
   AUTO_BULKHEAD_REASON,
   BULKHEAD_DISPLAY_PROPERTY,
   BULKHEAD_DOT_DISPLAY,
+  BULKHEAD_DOT_SIZE,
+  DEFAULT_BULKHEAD_SIZE,
   ensureEnclosureBulkheadPlaceholders,
   isAutoBulkheadPlaceholder,
   isTerminalVisualDot,

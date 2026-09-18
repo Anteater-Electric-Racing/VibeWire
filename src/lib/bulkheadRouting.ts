@@ -10,6 +10,7 @@ export const AUTO_BULKHEAD_REASON = 'missing_enclosure_bulkhead';
 export const BULKHEAD_DISPLAY_PROPERTY = 'bulkhead_display';
 export const BULKHEAD_DOT_DISPLAY = 'dot';
 export const BULKHEAD_DOT_SIZE = 18;
+export const DEFAULT_BULKHEAD_SIZE = { w: 100, h: 32 };
 
 export interface EnclosureRoutePlan {
   fromScope: string | null;
@@ -201,7 +202,8 @@ export function splitBulkheadDotPath(
   if (!parent) {
     throw new Error('The visual dot must belong to a device or enclosure.');
   }
-  const wallMounted = parent.kind === 'enclosure';
+  const isEnclosureWall = parent.kind === 'enclosure';
+  const wallMounted = isEnclosureWall || parent.kind === 'device';
   if ([
     ...input.hierarchy,
     ...input.connectors,
@@ -261,16 +263,16 @@ export function splitBulkheadDotPath(
     generated_by_route: pathId,
     generated_by_routes: pathId,
   };
-  if (wallMounted) {
+  properties.bulkhead_group_anchor = `dot:${newConnectorId}`;
+  if (isEnclosureWall) {
     Object.assign(properties, {
       placeholder_reason: AUTO_BULKHEAD_REASON,
-      bulkhead_group_anchor: `dot:${newConnectorId}`,
       boundary_enclosure: parent.id,
       boundary_sheet: parent.id,
+      boundary_name: parent.name,
     });
   } else {
     delete properties.placeholder_reason;
-    delete properties.bulkhead_group_anchor;
     delete properties.boundary_enclosure;
     delete properties.boundary_sheet;
     delete properties.boundary_name;

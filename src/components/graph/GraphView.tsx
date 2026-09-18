@@ -25,6 +25,7 @@ import {
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { useSystemStore } from '../../store';
+import { getHierarchyHotkey } from '../../lib/hierarchyHotkeys';
 import type {
   ConnectorType,
   SystemData,
@@ -46,6 +47,7 @@ import { TextBoxNode } from './TextBoxNode';
 import { ImagePickerPanel } from './ImagePickerPanel';
 import {
   countPathsTouchingConnectors,
+  DEFAULT_NEW_SIGNAL_NAME,
   getConnectorOccupancy,
   getConnectorSchematicImage,
   getChildEnclosures,
@@ -108,13 +110,19 @@ import {
   isTerminalVisualDot,
 } from '../../lib/bulkheadRouting';
 import {
+  resolveRoutingDraftPreview,
+  resolveDraftRouteDrop,
+  ROUTING_EXISTING_DOT_SNAP_PX,
+  type RoutingDraftPreview,
+} from '../../lib/routingPreview';
+import { nextNumberedName } from '../../lib/rename';
+import {
   EXPANDED_CONNECTOR_Z_INDEX,
   getConnectorTablePinCount,
   resolveConnectorRenderedSize,
 } from '../../lib/connectorSize';
 import {
   buildSubsystemGraphModel,
-  clampNodeToParentBounds,
   deriveGraphWireGroups,
   firstBundleIdByBase,
   getAbsoluteNodeCenter,
@@ -269,21 +277,12 @@ type RouteEndpoint = {
   pin_number: number;
 };
 
-type DraftDotPlacement = {
-  id: string;
-  parentId: string;
-  parentNodeId: string;
-  parentIsContainer: boolean;
-  position: Point;
-  center: Point;
-};
-
-type RoutingDotPreview = Omit<DraftDotPlacement, 'id'>;
+type DraftPlacement = RoutingDraftPreview & { id: string };
 
 type PendingRouteState = {
   from: RouteEndpoint;
   to: RouteEndpoint;
-  draftDot?: DraftDotPlacement;
+  drafts?: DraftPlacement[];
 };
 
 function connectorIdFromGraphNodeId(nodeId: string): string | null {
@@ -332,15 +331,23 @@ function routeEndpointUnderClientPoint(
   }
   for (const element of document.elementsFromPoint(clientX, clientY)) {
     if (!(element instanceof Element)) continue;
-    const nodeId = element.closest('.react-flow__node-connector')?.getAttribute('data-id');
+    const nodeEl = element.closest('.react-flow__node-connector');
+    const nodeId = nodeEl?.getAttribute('data-id');
     const connectorId = nodeId ? connectorIdFromGraphNodeId(nodeId) : null;
     if (!connectorId) continue;
     const connector = system.connectors.find((candidate) => candidate.id === connectorId);
     if (!isBulkheadDot(connector)) continue;
     const pinNumber = getVisualDotRoutePin(system, connectorId);
-    if (pinNumber !== null) {
-      return { connector_id: connectorId, pin_number: pinNumber };
+    if (pinNumber === null) continue;
+    const bounds = nodeEl instanceof HTMLElement ? nodeEl.getBoundingClientRect() : null;
+    if (bounds) {
+      const centerX = bounds.left + bounds.width / 2;
+      const centerY = bounds.top + bounds.height / 2;
+      if (Math.hypot(clientX - centerX, clientY - centerY) > ROUTING_EXISTING_DOT_SNAP_PX) {
+        continue;
+      }
     }
+    return { connector_id: connectorId, pin_number: pinNumber };
   }
   return null;
 }
@@ -356,32 +363,34 @@ function routeEndpointFromHandle(
   return { connector_id: connectorId, pin_number: pinNumber };
 }
 
-function distanceToRect(point: Point, rect: { x: number; y: number; w: number; h: number }): number {
-  const dx = Math.max(rect.x - point.x, 0, point.x - (rect.x + rect.w));
-  const dy = Math.max(rect.y - point.y, 0, point.y - (rect.y + rect.h));
-  return Math.hypot(dx, dy);
-}
-
-function distanceToRectBoundary(
-  point: Point,
-  rect: { x: number; y: number; w: number; h: number },
-): number {
-  const outsideDistance = distanceToRect(point, rect);
-  if (outsideDistance > 0) return outsideDistance;
-  return Math.min(
-    point.x - rect.x,
-    rect.x + rect.w - point.x,
-    point.y - rect.y,
-    rect.y + rect.h - point.y,
-  );
-}
-
-function resolveRoutingDotPreview(
+function routingTargetsFromNodes(
   system: SystemData,
   nodes: readonly Node[],
-  cursor: Point,
-): RoutingDotPreview | null {
-  const overlapsExistingPassThrough = nodes.some((node) => {
+): Parameters<typeof resolveRoutingDraftPreview>[0]['targets'] {
+  return nodes.flatMap((node) => {
+    if (node.type !== 'enclosure') return [];
+    const enclosureId = typeof node.data?.enclosureId === 'string'
+      ? node.data.enclosureId
+      : null;
+    const enclosure = enclosureId
+      ? system.hierarchy.find((candidate) => candidate.id === enclosureId)
+      : undefined;
+    const rect = enclosure ? getAbsoluteNodeRect(node.id, nodes) : null;
+    if (!enclosure || !rect) return [];
+    return [{
+      nodeId: node.id,
+      entityId: enclosure.id,
+      kind: enclosure.kind === 'enclosure' ? 'enclosure' as const : 'device' as const,
+      rect,
+    }];
+  });
+}
+
+function existingPassThroughFromNodes(
+  system: SystemData,
+  nodes: readonly Node[],
+): Parameters<typeof resolveRoutingDraftPreview>[0]['existing'] {
+  return nodes.flatMap((node) => {
     const connectorId = typeof node.data?.connectorId === 'string'
       ? node.data.connectorId
       : null;
@@ -393,85 +402,56 @@ function resolveRoutingDotPreview(
       || !connector
       || (!isBulkheadDot(connector) && !isBulkheadConnector(system, connectorId))
     ) {
-      return false;
-    }
-    const rect = getAbsoluteNodeRect(node.id, nodes);
-    return !!rect && distanceToRect(cursor, rect) <= BULKHEAD_DOT_SIZE;
-  });
-  if (overlapsExistingPassThrough) return null;
-
-  const targets = nodes.flatMap((node) => {
-    if (node.type !== 'enclosure') return [];
-    const enclosureId = typeof node.data?.enclosureId === 'string'
-      ? node.data.enclosureId
-      : null;
-    const enclosure = enclosureId
-      ? system.hierarchy.find((candidate) => candidate.id === enclosureId)
-      : undefined;
-    const rect = enclosure ? getAbsoluteNodeRect(node.id, nodes) : null;
-    const hoverRadius = BULKHEAD_DOT_SIZE / 2;
-    const wallDistance = rect
-      ? distanceToRectBoundary(cursor, rect)
-      : Number.POSITIVE_INFINITY;
-    if (
-      !enclosure
-      || !rect
-      || wallDistance > hoverRadius
-    ) {
       return [];
     }
-    return [{ node, enclosure, rect, area: rect.w * rect.h }];
-  }).sort((left, right) => left.area - right.area);
-  const target = targets[0];
-  if (!target) return null;
-
-  const relative = {
-    x: cursor.x - target.rect.x - BULKHEAD_DOT_SIZE / 2,
-    y: cursor.y - target.rect.y - BULKHEAD_DOT_SIZE / 2,
-  };
-  const position = target.enclosure.kind === 'enclosure'
-    ? projectNodeToEnclosureWall(
-        relative,
-        { w: BULKHEAD_DOT_SIZE, h: BULKHEAD_DOT_SIZE },
-        { w: target.rect.w, h: target.rect.h },
-      )
-    : clampNodeToParentBounds(
-        relative,
-        { w: BULKHEAD_DOT_SIZE, h: BULKHEAD_DOT_SIZE },
-        { w: target.rect.w, h: target.rect.h },
-      );
-  return {
-    parentId: target.enclosure.id,
-    parentNodeId: target.node.id,
-    parentIsContainer: target.enclosure.kind === 'enclosure',
-    position,
-    center: {
-      x: target.rect.x + position.x + BULKHEAD_DOT_SIZE / 2,
-      y: target.rect.y + position.y + BULKHEAD_DOT_SIZE / 2,
-    },
-  };
+    const rect = getAbsoluteNodeRect(node.id, nodes);
+    return rect ? [{ rect, isDot: isBulkheadDot(connector) }] : [];
+  });
 }
 
-function RoutingDotPreviewOverlay({
+function resolveGraphRoutingPreview(
+  system: SystemData,
+  nodes: readonly Node[],
+  cursor: Point,
+  routing: boolean,
+  sheetParentId: string | null,
+): RoutingDraftPreview | null {
+  return resolveRoutingDraftPreview({
+    cursor,
+    targets: routingTargetsFromNodes(system, nodes),
+    existing: existingPassThroughFromNodes(system, nodes),
+    sheetParentId,
+    routing,
+  });
+}
+
+function RoutingDraftPreviewOverlay({
   preview,
   onPointerDown,
 }: {
-  preview: RoutingDotPreview;
+  preview: RoutingDraftPreview;
   onPointerDown?: (event: React.PointerEvent) => void;
 }) {
   const [translateX, translateY, zoom] = useStore((state) => state.transform);
+  const isDot = preview.kind === 'dot';
   return (
     <div
-      className={`absolute left-0 top-0 z-[1000] rounded-full border-2 border-zinc-950 bg-amber-400 ${
-        onPointerDown ? 'pointer-events-auto cursor-crosshair' : 'pointer-events-none'
-      }`}
+      className={`absolute left-0 top-0 z-[1000] border-2 border-dashed border-zinc-400/80 bg-zinc-500/35 ${
+        isDot ? 'rounded-full' : 'rounded'
+      } ${onPointerDown ? 'pointer-events-auto cursor-crosshair' : 'pointer-events-none'}`}
       style={{
-        width: BULKHEAD_DOT_SIZE,
-        height: BULKHEAD_DOT_SIZE,
-        transform: `translate(${translateX + preview.center.x * zoom - BULKHEAD_DOT_SIZE * zoom / 2}px, ${translateY + preview.center.y * zoom - BULKHEAD_DOT_SIZE * zoom / 2}px) scale(${zoom})`,
+        width: preview.size.w,
+        height: preview.size.h,
+        transform: `translate(${translateX + preview.center.x * zoom - preview.size.w * zoom / 2}px, ${translateY + preview.center.y * zoom - preview.size.h * zoom / 2}px) scale(${zoom})`,
         transformOrigin: 'top left',
       }}
-      title={onPointerDown ? 'Drag from this wall to create and route a visual dot' : undefined}
+      title={
+        onPointerDown
+          ? (isDot
+            ? 'Drag from this wall to create and route a visual dot'
+            : 'Drop to place a new bulkhead')
+          : (isDot ? 'New visual dot' : 'New bulkhead')
+      }
       onPointerDown={onPointerDown}
     />
   );
@@ -648,6 +628,125 @@ const nodeTypes = {
 };
 const edgeTypes = { harnessBundle: HarnessBundleEdge };
 
+const CREATE_BUTTON_CLASS = 'flex items-center gap-1.5 px-2 py-1 text-[11px] bg-zinc-800/90 border border-zinc-600 text-zinc-300 hover:text-zinc-100 hover:bg-zinc-700 rounded shadow transition-colors disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-zinc-800/90 disabled:hover:text-zinc-300';
+
+function AddHierarchyButtons() {
+  const { screenToFlowPosition } = useReactFlow();
+  const addEnclosure = useSystemStore((s) => s.addEnclosure);
+  const addEntityToActiveSubsystem = useSystemStore((s) => s.addEntityToActiveSubsystem);
+  const isEditor = useSystemStore((s) => s.session.isEditor);
+
+  const handleAdd = useCallback((kind: 'device' | 'enclosure') => {
+    if (!isEditor) return;
+    const state = useSystemStore.getState();
+    const parent = state.editingSurface === 'subsystem'
+      ? null
+      : state.openEnclosureId;
+    const flowPos = screenToFlowPosition({ x: window.innerWidth / 2, y: window.innerHeight / 2 });
+    const size = { w: 220, h: 180 };
+    const baseName = kind === 'device' ? 'New Device' : 'New Enclosure';
+    const name = nextNumberedName(state.system?.hierarchy.map((item) => item.name) ?? [], baseName);
+    const createdId = addEnclosure({
+      name,
+      parent,
+      kind,
+      position: { x: flowPos.x - size.w / 2, y: flowPos.y - size.h / 2 },
+      size,
+      focusName: true,
+    });
+    if (createdId && state.editingSurface === 'subsystem') {
+      addEntityToActiveSubsystem('enclosure', createdId);
+    }
+  }, [addEnclosure, addEntityToActiveSubsystem, isEditor, screenToFlowPosition]);
+
+  useEffect(() => {
+    function onKeyDown(event: KeyboardEvent) {
+      const target = event.target as HTMLElement | null;
+      const kind = getHierarchyHotkey(event, {
+        isEditor,
+        isTyping: target?.tagName === 'INPUT' || target?.tagName === 'TEXTAREA'
+          || target?.tagName === 'SELECT' || !!target?.isContentEditable,
+        modalOpen: !!document.querySelector('[aria-modal="true"]'),
+      });
+      if (!kind) return;
+      event.preventDefault();
+      handleAdd(kind);
+    }
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [handleAdd, isEditor]);
+
+  return (
+    <>
+      <button
+        type="button"
+        disabled={!isEditor}
+        className={CREATE_BUTTON_CLASS}
+        onClick={() => handleAdd('device')}
+        title={
+          isEditor
+            ? 'Add a device on this sheet (D). In a subsystem view it is created on the system root sheet.'
+            : 'Log in to add a device'
+        }
+      >
+        <span>+</span>
+        <svg className="h-3.5 w-3.5 text-vw-device" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <rect x="2" y="4" width="20" height="16" rx="2" />
+          <circle cx="8" cy="12" r="1.5" />
+          <circle cx="16" cy="12" r="1.5" />
+        </svg>
+        <span>Device (D)</span>
+      </button>
+      <button
+        type="button"
+        disabled={!isEditor}
+        className={CREATE_BUTTON_CLASS}
+        onClick={() => handleAdd('enclosure')}
+        title={
+          isEditor
+            ? 'Add an enclosure on this sheet (E). In a subsystem view it is created on the system root sheet.'
+            : 'Log in to add an enclosure'
+        }
+      >
+        <span>+</span>
+        <svg className="h-3.5 w-3.5 text-vw-enclosure" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <rect x="3" y="3" width="18" height="18" rx="2" />
+          <path d="M3 9h18" />
+        </svg>
+        <span>Enclosure (E)</span>
+      </button>
+    </>
+  );
+}
+
+function AddConnectorButton() {
+  const parent = useSystemStore((s) => s.selectedItem?.type === 'enclosure'
+    ? s.system?.hierarchy.find((item) => item.id === s.selectedItem?.id)
+    : undefined);
+  const inspectorDismissed = useSystemStore((s) => s.inspectorDismissed);
+  const isEditor = useSystemStore((s) => s.session.isEditor);
+  const addConnector = useSystemStore((s) => s.addConnector);
+
+  if (!parent || inspectorDismissed) return null;
+
+  return (
+    <button
+      type="button"
+      disabled={!isEditor}
+      className={CREATE_BUTTON_CLASS}
+      onClick={() => {
+        if (isEditor) addConnector(parent.id, { focusName: true });
+      }}
+      title={isEditor
+        ? `Add ${parent.kind === 'enclosure' ? 'a bulkhead connector' : 'a connector'} to ${parent.name}`
+        : 'Log in to add a connector'}
+    >
+      <span>+</span>
+      <span>Connector</span>
+    </button>
+  );
+}
+
 function AddTextBoxButton() {
   const { screenToFlowPosition } = useReactFlow();
   const addTextBox = useSystemStore((s) => s.addTextBox);
@@ -690,10 +789,11 @@ function AddTextBoxButton() {
   return (
     <button
       disabled={!isEditor}
-      className="flex items-center gap-1.5 px-2 py-1 text-[11px] bg-zinc-800/90 border border-zinc-600 text-zinc-300 hover:text-zinc-100 hover:bg-zinc-700 rounded shadow transition-colors disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-zinc-800/90 disabled:hover:text-zinc-300"
+      className={CREATE_BUTTON_CLASS}
       onClick={() => handleAdd()}
       title={isEditor ? 'Add a text box on the selected device' : 'Log in to add a text box'}
     >
+      <span>+</span>
       <span className="font-bold text-[12px] leading-none">T</span>
       <span>Text Box</span>
     </button>
@@ -734,16 +834,18 @@ function AddImageButton() {
     <div className="relative">
       <button
         disabled={!isEditor}
-        className="flex items-center gap-1.5 px-2 py-1 text-[11px] bg-zinc-800/90 border border-zinc-600 text-zinc-300 hover:text-zinc-100 hover:bg-zinc-700 rounded shadow transition-colors disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-zinc-800/90 disabled:hover:text-zinc-300"
+        className={CREATE_BUTTON_CLASS}
         onClick={() => setPickerOpen((open) => !open)}
         title={isEditor ? 'Add a floating image' : 'Log in to add an image'}
       >
+        <span>+</span>
         <span>🖼</span>
         <span>Image</span>
       </button>
       {pickerOpen && isEditor && (
         <ImagePickerPanel
           title="Add image"
+          align="left"
           onPick={placeImage}
           onClose={() => setPickerOpen(false)}
         />
@@ -1144,7 +1246,6 @@ function EntityRevealController({ nodes, edges }: { nodes: Node[]; edges: Edge[]
 }
 
 const NEW_SIGNAL_VALUE = '__new_signal__';
-const DEFAULT_NEW_SIGNAL_NAME = 'new signal';
 const DEFAULT_NEW_SIGNAL_COLOR = 'grey';
 
 function draftsForSignal(signal: Signal | undefined): { name: string; color: string } {
@@ -1272,6 +1373,7 @@ export function GraphView() {
   const updateNodePosition = useSystemStore((s) => s.updateNodePosition);
   const updatePortLayout = useSystemStore((s) => s.updatePortLayout);
   const updateFreePortLayout = useSystemStore((s) => s.updateFreePortLayout);
+  const updateNodeSize = useSystemStore((s) => s.updateNodeSize);
   const addInlineConnector = useSystemStore((s) => s.addInlineConnector);
   const insertInlineConnectorOnBundle = useSystemStore(
     (s) => s.insertInlineConnectorOnBundle,
@@ -1353,14 +1455,14 @@ export function GraphView() {
   const didMergeOnDrop = useRef(false);
   const connectionStart = useRef<RouteEndpoint | null>(null);
   const connectionCompleted = useRef(false);
-  const routingPreviewRef = useRef<RoutingDotPreview | null>(null);
+  const routingPreviewRef = useRef<RoutingDraftPreview | null>(null);
   const routingFromConnectorId = useRef<string | null>(null);
   const routingAutoExpanded = useRef<Set<string>>(new Set());
   const routingPinMenuCloseTimer = useRef<number | null>(null);
   const routingPinMenuMoveRef = useRef<(event: PointerEvent) => void>(() => {});
-  const [routingPreview, setRoutingPreview] = useState<RoutingDotPreview | null>(null);
-  const draftRouteSourceRef = useRef<DraftDotPlacement | null>(null);
-  const [draftRouteSource, setDraftRouteSource] = useState<DraftDotPlacement | null>(null);
+  const [routingPreview, setRoutingPreview] = useState<RoutingDraftPreview | null>(null);
+  const draftRouteSourceRef = useRef<DraftPlacement | null>(null);
+  const [draftRouteSource, setDraftRouteSource] = useState<DraftPlacement | null>(null);
   const [draftRouteCursor, setDraftRouteCursor] = useState<Point | null>(null);
   const [pendingRoute, setPendingRoute] = useState<PendingRouteState | null>(null);
   const [selectedSignalId, setSelectedSignalId] = useState(NEW_SIGNAL_VALUE);
@@ -1370,7 +1472,7 @@ export function GraphView() {
   const draftSignalColorRef = useRef(draftSignalColor);
   const confirmingRouteRef = useRef(false);
   const [creatingSignal, setCreatingSignal] = useState(false);
-  const updateRoutingPreview = useCallback((preview: RoutingDotPreview | null) => {
+  const updateRoutingPreview = useCallback((preview: RoutingDraftPreview | null) => {
     routingPreviewRef.current = preview;
     setRoutingPreview(preview);
   }, []);
@@ -2552,7 +2654,7 @@ export function GraphView() {
     to: RouteEndpoint,
     signalId: string,
     properties?: Record<string, string>,
-    draftDot?: DraftDotPlacement,
+    drafts: DraftPlacement[] = [],
   ) => {
     if (!isEditor) {
       setMutationError('Log in to edit');
@@ -2573,15 +2675,14 @@ export function GraphView() {
         subsystem_id: routeSubsystemId,
         request_id: crypto.randomUUID(),
         properties,
-        ...(draftDot ? {
-          draft_connector: {
-            id: draftDot.id,
-            name: 'Visual dot',
-            parent: draftDot.parentId,
-            x: draftDot.position.x,
-            y: draftDot.position.y,
-          },
-        } : {}),
+        draft_connectors: drafts.map((draft) => ({
+          id: draft.id,
+          name: draft.kind === 'dot' ? 'Visual dot' : 'New Bulkhead',
+          parent: draft.parentId,
+          x: draft.position.x,
+          y: draft.position.y,
+          display: draft.kind,
+        })),
       }),
     });
     const result = await response.json();
@@ -2608,18 +2709,24 @@ export function GraphView() {
         updatePortLayout(split.connectorId, sourceLayout.x + 24, sourceLayout.y + 24);
       }
     }
-    if (draftDot) {
+    for (const draft of drafts) {
       if (routeSubsystemId && useSystemStore.getState().activeSubsystemId === routeSubsystemId) {
-        const current = useSystemStore.getState().subsystems[routeSubsystemId]?.connectors[draftDot.id];
-        updateSubsystemEntityLayout('connectors', draftDot.id, {
+        const current = useSystemStore.getState().subsystems[routeSubsystemId]?.connectors[draft.id];
+        updateSubsystemEntityLayout('connectors', draft.id, {
           ...current,
-          x: draftDot.position.x,
-          y: draftDot.position.y,
-          w: BULKHEAD_DOT_SIZE,
-          h: BULKHEAD_DOT_SIZE,
+          x: draft.position.x,
+          y: draft.position.y,
+          w: draft.size.w,
+          h: draft.size.h,
         });
+      } else if (draft.layout === 'free') {
+        updateFreePortLayout(draft.id, draft.position.x, draft.position.y);
+        updateNodeSize(draft.id, draft.size.w, draft.size.h);
       } else {
-        updatePortLayout(draftDot.id, draftDot.position.x, draftDot.position.y);
+        updatePortLayout(draft.id, draft.position.x, draft.position.y);
+        if (draft.kind === 'bulkhead') {
+          updateNodeSize(draft.id, draft.size.w, draft.size.h);
+        }
       }
     }
     commitUndoSnapshot();
@@ -2637,6 +2744,8 @@ export function GraphView() {
     isEditor,
     pushUndoSnapshot,
     setMutationError,
+    updateFreePortLayout,
+    updateNodeSize,
     updatePortLayout,
     updateRoutingPreview,
     updateSubsystemEntityLayout,
@@ -2645,7 +2754,7 @@ export function GraphView() {
   const preparePendingRoute = useCallback((
     from: RouteEndpoint,
     to: RouteEndpoint,
-    draftDot?: DraftDotPlacement,
+    drafts: DraftPlacement[] = [],
   ) => {
     if (!system || from.connector_id === to.connector_id) return;
     const existingBulkheadSignalId = [from, to].map((endpoint) => {
@@ -2661,7 +2770,7 @@ export function GraphView() {
       });
       return stub ? getPathSignalId(stub) : null;
     }).find((signalId): signalId is string => !!signalId);
-    setPendingRoute({ from, to, draftDot });
+    setPendingRoute({ from, to, drafts });
     const defaultId = existingBulkheadSignalId ?? NEW_SIGNAL_VALUE;
     const draft = draftsForSignal(
       existingBulkheadSignalId
@@ -2678,10 +2787,10 @@ export function GraphView() {
 
   const beginDraftDotRoute = useCallback((event: React.PointerEvent) => {
     const preview = routingPreviewRef.current;
-    if (!preview || !system || !isEditor || event.button !== 0) return;
+    if (!preview || preview.kind !== 'dot' || !system || !isEditor || event.button !== 0) return;
     event.preventDefault();
     event.stopPropagation();
-    const source: DraftDotPlacement = {
+    const source: DraftPlacement = {
       ...preview,
       id: `con_dot_${crypto.randomUUID()}`,
     };
@@ -2712,7 +2821,15 @@ export function GraphView() {
         moveEvent.clientY,
       );
       updateRoutingPreview(
-        endpoint ? null : resolveRoutingDotPreview(system, nodesRef.current, cursor),
+        endpoint
+          ? null
+          : resolveGraphRoutingPreview(
+            system,
+            nodesRef.current,
+            cursor,
+            true,
+            editingSurface === 'hierarchy' ? spaceId : null,
+          ),
       );
     };
     const cleanup = () => {
@@ -2734,15 +2851,12 @@ export function GraphView() {
         upEvent.clientX,
         upEvent.clientY,
       );
-      if (!endpoint) {
+      const route = resolveDraftRouteDrop(source, endpoint, routingPreviewRef.current);
+      if (!route) {
         cancelDraft();
         return;
       }
-      preparePendingRoute(
-        { connector_id: source.id, pin_number: 1 },
-        endpoint,
-        source,
-      );
+      preparePendingRoute(route.from, route.to, route.drafts);
     };
     const handleCancel = () => {
       cleanup();
@@ -2759,6 +2873,8 @@ export function GraphView() {
     onRoutingPinMenuMove,
     preparePendingRoute,
     updateRoutingPreview,
+    editingSurface,
+    spaceId,
   ]);
 
   const onConnect = useCallback((connection: Connection) => {
@@ -2829,8 +2945,15 @@ export function GraphView() {
     const instance = reactFlowInstance.current;
     if (!instance) return;
     const cursor = instance.screenToFlowPosition({ x: event.clientX, y: event.clientY });
-    updateRoutingPreview(resolveRoutingDotPreview(system, nodesRef.current, cursor));
-  }, [canvasPlacement, system, isEditor, updateRoutingPreview]);
+    const routing = !!connectionStart.current;
+    updateRoutingPreview(resolveGraphRoutingPreview(
+      system,
+      nodesRef.current,
+      cursor,
+      routing,
+      editingSurface === 'hierarchy' ? spaceId : null,
+    ));
+  }, [canvasPlacement, system, isEditor, updateRoutingPreview, editingSurface, spaceId]);
 
   const onConnectEnd = useCallback<OnConnectEnd>((event) => {
     finishRoutingPinMenus();
@@ -2847,28 +2970,31 @@ export function GraphView() {
     const existingEndpoint = from && pointer && system
       ? routeEndpointUnderClientPoint(system, pointer.clientX, pointer.clientY)
       : null;
+    const preview = routingPreviewRef.current;
     if (
       from
       && existingEndpoint
       && existingEndpoint.connector_id !== from.connector_id
+      && !preview
     ) {
       updateRoutingPreview(null);
       preparePendingRoute(from, existingEndpoint);
       return;
     }
-    const preview = routingPreviewRef.current;
     if (!from || !preview) {
       updateRoutingPreview(null);
       return;
     }
-    const draftDot: DraftDotPlacement = {
+    const draft: DraftPlacement = {
       ...preview,
-      id: `con_dot_${crypto.randomUUID()}`,
+      id: preview.kind === 'dot'
+        ? `con_dot_${crypto.randomUUID()}`
+        : `con_${crypto.randomUUID()}`,
     };
     preparePendingRoute(
       from,
-      { connector_id: draftDot.id, pin_number: 1 },
-      draftDot,
+      { connector_id: draft.id, pin_number: 1 },
+      [draft],
     );
   }, [finishRoutingPinMenus, system, preparePendingRoute, updateRoutingPreview]);
 
@@ -2918,7 +3044,7 @@ export function GraphView() {
           pendingRoute.to,
           signalId,
           undefined,
-          pendingRoute.draftDot,
+          pendingRoute.drafts,
         );
         if (!routed) return null;
         // Apply after loadSystem so the route response does not wipe the edits.
@@ -2953,7 +3079,7 @@ export function GraphView() {
         pendingRoute.to,
         result.id,
         undefined,
-        pendingRoute.draftDot,
+        pendingRoute.drafts,
       );
       return routed ? result.id : null;
     } catch (error) {
@@ -3050,15 +3176,18 @@ export function GraphView() {
         selectionMode={SelectionMode.Partial}
       >
         <CanvasPanGestures />
-        {draftRouteSource && <RoutingDotPreviewOverlay preview={draftRouteSource} />}
+        {draftRouteSource && <RoutingDraftPreviewOverlay preview={draftRouteSource} />}
         {draftRouteSource && draftRouteCursor && (
           <RoutingDraftLineOverlay from={draftRouteSource.center} to={draftRouteCursor} />
         )}
         {routingPreview && (
-          <RoutingDotPreviewOverlay
+          <RoutingDraftPreviewOverlay
             preview={routingPreview}
             onPointerDown={
-              !connectionStart.current && !draftRouteSource && !pendingRoute
+              !connectionStart.current
+              && !draftRouteSource
+              && !pendingRoute
+              && routingPreview.kind === 'dot'
                 ? beginDraftDotRoute
                 : undefined
             }
@@ -3096,33 +3225,32 @@ export function GraphView() {
           />
         </Controls>
 
-        {breadcrumbs.length > 0 && (
-          <Panel position="top-left">
-            <div className="flex items-center gap-1 px-2 py-1 bg-zinc-800/95 border border-zinc-600 rounded shadow-lg text-[11px]">
-              {breadcrumbs.map((crumb, i) => (
-                <span key={crumb.id ?? 'root'} className="flex items-center gap-1">
-                  {i > 0 && <span className="text-zinc-500">›</span>}
-                  {i < breadcrumbs.length - 1 ? (
-                    <button
-                      className={`transition-colors hover:opacity-80 ${
-                        crumb.id ? 'text-vw-enclosure' : 'text-zinc-400 hover:text-zinc-100'
-                      }`}
-                      onClick={() => setOpenEnclosure(crumb.id)}
-                    >
-                      {crumb.name}
-                    </button>
-                  ) : (
-                    <span className={`font-medium ${crumb.id ? 'text-vw-enclosure' : 'text-zinc-100'}`}>{crumb.name}</span>
-                  )}
-                </span>
-              ))}
-            </div>
-          </Panel>
-        )}
-
-        <Panel position="top-right">
-          <div className="flex flex-col gap-1 items-end">
-            <div className="flex gap-1">
+        <Panel position="top-left">
+          <div className="flex flex-col gap-1 items-start">
+            {breadcrumbs.length > 0 && (
+              <div className="flex items-center gap-1 px-2 py-1 bg-zinc-800/95 border border-zinc-600 rounded shadow-lg text-[11px]">
+                {breadcrumbs.map((crumb, i) => (
+                  <span key={crumb.id ?? 'root'} className="flex items-center gap-1">
+                    {i > 0 && <span className="text-zinc-500">›</span>}
+                    {i < breadcrumbs.length - 1 ? (
+                      <button
+                        className={`transition-colors hover:opacity-80 ${
+                          crumb.id ? 'text-vw-enclosure' : 'text-zinc-400 hover:text-zinc-100'
+                        }`}
+                        onClick={() => setOpenEnclosure(crumb.id)}
+                      >
+                        {crumb.name}
+                      </button>
+                    ) : (
+                      <span className={`font-medium ${crumb.id ? 'text-vw-enclosure' : 'text-zinc-100'}`}>{crumb.name}</span>
+                    )}
+                  </span>
+                ))}
+              </div>
+            )}
+            <div className="flex flex-col gap-1">
+              <AddConnectorButton />
+              <AddHierarchyButtons />
               {editingSurface === 'hierarchy' && (
                 <button
                   type="button"
@@ -3146,34 +3274,37 @@ export function GraphView() {
                 </button>
               )}
               <AddImageButton />
+              <AddTextBoxButton />
             </div>
-            <AddTextBoxButton />
-            {editingSurface === 'subsystem' && selectedItem && (
-              <div className="flex gap-1">
-                {(selectedItem.type === 'enclosure' || selectedItem.type === 'connector') && (
-                  <button
-                    disabled={!isEditor}
-                    className="px-2 py-1 text-[11px] bg-zinc-800 border border-zinc-600 text-zinc-300 rounded disabled:cursor-not-allowed disabled:opacity-40"
-                    onClick={() => addEntityToActiveSubsystem(selectedItem.type as 'enclosure' | 'connector', selectedItem.id)}
-                  >
-                    Add selected
-                  </button>
-                )}
-                <button
-                  disabled={!isEditor}
-                  className="px-2 py-1 text-[11px] bg-zinc-800 border border-zinc-600 text-zinc-300 rounded disabled:cursor-not-allowed disabled:opacity-40"
-                  onClick={() => {
-                    if (selectedItem.type === 'enclosure' || selectedItem.type === 'connector') {
-                      removeEntityFromActiveSubsystem(selectedItem.type, selectedItem.id);
-                    }
-                  }}
-                >
-                  Remove from subsystem
-                </button>
-              </div>
-            )}
           </div>
         </Panel>
+
+        {editingSurface === 'subsystem' && selectedItem && (
+        <Panel position="top-right">
+          <div className="flex gap-1">
+            {(selectedItem.type === 'enclosure' || selectedItem.type === 'connector') && (
+              <button
+                disabled={!isEditor}
+                className="px-2 py-1 text-[11px] bg-zinc-800 border border-zinc-600 text-zinc-300 rounded disabled:cursor-not-allowed disabled:opacity-40"
+                onClick={() => addEntityToActiveSubsystem(selectedItem.type as 'enclosure' | 'connector', selectedItem.id)}
+              >
+                Add selected
+              </button>
+            )}
+            <button
+              disabled={!isEditor}
+              className="px-2 py-1 text-[11px] bg-zinc-800 border border-zinc-600 text-zinc-300 rounded disabled:cursor-not-allowed disabled:opacity-40"
+              onClick={() => {
+                if (selectedItem.type === 'enclosure' || selectedItem.type === 'connector') {
+                  removeEntityFromActiveSubsystem(selectedItem.type, selectedItem.id);
+                }
+              }}
+            >
+              Remove from subsystem
+            </button>
+          </div>
+        </Panel>
+        )}
 
         {selectedHarnessBundle && isEditor && (
           <Panel position="bottom-center">

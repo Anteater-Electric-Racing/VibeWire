@@ -16,6 +16,15 @@ export function normalizeDisplayName(value: string): string {
   return name;
 }
 
+/** `Base`, then `Base 2`, `Base 3`, … skipping names already in use. */
+export function nextNumberedName(existing: Iterable<string>, base: string): string {
+  const names = new Set(existing);
+  if (!names.has(base)) return base;
+  let suffix = 2;
+  while (names.has(`${base} ${suffix}`)) suffix += 1;
+  return `${base} ${suffix}`;
+}
+
 export function renameSystemEntity(
   system: SystemData,
   type: EntityType,
