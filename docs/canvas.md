@@ -22,11 +22,18 @@ continue to different far-side neighbors, even if they share one approach Wire.
 Connector occupancy, signal context, wire appearance, and Harness Bundle membership are derived from
 Paths. Layout records never define electrical connectivity. Solid or striped black wires draw a light
 grey outline so they stay visible on the dark canvas; manufacturing uses the same stroke layers. A Harness Bundle that carries exactly one
-named signal shows that signal name next to the route; mixed-signal or uninitialized bundles keep
-the path-count chip. Editors can drag the signal name; the offset and a hidden flag are stored in
-layout `signalLabels` by Harness Bundle id. Delete, Backspace, or the label × hides it. Selecting
-the Harness Bundle offers a **Show signal name** checkbox to bring it back. Double-click the name
-to return it to the default midpoint.
+named signal shows that signal name next to the route, unless the signal still has its default
+`new signal` name (`DEFAULT_NEW_SIGNAL_NAME` in `systemTopology.ts`); mixed-signal, uninitialized, or
+default-named bundles keep the path-count chip instead. Editors can drag the signal name; the offset
+and a hidden flag are stored in layout `signalLabels` by Harness Bundle id. Double-click the name to
+rename the signal in place. Delete, Backspace, or the label × hides it. Selecting the Harness Bundle
+offers a **Show signal name** checkbox to bring it back. When the name has been dragged off the
+default midpoint, a ⤾ button next to it resets the position.
+
+Clicking anywhere on a Harness Bundle's route normally just selects it. As a shortcut, clicking a
+bundle that runs between a Bulkhead dot on each end (`isBulkheadDot` in `bulkheadRouting.ts`) and
+carries exactly one named signal skips straight to that rename-in-place editor, since a simple
+pass-through wire like that has nothing else to click into.
 
 ## Route points and styles
 
@@ -84,6 +91,16 @@ signal, can create a signal with preferred color or choose an existing one, and 
 Cross-sheet routes create unresolved generated Bulkhead connector placeholders at each represented
 boundary.
 
+A visual dot (`isBulkheadDot`) is an unlimited splice point, not a physical two-sided cavity: any
+number of Wires may land on the same displayed pin, on either side, even while the dot is already a
+through-node for another Wire. Two single-wire dots on the same wall still stitch into one continuous
+Path when joined directly (the classic dot-to-dot pass-through); once a dot already carries more than
+one Wire, or the wires don't line up into a clean pass-through, a new Wire simply lands as its own
+independent endpoint instead of being rejected. Ordinary Bulkhead and Inline connectors keep the
+strict one-wire-per-side rule, since they represent one physical cavity. When every signal already
+routed to a visual dot shares one wire color, **Choose signal** pre-fills that color for the new Wire
+even if it ends up on a different signal or pin.
+
 While a wire is being dragged, a greyed preview follows the cursor:
 
 - On a Device or Enclosure wall, the preview is a visual dot.
@@ -97,6 +114,10 @@ The preview stays greyed until the wire is dropped and a signal is chosen. Hover
 dragging still offers a visual-dot draft you can pull a new route from. That draft can be dropped
 onto another wall-dot or blank-space Bulkhead preview as well as an existing cavity. Choosing a signal
 creates both new endpoints and the Wire together; canceling creates neither.
+
+The wall-dot hover draft is suppressed whenever the pointer is over a selected node's resize handle
+(`.react-flow__resize-control`), even though the draft's hit-tested rect can otherwise overlap the
+handle at a box corner. This keeps a corner-resize drag from being hijacked into placing a visual dot.
 
 Hovering a connector during a route temporarily opens its cavity table. Dragging one cavity onto
 another on the same connector performs a physical renumber and rewrites every Path and measurement

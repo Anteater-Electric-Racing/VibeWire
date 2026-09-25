@@ -1823,6 +1823,7 @@ async function testRouteEndpoint() {
   routeSystem.hierarchy.push(
     { id: 'dev_external_1', name: 'External 1', parent: null, kind: 'device', tags: [], properties: {} },
     { id: 'dev_external_2', name: 'External 2', parent: null, kind: 'device', tags: [], properties: {} },
+    { id: 'dev_external_3', name: 'External 3', parent: null, kind: 'device', tags: [], properties: {} },
     { id: 'dev_inline_left', name: 'Inline left', parent: null, kind: 'device', tags: [], properties: {} },
     { id: 'dev_inline_right', name: 'Inline right', parent: null, kind: 'device', tags: [], properties: {} },
     { id: 'dev_internal', name: 'Internal', parent: 'enc_a', kind: 'device', tags: [], properties: {} },
@@ -1832,6 +1833,7 @@ async function testRouteEndpoint() {
   routeSystem.connectors.push(
     { id: 'con_external_1', name: 'External 1', parent: 'dev_external_1', connector_type: 'generic', tags: [], properties: {} },
     { id: 'con_external_2', name: 'External 2', parent: 'dev_external_2', connector_type: 'generic', tags: [], properties: {} },
+    { id: 'con_external_3', name: 'External 3', parent: 'dev_external_3', connector_type: 'generic', tags: [], properties: {} },
     { id: 'con_inline_left', name: 'Inline left', parent: 'dev_inline_left', connector_type: 'generic', tags: [], properties: {} },
     { id: 'con_inline_right', name: 'Inline right', parent: 'dev_inline_right', connector_type: 'generic', tags: [], properties: {} },
     {
@@ -2148,6 +2150,29 @@ async function testRouteEndpoint() {
       'the two dot-seed paths merge into one when the dots are joined',
     );
 
+    // Unlike a real bulkhead cavity, a visual dot is a splice point: any
+    // number of wires may land on the same displayed pin and side.
+    const dotFanOut = await fetch(`${base}/api/paths/route?system=test`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Cookie: cookie },
+      body: JSON.stringify({
+        from: { connector_id: 'con_external_3', pin_number: 1 },
+        to: { connector_id: 'con_dot_1', pin_number: 1 },
+        signal_id: 'sig_TEST',
+        request_id: 'dot-fan-out',
+      }),
+    });
+    assert.equal(
+      dotFanOut.status,
+      201,
+      `a visual dot must accept additional wires on an already-used pin/side, got: ${await dotFanOut.clone().text()}`,
+    );
+    assert.equal(
+      readSheetedSystem(systemDir).paths.length,
+      4,
+      'the fan-out wire must land as its own independent path, not merge into the existing dot-to-dot path',
+    );
+
     const inlineLeft = await fetch(`${base}/api/paths/route?system=test`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Cookie: cookie },
@@ -2193,7 +2218,7 @@ async function testRouteEndpoint() {
       ((await inlineThirdSide.json()) as { error: string }).error,
       /already has both connections/,
     );
-    assert.equal(readSheetedSystem(systemDir).paths.length, 4);
+    assert.equal(readSheetedSystem(systemDir).paths.length, 5);
 
     const draftDotRoute = await fetch(`${base}/api/paths/route?system=test`, {
       method: 'POST',

@@ -107,7 +107,6 @@ import {
   BULKHEAD_DOT_SIZE,
   getVisualDotRoutePin,
   isBulkheadDot,
-  isTerminalVisualDot,
 } from '../../lib/bulkheadRouting';
 import {
   resolveRoutingDraftPreview,
@@ -323,10 +322,6 @@ function routeEndpointUnderClientPoint(
     const connectorId = nodeId ? connectorIdFromGraphNodeId(nodeId) : null;
     const pinNumber = Number(handle.dataset.routePin);
     if (!connectorId || !Number.isInteger(pinNumber) || pinNumber <= 0) continue;
-    const connector = system.connectors.find((candidate) => candidate.id === connectorId);
-    if (isBulkheadDot(connector) && !isTerminalVisualDot(system, connectorId)) {
-      continue;
-    }
     return { connector_id: connectorId, pin_number: pinNumber };
   }
   for (const element of document.elementsFromPoint(clientX, clientY)) {
@@ -472,6 +467,19 @@ function RoutingDraftLineOverlay({ from, to }: { from: Point; to: Point }) {
       />
     </svg>
   );
+}
+
+/**
+ * The visual-dot routing overlay is an absolutely positioned div that can sit
+ * on top of a selected node's resize handles once the cursor nears a wall.
+ * `event.target` alone cannot see through it, so check every element under
+ * the pointer to avoid hijacking a corner/edge resize drag.
+ */
+function isPointerOverResizeControl(clientX: number, clientY: number): boolean {
+  if (typeof document.elementsFromPoint !== 'function') return false;
+  return document
+    .elementsFromPoint(clientX, clientY)
+    .some((el) => el.closest('.react-flow__resize-control') != null);
 }
 
 function passThroughCandidateFromNode(
@@ -2770,6 +2778,34 @@ export function GraphView() {
       });
       return stub ? getPathSignalId(stub) : null;
     }).find((signalId): signalId is string => !!signalId);
+    // A visual dot can splice together any number of wires across many pins.
+    // When every signal already routed to a dot endpoint shares one wire
+    // color, carry that color forward for the new wire even if it ends up on
+    // a different signal or a fresh pin.
+    const dotSharedColor = [from, to].map((endpoint) => {
+      const connector = system.connectors.find((item) => item.id === endpoint.connector_id);
+      if (!connector || !isBulkheadDot(connector)) return null;
+      const colors = new Set(
+        system.paths.flatMap((path) =>
+          path.nodes.flatMap((node, nodeIndex) => {
+            if (
+              node.kind !== 'connector'
+              || node.connector_id !== connector.id
+              || (nodeIndex !== 0 && nodeIndex !== path.nodes.length - 1)
+            ) {
+              return [];
+            }
+            const signalId = getPathSignalId(path);
+            const signal = signalId
+              ? system.signals.find((candidate) => candidate.id === signalId)
+              : undefined;
+            const color = signal?.properties.preferred_wire_color?.trim();
+            return color ? [color] : [];
+          })
+        ),
+      );
+      return colors.size === 1 ? [...colors][0] : null;
+    }).find((color): color is string => !!color);
     setPendingRoute({ from, to, drafts });
     const defaultId = existingBulkheadSignalId ?? NEW_SIGNAL_VALUE;
     const draft = draftsForSignal(
@@ -2777,6 +2813,9 @@ export function GraphView() {
         ? system.signals.find((signal) => signal.id === existingBulkheadSignalId)
         : undefined,
     );
+    if (!existingBulkheadSignalId && dotSharedColor) {
+      draft.color = dotSharedColor;
+    }
     setSelectedSignalId(defaultId);
     draftSignalNameRef.current = draft.name;
     draftSignalColorRef.current = draft.color;
@@ -2788,6 +2827,10 @@ export function GraphView() {
   const beginDraftDotRoute = useCallback((event: React.PointerEvent) => {
     const preview = routingPreviewRef.current;
     if (!preview || preview.kind !== 'dot' || !system || !isEditor || event.button !== 0) return;
+    if (isPointerOverResizeControl(event.clientX, event.clientY)) {
+      updateRoutingPreview(null);
+      return;
+    }
     event.preventDefault();
     event.stopPropagation();
     const source: DraftPlacement = {
@@ -2933,7 +2976,8 @@ export function GraphView() {
     const target = event.target as HTMLElement | null;
     if (
       !connectionStart.current
-      && target?.closest('.react-flow__node-connector, .react-flow__resize-control')
+      && (target?.closest('.react-flow__node-connector, .react-flow__resize-control')
+        || isPointerOverResizeControl(event.clientX, event.clientY))
     ) {
       updateRoutingPreview(null);
       return;

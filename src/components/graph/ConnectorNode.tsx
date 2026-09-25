@@ -24,7 +24,6 @@ import { getEffectivePinCount, getPathSignalId, getPathWireAppearance } from '..
 import {
   getVisualDotRoutePin,
   isBulkheadDot,
-  isTerminalVisualDot,
 } from '../../lib/bulkheadRouting';
 import type { WallSide } from '../../lib/parentResize';
 import { PresenceBadge } from '../collab/PresenceBadge';
@@ -148,7 +147,6 @@ export const ConnectorNode = memo(function ConnectorNode({
     : undefined;
   const connector = system?.connectors.find((item) => item.id === data.connectorId);
   const dot = isBulkheadDot(connector);
-  const terminalDot = !!system && isTerminalVisualDot(system, data.connectorId);
   const isExpanded = !dot && expandedNodes.has(data.connectorId);
   const showCavityHandles = isExpanded;
   const handlePinCount = Math.max(
@@ -344,32 +342,30 @@ export const ConnectorNode = memo(function ConnectorNode({
           id={data.connectorId}
           className="pointer-events-auto absolute -right-2 -top-2 z-30"
         />
-        {terminalDot && (
-          <>
-            <Handle
-              id={`pin:${dotRoutePin}`}
-              type="target"
-              position={dotTargetPosition}
-              isConnectable={isEditor}
-              isConnectableStart={false}
-              isConnectableEnd={isEditor}
-              className="nodrag nopan !h-2 !w-2 !border-2 !border-zinc-950 !bg-sky-400 !opacity-0 transition-opacity group-hover:!opacity-100"
-              title={`Connect to cavity ${dotRoutePin}`}
-              aria-label={`Connect to ${data.label} cavity ${dotRoutePin}`}
-              data-route-pin={dotRoutePin}
-            />
-            <Handle
-              id={`pin:${dotRoutePin}`}
-              type="source"
-              position={dotRoutePosition}
-              isConnectable={isEditor}
-              className="nodrag nopan !h-3 !w-3 !border-2 !border-zinc-950 !bg-amber-400 !opacity-0 transition-opacity group-hover:!opacity-100"
-              title={`Drag outward to route from cavity ${dotRoutePin}`}
-              aria-label={`Route from ${data.label} cavity ${dotRoutePin}`}
-              data-route-pin={dotRoutePin}
-            />
-          </>
-        )}
+        <>
+          <Handle
+            id={`pin:${dotRoutePin}`}
+            type="target"
+            position={dotTargetPosition}
+            isConnectable={isEditor}
+            isConnectableStart={false}
+            isConnectableEnd={isEditor}
+            className="nodrag nopan !h-2 !w-2 !border-2 !border-zinc-950 !bg-sky-400 !opacity-0 transition-opacity group-hover:!opacity-100"
+            title={`Connect to cavity ${dotRoutePin}`}
+            aria-label={`Connect to ${data.label} cavity ${dotRoutePin}`}
+            data-route-pin={dotRoutePin}
+          />
+          <Handle
+            id={`pin:${dotRoutePin}`}
+            type="source"
+            position={dotRoutePosition}
+            isConnectable={isEditor}
+            className="nodrag nopan !h-3 !w-3 !border-2 !border-zinc-950 !bg-amber-400 !opacity-0 transition-opacity group-hover:!opacity-100"
+            title={`Drag outward to route from cavity ${dotRoutePin}`}
+            aria-label={`Route from ${data.label} cavity ${dotRoutePin}`}
+            data-route-pin={dotRoutePin}
+          />
+        </>
         <span
           className={`pointer-events-none absolute left-1/2 top-full z-20 mt-1 -translate-x-1/2 whitespace-nowrap rounded bg-zinc-950/90 px-1 py-0.5 text-[9px] text-zinc-300 transition-opacity ${
             selected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'

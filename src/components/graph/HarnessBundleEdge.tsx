@@ -252,6 +252,12 @@ function getInteractiveCorners(points: Point[]): Point[] {
   return points.filter((_, index) => isSharpCorner(points, index));
 }
 
+/** Reads the connectorId a graph node (connector or branch point) carries, if any. */
+function connectorIdOfNode(node: { data?: unknown } | undefined): string | null {
+  const value = (node?.data as { connectorId?: unknown } | undefined)?.connectorId;
+  return typeof value === 'string' ? value : null;
+}
+
 export function HarnessBundleEdge(props: EdgeProps<HarnessBundleEdgeType>) {
   const { id, source: sourceId, target: targetId, sourceX, sourceY, targetX, targetY, data, selected } = props;
 
@@ -280,7 +286,6 @@ export function HarnessBundleEdge(props: EdgeProps<HarnessBundleEdgeType>) {
   const setDraggingEdgeInfo = useSystemStore((s) => s.setDraggingEdgeInfo);
   const pushUndoSnapshot = useSystemStore((s) => s.pushUndoSnapshot);
   const commitUndoSnapshot = useSystemStore((s) => s.commitUndoSnapshot);
-  const cancelUndoSnapshot = useSystemStore((s) => s.cancelUndoSnapshot);
   const renameEntity = useSystemStore((s) => s.renameEntity);
   const setInteracting = useSystemStore((s) => s.setInteracting);
   const system = useSystemStore((s) => s.system);
@@ -318,6 +323,12 @@ export function HarnessBundleEdge(props: EdgeProps<HarnessBundleEdgeType>) {
   const [signalLabelDraft, setSignalLabelDraft] = useState('');
   const signalLabelInputRef = useRef<HTMLInputElement>(null);
 
+  useEffect(() => {
+    if (!editingSignalLabel) return;
+    signalLabelInputRef.current?.focus();
+    signalLabelInputRef.current?.select();
+  }, [editingSignalLabel]);
+
   const wireCount = data?.pathCount ?? 1;
   const pathIds = data?.pathIds;
   const signalId = useMemo(
@@ -328,8 +339,23 @@ export function HarnessBundleEdge(props: EdgeProps<HarnessBundleEdgeType>) {
     () => (system && pathIds ? getHarnessBundleSignalName(system, pathIds) : null),
     [system, pathIds],
   );
+  // A "dot" is a Bulkhead pass-through connector rendered as a plain visual dot
+  // (see ConnectorNode's `dot` rendering). A bundle with a dot on each end and
+  // exactly one named signal is a simple pass-through wire, so clicking it can
+  // jump straight to renaming the signal instead of only selecting the bundle.
+  const bothEndsAreDots = useMemo(() => {
+    if (!system) return false;
+    const isDotNode = (node: typeof sourceNode): boolean => {
+      const connectorId = connectorIdOfNode(node);
+      if (!connectorId) return false;
+      const connector = system.connectors.find((candidate) => candidate.id === connectorId);
+      return isBulkheadDot(connector);
+    };
+    return isDotNode(sourceNode) && isDotNode(targetNode);
+  }, [system, sourceNode, targetNode]);
   const signalLabelHidden = signalLabelOffset?.hidden === true;
   const signalLabel = signalName && !signalLabelHidden ? signalName : null;
+  const signalLabelRepositioned = !!(signalLabelOffset && (signalLabelOffset.x !== 0 || signalLabelOffset.y !== 0));
   const color = data?.bundleColor ?? '#666';
   const routeStyle = data?.routeStyle ?? DEFAULT_WIRE_ROUTE_STYLE;
   const resolvedWaypoints = useMemo(
@@ -442,10 +468,6 @@ export function HarnessBundleEdge(props: EdgeProps<HarnessBundleEdgeType>) {
   const dotWirePullTargets = useMemo<DotWirePullTarget[]>(() => {
     if (!isEditor || !system || !pathIds?.length || allPoints.length < 2) return [];
     const targets: DotWirePullTarget[] = [];
-    const connectorIdForNode = (node: typeof sourceNode): string | null => {
-      const value = (node?.data as { connectorId?: unknown } | undefined)?.connectorId;
-      return typeof value === 'string' ? value : null;
-    };
     const canRelease = (connectorId: string | null): connectorId is string => {
       if (!connectorId) return false;
       const connector = system.connectors.find((candidate) => candidate.id === connectorId);
@@ -493,10 +515,10 @@ export function HarnessBundleEdge(props: EdgeProps<HarnessBundleEdgeType>) {
       });
     };
 
-    appendTargets('source', connectorIdForNode(sourceNode), source, allPoints[1]);
+    appendTargets('source', connectorIdOfNode(sourceNode), source, allPoints[1]);
     appendTargets(
       'target',
-      connectorIdForNode(targetNode),
+      connectorIdOfNode(targetNode),
       target,
       allPoints[allPoints.length - 2],
     );
@@ -720,8 +742,28 @@ export function HarnessBundleEdge(props: EdgeProps<HarnessBundleEdgeType>) {
       if (!selected || inspectorDismissed) {
         setSelectedHarnessBundle({ id, pathIds });
       }
+      // A pass-through bundle (dot on each end) carrying exactly one named
+      // signal has nothing else to click into — go straight to renaming it.
+      if (isEditor && signalId && signalName && bothEndsAreDots && !editingSignalLabel) {
+        setSignalLabelDraft(signalName);
+        setEditingSignalLabel(true);
+      }
     },
-    [handleFlowClick, selected, inspectorDismissed, id, pathIds, setSelectedHarnessBundle, selectedRoutePointIndex, clearRoutePointSelection],
+    [
+      handleFlowClick,
+      selected,
+      inspectorDismissed,
+      id,
+      pathIds,
+      setSelectedHarnessBundle,
+      selectedRoutePointIndex,
+      clearRoutePointSelection,
+      isEditor,
+      signalId,
+      signalName,
+      bothEndsAreDots,
+      editingSignalLabel,
+    ],
   );
 
   // Double-click edge body: insert a bend point (only if not over a handle)
@@ -1168,11 +1210,26 @@ export function HarnessBundleEdge(props: EdgeProps<HarnessBundleEdgeType>) {
     setEditingSignalLabel(false);
     if (!signalId) return;
     const next = value.trim();
-    if (!next || next === signalLabel) return;
+    if (!next || next === signalName) return;
     pushUndoSnapshot(`edge:${id}:signal-label-rename`);
     renameEntity('signal', signalId, next);
     commitUndoSnapshot();
-  }, [commitUndoSnapshot, id, pushUndoSnapshot, renameEntity, signalId, signalLabel]);
+  }, [commitUndoSnapshot, id, pushUndoSnapshot, renameEntity, signalId, signalName]);
+
+  const cancelSignalLabelEdit = useCallback(() => {
+    setEditingSignalLabel(false);
+  }, []);
+
+  const handleSignalLabelInputKeyDown = useCallback((event: React.KeyboardEvent<HTMLInputElement>) => {
+    event.stopPropagation();
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      commitSignalLabelRename(signalLabelDraft);
+    } else if (event.key === 'Escape') {
+      event.preventDefault();
+      cancelSignalLabelEdit();
+    }
+  }, [commitSignalLabelRename, signalLabelDraft, cancelSignalLabelEdit]);
 
   const resetSignalLabelPosition = useCallback((event?: React.MouseEvent) => {
     if (!isEditor || !signalLabel) return;
@@ -1620,25 +1677,53 @@ export function HarnessBundleEdge(props: EdgeProps<HarnessBundleEdgeType>) {
           className="overflow-visible"
         >
           <div className="flex items-center justify-center h-full gap-0.5">
-            <span
-              role="button"
-              className={`max-w-full truncate rounded px-1.5 py-0.5 font-medium shadow select-none ${
-                isEditor ? 'cursor-grab active:cursor-grabbing' : ''
-              } ${
-                signalLabelSelected || selected
-                  ? 'text-[11px] bg-zinc-800 text-zinc-100 border border-zinc-600'
-                  : 'text-[9px] bg-zinc-900/80 text-zinc-200 border border-zinc-700/80'
-              }`}
-              title={isEditor
-                ? `${signalLabel} — drag to move, Delete or × to hide, double-click to reset`
-                : signalLabel}
-              onMouseDown={handleSignalLabelDragStart}
-              onDoubleClick={handleSignalLabelDoubleClick}
-              onClick={(event) => event.stopPropagation()}
-            >
-              {signalLabel}
-            </span>
-            {isEditor && (selected || signalLabelSelected || hovered) && (
+            {editingSignalLabel ? (
+              <input
+                ref={signalLabelInputRef}
+                value={signalLabelDraft}
+                aria-label="Rename signal"
+                className="nodrag nopan w-full min-w-0 max-w-full rounded border border-amber-500 bg-zinc-950 px-1.5 py-0.5 text-[11px] font-medium text-zinc-100 outline-none"
+                onChange={(event) => setSignalLabelDraft(event.target.value)}
+                onBlur={(event) => commitSignalLabelRename(event.target.value)}
+                onClick={(event) => event.stopPropagation()}
+                onMouseDown={(event) => event.stopPropagation()}
+                onKeyDown={handleSignalLabelInputKeyDown}
+              />
+            ) : (
+              <span
+                role="button"
+                className={`max-w-full truncate rounded px-1.5 py-0.5 font-medium shadow select-none ${
+                  isEditor ? 'cursor-grab active:cursor-grabbing' : ''
+                } ${
+                  signalLabelSelected || selected
+                    ? 'text-[11px] bg-zinc-800 text-zinc-100 border border-zinc-600'
+                    : 'text-[9px] bg-zinc-900/80 text-zinc-200 border border-zinc-700/80'
+                }`}
+                title={isEditor
+                  ? `${signalLabel} — drag to move, double-click to rename, Delete or × to hide`
+                  : signalLabel}
+                onMouseDown={handleSignalLabelDragStart}
+                onDoubleClick={handleSignalLabelDoubleClick}
+                onClick={(event) => event.stopPropagation()}
+              >
+                {signalLabel}
+              </span>
+            )}
+            {!editingSignalLabel && isEditor && signalLabelRepositioned && (selected || signalLabelSelected || hovered) && (
+              <button
+                type="button"
+                className="shrink-0 rounded px-0.5 text-[9px] leading-none text-zinc-400 hover:text-amber-400"
+                title="Reset name to default position"
+                onMouseDown={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                }}
+                onClick={resetSignalLabelPosition}
+              >
+                ⤾
+              </button>
+            )}
+            {!editingSignalLabel && isEditor && (selected || signalLabelSelected || hovered) && (
               <button
                 type="button"
                 className="shrink-0 rounded px-0.5 text-[9px] leading-none text-zinc-400 hover:text-red-400"

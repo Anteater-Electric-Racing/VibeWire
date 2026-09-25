@@ -27,7 +27,7 @@ import {
   BULKHEAD_DOT_SIZE,
   DEFAULT_BULKHEAD_SIZE,
   ensureEnclosureBulkheadPlaceholders,
-  isTerminalVisualDot,
+  isBulkheadDot,
   routeRequestToken,
   unmergeNonTerminalVisualDots,
 } from './routing.js';
@@ -472,7 +472,7 @@ export function validateSystemData(system: SystemData, library: ConnectorLibrary
   const signalIds = new Set(system.signals.map((entity) => entity.id));
   const signalPropertyKeys = new Set<string>();
   const connectorTypeById = new Map((library?.connector_types ?? []).map((item) => [item.id, item]));
-  const occupancy = new Map<string, string[]>();
+  const occupancy = new Map<string, Array<{ pathId: string; terminal: boolean }>>();
 
   for (const definition of signalPropertyDefinitions) {
     if (!definition.key?.trim()) {
@@ -596,7 +596,11 @@ export function validateSystemData(system: SystemData, library: ConnectorLibrary
         }
         const key = `${node.connector_id}:${node.pin_number}`;
         const refs = occupancy.get(key) ?? [];
-        refs.push(pathItem.id);
+        const nodeIndex = pathItem.nodes.indexOf(node);
+        refs.push({
+          pathId: pathItem.id,
+          terminal: nodeIndex === 0 || nodeIndex === pathItem.nodes.length - 1,
+        });
         occupancy.set(key, refs);
       } else if (!branchPointIds.has(node.branch_point_id)) {
         errors.push(`Path '${pathItem.id}' references missing branch point '${node.branch_point_id}'`);
@@ -631,9 +635,16 @@ export function validateSystemData(system: SystemData, library: ConnectorLibrary
     }
   }
 
-  for (const [ref, pathIds] of occupancy.entries()) {
-    if (pathIds.length > 1) {
-      errors.push(`Connector pin '${ref}' is occupied by multiple paths: ${pathIds.join(', ')}`);
+  for (const [ref, refs] of occupancy.entries()) {
+    if (refs.length <= 1) continue;
+    const [connectorId] = ref.split(':');
+    const connector = system.connectors.find((item) => item.id === connectorId);
+    // Visual dots are unlimited splice points: any number of paths may
+    // terminate at the same displayed pin. Only flag it when a path uses the
+    // pin mid-route, or when the pin belongs to an ordinary (non-dot) cavity.
+    const dotSplice = isBulkheadDot(connector) && refs.every((occurrence) => occurrence.terminal);
+    if (!dotSplice) {
+      errors.push(`Connector pin '${ref}' is occupied by multiple paths: ${refs.map((occurrence) => occurrence.pathId).join(', ')}`);
     }
   }
 
@@ -2332,17 +2343,9 @@ export function createApiMiddleware(projectRoot: string) {
               error: 'One or both connector endpoints do not exist',
             });
           }
-          for (const connector of [fromConnector, toConnector]) {
-            if (
-              !draftIds.has(connector.id)
-              && connector.properties[BULKHEAD_DISPLAY_PROPERTY] === BULKHEAD_DOT_DISPLAY
-              && !isTerminalVisualDot(system, connector.id)
-            ) {
-              throw new ApiWriteError(409, {
-                error: `Visual dot ${connector.name} is not a terminal endpoint.`,
-              });
-            }
-          }
+          // Visual dots are unlimited splice points: a wire may land on a dot
+          // even while it is currently a through-node for another wire (it
+          // simply gains another independent endpoint at that pin/side).
           for (const [connector, pinNumber] of [
             [fromConnector, fromPin],
             [toConnector, toPin],
@@ -2372,6 +2375,14 @@ export function createApiMiddleware(projectRoot: string) {
             pinNumber: number,
             otherConnector: Connector,
           ): PassThroughJoin | null => {
+            // Visual dots are unlimited splice points, not physical pass-through
+            // cavities: any number of wires may terminate at the same displayed
+            // pin. A dot may still stitch two single wires into one continuous
+            // path (classic dot-to-dot pass-through), but once that no longer
+            // cleanly applies (already fanned out, mismatched signal, etc.) a
+            // new wire simply lands as another independent endpoint instead of
+            // being rejected.
+            const isDot = isBulkheadDot(connector);
             const uses = system.paths.flatMap((wirePath) =>
               wirePath.nodes.flatMap((node, nodeIndex) =>
                 node.kind === 'connector'
@@ -2383,6 +2394,7 @@ export function createApiMiddleware(projectRoot: string) {
             );
             if (uses.length === 0) return null;
             if (!isPassThroughConnector(system, connector) || uses.length !== 1) {
+              if (isDot) return null;
               throw new ApiWriteError(409, {
                 error: `Cannot route from or to occupied cavity ${connector.name}:${pinNumber}`,
               });
@@ -2390,12 +2402,14 @@ export function createApiMiddleware(projectRoot: string) {
 
             const [{ wirePath, nodeIndex }] = uses;
             if (nodeIndex !== 0 && nodeIndex !== wirePath.nodes.length - 1) {
+              if (isDot) return null;
               throw new ApiWriteError(409, {
                 error: `${isInlineConnector(connector) ? 'Inline connector' : 'Bulkhead'} cavity ${connector.name}:${pinNumber} already has both connections`,
               });
             }
             const neighbor = wirePath.nodes[nodeIndex === 0 ? 1 : nodeIndex - 1];
             if (!neighbor) {
+              if (isDot) return null;
               throw new ApiWriteError(409, {
                 error: `Pass-through cavity ${connector.name}:${pinNumber} has an invalid existing path`,
               });
@@ -2404,6 +2418,7 @@ export function createApiMiddleware(projectRoot: string) {
               const existingSide = getBulkheadConnectionSide(system, connector, neighbor);
               const requestedSide = getBulkheadConnectionSide(system, connector, otherConnector);
               if (existingSide === requestedSide) {
+                if (isDot) return null;
                 throw new ApiWriteError(409, {
                   error: `Bulkhead cavity ${connector.name}:${pinNumber} already has an ${requestedSide} connection`,
                 });
@@ -2411,6 +2426,7 @@ export function createApiMiddleware(projectRoot: string) {
             }
             const existingSignalId = getPathSignalId(wirePath);
             if (existingSignalId && existingSignalId !== body.signal_id) {
+              if (isDot) return null;
               throw new ApiWriteError(409, {
                 error: `The opposite side of ${connector.name}:${pinNumber} uses signal ${existingSignalId}`,
               });

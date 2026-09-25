@@ -7,6 +7,7 @@ export {
   DEFAULT_BULKHEAD_SIZE,
   ensureEnclosureBulkheadPlaceholders,
   isAutoBulkheadPlaceholder,
+  isBulkheadDot,
   isTerminalVisualDot,
   planBoundaryRoute as planSheetRoute,
   planEnclosureRoute,

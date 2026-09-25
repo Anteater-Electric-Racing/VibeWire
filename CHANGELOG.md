@@ -3,10 +3,46 @@
 User-facing and architectural product changes, newest first. Fixture-specific System edits, pinouts,
 IDs, and data corrections belong in Git history, not this changelog.
 
+## 2026-09-17 — Fix corner resize being hijacked by visual-dot placement
+
+- Dragging a Device or Enclosure box's corner resize handle could instead start placing a wall
+  visual dot, because the wall-hover draft's hit-tested rect could overlap the resize handle.
+  Hovering or pressing down on a `react-flow__resize-control` handle now always suppresses the
+  visual-dot draft, so corner (and edge) resizing works reliably again.
+
+## 2026-09-17 — Visual dots accept unlimited wires and match splice color
+
+- A Bulkhead visual dot is now an unlimited splice point instead of a two-sided cavity: any number
+  of wires may route onto the same dot, on the same side, even while the dot already carries other
+  wires. Previously a second wire on the same side (or a third wire at all) was rejected with
+  "already has an external/internal connection" or "occupied cavity". Two single-wire dots joined
+  directly still stitch into one continuous pass-through path as before; ordinary Bulkhead and
+  Inline connectors keep the strict one-wire-per-side rule since they represent one physical cavity.
+- When every signal already routed to a visual dot shares one wire color, the **Choose signal**
+  popup now pre-fills that color for a new wire routed to the same dot, even if the new wire ends up
+  on a different signal or pin.
+
+## 2026-09-17 — Click a pass-through wire to rename its signal
+
+- Clicking a Harness Bundle that runs dot-to-dot (a Bulkhead visual dot on each end) and carries
+  exactly one named signal now jumps straight into renaming that signal, instead of only selecting
+  the bundle. Type the new name; Enter or clicking away commits it, Escape cancels. Bundles that
+  touch a device/enclosure box on either end, or that mix or lack a named signal, still just select
+  on click and rename via double-click on the name as before.
+
 ## 2026-09-17 — Black wires keep a light grey outline
 
 - Solid and striped black wires draw a light grey outline on the canvas and in manufacturing so they
   stay visible on the dark background.
+
+## 2026-09-17 — Rename a signal from its bundle label, hide default names
+
+- A Harness Bundle's single-signal name label is now editable in place: double-click it to rename
+  the underlying signal. Enter or blur commits, Escape cancels.
+- The label no longer shows for signals that still have their default `new signal` name; it starts
+  showing once the signal is renamed to something else. The path-count chip stays visible instead.
+- When the name has been dragged off its default midpoint, a ⤾ button next to it resets the
+  position (previously double-click did this, which now renames instead).
 
 ## 2026-09-17 — Hide and restore signal names
 

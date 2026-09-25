@@ -155,24 +155,29 @@ export function isTerminalVisualDot(
     && occurrences.every(({ index, lastIndex }) => index === 0 || index === lastIndex);
 }
 
-/** Cavity used when routing to or from a terminal dot as a single hit target. */
+/**
+ * Cavity used when routing to or from a visual dot as a single hit target.
+ *
+ * A dot is an unlimited splice: any number of wires may land on it, so this
+ * always resolves to a usable pin, even when the dot is currently a
+ * through-node for another wire. When exactly one pin is already in use
+ * (terminal or through), new wires reuse it so the dot keeps rendering as one
+ * merged point; otherwise the next free pin is handed out.
+ */
 export function getVisualDotRoutePin(
   system: Pick<SystemData, 'connectors' | 'paths'>,
   connectorId: string,
 ): number | null {
-  if (!isTerminalVisualDot(system, connectorId)) return null;
-  const terminalPins = new Set<number>();
+  const connector = system.connectors.find((candidate) => candidate.id === connectorId);
+  if (!isBulkheadDot(connector)) return null;
   const usedPins = new Set<number>();
   for (const path of system.paths) {
-    path.nodes.forEach((node, index) => {
+    path.nodes.forEach((node) => {
       if (node.kind !== 'connector' || node.connector_id !== connectorId) return;
       usedPins.add(node.pin_number);
-      if (index === 0 || index === path.nodes.length - 1) {
-        terminalPins.add(node.pin_number);
-      }
     });
   }
-  if (terminalPins.size === 1) return [...terminalPins][0];
+  if (usedPins.size === 1) return [...usedPins][0];
   let freePin = 1;
   while (usedPins.has(freePin)) freePin += 1;
   return freePin;

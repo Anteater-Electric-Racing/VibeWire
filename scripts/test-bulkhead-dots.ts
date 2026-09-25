@@ -321,7 +321,11 @@ mergedTerminal.paths[0].nodes.push({
   pin_number: 1,
 });
 assert.equal(isTerminalVisualDot(mergedTerminal, 'con_dot'), false);
-assert.equal(getVisualDotRoutePin(mergedTerminal, 'con_dot'), null);
+assert.equal(
+  getVisualDotRoutePin(mergedTerminal, 'con_dot'),
+  3,
+  'a through-dot still exposes a free pin as a valid splice target',
+);
 assert.equal(
   canMergePassThroughConnectors(mergedTerminal, 'con_dot', 'con_dot_peer'),
   false,
